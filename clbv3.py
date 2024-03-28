@@ -2,8 +2,9 @@
 
 # Copyright (C) 2024 Enjoy-Digital.
 
-import sys
 import argparse
+import sys
+import glob
 
 from litex.gen import *
 
@@ -279,31 +280,91 @@ class BaseSoC(SoCCore):
             o_clk_dmtd_62m5_n_o = bullseye.clk_dmtd_62m5_n,
         )
 
-        #self.vhd2v_converter = VHD2VConverter(self.platform,
-        #    top_entity = "clbv3_wr_ref_top",
-        #    build_dir  = os.path.abspath(os.path.dirname(__file__)),
-        #    force_convert = False,
-        #)
+        wr_cores_basedir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "wr-cores")
 
         # fill converter with all path / files required
         # board specifics
         board_files = [
-            "board/clbv3/wr_clbv3_pkg.vhd"
-            "board/clbv3/xwrc_board_clbv3.vhd"
-            "board/common/wr_board_pkg.vhd"
+            "board/clbv3/wr_clbv3_pkg.vhd",
+            "board/clbv3/xwrc_board_clbv3.vhd",
+            "board/common/wr_board_pkg.vhd",
+            "board/common/xwrc_board_common.vhd",
             "top/clbv3_ref_design/clbv3_wr_ref_top.bmm",
             "top/clbv3_ref_design/clbv3_wr_ref_top.vhd",
+            "platform/xilinx/xwrc_platform_vivado.vhd", # to rewrite for acorn
         ]
 
-        wr_cores_deps = [
-            "ip_cores/general-cores/modules",
-            "ip_cores/urv-core/rtl",
-            "modules",
-            "platform/xilinx/wr_gtp_phy/family7-gtp",
-            "platform/xilinx/wr_gtp_phy/gtp_bitslide.vhd",
-            "platform/xilinx/wr_xilinx_pkg.vhd",
-            "platform/xilinx/xwrc_platform_vivado.vhd",
-        ]
+        if False:
+            wr_cores_pkgs = [
+                "ip_cores/general-cores/modules/genrams/genram_pkg.vhd",
+                "ip_cores/general-cores/modules/genrams/memory_loader_pkg.vhd",
+                "ip_cores/general-cores/modules/wishbone/wishbone_pkg.vhd",
+                "ip_cores/urv-core/rtl/urv_pkg.vhd",
+                "modules/wr_tbi_phy/disparity_gen_pkg.vhd",
+                "modules/wr_endpoint/endpoint_pkg.vhd",
+                "platform/xilinx/wr_xilinx_pkg.vhd",
+            ]
+
+            # FIXME: a filter to remove unwanted files?
+            endpoint = set(os.path.basename(f) for f in glob.glob(os.path.join(wr_cores_basedir, "modules/wr_endpoint", "*.vhd")))
+            endpoint = list(endpoint - set(["ep_tx_framer.vhd", "endpoint_pkg"]))
+            wr_cores_deps_files = [
+                # can't directly include rtl directory (fails with debug)
+                "ip_cores/urv-core/rtl/urv_cpu.v",
+                "ip_cores/urv-core/rtl/urv_csr.v",
+                "ip_cores/urv-core/rtl/urv_decode.v",
+                "ip_cores/urv-core/rtl/urv_divide.v",
+                "ip_cores/urv-core/rtl/urv_ecc.v",
+                "ip_cores/urv-core/rtl/urv_exceptions.v",
+                "ip_cores/urv-core/rtl/urv_exec.v",
+                "ip_cores/urv-core/rtl/urv_fetch.v",
+                "ip_cores/urv-core/rtl/urv_multiply.v",
+                "ip_cores/urv-core/rtl/urv_regfile.v",
+                "ip_cores/urv-core/rtl/urv_shifter.v",
+                "ip_cores/urv-core/rtl/urv_timer.v",
+                "ip_cores/urv-core/rtl/urv_writeback.v",
+                "ip_cores/general-cores/modules/genrams/xilinx/gc_shiftreg.vhd",
+                "ip_cores/general-cores/modules/genrams/xilinx/generic_dpram.vhd",
+                "ip_cores/general-cores/modules/genrams/xilinx/generic_dpram_dualclock.vhd",
+                "ip_cores/general-cores/modules/genrams/xilinx/generic_dpram_sameclock.vhd",
+                "ip_cores/general-cores/modules/genrams/xilinx/generic_dpram_split.vhd",
+                *[os.path.join("modules/wr_endpoint", f) for f in endpoint],
+            ]
+            wr_cores_deps = [
+                "modules/wrc_core",
+                "platform/xilinx/wr_gtp_phy/family7-gtp",
+                "platform/xilinx/wr_gtp_phy/gtp_bitslide.vhd",
+                "platform/xilinx/xwrc_platform_vivado.vhd",
+                # explicit general-cores subdirectories: otherwise fails with lm32
+                "ip_cores/general-cores/modules/common",
+                # explicit sub-directories to avoid altera part
+                "ip_cores/general-cores/modules/genrams/common",
+                "ip_cores/general-cores/modules/genrams/generic",
+                # conflict with genrams/xilinx/virtex6
+                "ip_cores/general-cores/modules/wishbone/wb_clock_monitor",
+                "ip_cores/general-cores/modules/wishbone/wb_crossbar",
+                "ip_cores/general-cores/modules/wishbone/wb_onewire_master",
+                "ip_cores/general-cores/modules/wishbone/wb_slave_adapter",
+                "ip_cores/general-cores/modules/wishbone/wb_uart",
+                "ip_cores/general-cores/modules/wishbone/wbgen2",
+                # keep modules after wishbone_pkg
+                "modules/fabric",
+                "modules/timing",
+                "modules/wr_mini_nic",
+                "modules/wr_pps_gen",
+                "modules/wr_softpll_ng",
+                "modules/wr_streamers",
+            ]
+
+            for pkg in wr_cores_pkgs:
+                platform.add_source(os.path.join(wr_cores_basedir, pkg))
+            for f in wr_cores_deps_files:
+                platform.add_source(os.path.join(wr_cores_basedir, f))
+            for wrcd in wr_cores_deps:
+                platform.add_source_dir(os.path.join(wr_cores_basedir, wrcd))
+
+        for bf in board_files:
+            platform.add_source(os.path.join(wr_cores_basedir, bf))
 
         for f in list_files.wr_core_list:
             platform.add_source(os.path.join(os.path.abspath(os.path.dirname(__file__)), "wr-cores", f))
