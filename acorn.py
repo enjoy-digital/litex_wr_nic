@@ -101,19 +101,15 @@ class BaseSoC(SoCCore):
 
         SoCMini.__init__(self, platform, clk_freq=sys_clk_freq)
 
-        self.sfp     = platform.request("sfp")
-        self.sfp_i2c = platform.request("sfp_i2c")
-        self.serial  = platform.request("serial")
-        self.leds    = platform.request_all("user_led")
+        self.sfp        = platform.request("sfp")
+        self.sfp_i2c    = platform.request("sfp_i2c")
+        self.serial     = platform.request("serial")
+        self.leds       = platform.request_all("user_led")
 
-        self.gen_xwrc_board_acorn()
-
-
-        self.timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
-        self.comb += self.timer.wait.eq(1)
-        self.comb += self.leds[3].eq(~self.timer.done)
-
-
+        self.led_fake_pps = Signal()
+        self.led_pps      = Signal()
+        self.led_link     = Signal()
+        self.led_act      = Signal()
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
         self.control = CSRStorage(fields=[
@@ -149,6 +145,18 @@ class BaseSoC(SoCCore):
             self.sfp_det.eq(self.control.fields.sfp_detect),
             self.wr_rstn.eq(~self.rst_ctrl.fields.reset),
         ]
+
+
+        self.gen_xwrc_board_acorn()
+
+        self.comb += self.leds.eq(Cat(~self.led_link, ~self.led_act, ~self.led_pps, ~self.led_fake_pps))
+
+        self.timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
+        self.comb += self.timer.wait.eq(~self.timer.done)
+        self.sync.clk_10m_ext += If(self.timer.done,
+            self.led_fake_pps.eq(~self.led_fake_pps)
+        )
+
 
         # fill converter with all path / files required
         # board specifics
@@ -224,9 +232,9 @@ class BaseSoC(SoCCore):
 
             o_pps_ext_i           = 0,#wrc_pps_in,
             #o_pps_p_o             = wrc_pps_out,
-            o_pps_led_o           = self.leds[2],
-            o_led_link_o          = self.leds[0],
-            o_led_act_o           = self.leds[1]
+            o_pps_led_o           = self.led_pps,
+            o_led_link_o          = self.led_link,
+            o_led_act_o           = self.led_act
         )
 
 
