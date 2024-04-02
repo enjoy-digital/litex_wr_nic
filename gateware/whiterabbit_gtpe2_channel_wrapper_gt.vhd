@@ -440,7 +440,7 @@ begin
        --For SATA Gen2 GTP- set RXCDR_CFG=83'h0_0000_47FE_2060_2448_1010
 
        --For SATA Gen1 GTP- set RXCDR_CFG=83'h0_0000_47FE_1060_2448_1010
-        RXCDR_CFG                               =>     x"0000107FE106001041010"), -- diff
+        RXCDR_CFG                               =>     (x"0000107FE106001041010"), -- diff
         RXCDR_FR_RESET_ON_EIDLE                 =>     ('0'),
         RXCDR_HOLD_DURING_EIDLE                 =>     ('0'),
         RXCDR_PH_RESET_ON_EIDLE                 =>     ('0'),
