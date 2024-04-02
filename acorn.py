@@ -24,6 +24,8 @@ from litex.soc.integration.builder import *
 
 from litex_boards.platforms import sqrl_acorn
 
+from litescope import LiteScopeAnalyzer
+
 import list_files
 
 # IOs ----------------------------------------------------------------------------------------------
@@ -44,6 +46,7 @@ _ios = [
         Subsignal("scl", Pins("Y11")),
         IOStandard("LVCMOS18"),
     ),
+    ("debug", 0, Pins("H5 J5 K2 J2"), IOStandard("LVCMOS33")),
 ]
 
 # Platform -----------------------------------------------------------------------------------------
@@ -152,6 +155,12 @@ class BaseSoC(SoCCore):
             self.wr_rstn.eq(~self.rst_ctrl.fields.reset),
         ]
 
+        # Debug
+        self.clk_ref_locked   = Signal()
+        self.dbg_rdy          = Signal()
+        self.clk_ref_62m5     = Signal()
+        self.debug_pins       = platform.request("debug")
+        self.comb += self.debug_pins.eq(Cat(self.clk_ref_62m5, Signal(3)))
 
         self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "wrc_acorn.bram"))
 
@@ -178,6 +187,17 @@ class BaseSoC(SoCCore):
 
         self.add_sources()
 
+        analyzer_signals = [
+            self.clk_ref_locked,
+            self.dbg_rdy,
+        ]
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            depth        = 128,
+            clock_domain = "sys",
+            register     = True,
+            csr_csv      = "analyzer.csv"
+        )
+
     def gen_xwrc_board_acorn(self, bram):
 
         self.specials += Instance("xwrc_board_acorn",
@@ -186,6 +206,9 @@ class BaseSoC(SoCCore):
             #p_g_dpram_initf               = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16_direct_dmtd.bram",
             p_g_DPRAM_INITF                = bram,
             #p_g_fabric_iface              = "PLAIN",
+            o_clk_ref_locked_o    = self.clk_ref_locked,
+            o_dbg_rdy_o           = self.dbg_rdy,
+            o_clk_ref_62m5_o      = self.clk_ref_62m5,
 
             i_areset_n_i          = (~ResetSignal("sys") | self.wr_rstn),
             i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
