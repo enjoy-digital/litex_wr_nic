@@ -16,6 +16,7 @@ from litex.build.xilinx import Xilinx7SeriesPlatform
 from litex.build.openfpgaloader import OpenFPGALoader
 
 from litex.soc.cores.clock import *
+from litex.soc.interconnect.csr import *
 
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import *
@@ -115,6 +116,40 @@ class BaseSoC(SoCCore):
 
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
+        self.control = CSRStorage(fields=[
+            CSRField("sfp_los", size=1, offset=0, values=[
+                ("``0b0``", "Set Low."),
+                ("``0b1``", "Set High.")
+            ], reset=0),
+            CSRField("sfp_fault", size=1, offset=1, values=[
+                ("``0b0``", "Set Low."),
+                ("``0b1``", "Set High.")
+            ], reset=0),
+            CSRField("sfp_detect", size=1, offset=2, values=[
+                ("``0b0``", "Set Low."),
+                ("``0b1``", "Set High.")
+            ], reset=1),
+        ])
+
+        self.rst_ctrl = CSRStorage(fields=[
+            CSRField("reset", size=1, offset=0, values=[
+                ("``0b0``", "Normal Mode."),
+                ("``0b1``", "Reset Mode.")
+            ], reset=0),
+        ])
+
+        self.sfp_tx_los   = Signal()
+        self.sfp_tx_fault = Signal()
+        self.sfp_det      = Signal()
+        self.wr_rstn      = Signal()
+
+        self.comb += [
+            self.sfp_tx_los.eq(self.control.fields.sfp_los),
+            self.sfp_tx_fault.eq(self.control.fields.sfp_fault),
+            self.sfp_det.eq(self.control.fields.sfp_detect),
+            self.wr_rstn.eq(~self.rst_ctrl.fields.reset),
+        ]
+
         # fill converter with all path / files required
         # board specifics
         board_files = [
@@ -144,7 +179,7 @@ class BaseSoC(SoCCore):
             p_g_DPRAM_INITF                = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16.bram",
             #p_g_fabric_iface              = "PLAIN",
 
-            i_areset_n_i          = ~ResetSignal("sys"),
+            i_areset_n_i          = (~ResetSignal("sys") | self.wr_rstn),
             i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
             i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
             i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
@@ -165,13 +200,13 @@ class BaseSoC(SoCCore):
             o_sfp_txn_o           = self.sfp.txn,
             i_sfp_rxp_i           = self.sfp.rxp,
             i_sfp_rxn_i           = self.sfp.rxn,
-            i_sfp_det_i           = 1,#self.sfp_mod_def0_i,
+            i_sfp_det_i           = self.sfp_det,
             io_sfp_sda            = self.sfp_i2c.sda,
             io_sfp_scl            = self.sfp_i2c.scl,
             #sfp_rate_select_o   => self.sfp_rate_select_o,
-            #sfp_tx_fault_i      => self.sfp_tx_fault_i,
+            i_sfp_tx_fault_i      = self.sfp_tx_fault,
             #sfp_tx_disable_o    => self.sfp_tx_disable_o,
-            #sfp_los_i           => self.sfp_los_i,
+            i_sfp_tx_los_i        = self.sfp_tx_los,
 
             #eeprom_sda_i        => eeprom_sda_in,
             #eeprom_sda_o        => eeprom_sda_out,
