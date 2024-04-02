@@ -99,7 +99,10 @@ class BaseSoC(SoCCore):
 
         self.crg = _CRG(platform, sys_clk_freq)
 
-        SoCMini.__init__(self, platform, clk_freq=sys_clk_freq)
+        SoCMini.__init__(self, platform,
+            clk_freq      = sys_clk_freq,
+            with_jtagbone = True
+        )
 
         self.sfp        = platform.request("sfp")
         self.sfp_i2c    = platform.request("sfp_i2c")
