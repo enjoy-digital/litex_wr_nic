@@ -166,6 +166,9 @@ entity xwrc_platform_xilinx is
     phy16_o               : out t_phy_16bits_to_wrc;
     phy16_i               : in  t_phy_16bits_from_wrc := c_dummy_phy16_from_wrc;
 
+    -- test/debug
+    dbg_rdy_o             : out std_logic;
+
     -- External reference
     ext_ref_mul_o         : out std_logic;
     ext_ref_mul_locked_o  : out std_logic;
@@ -713,6 +716,9 @@ begin  -- architecture rtl
     phy16_o.sfp_tx_fault <= sfp_tx_fault_i;
     phy16_o.sfp_los      <= sfp_los_i;
     sfp_tx_disable_o     <= phy16_i.sfp_tx_disable;
+
+    -- test/debug
+    dbg_rdy_o            <= phy16_o.rdy;
 
     phy8_o <= c_dummy_phy8_to_wrc;
 

@@ -92,6 +92,11 @@ entity xwrc_board_acorn is
     -- External PPS input (g_with_external_clock_input = TRUE)
     pps_ext_i           : in  std_logic                               := '0';
 
+    -- debug/test ggm 20240402
+    clk_ref_62m5_o      : out std_logic;
+    clk_ref_locked_o    : out std_logic;
+    dbg_rdy_o           : out std_logic;
+
     ---------------------------------------------------------------------------
     -- Shared SPI interface to DACs
     ---------------------------------------------------------------------------
@@ -299,7 +304,7 @@ begin  -- architecture struct
   -- Platform-dependent part (PHY, PLLs, buffers, etc)
   -----------------------------------------------------------------------------
 
-  cmp_xwrc_platform : xwrc_platform_xilinx
+  cmp_xwrc_platform : entity work.xwrc_platform_xilinx
     generic map (
       g_fpga_family               => "artix7",
       g_direct_dmtd               => TRUE,
@@ -307,6 +312,10 @@ begin  -- architecture struct
       g_use_default_plls          => TRUE,
       g_simulation                => 0)
     port map (
+      -- test/debug ggm 20240402
+      clk_ref_locked_o      => clk_ref_locked_o,
+      dbg_rdy_o             => dbg_rdy_o,
+
       areset_n_i            => areset_n_i,
       clk_10m_ext_i         => clk_10m_ext_i,
       clk_125m_dmtd_i       => clk_125m_dmtd_i,
@@ -331,6 +340,7 @@ begin  -- architecture struct
       ext_ref_mul_stopped_o => ext_ref_mul_stopped,
       ext_ref_rst_i         => ext_ref_rst);
 
+  clk_ref_62m5_o <= clk_ref_62m5;
 
   -----------------------------------------------------------------------------
   -- Reset logic
