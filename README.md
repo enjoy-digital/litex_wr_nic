@@ -1,3 +1,30 @@
+## Prerequisites
+
+### Gateware
+Official way requires `hdlmake` to generates `Makefile`
+
+```bash
+git clone https://ohwr.org/project/hdl-make.git
+
+cd hdl-make
+
+# by the past master branch was broken
+git checkout origin/develop -b develop
+
+pip3 install --user -e .
+
+```
+
+### Software
+
+White-rabbit contains a riscv the firmware must be build (for security) with
+the toolchain recommended (see [section 2.2](https://ohwr.org/project/wr-cores/wikis/uploads/7cf8d2161b6e5fa86348455bbd022196/wrpc-user-manual-v5.0.pdf):
+
+
+```bash
+wget https://ohwr.org/project/wrpc-sw/wikis/uploads/9f9224d2249848ed3e854636de9c08dc/riscv-11.2-small.tgz
+tar xJf riscv-11.2-small.tgz
+```
 
 ## Install
 
@@ -16,19 +43,6 @@ git submodule update --init
 
 ```
 
-This repository also requires `hdlmake` to generates `Makefile`
-
-```bash
-git clone https://ohwr.org/project/hdl-make.git
-
-cd hdl-make
-
-# by the past master branch was broken
-git checkout origin/develop -b develop
-
-pip3 install --user -e .
-
-```
 
 ### Building clv3 reference design (Artix based board)
 
@@ -74,6 +88,7 @@ These are located in three distincts location:
 - We assume repo is cloned at this repo root directory
 - The firmware must be build before gateware
 
+**NOTE:** the riscv toolchain must be available in `PATH`
 
 ```bash
 git clone https://ohwr.org/project/wrpc-sw.git
