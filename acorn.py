@@ -94,8 +94,8 @@ class BaseSoC(SoCCore):
         platform = Platform()
         platform.add_extension(_ios, prepend=True)
 
-        file_basedir          = os.path.abspath(os.path.dirname(__file__))
-        self.wr_cores_basedir = os.path.join(file_basedir, "wr-cores")
+        self.file_basedir     = os.path.abspath(os.path.dirname(__file__))
+        self.wr_cores_basedir = os.path.join(self.file_basedir, "wr-cores")
 
         self.crg = _CRG(platform, sys_clk_freq)
 
@@ -173,25 +173,7 @@ class BaseSoC(SoCCore):
                 i_USRDONETS = 1,
             )
 
-        # fill converter with all path / files required
-        # board specifics
-        board_files = [
-            "board/clbv3/wr_clbv3_pkg.vhd",
-            #"board/clbv3/xwrc_board_clbv3.vhd",
-            "board/common/wr_board_pkg.vhd",
-            "board/common/xwrc_board_common.vhd",
-            "top/clbv3_ref_design/clbv3_wr_ref_top.bmm",
-            "top/clbv3_ref_design/clbv3_wr_ref_top.vhd",
-        ]
-        platform.add_source(os.path.join(file_basedir, "gateware/xwrc_platform_vivado.vhd"))
-        platform.add_source(os.path.join(file_basedir, "gateware/xwrc_board_acorn.vhd"))
-        platform.add_source(os.path.join(file_basedir, "gateware/whiterabbit_gtpe2_channel_wrapper_gt.vhd"))
-        
-        for bf in board_files:
-            platform.add_source(os.path.join(self.wr_cores_basedir, bf))
-
-        for f in list_files.wr_core_list:
-            platform.add_source(os.path.join(os.path.abspath(os.path.dirname(__file__)), "wr-cores", f))
+        self.add_sources()
 
     def gen_xwrc_board_acorn(self):
 
@@ -481,6 +463,32 @@ class BaseSoC(SoCCore):
     #    #onewire_oen_o <= onewire_en(0);
     #    #onewire_in(0) <= onewire_i;
     #    #onewire_in(1) <= '1';
+
+    def add_sources(self):
+        # fill converter with all path / files required
+        # board specifics
+        board_files = [
+            "board/clbv3/wr_clbv3_pkg.vhd",
+            "board/common/wr_board_pkg.vhd",
+            "board/common/xwrc_board_common.vhd",
+            "top/clbv3_ref_design/clbv3_wr_ref_top.bmm",
+            "top/clbv3_ref_design/clbv3_wr_ref_top.vhd",
+        ]
+
+        custom_files = [
+            "gateware/xwrc_platform_vivado.vhd",
+            "gateware/xwrc_board_acorn.vhd",
+            "gateware/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
+        ]
+
+        for cf in custom_files:
+            self.platform.add_source(os.path.join(self.file_basedir, cf))
+
+        for bf in board_files:
+            self.platform.add_source(os.path.join(self.wr_cores_basedir, bf))
+
+        for f in list_files.wr_core_list:
+            self.platform.add_source(os.path.join(os.path.abspath(os.path.dirname(__file__)), "wr-cores", f))
 
 
 # Build --------------------------------------------------------------------------------------------
