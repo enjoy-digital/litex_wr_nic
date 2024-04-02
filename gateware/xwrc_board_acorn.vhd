@@ -113,6 +113,8 @@ entity xwrc_board_acorn is
     sfp_det_i         : in  std_logic := '1';
     sfp_sda           : inout  std_logic;
     sfp_scl           : inout  std_logic;
+    sfp_tx_fault_i    : in std_logic;
+    sfp_tx_los_i      : in std_logic;
 
     ---------------------------------------------------------------------------
     -- I2C EEPROM
@@ -135,8 +137,12 @@ entity xwrc_board_acorn is
     uart_txd_o : out std_logic;
 
     ---------------------------------------------------------------------------
-    -- No Flash memory SPI interface
+    -- Flash memory SPI interface
     ---------------------------------------------------------------------------
+    spi_sclk_o : out std_logic;
+    spi_ncs_o  : out std_logic;
+    spi_mosi_o : out std_logic;
+    spi_miso_i : in  std_logic := '0';
 
     ---------------------------------------------------------------------------
     -- No External WB interface
@@ -310,8 +316,8 @@ begin  -- architecture struct
       sfp_txp_o             => sfp_txp_o,
       sfp_rxn_i             => sfp_rxn_i,
       sfp_rxp_i             => sfp_rxp_i,
-      sfp_tx_fault_i        => '0',
-      sfp_los_i             => '0',
+      sfp_tx_fault_i        => sfp_tx_fault_i,
+      sfp_los_i             => sfp_tx_los_i,
       sfp_tx_disable_o      => Open,
       clk_62m5_sys_o        => clk_pll_62m5,
       clk_125m_ref_o        => clk_ref_62m5,  -- Note: This is a 62m5 Clock for 16 bit PHYs!
@@ -411,12 +417,12 @@ begin  -- architecture struct
       g_with_external_clock_input => g_with_external_clock_input,
       g_board_name                => "CLB3",
       g_phys_uart                 => TRUE,
-      g_virtual_uart              => FALSE,
+      g_virtual_uart              => TRUE,
       g_aux_clks                  => g_aux_clks,
       g_ep_rxbuf_size             => 1024,
       g_tx_runt_padding           => TRUE,
       g_dpram_initf               => g_dpram_initf,
-      g_dpram_size                => 131072/4,
+      g_dpram_size                => 147456/4, -- 131072/4,
       g_interface_mode            => PIPELINED,
       g_address_granularity       => BYTE,
       g_aux_sdb                   => c_wrc_periph3_sdb,
@@ -459,10 +465,10 @@ begin  -- architecture struct
       sfp_sda_o            => sfp_sda_out,
       sfp_sda_i            => sfp_sda_in,
       sfp_det_i            => sfp_det_i,
-      spi_sclk_o           => open,
-      spi_ncs_o            => open,
-      spi_mosi_o           => open,
-      spi_miso_i           => '1',
+      spi_sclk_o           => spi_sclk_o,
+      spi_ncs_o            => spi_ncs_o,
+      spi_mosi_o           => spi_mosi_o,
+      spi_miso_i           => spi_miso_i,
       uart_rxd_i           => uart_rxd_i,
       uart_txd_o           => uart_txd_o,
       owr_pwren_o          => open,
