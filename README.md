@@ -66,3 +66,26 @@ These are located in three distincts location:
   * Manifest.py (required for `hdlmake` and useless here)
 - *syn/board_name*
 - *board/board_name*
+
+## LiteX Acorn Baseboard mini
+
+### riscv firmware
+
+- We assume repo is cloned at this repo root directory
+- The firmware must be build before gateware
+
+
+```bash
+git clone https://ohwr.org/project/wrpc-sw.git
+cd wrpc-sw
+git checkout 5ac04dd53a16f3931c3cb8361dc0d6bdbbf82dc6
+cp ../config_wrpc/acorn_defconfig configs/
+make acorn_defconfig
+make
+cp wrc.bram ../
+```
+
+### Gateware
+```bash
+./acorn.py --build --load
+```
