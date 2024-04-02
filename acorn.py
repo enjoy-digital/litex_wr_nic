@@ -13,6 +13,7 @@ from litex.build.generic_platform import *
 from litex.build.io import DifferentialInput, Tristate
 from litex.build.vhd2v_converter import *
 from litex.build.xilinx import Xilinx7SeriesPlatform
+from litex.build.openfpgaloader import OpenFPGALoader
 
 from litex.soc.cores.clock import *
 
@@ -44,6 +45,12 @@ _ios = [
     ),
 ]
 
+# Platform -----------------------------------------------------------------------------------------
+
+class Platform(sqrl_acorn.Platform):
+    def create_programmer(self, name="openfpgaloader"):
+        return OpenFPGALoader("litex-acorn-baseboard-mini")
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
@@ -57,7 +64,6 @@ class _CRG(LiteXModule):
         # # #
 
         # Clk/Rst.
-        print(platform.constraint_manager.__dict__)
         clk200    = platform.request("clk200")
         clk200_se = Signal()
         self.specials += DifferentialInput(clk200.p, clk200.n, clk200_se)
@@ -79,7 +85,7 @@ class _CRG(LiteXModule):
 
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=125e6):
-        platform = sqrl_acorn.Platform()
+        platform = Platform()
         platform.add_extension(_ios, prepend=True)
 
         file_basedir          = os.path.abspath(os.path.dirname(__file__))
@@ -412,13 +418,22 @@ class BaseSoC(SoCCore):
 
 def main():
     from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=sqrl_acorn.Platform, description="CLBV3 WR.")
+    parser = LiteXArgumentParser(platform=Platform, description="Acorn WR.")
+    parser.add_target_argument("--flash",        action="store_true",       help="Flash bitstream to SPI Flash.")
     args = parser.parse_args()
 
     soc = BaseSoC()
     builder = Builder(soc, **parser.builder_argdict)
     if args.build:
         builder.build(**parser.toolchain_argdict)
+
+    if args.load:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
+
+    if args.flash:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(builder.get_bitstream_filename(mode="flash"))
 
 if __name__ == "__main__":
     main()
