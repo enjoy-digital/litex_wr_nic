@@ -76,6 +76,11 @@ class _CRG(LiteXModule):
         pll.create_clkout(self.cd_clk_125m_gtp, sys_clk_freq)
         pll.create_clkout(self.cd_clk_10m_ext,  10e6)
 
+        platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
+        platform.add_false_path_constraints(self.cd_clk_125m_dmtd.clk, pll.clkin)
+        platform.add_false_path_constraints(self.cd_clk_125m_gtp.clk, pll.clkin)
+        platform.add_false_path_constraints(self.cd_clk_10m_ext.clk, pll.clkin)
+
         self.comb += [
             self.cd_clk_125m_dmtd.clk.eq(self.cd_sys.clk),
             self.cd_clk_125m_dmtd.rst.eq(self.cd_sys.rst),
