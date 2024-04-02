@@ -160,18 +160,18 @@ class BaseSoC(SoCCore):
             self.led_fake_pps.eq(~self.led_fake_pps)
         )
 
-            # SPI Flash.
-            self.specials += Instance("STARTUPE2",
-                i_CLK       = 0,
-                i_GSR       = 0,
-                i_GTS       = 0,
-                i_KEYCLEARB = 0,
-                i_PACK      = 0,
-                i_USRCCLKO  = self.flash_clk,
-                i_USRCCLKTS = 0,
-                i_USRDONEO  = 1,
-                i_USRDONETS = 1,
-            )
+        # SPI Flash.
+        self.specials += Instance("STARTUPE2",
+            i_CLK       = 0,
+            i_GSR       = 0,
+            i_GTS       = 0,
+            i_KEYCLEARB = 0,
+            i_PACK      = 0,
+            i_USRCCLKO  = self.flash_clk,
+            i_USRCCLKTS = 0,
+            i_USRDONEO  = 1,
+            i_USRDONETS = 1,
+        )
 
         self.add_sources()
 
