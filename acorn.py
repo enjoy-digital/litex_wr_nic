@@ -105,6 +105,9 @@ class BaseSoC(SoCCore):
         self.sfp_i2c    = platform.request("sfp_i2c")
         self.serial     = platform.request("serial")
         self.leds       = platform.request_all("user_led")
+        self.flash      = platform.request("flash")
+        self.flash_cs_n = platform.request("flash_cs_n")
+        self.flash_clk  = Signal()
 
         self.led_fake_pps = Signal()
         self.led_pps      = Signal()
@@ -157,6 +160,18 @@ class BaseSoC(SoCCore):
             self.led_fake_pps.eq(~self.led_fake_pps)
         )
 
+            # SPI Flash.
+            self.specials += Instance("STARTUPE2",
+                i_CLK       = 0,
+                i_GSR       = 0,
+                i_GTS       = 0,
+                i_KEYCLEARB = 0,
+                i_PACK      = 0,
+                i_USRCCLKO  = self.flash_clk,
+                i_USRCCLKTS = 0,
+                i_USRDONEO  = 1,
+                i_USRDONETS = 1,
+            )
 
         # fill converter with all path / files required
         # board specifics
@@ -226,6 +241,12 @@ class BaseSoC(SoCCore):
             # Uart
             i_uart_rxd_i          = self.serial.rx,
             o_uart_txd_o          = self.serial.tx,
+
+            # SPI Flash
+	        o_spi_sclk_o          = self.flash_clk,
+            o_spi_ncs_o           = self.flash_cs_n,
+            o_spi_mosi_o          = self.flash.mosi,
+            i_spi_miso_i          = self.flash.miso,
 
             #abscal_txts_o       => wrc_abscal_txts_out,
             #abscal_rxts_o       => wrc_abscal_rxts_out,
