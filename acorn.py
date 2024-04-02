@@ -150,7 +150,7 @@ class BaseSoC(SoCCore):
         ]
 
 
-        self.gen_xwrc_board_acorn()
+        self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "wrc_acorn.bram"))
 
         self.comb += self.leds.eq(Cat(~self.led_link, ~self.led_act, ~self.led_pps, ~self.led_fake_pps))
 
@@ -175,13 +175,13 @@ class BaseSoC(SoCCore):
 
         self.add_sources()
 
-    def gen_xwrc_board_acorn(self):
+    def gen_xwrc_board_acorn(self, bram):
 
         self.specials += Instance("xwrc_board_acorn",
             p_g_simulation                 = 0,
             p_g_with_external_clock_input  = 1,
             #p_g_dpram_initf               = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16_direct_dmtd.bram",
-            p_g_DPRAM_INITF                = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16.bram",
+            p_g_DPRAM_INITF                = bram,
             #p_g_fabric_iface              = "PLAIN",
 
             i_areset_n_i          = (~ResetSignal("sys") | self.wr_rstn),
