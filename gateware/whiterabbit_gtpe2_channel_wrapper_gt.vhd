@@ -302,29 +302,29 @@ begin
 
        ------------------RX Byte and Word Alignment Attributes---------------
         ALIGN_COMMA_DOUBLE                      =>     ("FALSE"),
-        ALIGN_COMMA_ENABLE                      =>     ("0001111111"),
-        ALIGN_COMMA_WORD                        =>     (2),
+        ALIGN_COMMA_ENABLE                      =>     ("0001111111"), -- diff
+        ALIGN_COMMA_WORD                        =>     (2), -- dsiff
         ALIGN_MCOMMA_DET                        =>     ("TRUE"),
         ALIGN_MCOMMA_VALUE                      =>     ("1010000011"),
         ALIGN_PCOMMA_DET                        =>     ("TRUE"),
         ALIGN_PCOMMA_VALUE                      =>     ("0101111100"),
         SHOW_REALIGN_COMMA                      =>     ("FALSE"),
         RXSLIDE_AUTO_WAIT                       =>     (7),
-        RXSLIDE_MODE                            =>     ("PCS"),
+        RXSLIDE_MODE                            =>     ("PCS"), -- diff
         RX_SIG_VALID_DLY                        =>     (10),
 
        ------------------RX 8B/10B Decoder Attributes---------------
-        RX_DISPERR_SEQ_MATCH                    =>     ("TRUE"),
-        DEC_MCOMMA_DETECT                       =>     ("TRUE"),
-        DEC_PCOMMA_DETECT                       =>     ("TRUE"),
-        DEC_VALID_COMMA_ONLY                    =>     ("TRUE"),
+        RX_DISPERR_SEQ_MATCH                    =>     ("TRUE"), -- diff
+        DEC_MCOMMA_DETECT                       =>     ("TRUE"), -- diff
+        DEC_PCOMMA_DETECT                       =>     ("TRUE"), -- diff
+        DEC_VALID_COMMA_ONLY                    =>     ("TRUE"), -- diff
 
        ------------------------RX Clock Correction Attributes----------------------
-        CBCC_DATA_SOURCE_SEL                    =>     ("DECODED"),
+        CBCC_DATA_SOURCE_SEL                    =>     ("DECODED"), -- diff
         CLK_COR_SEQ_2_USE                       =>     ("FALSE"),
         CLK_COR_KEEP_IDLE                       =>     ("FALSE"),
-        CLK_COR_MAX_LAT                         =>     (10),
-        CLK_COR_MIN_LAT                         =>     (8),
+        CLK_COR_MAX_LAT                         =>     (10), -- diff
+        CLK_COR_MIN_LAT                         =>     (8), -- diff
         CLK_COR_PRECEDENCE                      =>     ("TRUE"),
         CLK_COR_REPEAT_WAIT                     =>     (0),
         CLK_COR_SEQ_LEN                         =>     (1),
@@ -440,7 +440,7 @@ begin
        --For SATA Gen2 GTP- set RXCDR_CFG=83'h0_0000_47FE_2060_2448_1010
 
        --For SATA Gen1 GTP- set RXCDR_CFG=83'h0_0000_47FE_1060_2448_1010
-        RXCDR_CFG                               =>     (x"0000107FE106001041010"),
+        RXCDR_CFG                               =>     x"0000107FE106001041010"), -- diff
         RXCDR_FR_RESET_ON_EIDLE                 =>     ('0'),
         RXCDR_HOLD_DURING_EIDLE                 =>     ('0'),
         RXCDR_PH_RESET_ON_EIDLE                 =>     ('0'),
@@ -616,8 +616,8 @@ begin
         RXSYNC_SKIP_DA                          =>     ('0'),
 
        ------------------TX Buffer Attributes---------------
-        TXSYNC_MULTILANE                        =>     (TXSYNC_MULTILANE_IN),
-        TXSYNC_OVRD                             =>     (TXSYNC_OVRD_IN),
+        TXSYNC_MULTILANE                        =>     (TXSYNC_MULTILANE_IN), --diff
+        TXSYNC_OVRD                             =>     (TXSYNC_OVRD_IN), --diff
         TXSYNC_SKIP_DA                          =>     ('0')
 
 
@@ -640,14 +640,14 @@ begin
         RXSYSCLKSEL                     =>      "11",
         TXSYSCLKSEL                     =>      "11",
         ----------------- FPGA TX Interface Datapath Configuration  ----------------
-        TX8B10BEN                       =>      tied_to_vcc_i,
+        TX8B10BEN                       =>      tied_to_vcc_i, -- diff
         ------------------------ GTPE2_CHANNEL Clocking Ports ----------------------
         PLL0CLK                         =>      PLL0CLK_IN,
         PLL0REFCLK                      =>      PLL0REFCLK_IN,
         PLL1CLK                         =>      PLL1CLK_IN,
         PLL1REFCLK                      =>      PLL1REFCLK_IN,
         ------------------------------- Loopback Ports -----------------------------
-        LOOPBACK                        =>      LOOPBACK_IN,
+        LOOPBACK                        =>      LOOPBACK_IN, -- diff
         ----------------------------- PCI Express Ports ----------------------------
         PHYSTATUS                       =>      open,
         RXRATE                          =>      tied_to_ground_vec_i(2 downto 0),
@@ -664,7 +664,7 @@ begin
         EYESCANRESET                    =>      tied_to_ground_i,
         RXUSERRDY                       =>      RXUSERRDY_IN,
         -------------------------- RX Margin Analysis Ports ------------------------
-        EYESCANDATAERROR                =>      EYESCANDATAERROR_OUT,
+        EYESCANDATAERROR                =>      EYESCANDATAERROR_OUT, -- diff
         EYESCANMODE                     =>      tied_to_ground_i,
         EYESCANTRIGGER                  =>      tied_to_ground_i,
         ------------------------------- Receive Ports ------------------------------
@@ -694,7 +694,7 @@ begin
         ------------------- Receive Ports - Clock Correction Ports -----------------
         RXCLKCORCNT                     =>      open,
         ---------- Receive Ports - FPGA RX Interface Datapath Configuration --------
-        RX8B10BEN                       =>      tied_to_vcc_i,
+        RX8B10BEN                       =>      tied_to_vcc_i, -- diff
         ------------------ Receive Ports - FPGA RX Interface Ports -----------------
         RXDATA                          =>      rxdata_i,
         RXUSRCLK                        =>      RXUSRCLK_IN,
@@ -705,14 +705,14 @@ begin
         ------------------- Receive Ports - Pattern Checker ports ------------------
         RXPRBSCNTRESET                  =>      tied_to_ground_i,
         ------------------ Receive Ports - RX 8B/10B Decoder Ports -----------------
-        RXCHARISCOMMA(3 downto 2)       =>      rxchariscomma_float_i,
-        RXCHARISCOMMA(1 downto 0)       =>      RXCHARISCOMMA_OUT,
+        RXCHARISCOMMA(3 downto 2)       =>      rxchariscomma_float_i, --diff
+        RXCHARISCOMMA(1 downto 0)       =>      RXCHARISCOMMA_OUT, -- diff
         RXCHARISK(3 downto 2)           =>      rxcharisk_float_i,
         RXCHARISK(1 downto 0)           =>      RXCHARISK_OUT,
         RXDISPERR(3 downto 2)           =>      rxdisperr_float_i,
         RXDISPERR(1 downto 0)           =>      RXDISPERR_OUT,
-        RXNOTINTABLE(3 downto 2)        =>      rxnotintable_float_i,
-        RXNOTINTABLE(1 downto 0)        =>      RXNOTINTABLE_OUT,
+        RXNOTINTABLE(3 downto 2)        =>      rxnotintable_float_i, --diff
+        RXNOTINTABLE(1 downto 0)        =>      RXNOTINTABLE_OUT, --diff
         ------------------------ Receive Ports - RX AFE Ports ----------------------
         GTPRXN                          =>      GTPRXN_IN,
         GTPRXP                          =>      GTPRXP_IN,
@@ -743,13 +743,13 @@ begin
         RXSYNCMODE                      =>      tied_to_ground_i,
         RXSYNCOUT                       =>      open,
         -------------- Receive Ports - RX Byte and Word Alignment Ports ------------
-        RXBYTEISALIGNED                 =>      RXBYTEISALIGNED_OUT,
+        RXBYTEISALIGNED                 =>      RXBYTEISALIGNED_OUT, -- diff
         RXBYTEREALIGN                   =>      open,
-        RXCOMMADET                      =>      RXCOMMADET_OUT,
-        RXCOMMADETEN                    =>      tied_to_vcc_i,
+        RXCOMMADET                      =>      RXCOMMADET_OUT, -- diff
+        RXCOMMADETEN                    =>      tied_to_vcc_i, -- diff
         RXMCOMMAALIGNEN                 =>      tied_to_ground_i,
         RXPCOMMAALIGNEN                 =>      tied_to_ground_i,
-        RXSLIDE                         =>      RXSLIDE_IN,
+        RXSLIDE                         =>      RXSLIDE_IN, -- diff
         ------------------ Receive Ports - RX Channel Bonding Ports ----------------
         RXCHANBONDSEQ                   =>      open,
         RXCHBONDEN                      =>      tied_to_ground_i,
@@ -773,9 +773,9 @@ begin
         RXLPMLFOVRDEN                   =>      tied_to_ground_i,
         RXLPMOSINTNTRLEN                =>      tied_to_ground_i,
         -------------------- Receive Ports - RX Equailizer Ports -------------------
-        RXLPMHFHOLD                     =>      rxlpmhfhold_in,
+        RXLPMHFHOLD                     =>      rxlpmhfhold_in, -- diff
         RXLPMHFOVRDEN                   =>      tied_to_ground_i,
-        RXLPMLFHOLD                     =>      rxlpmlfhold_in,
+        RXLPMLFHOLD                     =>      rxlpmlfhold_in, -- diff
         --------------------- Receive Ports - RX Equalizer Ports -------------------
         RXOSHOLD                        =>      tied_to_ground_i,
         RXOSOVRDEN                      =>      tied_to_ground_i,
@@ -843,8 +843,8 @@ begin
         PMARSVDIN1                      =>      '0',
         ------------------ Transmit Ports - FPGA TX Interface Ports ----------------
         TXDATA                          =>      txdata_i,
-        TXUSRCLK                        =>      TXUSRCLK_IN,
-        TXUSRCLK2                       =>      TXUSRCLK2_IN,
+        TXUSRCLK                        =>      TXUSRCLK_IN, -- diff ?
+        TXUSRCLK2                       =>      TXUSRCLK2_IN, -- diff ?
         --------------------- Transmit Ports - PCI Express Ports -------------------
         TXELECIDLE                      =>      tied_to_ground_i,
         TXMARGIN                        =>      tied_to_ground_vec_i(2 downto 0),
@@ -854,10 +854,10 @@ begin
         TXPRBSFORCEERR                  =>      tied_to_ground_i,
         ------------------ Transmit Ports - TX 8B/10B Encoder Ports ----------------
         TX8B10BBYPASS                   =>      tied_to_ground_vec_i(3 downto 0),
-        TXCHARDISPMODE                  =>      tied_to_ground_vec_i(3 downto 0),
-        TXCHARDISPVAL                   =>      tied_to_ground_vec_i(3 downto 0),
-        TXCHARISK(3 downto 2)           =>      tied_to_ground_vec_i(1 downto 0),
-        TXCHARISK(1 downto 0)           =>      TXCHARISK_IN,
+        TXCHARDISPMODE                  =>      tied_to_ground_vec_i(3 downto 0), --diff
+        TXCHARDISPVAL                   =>      tied_to_ground_vec_i(3 downto 0), --diff
+        TXCHARISK(3 downto 2)           =>      tied_to_ground_vec_i(1 downto 0), --diff
+        TXCHARISK(1 downto 0)           =>      TXCHARISK_IN, --diff
         ------------------ Transmit Ports - TX Buffer Bypass Ports -----------------
         TXDLYBYPASS                     =>      tied_to_vcc_i,
         TXDLYEN                         =>      tied_to_ground_i,
