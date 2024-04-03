@@ -161,8 +161,19 @@ class BaseSoC(SoCCore):
         self.dbg_rdy          = Signal()
         self.clk_ref_62m5     = Signal()
         self.debug_pins       = platform.request("debug")
-        self.comb += self.debug_pins.eq(Cat(self.clk_ref_62m5, self.crg.cd_clk_125m_gtp.clk,
-                                            self.crg.cd_clk_10m_ext.clk, self.crg.cd_clk_125m_dmtd.clk))
+
+        self.cd_clk62m5       = ClockDomain()
+        self.cnt_62m5         = Signal(4)
+        self.cnt_125_gtp      = Signal(4)
+
+        self.comb += [
+            self.debug_pins.eq(Cat(self.clk_ref_62m5, self.crg.cd_clk_125m_gtp.clk,
+                self.crg.cd_clk_10m_ext.clk, self.crg.cd_clk_125m_dmtd.clk)),
+            self.cd_clk62m5.clk.eq(self.clk_ref_62m5),
+        ]
+
+        self.sync.clk62m5 += self.cnt_62m5.eq(self.cnt_62m5 + 1)
+        self.sync.clk_125m_gtp += self.cnt_125_gtp.eq(self.cnt_125_gtp + 1)
 
 
         # WR core
@@ -191,11 +202,21 @@ class BaseSoC(SoCCore):
 
         self.add_sources()
 
+        cnt1 = Signal()
+        cnt2 = Signal()
+
+        self.comb += [
+            cnt1.eq(self.cnt_125_gtp[3]),
+            cnt2.eq(self.cnt_62m5[3]),
+        ]
+
         analyzer_signals = [
             self.crg.cd_clk_125m_dmtd.rst,
             self.ext_ref_rst,
             self.clk_ref_locked,
             self.dbg_rdy,
+            cnt1,
+            cnt2,
         ]
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 128,
