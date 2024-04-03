@@ -457,8 +457,10 @@ begin
         ----------------- Common Block - GTPE2_COMMON Clocking Ports ---------------
         GTEASTREFCLK0                   =>      tied_to_ground_i,
         GTEASTREFCLK1                   =>      tied_to_ground_i,
-        GTGREFCLK1                      =>      tied_to_ground_i,
-        GTREFCLK0                       =>      GT0_GTREFCLK0_IN,
+        --GTGREFCLK1                      =>      tied_to_ground_i,
+        --GTREFCLK0                       =>      GT0_GTREFCLK0_IN,
+        GTGREFCLK1                      =>      GT0_GTREFCLK0_IN,
+        GTREFCLK0                       =>      tied_to_ground_i,
         GTREFCLK1                       =>      tied_to_ground_i,
         GTWESTREFCLK0                   =>      tied_to_ground_i,
         GTWESTREFCLK1                   =>      tied_to_ground_i,
@@ -481,7 +483,7 @@ begin
         PLL1LOCKEN                      =>      tied_to_vcc_i,
         PLL1PD                          =>      tied_to_ground_i,
         PLL1REFCLKLOST                  =>      GT0_PLL1REFCLKLOST_OUT,
-        PLL1REFCLKSEL                   =>      "001",
+        PLL1REFCLKSEL                   =>      "111",
         PLL1RESET                       =>      GT0_PLL1RESET_IN,
         ---------------------------- Common Block - Ports --------------------------
         BGRCALOVRDENB                   =>      tied_to_vcc_i,
