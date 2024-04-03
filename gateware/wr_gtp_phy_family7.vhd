@@ -115,7 +115,8 @@ entity wr_gtp_phy_family7 is
 
     rdy_o            : out  std_logic;
 
-    debug            : out std_logic_vector(31 downto 0)
+    debug            : out std_logic_vector(31 downto 0);
+    refclk           : in std_logic
   );
 end entity wr_gtp_phy_family7;
 
@@ -382,7 +383,8 @@ begin
     GT0_PLL1LOCKDETCLK_IN    =>  '0',
     GT0_PLL1REFCLKLOST_OUT   =>  open,
     GT0_PLL1RESET_IN         =>  ready_for_reset,
-    debug                    =>  debug
+    debug                    =>  debug,
+    refclk                   =>  refclk
   );
   
   U_Bitslide : gtp_bitslide

@@ -64,6 +64,7 @@ class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq):
         self.rst              = Signal()
         self.cd_sys           = ClockDomain()
+        self.cd_clk_125m_ref  = ClockDomain()
         self.cd_clk_125m_dmtd = ClockDomain()
         self.cd_clk_125m_gtp  = ClockDomain()
         self.cd_clk_10m_ext   = ClockDomain()
@@ -80,6 +81,7 @@ class _CRG(LiteXModule):
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200_se, 200e6)
         pll.create_clkout(self.cd_sys,           sys_clk_freq)
+        pll.create_clkout(self.cd_clk_125m_ref,  125e6, margin=0)
         pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
         pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
         pll.create_clkout(self.cd_clk_10m_ext,   10e6,  margin=0)
@@ -270,7 +272,7 @@ class BaseSoC(SoCCore):
     def gen_xwrc_board_acorn(self, bram):
 
         self.specials += Instance("xwrc_board_acorn",
-            p_g_simulation                 = 0,
+            p_g_simulation                 = 1,
             #p_g_with_external_clock_input  = 1,
             #p_g_dpram_initf               = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16_direct_dmtd.bram",
             p_g_DPRAM_INITF                = bram,
@@ -338,6 +340,7 @@ class BaseSoC(SoCCore):
             o_led_act_o           = self.led_act,
 
             o_debug               = self.debug,
+            i_refclk              =  ClockSignal("clk_125m_ref"),
         )
 
     #    clk_pll_62m5 = Signal()

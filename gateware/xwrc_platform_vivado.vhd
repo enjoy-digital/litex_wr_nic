@@ -75,7 +75,7 @@ entity xwrc_platform_xilinx is
       g_phy_refclk_sel            : integer range 0 to 7 := 4;
       g_gtp_mux_enable            : boolean := FALSE;
       -- Set to TRUE will speed up some initialization processes
-      g_simulation                : integer := 0);
+      g_simulation                : integer := 1);
   port (
     ---------------------------------------------------------------------------
     -- Asynchronous reset (active low)
@@ -175,7 +175,8 @@ entity xwrc_platform_xilinx is
     ext_ref_mul_locked_o  : out std_logic;
     ext_ref_mul_stopped_o : out std_logic;
     ext_ref_rst_i         : in  std_logic             := '0';
-    debug                 : out std_logic_vector(31 downto 0)
+    debug                 : out std_logic_vector(31 downto 0);
+    refclk                : in std_logic
     );
 
 end entity xwrc_platform_xilinx;
@@ -795,7 +796,8 @@ begin  -- architecture rtl
         pad_rxp_i => sfp_rxp_i,
 
         tx_locked_o   => clk_ref_locked,
-        debug         => debug
+        debug         => debug,
+        refclk        => refclk
         );
 
     clk_125m_ref_o       <= clk_ref;

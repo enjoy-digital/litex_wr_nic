@@ -75,7 +75,7 @@ generic
 (
     -- Simulation attributes
     EXAMPLE_SIMULATION             : integer  := 0;      -- Set to 1 for simulation
-    WRAPPER_SIM_GTRESET_SPEEDUP    : string   := "FALSE" -- Set to "true" to speed up sim reset
+    WRAPPER_SIM_GTRESET_SPEEDUP    : string   := "TRUE" -- Set to "true" to speed up sim reset
 );
 port
 (
@@ -153,7 +153,8 @@ port
     GT0_PLL1REFCLKLOST_OUT                  : out  std_logic;
     GT0_PLL1RESET_IN                        : in   std_logic;
 
-    debug                                   : out std_logic_vector(31 downto 0)
+    debug                                   : out std_logic_vector(31 downto 0);
+    refclk                                  : in std_logic
 );
 
 
@@ -281,7 +282,7 @@ end component;
 
     constant PLL0_FBDIV_IN      :   integer := 1;
     constant PLL1_FBDIV_IN      :   integer := 4;
-    constant PLL0_FBDIV_45_IN   :   integer := 4;
+    constant PLL0_FBDIV_45_IN   :   integer := 5;
     constant PLL1_FBDIV_45_IN   :   integer := 5;
     constant PLL0_REFCLK_DIV_IN :   integer := 1;
     constant PLL1_REFCLK_DIV_IN :   integer := 1;
@@ -423,7 +424,7 @@ begin
 
 
        ------------------COMMON BLOCK Attributes---------------
-        BIAS_CFG                                =>     (x"0000000000050001"),
+        BIAS_CFG                                =>     (x"0000000000000000"),
         COMMON_CFG                              =>     (x"00000000"),
 
        ----------------------------PLL Attributes----------------------------
@@ -457,10 +458,9 @@ begin
         ----------------- Common Block - GTPE2_COMMON Clocking Ports ---------------
         GTEASTREFCLK0                   =>      tied_to_ground_i,
         GTEASTREFCLK1                   =>      tied_to_ground_i,
-        --GTGREFCLK1                      =>      tied_to_ground_i,
-        --GTREFCLK0                       =>      GT0_GTREFCLK0_IN,
-        GTGREFCLK1                      =>      GT0_GTREFCLK0_IN,
-        GTREFCLK0                       =>      tied_to_ground_i,
+        GTGREFCLK0                      =>      tied_to_ground_i,
+        GTGREFCLK1                      =>      tied_to_ground_i,
+        GTREFCLK0                       =>      refclk,
         GTREFCLK1                       =>      tied_to_ground_i,
         GTWESTREFCLK0                   =>      tied_to_ground_i,
         GTWESTREFCLK1                   =>      tied_to_ground_i,
@@ -473,7 +473,7 @@ begin
         PLL0LOCK                        =>      open,
         PLL0LOCKDETCLK                  =>      tied_to_ground_i,
         PLL0LOCKEN                      =>      tied_to_vcc_i,
-        PLL0PD                          =>      '1',
+        PLL0PD                          =>      tied_to_ground_i,
         PLL0REFCLKLOST                  =>      open,
         PLL0REFCLKSEL                   =>      "001",
         PLL0RESET                       =>      tied_to_ground_i,
@@ -483,11 +483,10 @@ begin
         PLL1LOCKEN                      =>      tied_to_vcc_i,
         PLL1PD                          =>      tied_to_ground_i,
         PLL1REFCLKLOST                  =>      GT0_PLL1REFCLKLOST_OUT,
-        PLL1REFCLKSEL                   =>      "111",
+        PLL1REFCLKSEL                   =>      "001",
         PLL1RESET                       =>      GT0_PLL1RESET_IN,
         ---------------------------- Common Block - Ports --------------------------
         BGRCALOVRDENB                   =>      tied_to_vcc_i,
-        GTGREFCLK0                      =>      tied_to_ground_i,
         PLLRSVD1                        =>      "0000000000000000",
         PLLRSVD2                        =>      "00000",
         REFCLKOUTMONITOR0               =>      open,
@@ -498,7 +497,7 @@ begin
         BGBYPASSB                       =>      tied_to_vcc_i,
         BGMONITORENB                    =>      tied_to_vcc_i,
         BGPDB                           =>      tied_to_vcc_i,
-        BGRCALOVRD                      =>      "00000",           -- ug482 table 2-8 says "111111"
+        BGRCALOVRD                      =>      "11111",           -- ug482 table 2-8 says "111111"
         PMARSVD                         =>      "00000000",
         RCALENB                         =>      tied_to_vcc_i
 
