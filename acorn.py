@@ -77,13 +77,13 @@ class _CRG(LiteXModule):
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200_se, 200e6)
         pll.create_clkout(self.cd_sys,          sys_clk_freq)
-        pll.create_clkout(self.cd_clk_125m_gtp, sys_clk_freq)
-        pll.create_clkout(self.cd_clk_10m_ext,  10e6)
+        pll.create_clkout(self.cd_clk_125m_gtp, sys_clk_freq, margin=0)
+        pll.create_clkout(self.cd_clk_10m_ext,  10e6,         margin=0)
 
-        platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
+        platform.add_false_path_constraints(self.cd_sys.clk,           pll.clkin)
         platform.add_false_path_constraints(self.cd_clk_125m_dmtd.clk, pll.clkin)
-        platform.add_false_path_constraints(self.cd_clk_125m_gtp.clk, pll.clkin)
-        platform.add_false_path_constraints(self.cd_clk_10m_ext.clk, pll.clkin)
+        platform.add_false_path_constraints(self.cd_clk_125m_gtp.clk,  pll.clkin)
+        platform.add_false_path_constraints(self.cd_clk_10m_ext.clk,   pll.clkin)
 
         self.comb += [
             self.cd_clk_125m_dmtd.clk.eq(self.cd_sys.clk),
@@ -243,7 +243,7 @@ class BaseSoC(SoCCore):
 
             o_ready_for_reset_o   = self.ready_for_reset,
 
-            i_areset_n_i          = ((~ResetSignal("sys")) & self.wr_rstn),
+            i_areset_n_i          = ~ResetSignal("sys") & self.wr_rstn,
             i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
             i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
             i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
