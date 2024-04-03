@@ -157,11 +157,15 @@ class BaseSoC(SoCCore):
 
         # Debug
         self.clk_ref_locked   = Signal()
+        self.ext_ref_rst      = Signal()
         self.dbg_rdy          = Signal()
         self.clk_ref_62m5     = Signal()
         self.debug_pins       = platform.request("debug")
-        self.comb += self.debug_pins.eq(Cat(self.clk_ref_62m5, Signal(3)))
+        self.comb += self.debug_pins.eq(Cat(self.clk_ref_62m5, self.crg.cd_clk_125m_gtp.clk,
+                                            self.crg.cd_clk_10m_ext.clk, self.crg.cd_clk_125m_dmtd.clk))
 
+
+        # WR core
         self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "wrc_acorn.bram"))
 
         self.comb += self.leds.eq(Cat(~self.led_link, ~self.led_act, ~self.led_pps, ~self.led_fake_pps))
@@ -188,6 +192,8 @@ class BaseSoC(SoCCore):
         self.add_sources()
 
         analyzer_signals = [
+            self.crg.cd_clk_125m_dmtd.rst,
+            self.ext_ref_rst,
             self.clk_ref_locked,
             self.dbg_rdy,
         ]
@@ -208,6 +214,7 @@ class BaseSoC(SoCCore):
             #p_g_fabric_iface              = "PLAIN",
             o_clk_ref_locked_o    = self.clk_ref_locked,
             o_dbg_rdy_o           = self.dbg_rdy,
+            o_ext_ref_rst_o       = self.ext_ref_rst,
             o_clk_ref_62m5_o      = self.clk_ref_62m5,
 
             i_areset_n_i          = (~ResetSignal("sys") | self.wr_rstn),

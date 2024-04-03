@@ -96,6 +96,7 @@ entity xwrc_board_acorn is
     clk_ref_62m5_o      : out std_logic;
     clk_ref_locked_o    : out std_logic;
     dbg_rdy_o           : out std_logic;
+    ext_ref_rst_o       : out std_logic;
 
     ---------------------------------------------------------------------------
     -- Shared SPI interface to DACs
@@ -341,6 +342,9 @@ begin  -- architecture struct
       ext_ref_rst_i         => ext_ref_rst);
 
   clk_ref_62m5_o <= clk_ref_62m5;
+
+  -- test/debug
+  ext_ref_rst_o <= ext_ref_rst;
 
   -----------------------------------------------------------------------------
   -- Reset logic
