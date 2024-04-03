@@ -234,7 +234,9 @@ entity xwrc_board_acorn is
     pps_p_o    : out std_logic;
     pps_led_o  : out std_logic;
     -- Link ok indication
-    link_ok_o  : out std_logic
+    link_ok_o  : out std_logic;
+
+    debug : out std_logic_vector(31 downto 0)
     );
 
 end entity xwrc_board_acorn;
@@ -341,7 +343,8 @@ begin  -- architecture struct
       ext_ref_mul_o         => ext_ref_mul,
       ext_ref_mul_locked_o  => ext_ref_mul_locked,
       ext_ref_mul_stopped_o => ext_ref_mul_stopped,
-      ext_ref_rst_i         => ext_ref_rst);
+      ext_ref_rst_i         => ext_ref_rst,
+      debug                 => debug);
 
   clk_ref_62m5_o <= clk_ref_62m5;
 

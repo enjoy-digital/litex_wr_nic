@@ -113,7 +113,9 @@ entity wr_gtp_phy_family7 is
     pad_txn_o        : out  std_logic;
     pad_txp_o        : out  std_logic;
 
-    rdy_o            : out  std_logic
+    rdy_o            : out  std_logic;
+
+    debug            : out std_logic_vector(31 downto 0)
   );
 end entity wr_gtp_phy_family7;
 
@@ -169,92 +171,6 @@ architecture structure of wr_gtp_phy_family7 is
   signal cur_disp           : t_8b10b_disparity;
   signal tx_is_k_swapped    : std_logic_vector(1 downto 0);
   signal tx_data_swapped    : std_logic_vector(15 downto 0);
-
-  component whiterabbit_gtpe2_channel_wrapper is
-  generic
-  (
-      -- Simulation attributes
-      EXAMPLE_SIMULATION             : integer  := 0;      -- Set to 1 for simulation
-      WRAPPER_SIM_GTRESET_SPEEDUP    : string := "FALSE" -- Set to "true" to speed up sim reset
-  );
-  port
-  (
-      --_________________________________________________________________________
-      --____________________________CHANNEL PORTS________________________________
-      GT0_DRP_BUSY_OUT         : out std_logic; 
-      ---------------------------- Channel - DRP Ports  --------------------------
-      GT0_DRPADDR_IN           : in  std_logic_vector(8 downto 0);
-      GT0_DRPCLK_IN            : in  std_logic;
-      GT0_DRPDI_IN             : in  std_logic_vector(15 downto 0);
-      GT0_DRPDO_OUT            : out std_logic_vector(15 downto 0);
-      GT0_DRPEN_IN             : in  std_logic;
-      GT0_DRPRDY_OUT           : out std_logic;
-      GT0_DRPWE_IN             : in  std_logic;
-      ------------------------------- Loopback Ports -----------------------------
-      GT0_LOOPBACK_IN          : in  std_logic_vector(2 downto 0);
-      --------------------- RX Initialization and Reset Ports --------------------
-      GT0_RXUSERRDY_IN         : in  std_logic;
-      -------------------------- RX Margin Analysis Ports ------------------------
-      GT0_EYESCANDATAERROR_OUT : out std_logic;
-      ------------------ Receive Ports - FPGA RX Interface Ports -----------------
-      GT0_RXDATA_OUT           : out  std_logic_vector(15 downto 0);
-      GT0_RXUSRCLK_IN          : in  std_logic;
-      GT0_RXUSRCLK2_IN         : in  std_logic;
-      ------------------ Receive Ports - RX 8B/10B Decoder Ports -----------------
-      GT0_RXCHARISCOMMA_OUT    : out  std_logic_vector(1 downto 0);
-      GT0_RXCHARISK_OUT        : out  std_logic_vector(1 downto 0);
-      GT0_RXDISPERR_OUT        : out  std_logic_vector(1 downto 0);
-      GT0_RXNOTINTABLE_OUT     : out  std_logic_vector(1 downto 0);
-      ------------------------ Receive Ports - RX AFE Ports ----------------------
-      GT0_GTPRXN_IN            : in  std_logic;
-      GT0_GTPRXP_IN            : in  std_logic;
-      -------------- Receive Ports - RX Byte and Word Alignment Ports ------------
-      GT0_RXBYTEISALIGNED_OUT  : out  std_logic;
-      GT0_RXCOMMADET_OUT       : out  std_logic;
-      GT0_RXSLIDE_IN           : in  std_logic;
-      --------------------- Receive Ports - RX Equilizer Ports -------------------
-      GT0_RXLPMHFHOLD_IN       : in  std_logic;
-      GT0_RXLPMLFHOLD_IN       : in  std_logic;
-      --------------- Receive Ports - RX Fabric Output Control Ports -------------
-      GT0_RXOUTCLK_OUT         : out std_logic;
-      ------------- Receive Ports - RX Initialization and Reset Ports ------------
-      GT0_GTRXRESET_IN         : in  std_logic;
-      -------------- Receive Ports -RX Initialization and Reset Ports ------------
-      GT0_RXRESETDONE_OUT      : out  std_logic;
-      --------------------- TX Initialization and Reset Ports --------------------
-      GT0_GTTXRESET_IN         : in  std_logic;
-      GT0_TXUSERRDY_IN         : in  std_logic;
-      ------------------ Transmit Ports - FPGA TX Interface Ports ----------------
-      GT0_TXDATA_IN            : in  std_logic_vector(15 downto 0);
-      GT0_TXUSRCLK_IN          : in  std_logic;
-      GT0_TXUSRCLK2_IN         : in  std_logic;
-      ------------------ Transmit Ports - TX 8B/10B Encoder Ports ----------------
-      GT0_TXCHARISK_IN         : in  std_logic_vector(1 downto 0);
-      --------------- Transmit Ports - TX Configurable Driver Ports --------------
-      GT0_GTPTXN_OUT           : out std_logic;
-      GT0_GTPTXP_OUT           : out std_logic;
-      ----------- Transmit Ports - TX Fabric Clock Output Control Ports ----------
-      GT0_TXOUTCLK_OUT         : out std_logic;
-      GT0_TXOUTCLKFABRIC_OUT   : out std_logic;
-      GT0_TXOUTCLKPCS_OUT      : out std_logic;
-      ------------- Transmit Ports - TX Initialization and Reset Ports -----------
-      GT0_TXRESETDONE_OUT      : out std_logic;
-      ------------------ Transmit Ports - pattern Generator Ports ----------------
-      GT0_TXPRBSSEL_IN         : in  std_logic_vector(2 downto 0);
-  
-  
-      --____________________________COMMON PORTS________________________________
-      ----------------- Common Block - GTPE2_COMMON Clocking Ports ---------------
-      GT0_GTREFCLK0_IN         : in  std_logic;
-      -------------------------- Common Block - PLL Ports ------------------------
-      GT0_PLL1LOCK_OUT         : out std_logic;
-      GT0_PLL1LOCKDETCLK_IN    : in  std_logic;
-      GT0_PLL1REFCLKLOST_OUT   : out std_logic;
-      GT0_PLL1RESET_IN         : in  std_logic
-  
-  
-  );
-  end component whiterabbit_gtpe2_channel_wrapper;
   
   component gtp_bitslide is
   generic (
@@ -385,7 +301,7 @@ begin
   tx_is_k_swapped <= tx_k_i(0) & tx_k_i(1);
   tx_data_swapped <= tx_data_i(7 downto 0) & tx_data_i(15 downto 8);
   
-  U_GTP_INST : whiterabbit_gtpe2_channel_wrapper
+  U_GTP_INST : entity work.whiterabbit_gtpe2_channel_wrapper
   generic map
   (
     -- Simulation attributes
@@ -465,7 +381,8 @@ begin
     GT0_PLL1LOCK_OUT         =>  pll_locked_i,
     GT0_PLL1LOCKDETCLK_IN    =>  '0',
     GT0_PLL1REFCLKLOST_OUT   =>  open,
-    GT0_PLL1RESET_IN         =>  ready_for_reset
+    GT0_PLL1RESET_IN         =>  ready_for_reset,
+    debug                    =>  debug
   );
   
   U_Bitslide : gtp_bitslide

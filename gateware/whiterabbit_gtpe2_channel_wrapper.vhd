@@ -151,9 +151,9 @@ port
     GT0_PLL1LOCK_OUT                        : out  std_logic;
     GT0_PLL1LOCKDETCLK_IN                   : in   std_logic;
     GT0_PLL1REFCLKLOST_OUT                  : out  std_logic;
-    GT0_PLL1RESET_IN                        : in   std_logic
+    GT0_PLL1RESET_IN                        : in   std_logic;
 
-
+    debug                                   : out std_logic_vector(31 downto 0)
 );
 
 
@@ -299,7 +299,15 @@ begin
     gt0_pll1refclk_i <= gt0_pll1outrefclk_i; 
       
     gt0_rst_i        <= GT0_PLL1RESET_IN;
-   
+
+
+    -- GTPE2_CHANNEL Debug.
+    debug(0) <= GT0_PLL1RESET_IN;
+    debug(1) <= GT0_DRP_BUSY_OUT;
+    debug(2) <= GT0_GTRXRESET_IN;
+    debug(3) <= GT0_GTTXRESET_IN;
+    debug(4) <= GT0_RXRESETDONE_OUT;
+    debug(5) <= GT0_TXRESETDONE_OUT;
     
     --------------------------- GT Instances  -------------------------------   
     --_________________________________________________________________________
@@ -389,6 +397,13 @@ begin
     --_________________________________________________________________________
     --_________________________________________________________________________
     --_________________________GTPE2_COMMON____________________________________
+
+
+    -- GTPE2_COMMON Debug.
+    debug(16) <= GT0_PLL1RESET_IN;
+    debug(17) <= GT0_PLL1LOCKDETCLK_IN;
+    debug(18) <= GT0_PLL1LOCK_OUT;
+    debug(19) <= GT0_PLL1REFCLKLOST_OUT;
 
     gtpe2_common_0_i : GTPE2_COMMON
     generic map
