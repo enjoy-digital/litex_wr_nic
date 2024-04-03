@@ -537,7 +537,9 @@ class BaseSoC(SoCCore):
         custom_files = [
             "gateware/xwrc_platform_vivado.vhd",
             "gateware/xwrc_board_acorn.vhd",
+            "gateware/whiterabbit_gtpe2_channel_wrapper.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
+            "gateware/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
             "gateware/wr_gtp_phy_family7.vhd",
         ]
 
