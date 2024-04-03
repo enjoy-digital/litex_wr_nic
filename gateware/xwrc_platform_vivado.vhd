@@ -176,7 +176,8 @@ entity xwrc_platform_xilinx is
     ext_ref_mul_stopped_o : out std_logic;
     ext_ref_rst_i         : in  std_logic             := '0';
     debug                 : out std_logic_vector(31 downto 0);
-    refclk                : in std_logic
+    refclk                : in std_logic;
+    pll_rst               : in std_logic
     );
 
 end entity xwrc_platform_xilinx;
@@ -797,7 +798,8 @@ begin  -- architecture rtl
 
         tx_locked_o   => clk_ref_locked,
         debug         => debug,
-        refclk        => refclk
+        refclk        => refclk,
+        pll_rst       => pll_rst
         );
 
     clk_125m_ref_o       <= clk_ref;

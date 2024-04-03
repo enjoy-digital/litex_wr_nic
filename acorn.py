@@ -144,6 +144,8 @@ class BaseSoC(SoCCore):
             ], reset=0),
         ])
 
+        self.pll_rst = CSRStorage()
+
         self.sfp_tx_los   = Signal()
         self.sfp_tx_fault = Signal()
         self.sfp_det      = Signal()
@@ -341,6 +343,7 @@ class BaseSoC(SoCCore):
 
             o_debug               = self.debug,
             i_refclk              =  ClockSignal("clk_125m_ref"),
+            i_pll_rst             = self.pll_rst.storage,
         )
 
     #    clk_pll_62m5 = Signal()

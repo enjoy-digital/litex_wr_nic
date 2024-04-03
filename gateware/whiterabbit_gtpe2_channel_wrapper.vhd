@@ -154,6 +154,7 @@ port
     GT0_PLL1RESET_IN                        : in   std_logic;
 
     debug                                   : out std_logic_vector(31 downto 0);
+    pll_rst                                 : in std_logic;
     refclk                                  : in std_logic
 );
 
@@ -484,8 +485,9 @@ begin
         PLL1PD                          =>      tied_to_ground_i,
         PLL1REFCLKLOST                  =>      GT0_PLL1REFCLKLOST_OUT,
         PLL1REFCLKSEL                   =>      "001",
-        PLL1RESET                       =>      GT0_PLL1RESET_IN,
-        ---------------------------- Common Block - Ports --------------------------
+        --PLL1RESET                       =>      GT0_PLL1RESET_IN,
+        PLL1RESET                       => pll_rst,
+        -- ---------------------------- Common Block - Ports --------------------------
         BGRCALOVRDENB                   =>      tied_to_vcc_i,
         PLLRSVD1                        =>      "0000000000000000",
         PLLRSVD2                        =>      "00000",
