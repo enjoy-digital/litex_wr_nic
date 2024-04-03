@@ -79,19 +79,15 @@ class _CRG(LiteXModule):
         self. pll = pll = S7PLL()
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200_se, 200e6)
-        pll.create_clkout(self.cd_sys,          sys_clk_freq)
-        pll.create_clkout(self.cd_clk_125m_gtp, sys_clk_freq, margin=0)
-        pll.create_clkout(self.cd_clk_10m_ext,  10e6,         margin=0)
+        pll.create_clkout(self.cd_sys,           sys_clk_freq)
+        pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+        pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
+        pll.create_clkout(self.cd_clk_10m_ext,   10e6,  margin=0)
 
         platform.add_false_path_constraints(self.cd_sys.clk,           pll.clkin)
         platform.add_false_path_constraints(self.cd_clk_125m_dmtd.clk, pll.clkin)
         platform.add_false_path_constraints(self.cd_clk_125m_gtp.clk,  pll.clkin)
         platform.add_false_path_constraints(self.cd_clk_10m_ext.clk,   pll.clkin)
-
-        self.comb += [
-            self.cd_clk_125m_dmtd.clk.eq(self.cd_sys.clk),
-            self.cd_clk_125m_dmtd.rst.eq(self.cd_sys.rst),
-        ]
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
