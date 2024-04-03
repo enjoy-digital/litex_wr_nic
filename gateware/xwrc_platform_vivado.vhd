@@ -168,6 +168,7 @@ entity xwrc_platform_xilinx is
 
     -- test/debug
     dbg_rdy_o             : out std_logic;
+    ready_for_reset_o     : out std_logic;
 
     -- External reference
     ext_ref_mul_o         : out std_logic;
@@ -770,6 +771,7 @@ begin  -- architecture rtl
       generic map(
         g_simulation => g_simulation)
       port map(
+        ready_for_reset_o => ready_for_reset_o,
         clk_gtp_i      => clk_125m_gtp_buf,
         tx_out_clk_o   => clk_ref,
         tx_data_i      => phy16_i.tx_data,

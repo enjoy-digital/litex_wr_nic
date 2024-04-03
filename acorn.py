@@ -160,6 +160,7 @@ class BaseSoC(SoCCore):
         self.ext_ref_rst      = Signal()
         self.dbg_rdy          = Signal()
         self.clk_ref_62m5     = Signal()
+        self.ready_for_reset  = Signal()
         self.debug_pins       = platform.request("debug")
 
         self.cd_clk62m5       = ClockDomain()
@@ -170,6 +171,7 @@ class BaseSoC(SoCCore):
             self.debug_pins.eq(Cat(self.clk_ref_62m5, self.crg.cd_clk_125m_gtp.clk,
                 self.crg.cd_clk_10m_ext.clk, self.crg.cd_clk_125m_dmtd.clk)),
             self.cd_clk62m5.clk.eq(self.clk_ref_62m5),
+            self.cd_clk62m5.rst.eq(self.crg.cd_clk_10m_ext.rst),
         ]
 
         self.sync.clk62m5 += self.cnt_62m5.eq(self.cnt_62m5 + 1)
@@ -215,6 +217,7 @@ class BaseSoC(SoCCore):
             self.ext_ref_rst,
             self.clk_ref_locked,
             self.dbg_rdy,
+            self.ready_for_reset,
             cnt1,
             cnt2,
         ]
@@ -229,7 +232,7 @@ class BaseSoC(SoCCore):
 
         self.specials += Instance("xwrc_board_acorn",
             p_g_simulation                 = 0,
-            p_g_with_external_clock_input  = 1,
+            #p_g_with_external_clock_input  = 1,
             #p_g_dpram_initf               = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16_direct_dmtd.bram",
             p_g_DPRAM_INITF                = bram,
             #p_g_fabric_iface              = "PLAIN",
@@ -238,7 +241,9 @@ class BaseSoC(SoCCore):
             o_ext_ref_rst_o       = self.ext_ref_rst,
             o_clk_ref_62m5_o      = self.clk_ref_62m5,
 
-            i_areset_n_i          = (~ResetSignal("sys") | self.wr_rstn),
+            o_ready_for_reset_o   = self.ready_for_reset,
+
+            i_areset_n_i          = ((~ResetSignal("sys")) & self.wr_rstn),
             i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
             i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
             i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
@@ -533,6 +538,7 @@ class BaseSoC(SoCCore):
             "gateware/xwrc_platform_vivado.vhd",
             "gateware/xwrc_board_acorn.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
+            "gateware/wr_gtp_phy_family7.vhd",
         ]
 
         for cf in custom_files:

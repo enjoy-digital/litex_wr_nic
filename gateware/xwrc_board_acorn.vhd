@@ -97,6 +97,7 @@ entity xwrc_board_acorn is
     clk_ref_locked_o    : out std_logic;
     dbg_rdy_o           : out std_logic;
     ext_ref_rst_o       : out std_logic;
+    ready_for_reset_o   : out std_logic;
 
     ---------------------------------------------------------------------------
     -- Shared SPI interface to DACs
@@ -316,6 +317,7 @@ begin  -- architecture struct
       -- test/debug ggm 20240402
       clk_ref_locked_o      => clk_ref_locked_o,
       dbg_rdy_o             => dbg_rdy_o,
+      ready_for_reset_o     => ready_for_reset_o,
 
       areset_n_i            => areset_n_i,
       clk_10m_ext_i         => clk_10m_ext_i,
