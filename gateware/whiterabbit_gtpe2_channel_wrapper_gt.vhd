@@ -77,6 +77,7 @@ generic
     EXAMPLE_SIMULATION        : integer   := 0;     -- Set to 1 for simulation
     TXSYNC_OVRD_IN            : bit       := '0';
     TXSYNC_MULTILANE_IN       : bit       := '0';
+    SYSCLKSEL                 : std_logic := '1';     -- TX/RX SYSCLKSEL (PLL0/PLL1)
     TXPOLARITY                : std_logic := '0';     -- TX Polarity Control Ports
     RXPOLARITY                : std_logic := '0'      -- RX Polarity Control Ports
 );
@@ -639,8 +640,8 @@ begin
         DRPRDY                          =>      drprdy_i,
         DRPWE                           =>      drpwe_i,
         ------------------------------- Clocking Ports -----------------------------
-        RXSYSCLKSEL                     =>      "00",
-        TXSYSCLKSEL                     =>      "00",
+        RXSYSCLKSEL                     =>      (1 downto 0 => SYSCLKSEL),
+        TXSYSCLKSEL                     =>      (1 downto 0 => SYSCLKSEL),
         ----------------- FPGA TX Interface Datapath Configuration  ----------------
         TX8B10BEN                       =>      tied_to_vcc_i,
         ------------------------ GTPE2_CHANNEL Clocking Ports ----------------------

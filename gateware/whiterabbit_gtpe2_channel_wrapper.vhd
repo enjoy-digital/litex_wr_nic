@@ -205,6 +205,7 @@ generic
     EXAMPLE_SIMULATION        : integer  := 0;  
     TXSYNC_OVRD_IN            : bit    := '0';
     TXSYNC_MULTILANE_IN       : bit    := '0';
+    SYSCLKSEL                 : bit    := '0';
     TXPOLARITY                : bit    := '0';
     RXPOLARITY                : bit    := '0'
 );
@@ -324,6 +325,7 @@ begin
         EXAMPLE_SIMULATION     => EXAMPLE_SIMULATION,
         TXSYNC_OVRD_IN         => ('0'),
         TXSYNC_MULTILANE_IN    => ('0'),
+        SYSCLKSEL              => '0',
         TXPOLARITY             => TXPOLARITY,
         RXPOLARITY             => RXPOLARITY
     )
