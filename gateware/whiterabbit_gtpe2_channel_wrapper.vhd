@@ -76,6 +76,7 @@ generic
     -- Simulation attributes
     EXAMPLE_SIMULATION             : integer  := 0;       -- Set to 1 for simulation
     WRAPPER_SIM_GTRESET_SPEEDUP    : string   := "FALSE"; -- Set to "true" to speed up sim reset
+    SYSCLKSEL                      : bit      := '1';     -- GTPE2_CHANNEL PLL select
     TXPOLARITY                     : bit      := '0';     -- GTPE2_CHANNEL TX Polarity Control Ports
     RXPOLARITY                     : bit      := '0'      -- GTPE2_CHANNEL RX Polarity Control Ports
 );
@@ -150,10 +151,17 @@ port
     ----------------- Common Block - GTPE2_COMMON Clocking Ports ---------------
     GT0_GTREFCLK0_IN                        : in   std_logic;
     -------------------------- Common Block - PLL Ports ------------------------
+    GT0_PLL0LOCK_OUT                        : out  std_logic;
+    GT0_PLL0LOCKDETCLK_IN                   : in   std_logic;
+    GT0_PLL0REFCLKLOST_OUT                  : out  std_logic;
+    GT0_PLL0RESET_IN                        : in   std_logic;
+    GT0_PLL0PD_IN                           : in   std_logic;
+
     GT0_PLL1LOCK_OUT                        : out  std_logic;
     GT0_PLL1LOCKDETCLK_IN                   : in   std_logic;
     GT0_PLL1REFCLKLOST_OUT                  : out  std_logic;
     GT0_PLL1RESET_IN                        : in   std_logic;
+    GT0_PLL1PD_IN                           : in   std_logic;
 
     debug                                   : out std_logic_vector(31 downto 0)
 );
@@ -205,7 +213,7 @@ generic
     EXAMPLE_SIMULATION        : integer  := 0;  
     TXSYNC_OVRD_IN            : bit    := '0';
     TXSYNC_MULTILANE_IN       : bit    := '0';
-    SYSCLKSEL                 : bit    := '0';
+    SYSCLKSEL                 : bit    := '1';
     TXPOLARITY                : bit    := '0';
     RXPOLARITY                : bit    := '0'
 );
@@ -325,7 +333,7 @@ begin
         EXAMPLE_SIMULATION     => EXAMPLE_SIMULATION,
         TXSYNC_OVRD_IN         => ('0'),
         TXSYNC_MULTILANE_IN    => ('0'),
-        SYSCLKSEL              => '0',
+        SYSCLKSEL              => SYSCLKSEL,
         TXPOLARITY             => TXPOLARITY,
         RXPOLARITY             => RXPOLARITY
     )
@@ -476,21 +484,21 @@ begin
         PLL1OUTREFCLK                   =>      gt0_pll1outrefclk_i,
         -------------------------- Common Block - PLL Ports ------------------------
         PLL0FBCLKLOST                   =>      open,
-        PLL0LOCK                        =>      GT0_PLL1LOCK_OUT,
-        PLL0LOCKDETCLK                  =>      GT0_PLL1LOCKDETCLK_IN,
+        PLL0LOCK                        =>      GT0_PLL0LOCK_OUT,
+        PLL0LOCKDETCLK                  =>      GT0_PLL0LOCKDETCLK_IN,
         PLL0LOCKEN                      =>      tied_to_vcc_i,
-        PLL0PD                          =>      tied_to_ground_i,
-        PLL0REFCLKLOST                  =>      GT0_PLL1REFCLKLOST_OUT,
+        PLL0PD                          =>      GT0_PLL0PD_IN,
+        PLL0REFCLKLOST                  =>      GT0_PLL0REFCLKLOST_OUT,
         PLL0REFCLKSEL                   =>      "001",
-        PLL0RESET                       =>      GT0_PLL1RESET_IN,
+        PLL0RESET                       =>      GT0_PLL0RESET_IN,
         PLL1FBCLKLOST                   =>      open,
-        PLL1LOCK                        =>      open,
-        PLL1LOCKDETCLK                  =>      tied_to_ground_i,
+        PLL1LOCK                        =>      GT0_PLL1LOCK_OUT,
+        PLL1LOCKDETCLK                  =>      GT0_PLL1LOCKDETCLK_IN,
         PLL1LOCKEN                      =>      tied_to_vcc_i,
-        PLL1PD                          =>      '1',
-        PLL1REFCLKLOST                  =>      open,
+        PLL1PD                          =>      GT0_PLL1PD_IN,
+        PLL1REFCLKLOST                  =>      GT0_PLL1REFCLKLOST_OUT,
         PLL1REFCLKSEL                   =>      "001",
-        PLL1RESET                       =>      tied_to_ground_i,
+        PLL1RESET                       =>      GT0_PLL1RESET_IN,
         ---------------------------- Common Block - Ports --------------------------
         BGRCALOVRDENB                   =>      tied_to_vcc_i,
         GTGREFCLK0                      =>      tied_to_ground_i,

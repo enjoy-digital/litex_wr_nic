@@ -70,6 +70,9 @@ entity xwrc_platform_xilinx is
       -- Select GTP channel to use
       g_gtp_enable_ch0            : integer := 0;
       g_gtp_enable_ch1            : integer := 1;
+      -- Select GTP PLL to use
+      g_gtp_enable_pll0           : bit     := '0';
+      g_gtp_enable_pll1           : bit     := '1';
       -- Select PHY reference clock
       -- default value of 4 selects CLK10 / CLK11 (see UG386, Fig 2-3, page 41)
       g_phy_refclk_sel            : integer range 0 to 7 := 4;
@@ -227,6 +230,21 @@ begin  -- architecture rtl
       report "Dual GTP/SFP is not supported yet (TODO) !"
       severity ERROR;
   end generate gen_dual_SFP_support;
+
+  no_PLL_select: if (g_gtp_enable_pll0 = '0' and g_gtp_enable_pll1 = '0')
+  generate
+    assert FALSE
+      report "At least one GTPE2_COMMON PLL must be enabled"
+      severity ERROR;
+  end generate no_PLL_select;
+
+  dual_PLL_select: if (g_gtp_enable_pll0 /= '0' and g_gtp_enable_pll1 /= '0')
+  generate
+    assert FALSE
+      report "Using PLL0 and PLL1 is not supported"
+      severity ERROR;
+  end generate dual_PLL_select;
+
   -----------------------------------------------------------------------------
   -- Clock PLLs
   -----------------------------------------------------------------------------
@@ -775,6 +793,8 @@ begin  -- architecture rtl
     cmp_gtp: entity work.wr_gtp_phy_family7
       generic map(
         g_simulation => g_simulation,
+        g_gtp_enable_pll0 => g_gtp_enable_pll0,
+        g_gtp_enable_pll1 => g_gtp_enable_pll1,
         txpolarity   => txpolarity,
         rxpolarity   => rxpolarity)
       port map(

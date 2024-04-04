@@ -55,11 +55,14 @@ use work.disparity_gen_pkg.all;
 entity wr_gtp_phy_family7 is
   generic (
     -- set to non-zero value to speed up the simulation by reducing some delays
-    g_simulation     : integer := 0;
+    g_simulation      : integer := 0;
+    -- Select GTP PLL to use
+    g_gtp_enable_pll0 : bit     := '0';
+    g_gtp_enable_pll1 : bit     := '1';
     -- GTPE2_CHANNEL TX Polarity Control Ports
-    txpolarity       : bit     := '0';
+    txpolarity        : bit     := '0';
     -- GTPE2_CHANNEL RX Polarity Control Ports
-    rxpolarity       : bit     := '0'
+    rxpolarity        : bit     := '0'
   );
   port (
     -- test/debug
@@ -176,6 +179,13 @@ architecture structure of wr_gtp_phy_family7 is
   signal tx_is_k_swapped    : std_logic_vector(1 downto 0);
   signal tx_data_swapped    : std_logic_vector(15 downto 0);
   
+  signal pll0_locked        : std_logic;
+  signal pll1_locked        : std_logic;
+  signal pll0_reset         : std_logic;
+  signal pll1_reset         : std_logic;
+  signal pll0_pd            : std_logic;
+  signal pll1_pd            : std_logic;
+
   component gtp_bitslide is
   generic (
     g_simulation             :    integer;
@@ -311,6 +321,7 @@ begin
     -- Simulation attributes
     EXAMPLE_SIMULATION           => g_simulation,
     WRAPPER_SIM_GTRESET_SPEEDUP  => f_to_bool(g_simulation),
+    SYSCLKSEL                    => g_gtp_enable_pll1, -- 0: PLL0, 1: PLL1
     TXPOLARITY                   => txpolarity,
     RXPOLARITY                   => rxpolarity
   )
@@ -384,12 +395,34 @@ begin
     ----------------- Common Block - GTPE2_COMMON Clocking Ports ---------------
     GT0_GTREFCLK0_IN         =>  clk_gtp_i,
     -------------------------- Common Block - PLL Ports ------------------------
-    GT0_PLL1LOCK_OUT         =>  pll_locked_i,
+    GT0_PLL0LOCK_OUT         =>  pll0_locked,
+    GT0_PLL0LOCKDETCLK_IN    =>  '0',
+    GT0_PLL0REFCLKLOST_OUT   =>  open,
+    GT0_PLL0RESET_IN         =>  pll0_reset,
+    GT0_PLL0PD_IN            =>  pll0_pd,
+    GT0_PLL1LOCK_OUT         =>  pll1_locked,
     GT0_PLL1LOCKDETCLK_IN    =>  '0',
     GT0_PLL1REFCLKLOST_OUT   =>  open,
-    GT0_PLL1RESET_IN         =>  ready_for_reset,
+    GT0_PLL1RESET_IN         =>  pll1_reset,
+    GT0_PLL1PD_IN            =>  pll1_pd,
     debug                    =>  debug
   );
+
+  gen_pll0_support: if g_gtp_enable_pll0 = '1' generate
+    pll0_reset <= ready_for_reset;
+    pll1_reset <= '0';
+	pll_locked_i <= pll0_locked;
+	pll0_pd      <= '0';
+	pll1_pd      <= '1';
+  end generate gen_pll0_support;
+
+  gen_pll1_support: if g_gtp_enable_pll1 = '1' generate
+    pll0_reset <= '0';
+    pll1_reset <= ready_for_reset;
+	pll_locked_i <= pll1_locked;
+	pll0_pd      <= '1';
+	pll1_pd      <= '0';
+  end generate gen_pll1_support;
   
   U_Bitslide : gtp_bitslide
   generic map (
