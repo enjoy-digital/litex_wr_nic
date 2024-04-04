@@ -161,6 +161,10 @@ class BaseSoC(SoCCore):
         self.clk_ref_62m5     = Signal()
         self.ready_for_reset  = Signal()
         self.debug_pins       = platform.request("debug")
+        # dac validation / analyze
+        dac_layout            = [("sclk", 1), ("cs_n", 1), ("din", 1)]
+        self.dac_dmtd         = Record(dac_layout)
+        self.dac_refclk       = Record(dac_layout)
 
         self.cd_clk62m5       = ClockDomain()
         self.cnt_62m5         = Signal(4)
@@ -241,25 +245,34 @@ class BaseSoC(SoCCore):
             cnt2.eq(self.cnt_62m5[3]),
         ]
 
-        analyzer_signals = [
-            self.crg.cd_clk_125m_dmtd.rst,
-            self.ext_ref_rst,
-            self.clk_ref_locked,
-            self.dbg_rdy,
-            self.ready_for_reset,
-            cnt1,
-            cnt2,
-            GTPE2_CHANNEL_GT0_PLL1RESET_IN,
-            GTPE2_CHANNEL_GT0_DRP_BUSY_OUT,
-            GTPE2_CHANNEL_GT0_GTRXRESET_IN,
-            GTPE2_CHANNEL_GT0_GTTXRESET_IN,
-            GTPE2_CHANNEL_GT0_RXRESETDONE_OUT,
-            GTPE2_CHANNEL_GT0_TXRESETDONE_OUT,
-            GTPE2_COMMON_GT0_PLL1RESET_IN,
-            GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN,
-            GTPE2_COMMON_GT0_PLL1LOCK_OUT,
-            GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT,
-        ]
+        analyzer_signals = []
+        if False:
+            analyzer_signals += [
+                self.crg.cd_clk_125m_dmtd.rst,
+                self.ext_ref_rst,
+                self.clk_ref_locked,
+                self.dbg_rdy,
+                self.ready_for_reset,
+                cnt1,
+                cnt2,
+                GTPE2_CHANNEL_GT0_PLL1RESET_IN,
+                GTPE2_CHANNEL_GT0_DRP_BUSY_OUT,
+                GTPE2_CHANNEL_GT0_GTRXRESET_IN,
+                GTPE2_CHANNEL_GT0_GTTXRESET_IN,
+                GTPE2_CHANNEL_GT0_RXRESETDONE_OUT,
+                GTPE2_CHANNEL_GT0_TXRESETDONE_OUT,
+                GTPE2_COMMON_GT0_PLL1RESET_IN,
+                GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN,
+                GTPE2_COMMON_GT0_PLL1LOCK_OUT,
+                GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT,
+            ]
+
+        if True:
+            analyzer_signals += [
+                self.dac_refclk,
+                self.dac_dmtd,
+            ]
+
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 128,
             clock_domain = "sys",
@@ -292,12 +305,12 @@ class BaseSoC(SoCCore):
             #rst_sys_62m5_n_o    => rst_sys_62m5_n,
             #rst_ref_62m5_n_o    => rst_ref_62m5_n,
 
-            #dac_refclk_cs_n_o   => dac_refclk_cs_n_o,
-            #dac_refclk_sclk_o   => dac_refclk_sclk_o,
-            #dac_refclk_din_o    => dac_refclk_din_o,
-            #dac_dmtd_cs_n_o     => dac_dmtd_cs_n_o,
-            #dac_dmtd_sclk_o     => dac_dmtd_sclk_o,
-            #dac_dmtd_din_o      => dac_dmtd_din_o,
+            o_dac_refclk_cs_n_o   = self.dac_refclk.cs_n,
+            o_dac_refclk_sclk_o   = self.dac_refclk.sclk,
+            o_dac_refclk_din_o    = self.dac_refclk.din,
+            o_dac_dmtd_cs_n_o     = self.dac_dmtd.cs_n,
+            o_dac_dmtd_sclk_o     = self.dac_dmtd.sclk,
+            o_dac_dmtd_din_o      = self.dac_dmtd.din,
 
             o_sfp_txp_o           = self.sfp.txp,
             o_sfp_txn_o           = self.sfp.txn,

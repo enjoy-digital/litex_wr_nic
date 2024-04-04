@@ -106,13 +106,13 @@ entity xwrc_board_acorn is
     ---------------------------------------------------------------------------
     -- Shared SPI interface to DACs
     ---------------------------------------------------------------------------
-    --dac_refclk_cs_n_o : out std_logic;
-    --dac_refclk_sclk_o : out std_logic;
-    --dac_refclk_din_o  : out std_logic;
+    dac_refclk_cs_n_o : out std_logic;
+    dac_refclk_sclk_o : out std_logic;
+    dac_refclk_din_o  : out std_logic;
 
-    --dac_dmtd_cs_n_o   : out std_logic;
-    --dac_dmtd_sclk_o   : out std_logic;
-    --dac_dmtd_din_o    : out std_logic;
+    dac_dmtd_cs_n_o   : out std_logic;
+    dac_dmtd_sclk_o   : out std_logic;
+    dac_dmtd_din_o    : out std_logic;
 
     ---------------------------------------------------------------------------
     -- SFP I/O for transceiver and SFP management info
@@ -292,13 +292,6 @@ architecture struct of xwrc_board_acorn is
   signal sfp_sda_in          : std_logic;
   signal sfp_scl_out         : std_logic;
   signal sfp_scl_in          : std_logic;
-  signal dac_refclk_cs_n_o   : std_logic;
-  signal dac_refclk_sclk_o   : std_logic;
-  signal dac_refclk_din_o    : std_logic;
-
-  signal dac_dmtd_cs_n_o     : std_logic;
-  signal dac_dmtd_sclk_o     : std_logic;
-  signal dac_dmtd_din_o      : std_logic;
 
 begin  -- architecture struct
 
