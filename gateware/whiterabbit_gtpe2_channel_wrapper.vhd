@@ -435,27 +435,27 @@ begin
 	    PLL0_REFCLK_DIV      => PLL0_REFCLK_DIV_IN,	
 	    PLL1_FBDIV           => PLL1_FBDIV_IN     ,	
 	    PLL1_FBDIV_45        => PLL1_FBDIV_45_IN  ,	
-	    PLL1_REFCLK_DIV      => PLL1_REFCLK_DIV_IN --,	            
+	    PLL1_REFCLK_DIV      => PLL1_REFCLK_DIV_IN,	            
 
 
        ------------------COMMON BLOCK Attributes---------------
-        --BIAS_CFG                                =>     (x"0000000000050001"),
-        --COMMON_CFG                              =>     (x"00000000"),
+        BIAS_CFG                                =>     (x"0000000000050001"),
+        COMMON_CFG                              =>     (x"00000000"),
 
        ----------------------------PLL Attributes----------------------------
-        --PLL0_CFG                                =>     (x"01F03DC"),
-        --PLL0_DMON_CFG                           =>     ('0'),
-        --PLL0_INIT_CFG                           =>     (x"00001E"),
-        --PLL0_LOCK_CFG                           =>     (x"1E8"),
-        --PLL1_CFG                                =>     (x"01F03DC"),
-        --PLL1_DMON_CFG                           =>     ('0'),
-        --PLL1_INIT_CFG                           =>     (x"00001E"),
-        --PLL1_LOCK_CFG                           =>     (x"1E8"),
-        --PLL_CLKOUT_CFG                          =>     (x"00"),
+        PLL0_CFG                                =>     (x"01F03DC"),
+        PLL0_DMON_CFG                           =>     ('0'),
+        PLL0_INIT_CFG                           =>     (x"00001E"),
+        PLL0_LOCK_CFG                           =>     (x"1E8"),
+        PLL1_CFG                                =>     (x"01F03DC"),
+        PLL1_DMON_CFG                           =>     ('0'),
+        PLL1_INIT_CFG                           =>     (x"00001E"),
+        PLL1_LOCK_CFG                           =>     (x"1E8"),
+        PLL_CLKOUT_CFG                          =>     (x"00"),
 
        ----------------------------Reserved Attributes----------------------------
-        --RSVD_ATTR0                              =>     (x"0000"),
-        --RSVD_ATTR1                              =>     (x"0000")
+        RSVD_ATTR0                              =>     (x"0000"),
+        RSVD_ATTR1                              =>     (x"0000")
 
         
     )
