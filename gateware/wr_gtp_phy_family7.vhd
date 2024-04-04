@@ -55,7 +55,11 @@ use work.disparity_gen_pkg.all;
 entity wr_gtp_phy_family7 is
   generic (
     -- set to non-zero value to speed up the simulation by reducing some delays
-    g_simulation     : integer := 0
+    g_simulation     : integer := 0;
+    -- GTPE2_CHANNEL TX Polarity Control Ports
+    txpolarity       : bit     := '0';
+    -- GTPE2_CHANNEL RX Polarity Control Ports
+    rxpolarity       : bit     := '0'
   );
   port (
     -- test/debug
@@ -306,7 +310,9 @@ begin
   (
     -- Simulation attributes
     EXAMPLE_SIMULATION           => g_simulation,
-    WRAPPER_SIM_GTRESET_SPEEDUP  => f_to_bool(g_simulation)
+    WRAPPER_SIM_GTRESET_SPEEDUP  => f_to_bool(g_simulation),
+    TXPOLARITY                   => txpolarity,
+    RXPOLARITY                   => rxpolarity
   )
   port map
   (

@@ -73,10 +73,12 @@ entity whiterabbit_gtpe2_channel_wrapper_gt is
 generic
 (
     -- Simulation attributes
-    GT_SIM_GTRESET_SPEEDUP    : string := "FALSE"; -- Set to "true" to speed up sim reset
-    EXAMPLE_SIMULATION        : integer  := 0;     -- Set to 1 for simulation
-    TXSYNC_OVRD_IN            : bit    := '0';
-    TXSYNC_MULTILANE_IN       : bit    := '0' 
+    GT_SIM_GTRESET_SPEEDUP    : string    := "FALSE"; -- Set to "true" to speed up sim reset
+    EXAMPLE_SIMULATION        : integer   := 0;     -- Set to 1 for simulation
+    TXSYNC_OVRD_IN            : bit       := '0';
+    TXSYNC_MULTILANE_IN       : bit       := '0';
+    TXPOLARITY                : std_logic := '0';     -- TX Polarity Control Ports
+    RXPOLARITY                : std_logic := '0'      -- RX Polarity Control Ports
 );
 port 
 (
@@ -810,7 +812,7 @@ begin
         RXELECIDLE                      =>      open,
         RXELECIDLEMODE                  =>      "11",
         ----------------- Receive Ports - RX Polarity Control Ports ----------------
-        RXPOLARITY                      =>      tied_to_vcc_i,
+        RXPOLARITY                      =>      RXPOLARITY,
         -------------- Receive Ports -RX Initialization and Reset Ports ------------
         RXRESETDONE                     =>      RXRESETDONE_OUT,
         --------------------------- TX Buffer Bypass Ports -------------------------
@@ -914,7 +916,7 @@ begin
         TXCOMWAKE                       =>      tied_to_ground_i,
         TXPDELECIDLEMODE                =>      tied_to_ground_i,
         ----------------- Transmit Ports - TX Polarity Control Ports ---------------
-        TXPOLARITY                      =>      tied_to_ground_i,
+        TXPOLARITY                      =>      TXPOLARITY,
         --------------- Transmit Ports - TX Receiver Detection Ports  --------------
         TXDETECTRX                      =>      tied_to_ground_i,
         ------------------ Transmit Ports - pattern Generator Ports ----------------

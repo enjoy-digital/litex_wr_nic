@@ -74,8 +74,10 @@ entity whiterabbit_gtpe2_channel_wrapper is
 generic
 (
     -- Simulation attributes
-    EXAMPLE_SIMULATION             : integer  := 0;      -- Set to 1 for simulation
-    WRAPPER_SIM_GTRESET_SPEEDUP    : string   := "FALSE" -- Set to "true" to speed up sim reset
+    EXAMPLE_SIMULATION             : integer  := 0;       -- Set to 1 for simulation
+    WRAPPER_SIM_GTRESET_SPEEDUP    : string   := "FALSE"; -- Set to "true" to speed up sim reset
+    TXPOLARITY                     : bit      := '0';     -- GTPE2_CHANNEL TX Polarity Control Ports
+    RXPOLARITY                     : bit      := '0'      -- GTPE2_CHANNEL RX Polarity Control Ports
 );
 port
 (
@@ -202,7 +204,9 @@ generic
     GT_SIM_GTRESET_SPEEDUP    : string := "false";
     EXAMPLE_SIMULATION        : integer  := 0;  
     TXSYNC_OVRD_IN            : bit    := '0';
-    TXSYNC_MULTILANE_IN       : bit    := '0'     
+    TXSYNC_MULTILANE_IN       : bit    := '0';
+    TXPOLARITY                : bit    := '0';
+    RXPOLARITY                : bit    := '0'
 );
 port 
 (   
@@ -319,7 +323,9 @@ begin
         GT_SIM_GTRESET_SPEEDUP => WRAPPER_SIM_GTRESET_SPEEDUP,
         EXAMPLE_SIMULATION     => EXAMPLE_SIMULATION,
         TXSYNC_OVRD_IN         => ('0'),
-        TXSYNC_MULTILANE_IN    => ('0')
+        TXSYNC_MULTILANE_IN    => ('0'),
+        TXPOLARITY             => TXPOLARITY,
+        RXPOLARITY             => RXPOLARITY
     )
     port map
     (

@@ -75,7 +75,11 @@ entity xwrc_platform_xilinx is
       g_phy_refclk_sel            : integer range 0 to 7 := 4;
       g_gtp_mux_enable            : boolean := FALSE;
       -- Set to TRUE will speed up some initialization processes
-      g_simulation                : integer := 0);
+      g_simulation                : integer := 0;
+      -- GTPE2_CHANNEL TX Polarity Control Ports
+      txpolarity                  : bit     := '0';
+      -- GTPE2_CHANNEL RX Polarity Control Ports
+      rxpolarity                  : bit     := '0');
   port (
     ---------------------------------------------------------------------------
     -- Asynchronous reset (active low)
@@ -770,7 +774,9 @@ begin  -- architecture rtl
 
     cmp_gtp: entity work.wr_gtp_phy_family7
       generic map(
-        g_simulation => g_simulation)
+        g_simulation => g_simulation,
+        txpolarity   => txpolarity,
+        rxpolarity   => rxpolarity)
       port map(
         ready_for_reset_o => ready_for_reset_o,
         clk_gtp_i      => clk_125m_gtp_buf,

@@ -73,7 +73,11 @@ entity xwrc_board_acorn is
     g_diag_ver                  : integer              := 0;
     -- size the generic diag interface
     g_diag_ro_size              : integer              := 0;
-    g_diag_rw_size              : integer              := 0
+    g_diag_rw_size              : integer              := 0;
+    -- GTPE2_CHANNEL TX Polarity Control Ports
+    txpolarity                  : bit                  := '0';
+    -- GTPE2_CHANNEL RX Polarity Control Ports
+    rxpolarity                  : bit                  := '1'
     );
   port (
     ---------------------------------------------------------------------------
@@ -314,7 +318,9 @@ begin  -- architecture struct
       g_direct_dmtd               => TRUE,
       g_with_external_clock_input => g_with_external_clock_input,
       g_use_default_plls          => TRUE,
-      g_simulation                => 0)
+      g_simulation                => 0,
+      txpolarity                  => txpolarity,
+      rxpolarity                  => rxpolarity)
     port map (
       -- test/debug ggm 20240402
       clk_ref_locked_o      => clk_ref_locked_o,
