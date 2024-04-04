@@ -303,7 +303,7 @@ begin
     gt0_pll1refclk_i <= gt0_pll1outrefclk_i; 
       
     gt0_rst_i        <= GT0_PLL1RESET_IN;
-
+   
 
     -- GTPE2_CHANNEL Debug.
     debug(0) <= GT0_PLL1RESET_IN;
@@ -414,18 +414,18 @@ begin
     gtpe2_common_0_i : GTPE2_COMMON
     generic map
     (
-       --     -- Simulation attributes
-       --     SIM_RESET_SPEEDUP    => WRAPPER_SIM_GTRESET_SPEEDUP,
-       --     SIM_PLL0REFCLK_SEL   => ("001"),
-       --     SIM_PLL1REFCLK_SEL   => ("001"),
-       --     SIM_VERSION          => ("1.0"),
+            -- Simulation attributes
+            SIM_RESET_SPEEDUP    => WRAPPER_SIM_GTRESET_SPEEDUP,
+            SIM_PLL0REFCLK_SEL   => ("001"),
+            SIM_PLL1REFCLK_SEL   => ("001"),
+            SIM_VERSION          => ("1.0"),
 
-        --PLL1_FBDIV           => PLL0_FBDIV_IN     ,
-	    --PLL1_FBDIV_45        => PLL0_FBDIV_45_IN  ,
-	    --PLL1_REFCLK_DIV      => PLL0_REFCLK_DIV_IN,
-	    PLL0_FBDIV           => PLL1_FBDIV_IN     ,
-	    PLL0_FBDIV_45        => PLL1_FBDIV_45_IN  ,
-	    PLL0_REFCLK_DIV      => PLL1_REFCLK_DIV_IN --,
+            PLL0_FBDIV           => PLL0_FBDIV_IN     ,	
+	    PLL0_FBDIV_45        => PLL0_FBDIV_45_IN  ,	
+	    PLL0_REFCLK_DIV      => PLL0_REFCLK_DIV_IN,	
+	    PLL1_FBDIV           => PLL1_FBDIV_IN     ,	
+	    PLL1_FBDIV_45        => PLL1_FBDIV_45_IN  ,	
+	    PLL1_REFCLK_DIV      => PLL1_REFCLK_DIV_IN --,	            
 
 
        ------------------COMMON BLOCK Attributes---------------
@@ -451,7 +451,7 @@ begin
     )
     port map
     (
-	    DMONITOROUT             => open,
+	     DMONITOROUT             => open,	
         ------------- Common Block  - Dynamic Reconfiguration Port (DRP) -----------
         DRPADDR                         =>      tied_to_ground_vec_i(7 downto 0),
         DRPCLK                          =>      tied_to_ground_i,
@@ -465,25 +465,14 @@ begin
         GTEASTREFCLK1                   =>      tied_to_ground_i,
         GTGREFCLK1                      =>      tied_to_ground_i,
         GTREFCLK0                       =>      GT0_GTREFCLK0_IN,
-		--GTGREFCLK1                      =>      tied_to_ground_i,
-        --GTREFCLK0                       =>      tied_to_ground_i,
         GTREFCLK1                       =>      tied_to_ground_i,
         GTWESTREFCLK0                   =>      tied_to_ground_i,
         GTWESTREFCLK1                   =>      tied_to_ground_i,
-        PLL1OUTCLK                      =>      gt0_pll0outclk_i,
-        PLL1OUTREFCLK                   =>      gt0_pll0outrefclk_i,
-        PLL0OUTCLK                      =>      gt0_pll1outclk_i,
-        PLL0OUTREFCLK                   =>      gt0_pll1outrefclk_i,
+        PLL0OUTCLK                      =>      gt0_pll0outclk_i,
+        PLL0OUTREFCLK                   =>      gt0_pll0outrefclk_i,
+        PLL1OUTCLK                      =>      gt0_pll1outclk_i,
+        PLL1OUTREFCLK                   =>      gt0_pll1outrefclk_i,
         -------------------------- Common Block - PLL Ports ------------------------
-        PLL1FBCLKLOST                   =>      open,
-        PLL1LOCK                        =>      open,
-        PLL1LOCKDETCLK                  =>      tied_to_ground_i,
-        PLL1LOCKEN                      =>      tied_to_vcc_i,
-        PLL1PD                          =>      '1',
-        PLL1REFCLKLOST                  =>      open,
-        PLL1REFCLKSEL                   =>      "001",
-        PLL1RESET                       =>      tied_to_ground_i,
-
         PLL0FBCLKLOST                   =>      open,
         PLL0LOCK                        =>      GT0_PLL1LOCK_OUT,
         PLL0LOCKDETCLK                  =>      GT0_PLL1LOCKDETCLK_IN,
@@ -492,6 +481,14 @@ begin
         PLL0REFCLKLOST                  =>      GT0_PLL1REFCLKLOST_OUT,
         PLL0REFCLKSEL                   =>      "001",
         PLL0RESET                       =>      GT0_PLL1RESET_IN,
+        PLL1FBCLKLOST                   =>      open,
+        PLL1LOCK                        =>      open,
+        PLL1LOCKDETCLK                  =>      tied_to_ground_i,
+        PLL1LOCKEN                      =>      tied_to_vcc_i,
+        PLL1PD                          =>      '1',
+        PLL1REFCLKLOST                  =>      open,
+        PLL1REFCLKSEL                   =>      "001",
+        PLL1RESET                       =>      tied_to_ground_i,
         ---------------------------- Common Block - Ports --------------------------
         BGRCALOVRDENB                   =>      tied_to_vcc_i,
         GTGREFCLK0                      =>      tied_to_ground_i,
@@ -505,7 +502,7 @@ begin
         BGBYPASSB                       =>      tied_to_vcc_i,
         BGMONITORENB                    =>      tied_to_vcc_i,
         BGPDB                           =>      tied_to_vcc_i,
-        BGRCALOVRD                      =>      "11111",           -- ug482 table 2-8 says "111111"
+        BGRCALOVRD                      =>      "00000",           -- ug482 table 2-8 says "111111"
         PMARSVD                         =>      "00000000",
         RCALENB                         =>      tied_to_vcc_i
 

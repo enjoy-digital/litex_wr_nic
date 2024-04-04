@@ -644,10 +644,10 @@ begin
         ----------------- FPGA TX Interface Datapath Configuration  ----------------
         TX8B10BEN                       =>      tied_to_vcc_i, -- diff
         ------------------------ GTPE2_CHANNEL Clocking Ports ----------------------
-        PLL0CLK                         =>      PLL1CLK_IN,
-        PLL0REFCLK                      =>      PLL1REFCLK_IN,
-        PLL1CLK                         =>      PLL0CLK_IN,
-        PLL1REFCLK                      =>      PLL0REFCLK_IN,
+        PLL0CLK                         =>      PLL0CLK_IN,
+        PLL0REFCLK                      =>      PLL0REFCLK_IN,
+        PLL1CLK                         =>      PLL1CLK_IN,
+        PLL1REFCLK                      =>      PLL1REFCLK_IN,
         ------------------------------- Loopback Ports -----------------------------
         LOOPBACK                        =>      LOOPBACK_IN, -- diff
         ----------------------------- PCI Express Ports ----------------------------
