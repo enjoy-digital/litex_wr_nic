@@ -274,7 +274,7 @@ class BaseSoC(SoCCore):
             ]
 
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-            depth        = 128,
+            depth        = 256,
             clock_domain = "sys",
             register     = True,
             csr_csv      = "analyzer.csv"
