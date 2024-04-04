@@ -319,6 +319,7 @@ begin  -- architecture struct
       g_with_external_clock_input => g_with_external_clock_input,
       g_use_default_plls          => TRUE,
       g_simulation                => 0,
+      g_input_clk_single          => TRUE,
       g_gtp_enable_pll0           => '1',
       g_gtp_enable_pll1           => '0',
       txpolarity                  => txpolarity,

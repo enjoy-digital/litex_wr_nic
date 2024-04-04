@@ -56,7 +56,7 @@ use unisim.vcomponents.all;
 entity xwrc_platform_xilinx is
   generic
     (
-	  input_clk_single            : boolean := TRUE;
+      g_input_clk_single          : boolean := FALSE;
       -- Define the family/model of Xilinx FPGA
       -- (supported: for now only spartan6)
       g_fpga_family               : string  := "zynqus";
@@ -767,7 +767,7 @@ begin  -- architecture rtl
 
   begin
 
-    input_diff: if (input_clk_single = FALSE) generate
+    input_diff: if (g_input_clk_single = FALSE) generate
         -- Dedicated GTP clock.
         cmp_gtp_dedicated_clk : IBUFDS_GTE2
           generic map(
@@ -781,7 +781,7 @@ begin  -- architecture rtl
             I     => clk_125m_gtp_p_i,
             IB    => clk_125m_gtp_n_i);
     end generate input_diff;
-    input_single: if (input_clk_single = TRUE) generate
+    input_single: if (g_input_clk_single = TRUE) generate
         clk_125m_gtp_buf <= clk_125m_gtp_p_i;
     end generate input_single;
     -- System PLL input clock buffer
