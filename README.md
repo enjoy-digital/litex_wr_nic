@@ -83,6 +83,9 @@ These are located in three distincts location:
 
 ## LiteX Acorn Baseboard mini
 
+**NOTE**: SFP I2C interface is unconnected by default: *J1* and *J4* must be
+closed using jumpers.
+
 ### riscv firmware
 
 - We assume repo is cloned at this repo root directory
