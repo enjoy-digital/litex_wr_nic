@@ -219,6 +219,8 @@ begin
     debug(7) <= CPLLREFCLKLOST_OUT;
     debug(8) <= CPLLFBCLKLOST_OUT;
     debug(9) <= CPLLLOCKDETCLK_IN;
+    debug(10) <= TXUSERRDY_IN;
+    debug(11) <= RXUSERRDY_IN;
 
     ----------------------------- GTXE2 Instance  --------------------------   
 

@@ -178,6 +178,8 @@ class BaseSoC(SoCCore):
         GTPX2_CHANNEL_CPLLREFCLKLOST_OUT = Signal()
         GTPX2_CHANNEL_CPLLFBCLKLOST_OUT  = Signal()
         GTPX2_CHANNEL_CPLLLOCKDETCLK_IN  = Signal()
+        GTP2X_CHANNEL_TXUSERRDY_IN       = Signal()
+        GTP2X_CHANNEL_RXUSERRDY_IN       = Signal()
         self.comb += [
             GTPX2_CHANNEL_CPLLRESET_IN.eq(      debug[0]),
             GTPX2_CHANNEL_RXCDRRESET_IN.eq(     debug[1]),
@@ -189,6 +191,8 @@ class BaseSoC(SoCCore):
             GTPX2_CHANNEL_CPLLREFCLKLOST_OUT.eq(debug[7]),
             GTPX2_CHANNEL_CPLLFBCLKLOST_OUT.eq( debug[8]),
             GTPX2_CHANNEL_CPLLLOCKDETCLK_IN.eq( debug[9]),
+            GTP2X_CHANNEL_TXUSERRDY_IN.eq(      debug[10]),
+            GTP2X_CHANNEL_RXUSERRDY_IN.eq(      debug[11]),
         ]
 
         # WR core

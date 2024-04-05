@@ -712,7 +712,7 @@ begin  -- architecture rtl
         I => clk_125m_gtx_buf,
         O => clk_125m_pllref_buf);
 
-    cmp_gtx: wr_gtx_phy_family7
+    cmp_gtx: entity work.wr_gtx_phy_family7
       generic map(
         g_simulation => g_simulation)
       port map(
@@ -731,6 +731,7 @@ begin  -- architecture rtl
         loopen_i       => phy16_i.loopen_vec,
         tx_prbs_sel_i  => phy16_i.tx_prbs_sel,
         rdy_o          => phy16_o.rdy,
+        debug          => debug,
 
         pad_txn_o => sfp_txn_o,
         pad_txp_o => sfp_txp_o,
