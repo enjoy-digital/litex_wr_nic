@@ -138,6 +138,7 @@ class BaseSoC(SoCCore):
             self.sfp_tx_fault.eq(self.control.fields.sfp_fault),
             self.sfp_det.eq(self.control.fields.sfp_detect),
             self.wr_rstn.eq(~self.rst_ctrl.fields.reset),
+            platform.request("sfp_tx_disable_n").eq(1),
         ]
 
         # Debug
