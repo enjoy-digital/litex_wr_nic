@@ -91,10 +91,11 @@ class BaseSoC(SoCCore):
             with_jtagbone = True
         )
 
-        self.sfp        = platform.request("sfp")
-        self.sfp_i2c    = platform.request("i2c")
-        self.serial     = platform.request("serial")
-        self.leds       = platform.request_all("user_led")
+        self.sfp              = platform.request("sfp")
+        self.sfp_i2c          = platform.request("i2c")
+        self.serial           = platform.request("serial")
+        self.leds             = platform.request_all("user_led")
+        self.sfp_tx_disable_n = platform.request("sfp_tx_disable_n")
         #self.flash      = platform.request("flash")
         #self.flash_cs_n = platform.request("flash_cs_n")
         #self.flash_clk  = Signal()
@@ -138,7 +139,6 @@ class BaseSoC(SoCCore):
             self.sfp_tx_fault.eq(self.control.fields.sfp_fault),
             self.sfp_det.eq(self.control.fields.sfp_detect),
             self.wr_rstn.eq(~self.rst_ctrl.fields.reset),
-            platform.request("sfp_tx_disable_n").eq(1),
         ]
 
         # Debug
@@ -291,7 +291,7 @@ class BaseSoC(SoCCore):
             io_sfp_scl            = self.sfp_i2c.scl,
             #sfp_rate_select_o   => self.sfp_rate_select_o,
             i_sfp_tx_fault_i      = self.sfp_tx_fault,
-            #sfp_tx_disable_o    => self.sfp_tx_disable_o,
+            o_sfp_tx_disable_o    = ~self.sfp_tx_disable_n,
             i_sfp_tx_los_i        = self.sfp_tx_los,
 
             #eeprom_sda_i        => eeprom_sda_in,
