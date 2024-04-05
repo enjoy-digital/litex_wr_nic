@@ -2,8 +2,8 @@
 
 # Copyright (C) 2024 Enjoy-Digital.
 
-# ./acorn.py --csr-csv=csr.csv --build --load
-# litex_server --jtag --jtag-config=openocd_xc7_ft2232.cfg
+# ./zc706.py --csr-csv=csr.csv --build --load
+# litex_server --jtag --jtag-config=openocd_xc7z_smt2-nc.cfg
 
 import argparse
 import sys
