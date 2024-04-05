@@ -118,6 +118,13 @@ See [configuration details](https://www.ti.com/lit/ds/symlink/pca9548a.pdf?ts=17
 **NOTE** *ZC706* has no onboard UART interface. An external USB <-> UART must be
 connected to PMOD1 Pins 2,3 (J58).
 
+### status
+
+- SFP is working, sync and comm too
+- no flash available
+- SFP i2c requires modifying *wrpc-sw* to add code to enable i2c switch
+- an external, 125MHz, must be tested instead of PLL's output
+
 ### riscv firmware
 
 Currently this is similar to the acorn
