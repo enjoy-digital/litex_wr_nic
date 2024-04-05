@@ -330,6 +330,8 @@ class BaseSoC(SoCCore):
             "board/common/xwrc_board_common.vhd",
             "top/clbv3_ref_design/clbv3_wr_ref_top.bmm",
             "top/clbv3_ref_design/clbv3_wr_ref_top.vhd",
+            "platform/xilinx/wr_gtp_phy/family7-gtx/whiterabbit_gtxe2_channel_wrapper_gt.vhd",
+            "platform/xilinx/wr_gtp_phy/family7-gtx/wr_gtx_phy_family7.vhd",
         ]
 
         custom_files = [
