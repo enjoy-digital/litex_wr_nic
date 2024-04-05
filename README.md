@@ -107,6 +107,33 @@ cp wrc.bram ../
 ```bash
 ./acorn.py --build --load
 ```
+
+## Xilinx ZC706
+
+**NOTE** firmware must be updated (TBD) to configure PCA9548 (i2c switch) to
+permit access to the SFP. By default only the switch (0x74 is visible).
+
+See [configuration details](https://www.ti.com/lit/ds/symlink/pca9548a.pdf?ts=1712311423911&ref_url=https%253A%252F%252Fwww.google.com%252F)
+
+**NOTE** *ZC706* has no onboard UART interface. An external USB <-> UART must be
+connected to PMOD1 Pins 2,3 (J58).
+
+### riscv firmware
+
+Currently this is similar to the acorn
+
+### Gateware
+
+```
+./acorn.py --csr-csv=csr.csv --build --load
+```
+
+### GTX debug or DAC control (litescope)
+
+```
+litex_server --jtag --jtag-config=openocd_xc7z_smt2-nc.cfg
+```
+
 ## SDB
 
 see **wrpc-user-manual-v5.0.pdf** and *wrpc-sw/tools/sdbfs.README*
