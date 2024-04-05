@@ -194,7 +194,7 @@ class BaseSoC(SoCCore):
         # WR core
         self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "wrc_acorn.bram"))
 
-        self.comb += self.leds.eq(Cat(~self.led_link, ~self.led_act, ~self.led_pps, ~self.led_fake_pps))
+        self.comb += self.leds.eq(Cat(self.led_link, self.led_act, self.led_pps, self.led_fake_pps))
 
         self.timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
         self.comb += self.timer.wait.eq(~self.timer.done)
