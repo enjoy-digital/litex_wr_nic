@@ -166,32 +166,28 @@ class BaseSoC(SoCCore):
 
         self.debug  = debug = Signal(32)
 
-        # GTPE2_CHANNEL.
-        GTPE2_CHANNEL_GT0_PLL1RESET_IN    = Signal()
-        GTPE2_CHANNEL_GT0_DRP_BUSY_OUT    = Signal()
-        GTPE2_CHANNEL_GT0_GTRXRESET_IN    = Signal()
-        GTPE2_CHANNEL_GT0_GTTXRESET_IN    = Signal()
-        GTPE2_CHANNEL_GT0_RXRESETDONE_OUT = Signal()
-        GTPE2_CHANNEL_GT0_TXRESETDONE_OUT = Signal()
+        # GTPX2_CHANNEL.
+        GTPX2_CHANNEL_CPLLRESET_IN       = Signal()
+        GTPX2_CHANNEL_RXCDRRESET_IN      = Signal()
+        GTPX2_CHANNEL_GTRXRESET_IN       = Signal()
+        GTPX2_CHANNEL_RXPMARESET_IN      = Signal()
+        GTPX2_CHANNEL_RXRESETDONE_OUT    = Signal()
+        GTPX2_CHANNEL_GTTXRESET_IN       = Signal()
+        GTPX2_CHANNEL_TXRESETDONE_OUT    = Signal()
+        GTPX2_CHANNEL_CPLLREFCLKLOST_OUT = Signal()
+        GTPX2_CHANNEL_CPLLFBCLKLOST_OUT  = Signal()
+        GTPX2_CHANNEL_CPLLLOCKDETCLK_IN  = Signal()
         self.comb += [
-            GTPE2_CHANNEL_GT0_PLL1RESET_IN.eq(   debug[0]),
-            GTPE2_CHANNEL_GT0_DRP_BUSY_OUT.eq(   debug[1]),
-            GTPE2_CHANNEL_GT0_GTRXRESET_IN.eq(   debug[2]),
-            GTPE2_CHANNEL_GT0_GTTXRESET_IN.eq(   debug[3]),
-            GTPE2_CHANNEL_GT0_RXRESETDONE_OUT.eq(debug[4]),
-            GTPE2_CHANNEL_GT0_TXRESETDONE_OUT.eq(debug[5]),
-        ]
-
-        # GTPE2_COMMON.
-        GTPE2_COMMON_GT0_PLL1RESET_IN       = Signal()
-        GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN  = Signal()
-        GTPE2_COMMON_GT0_PLL1LOCK_OUT       = Signal()
-        GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT = Signal()
-        self.comb += [
-            GTPE2_COMMON_GT0_PLL1RESET_IN.eq(      debug[16]),
-            GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN.eq( debug[17]),
-            GTPE2_COMMON_GT0_PLL1LOCK_OUT.eq(      debug[18]),
-            GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT.eq(debug[19]),
+            GTPX2_CHANNEL_CPLLRESET_IN.eq(      debug[0]),
+            GTPX2_CHANNEL_RXCDRRESET_IN.eq(     debug[1]),
+            GTPX2_CHANNEL_GTRXRESET_IN.eq(      debug[2]),
+            GTPX2_CHANNEL_RXPMARESET_IN.eq(     debug[3]),
+            GTPX2_CHANNEL_RXRESETDONE_OUT.eq(   debug[4]),
+            GTPX2_CHANNEL_GTTXRESET_IN.eq(      debug[5]),
+            GTPX2_CHANNEL_TXRESETDONE_OUT.eq(   debug[6]),
+            GTPX2_CHANNEL_CPLLREFCLKLOST_OUT.eq(debug[7]),
+            GTPX2_CHANNEL_CPLLFBCLKLOST_OUT.eq( debug[8]),
+            GTPX2_CHANNEL_CPLLLOCKDETCLK_IN.eq( debug[9]),
         ]
 
         # WR core
@@ -225,16 +221,16 @@ class BaseSoC(SoCCore):
                 self.ready_for_reset,
                 cnt1,
                 cnt2,
-                GTPE2_CHANNEL_GT0_PLL1RESET_IN,
-                GTPE2_CHANNEL_GT0_DRP_BUSY_OUT,
-                GTPE2_CHANNEL_GT0_GTRXRESET_IN,
-                GTPE2_CHANNEL_GT0_GTTXRESET_IN,
-                GTPE2_CHANNEL_GT0_RXRESETDONE_OUT,
-                GTPE2_CHANNEL_GT0_TXRESETDONE_OUT,
-                GTPE2_COMMON_GT0_PLL1RESET_IN,
-                GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN,
-                GTPE2_COMMON_GT0_PLL1LOCK_OUT,
-                GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT,
+                GTPX2_CHANNEL_CPLLRESET_IN,
+                GTPX2_CHANNEL_RXCDRRESET_IN,
+                GTPX2_CHANNEL_GTRXRESET_IN,
+                GTPX2_CHANNEL_RXPMARESET_IN,
+                GTPX2_CHANNEL_RXRESETDONE_OUT,
+                GTPX2_CHANNEL_GTTXRESET_IN,
+                GTPX2_CHANNEL_TXRESETDONE_OUT,
+                GTPX2_CHANNEL_CPLLREFCLKLOST_OUT,
+                GTPX2_CHANNEL_CPLLFBCLKLOST_OUT,
+                GTPX2_CHANNEL_CPLLLOCKDETCLK_IN,
             ]
 
         if False:
@@ -331,8 +327,6 @@ class BaseSoC(SoCCore):
             "board/common/xwrc_board_common.vhd",
             "top/clbv3_ref_design/clbv3_wr_ref_top.bmm",
             "top/clbv3_ref_design/clbv3_wr_ref_top.vhd",
-            "platform/xilinx/wr_gtp_phy/family7-gtx/whiterabbit_gtxe2_channel_wrapper_gt.vhd",
-            "platform/xilinx/wr_gtp_phy/family7-gtx/wr_gtx_phy_family7.vhd",
         ]
 
         custom_files = [
@@ -342,6 +336,8 @@ class BaseSoC(SoCCore):
             "gateware/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
             "gateware/wr_gtp_phy_family7.vhd",
+            "gateware/whiterabbit_gtxe2_channel_wrapper_gt.vhd",
+            "gateware/wr_gtx_phy_family7.vhd",
         ]
 
         for cf in custom_files:
