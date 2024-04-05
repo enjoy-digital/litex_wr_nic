@@ -104,6 +104,7 @@ class BaseSoC(SoCCore):
         self.led_link     = Signal()
         self.led_act      = Signal()
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
 
         self.control = CSRStorage(fields=[
             CSRField("sfp_los", size=1, offset=0, values=[
@@ -215,7 +216,7 @@ class BaseSoC(SoCCore):
         ]
 
         analyzer_signals = []
-        if False:
+        if True:
             analyzer_signals += [
                 self.crg.cd_clk_125m_dmtd.rst,
                 self.ext_ref_rst,
@@ -236,7 +237,7 @@ class BaseSoC(SoCCore):
                 GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT,
             ]
 
-        if True:
+        if False:
             analyzer_signals += [
                 self.dac_refclk,
                 self.dac_dmtd,
