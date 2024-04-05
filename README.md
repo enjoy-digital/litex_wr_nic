@@ -107,3 +107,21 @@ cp wrc.bram ../
 ```bash
 ./acorn.py --build --load
 ```
+## SDB
+
+see **wrpc-user-manual-v5.0.pdf** and *wrpc-sw/tools/sdbfs.README*
+
+A file must be stored into the SPI flash with parameters (cal, sfp, ...).
+
+in *wrpc-sw* (after having build firmware):
+
+```bash
+./tools/gensdbfs -b 65536 tools/sdbfs-flash /tmp/sdb-wrpc.bin
+```
+
+*SDBFS* update/rewrite:
+```
+wrc# sfp erase
+wrc# sfp add AXGE-1254-0531 180750 148326 1235332 333756144
+wrc# sfp add AXGE-3454-0531 180750 148326 -1235332 333756144
+```
