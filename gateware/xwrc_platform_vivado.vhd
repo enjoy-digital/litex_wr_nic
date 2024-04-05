@@ -334,70 +334,70 @@ begin  -- architecture rtl
       clk_62m5_sys_o <= clk_sys_out;
       pll_locked_o   <= pll_dmtd_locked and pll_sys_locked;
 
-      -- gen_kintex7_artix7_dmtd_pll : if (g_direct_dmtd = FALSE) generate
+      gen_kintex7_artix7_dmtd_pll : if (g_direct_dmtd = FALSE) generate
 
-      --   signal clk_20m_vcxo_buf : std_logic;
-      --   signal clk_dmtd_fb      : std_logic;
+        signal clk_20m_vcxo_buf : std_logic;
+        signal clk_dmtd_fb      : std_logic;
 
-      -- begin
-      -- -- DMTD PLL (20 MHz -> ~62,5 MHz)
-      -- cmp_dmtd_clk_pll : MMCME2_ADV
-      --   generic map (
-      --     BANDWIDTH            => "OPTIMIZED",
-      --     CLKOUT4_CASCADE      => false,
-      --     COMPENSATION         => "ZHOLD",
-      --     STARTUP_WAIT         => false,
-      --     DIVCLK_DIVIDE        => 1,
-      --     CLKFBOUT_MULT_F      => 50.000,    -- 20 MHz -> 1 GHz
-      --     CLKFBOUT_PHASE       => 0.000,
-      --     CLKFBOUT_USE_FINE_PS => false,
-      --     CLKOUT0_DIVIDE_F     => 16.000,    -- 1GHz/16 -> 62.5 MHz
-      --     CLKOUT0_PHASE        => 0.000,
-      --     CLKOUT0_DUTY_CYCLE   => 0.500,
-      --     CLKOUT0_USE_FINE_PS  => false,
-      --     CLKOUT1_DIVIDE       => 16,        -- 1GHz/16 -> 62.5 MHz
-      --     CLKOUT1_PHASE        => 0.000,
-      --     CLKOUT1_DUTY_CYCLE   => 0.500,
-      --     CLKOUT1_USE_FINE_PS  => false,
-      --     CLKIN1_PERIOD        => 50.000,    -- 50ns for 20 MHz
-      --     REF_JITTER1          => 0.010)
-      --   port map (
-      --     -- Output clocks
-      --     CLKFBOUT     => clk_dmtd_fb,
-      --     CLKOUT0      => clk_dmtd,
-      --     -- Input clock control
-      --     CLKFBIN      => clk_dmtd_fb,
-      --     CLKIN1       => clk_20m_vcxo_buf,
-      --     CLKIN2       => '0',
-      --     -- Tied to always select the primary input clock
-      --     CLKINSEL     => '1',
-      --     -- Ports for dynamic reconfiguration
-      --     DADDR        => (others => '0'),
-      --     DCLK         => '0',
-      --     DEN          => '0',
-      --     DI           => (others => '0'),
-      --     DO           => open,
-      --     DRDY         => open,
-      --     DWE          => '0',
-      --     -- Ports for dynamic phase shift
-      --     PSCLK        => '0',
-      --     PSEN         => '0',
-      --     PSINCDEC     => '0',
-      --     PSDONE       => open,
-      --     -- Other control and status signals
-      --     LOCKED       => pll_dmtd_locked,
-      --     CLKINSTOPPED => open,
-      --     CLKFBSTOPPED => open,
-      --     PWRDWN       => '0',
-      --     RST          => pll_arst);
+      begin
+      -- DMTD PLL (20 MHz -> ~62,5 MHz)
+      cmp_dmtd_clk_pll : MMCME2_ADV
+        generic map (
+          BANDWIDTH            => "OPTIMIZED",
+          CLKOUT4_CASCADE      => false,
+          COMPENSATION         => "ZHOLD",
+          STARTUP_WAIT         => false,
+          DIVCLK_DIVIDE        => 1,
+          CLKFBOUT_MULT_F      => 50.000,    -- 20 MHz -> 1 GHz
+          CLKFBOUT_PHASE       => 0.000,
+          CLKFBOUT_USE_FINE_PS => false,
+          CLKOUT0_DIVIDE_F     => 16.000,    -- 1GHz/16 -> 62.5 MHz
+          CLKOUT0_PHASE        => 0.000,
+          CLKOUT0_DUTY_CYCLE   => 0.500,
+          CLKOUT0_USE_FINE_PS  => false,
+          CLKOUT1_DIVIDE       => 16,        -- 1GHz/16 -> 62.5 MHz
+          CLKOUT1_PHASE        => 0.000,
+          CLKOUT1_DUTY_CYCLE   => 0.500,
+          CLKOUT1_USE_FINE_PS  => false,
+          CLKIN1_PERIOD        => 50.000,    -- 50ns for 20 MHz
+          REF_JITTER1          => 0.010)
+        port map (
+          -- Output clocks
+          CLKFBOUT     => clk_dmtd_fb,
+          CLKOUT0      => clk_dmtd,
+          -- Input clock control
+          CLKFBIN      => clk_dmtd_fb,
+          CLKIN1       => clk_20m_vcxo_buf,
+          CLKIN2       => '0',
+          -- Tied to always select the primary input clock
+          CLKINSEL     => '1',
+          -- Ports for dynamic reconfiguration
+          DADDR        => (others => '0'),
+          DCLK         => '0',
+          DEN          => '0',
+          DI           => (others => '0'),
+          DO           => open,
+          DRDY         => open,
+          DWE          => '0',
+          -- Ports for dynamic phase shift
+          PSCLK        => '0',
+          PSEN         => '0',
+          PSINCDEC     => '0',
+          PSDONE       => open,
+          -- Other control and status signals
+          LOCKED       => pll_dmtd_locked,
+          CLKINSTOPPED => open,
+          CLKFBSTOPPED => open,
+          PWRDWN       => '0',
+          RST          => pll_arst);
 
-      -- -- DMTD PLL input clock buffer
-      -- cmp_clk_dmtd_buf_i : BUFG
-      --   port map (
-      --     O => clk_20m_vcxo_buf,
-      --     I => clk_20m_vcxo_i);
+      -- DMTD PLL input clock buffer
+      cmp_clk_dmtd_buf_i : BUFG
+        port map (
+          O => clk_20m_vcxo_buf,
+          I => clk_20m_vcxo_i);
 
-      -- end generate gen_kintex7_artix7_dmtd_pll;
+      end generate gen_kintex7_artix7_dmtd_pll;
 
       gen_kintex7_artix7_direct_dmtd : if (g_direct_dmtd = TRUE) generate
 
@@ -680,80 +680,85 @@ begin  -- architecture rtl
   --   Kintex7 PHY
   ---------------------------------------------------------------------------
 
-  -- gen_phy_kintex7 : if (g_fpga_family = "kintex7") generate
+  gen_phy_kintex7 : if (g_fpga_family = "kintex7") generate
 
-  --   signal clk_ref          : std_logic;
-  --   signal clk_125m_gtx_buf : std_logic;
-  --   signal clk_ref_locked   : std_logic;
+    signal clk_ref          : std_logic;
+    signal clk_125m_gtx_buf : std_logic;
+    signal clk_ref_locked   : std_logic;
 
-  -- begin
+  begin
 
-  --   -- Dedicated GTX clock.
-  --   cmp_gtp_dedicated_clk : IBUFDS_GTE2
-  --     generic map(
-  --       CLKCM_CFG    => true,
-  --       CLKRCV_TRST  => true,
-  --       CLKSWING_CFG => "11")
-  --     port map (
-  --       O     => clk_125m_gtx_buf,
-  --       ODIV2 => open,
-  --       CEB   => '0',
-  --       I     => clk_125m_gtp_p_i,
-  --       IB    => clk_125m_gtp_n_i);
+    input_diff: if (g_input_clk_single = FALSE) generate
+        -- Dedicated GTX clock.
+        cmp_gtp_dedicated_clk : IBUFDS_GTE2
+          generic map(
+            CLKCM_CFG    => true,
+            CLKRCV_TRST  => true,
+            CLKSWING_CFG => "11")
+          port map (
+            O     => clk_125m_gtx_buf,
+            ODIV2 => open,
+            CEB   => '0',
+            I     => clk_125m_gtp_p_i,
+            IB    => clk_125m_gtp_n_i);
+    end generate input_diff;
+    input_single: if (g_input_clk_single = TRUE) generate
+        clk_125m_gtx_buf <= clk_125m_gtp_p_i;
+    end generate input_single;
 
-  --   -- System PLL input clock buffer
-  --   cmp_clk_sys_buf_i : BUFG
-  --     port map (
-  --       I => clk_125m_gtx_buf,
-  --       O => clk_125m_pllref_buf);
+    -- System PLL input clock buffer
+    cmp_clk_sys_buf_i : BUFG
+      port map (
+        I => clk_125m_gtx_buf,
+        O => clk_125m_pllref_buf);
 
-  --   cmp_gtx: wr_gtx_phy_family7
-  --     generic map(
-  --       g_simulation => g_simulation)
-  --     port map(
-  --       clk_gtx_i      => clk_125m_gtx_buf,
-  --       tx_out_clk_o   => clk_ref,
-  --       tx_data_i      => phy16_i.tx_data,
-  --       tx_k_i         => phy16_i.tx_k,
-  --       tx_disparity_o => phy16_o.tx_disparity,
-  --       tx_enc_err_o   => phy16_o.tx_enc_err,
-  --       rx_rbclk_o     => phy16_o.rx_clk,
-  --       rx_data_o      => phy16_o.rx_data,
-  --       rx_k_o         => phy16_o.rx_k,
-  --       rx_enc_err_o   => phy16_o.rx_enc_err,
-  --       rx_bitslide_o  => phy16_o.rx_bitslide,
-  --       rst_i          => phy16_i.rst,
-  --       loopen_i       => phy16_i.loopen_vec,
-  --       tx_prbs_sel_i  => phy16_i.tx_prbs_sel,
-  --       rdy_o          => phy16_o.rdy,
+    cmp_gtx: wr_gtx_phy_family7
+      generic map(
+        g_simulation => g_simulation)
+      port map(
+        clk_gtx_i      => clk_125m_gtx_buf,
+        tx_out_clk_o   => clk_ref,
+        tx_data_i      => phy16_i.tx_data,
+        tx_k_i         => phy16_i.tx_k,
+        tx_disparity_o => phy16_o.tx_disparity,
+        tx_enc_err_o   => phy16_o.tx_enc_err,
+        rx_rbclk_o     => phy16_o.rx_clk,
+        rx_data_o      => phy16_o.rx_data,
+        rx_k_o         => phy16_o.rx_k,
+        rx_enc_err_o   => phy16_o.rx_enc_err,
+        rx_bitslide_o  => phy16_o.rx_bitslide,
+        rst_i          => phy16_i.rst,
+        loopen_i       => phy16_i.loopen_vec,
+        tx_prbs_sel_i  => phy16_i.tx_prbs_sel,
+        rdy_o          => phy16_o.rdy,
 
-  --       pad_txn_o => sfp_txn_o,
-  --       pad_txp_o => sfp_txp_o,
-  --       pad_rxn_i => sfp_rxn_i,
-  --       pad_rxp_i => sfp_rxp_i,
+        pad_txn_o => sfp_txn_o,
+        pad_txp_o => sfp_txp_o,
+        pad_rxn_i => sfp_rxn_i,
+        pad_rxp_i => sfp_rxp_i,
 
-  --       tx_locked_o   => clk_ref_locked);
+        tx_locked_o   => clk_ref_locked);
 
-  --   clk_125m_ref_o       <= clk_ref;
-  --   clk_ref_locked_o     <= clk_ref_locked;
-  --   phy16_o.ref_clk      <= clk_ref;
-  --   phy16_o.sfp_tx_fault <= sfp_tx_fault_i;
-  --   phy16_o.sfp_los      <= sfp_los_i;
-  --   sfp_tx_disable_o     <= phy16_i.sfp_tx_disable;
+    clk_125m_ref_o       <= clk_ref;
+    clk_ref_locked_o     <= clk_ref_locked;
+    phy16_o.ref_clk      <= clk_ref;
+    phy16_o.sfp_tx_fault <= sfp_tx_fault_i;
+    phy16_o.sfp_los      <= sfp_los_i;
+    sfp_tx_disable_o     <= phy16_i.sfp_tx_disable;
 
-  --   -- test/debug
-  --   dbg_rdy_o            <= phy16_o.rdy;
+    -- test/debug
+    dbg_rdy_o            <= phy16_o.rdy;
 
-  --   phy8_o <= c_dummy_phy8_to_wrc;
+    phy8_o <= c_dummy_phy8_to_wrc;
 
-  --   gen_gtp_ch_dual: if (g_gtp_enable_ch0 /= 0 and g_gtp_enable_ch1 /= 0)
-  --   generate
-  --     assert FALSE
-  --       report "Cannot enable both GTP channels simultaneously on Kintex 7"
-  --       severity ERROR;
-  --   end generate gen_gtp_ch_dual;
+    gen_gtp_ch_dual: if (g_gtp_enable_ch0 /= 0 and g_gtp_enable_ch1 /= 0)
+    generate
+      assert FALSE
+        report "Cannot enable both GTP channels simultaneously on Kintex 7"
+        severity ERROR;
+    end generate gen_gtp_ch_dual;
 
-  -- end generate gen_phy_kintex7;
+  end generate gen_phy_kintex7;
 
   ---------------------------------------------------------------------------
   --   Artix7 PHY
