@@ -1,18 +1,26 @@
-From 6a1fe4c51b8a0894f7886228fc9a55af2b069842 Mon Sep 17 00:00:00 2001
+From 5442153546d7f5b4c8c2f66134f7d25317a5d459 Mon Sep 17 00:00:00 2001
 From: Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
 Date: Mon, 8 Apr 2024 12:11:53 +0200
 Subject: [PATCH 2/2] kernel/fmc-fakedev.c: fix for kernel > 5.5.0
 
 Signed-off-by: Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
 ---
- kernel/fmc-fakedev.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ kernel/fmc-fakedev.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
 diff --git a/kernel/fmc-fakedev.c b/kernel/fmc-fakedev.c
-index ac27345..424c939 100644
+index ac27345..ec30882 100644
 --- a/kernel/fmc-fakedev.c
 +++ b/kernel/fmc-fakedev.c
-@@ -141,7 +141,11 @@ static void ff_work_fn(struct work_struct *work)
+@@ -10,6 +10,7 @@
+ #include <linux/device.h>
+ #include <linux/slab.h>
+ #include <linux/firmware.h>
++#include <linux/version.h>
+ #include <linux/workqueue.h>
+ #include <linux/err.h>
+ #include <linux/fmc.h>
+@@ -141,7 +142,11 @@ static void ff_work_fn(struct work_struct *work)
  
  	ff = ff_dev_create();
  	if (IS_ERR(ff)) {
