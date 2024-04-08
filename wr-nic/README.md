@@ -57,3 +57,10 @@ ERROR:NgdBuild:604 - logical block
 
 This is concern
 *wr-nic/hdl/ip_cores/gn4124-core/hdl/gn4124core/rtl/l2p_dma_master.vhd*
+
+By adding:
+```
+echo 'xfile add ../../ip_cores/gn4124-core/hdl/spec/ip_cores/l2p_fifo.ngc' >> $@
+```
+
+after `hdlmake` step and before `make` the bitstream is correctly builded
