@@ -37,3 +37,23 @@ make
 ```
 
 And it's fails due to missing/wrong xilinx IPs.
+
+```
+Checking expanded design ...
+ERROR:NgdBuild:604 - logical block
+   'cmp_gn4124_core/cmp_l2p_dma_master/cmp_data_fifo' with type 'l2p_fifo' could
+   not be resolved. A pin name misspelling can cause this, a missing edif or ngc
+   file, case mismatch between the block name and the edif or ngc file name, or
+   the misspelling of a type name. Symbol 'l2p_fifo' is not supported in target
+   'spartan6'.
+ERROR:NgdBuild:604 - logical block
+   'cmp_gn4124_core/cmp_l2p_dma_master/cmp_addr_fifo' with type 'l2p_fifo' could
+   not be resolved. A pin name misspelling can cause this, a missing edif or ngc
+   file, case mismatch between the block name and the edif or ngc file name, or
+   the misspelling of a type name. Symbol 'l2p_fifo' is not supported in target
+   'spartan6'.
+
+```
+
+This is concern
+*wr-nic/hdl/ip_cores/gn4124-core/hdl/gn4124core/rtl/l2p_dma_master.vhd*
