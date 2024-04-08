@@ -1,0 +1,58 @@
+From 31a6e59093a70a1539ff0e41cc897a1cfe303bd0 Mon Sep 17 00:00:00 2001
+From: Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
+Date: Mon, 8 Apr 2024 12:11:21 +0200
+Subject: [PATCH 1/2] kernel/fmc-core: fix for kernel > 6.3.0
+
+Signed-off-by: Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
+---
+ kernel/fmc-core.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/kernel/fmc-core.c b/kernel/fmc-core.c
+index 5c24971..ef53f76 100644
+--- a/kernel/fmc-core.c
++++ b/kernel/fmc-core.c
+@@ -12,6 +12,7 @@
+ #include <linux/slab.h>
+ #include <linux/init.h>
+ #include <linux/device.h>
++#include <linux/version.h>
+ #include <linux/fmc.h>
+ #include <linux/fmc-sdb.h>
+ 
+@@ -31,7 +32,11 @@ static int fmc_check_version(unsigned long version, const char *name)
+ 	return 0;
+ }
+ 
++#if LINUX_VERSION_CODE < KERNEL_VERSION(6,3,0)
+ static int fmc_uevent(struct device *dev, struct kobj_uevent_env *env)
++#else
++static int fmc_uevent(const struct device *dev, struct kobj_uevent_env *env)
++#endif
+ {
+ 	/* struct fmc_device *fdev = to_fmc_device(dev); */
+ 
+@@ -48,12 +53,20 @@ static int fmc_probe(struct device *dev)
+ 	return fdrv->probe(fdev);
+ }
+ 
++#if LINUX_VERSION_CODE < KERNEL_VERSION(6,3,0)
+ static int fmc_remove(struct device *dev)
++#else
++static void fmc_remove(struct device *dev)
++#endif
+ {
+ 	struct fmc_driver *fdrv = to_fmc_driver(dev->driver);
+ 	struct fmc_device *fdev = to_fmc_device(dev);
+ 
++#if LINUX_VERSION_CODE < KERNEL_VERSION(6,3,0)
+ 	return fdrv->remove(fdev);
++#else
++	fdrv->remove(fdev);
++#endif
+ }
+ 
+ static void fmc_shutdown(struct device *dev)
+-- 
+2.43.2
+
