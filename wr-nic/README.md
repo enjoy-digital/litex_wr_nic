@@ -76,11 +76,16 @@ after `hdlmake` step and before `make` the bitstream is correctly builded
 
 Before trying to build wr-nic driver *fmc-bus* driver must be present
 
+## FMC-BUS repos
+
 ```bash
 git clone https://ohwr.org/project/fmc-bus.git
 cd fmc-bus
 quilt import /somewhere/white_rabbit_wut_tests/wr-nic/patches/fmc-bus/*.patch
 quilt push -a
+# build
+make
+sudo make install
 ```
 
 kernel/software part is located in *sw* sub-directory. Latest commits has for
@@ -97,4 +102,5 @@ It's now possible to built/install drivers with:
 ```bash
 cd wr-nic/sw
 FMC_BUS_ABS=/somewhere/fmc-bus make
+sudo make install
 ```
