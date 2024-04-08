@@ -1,3 +1,40 @@
+*wr-nic* demonstration/gateware for SPEC board is available at
+*https://ohwr.org/project/wr-nic*.
+
+This gateware as shown in figure:
+
+![wr-nic_gateware](figs/wr_nic_arch_v2.0.png)
+
+contains the module wr-nic. This one is instanciated directly by the top level
+file (*hdl/top/nic/nic_top.vhd*) by:
+
+```
+cmp_nic_wrapper : wr_nic_wrapper
+    generic map(
+      g_num_irqs  => 1,
+      g_num_ports => 1
+      )
+    port map(
+      clk_sys_i                 => clk_sys_62m5,
+      resetn_i                  => rst_sys_62m5_n,
+      ext_slave_i               => cnx_slave_in(c_WB_SLAVE_NIC),
+      ext_slave_o               => cnx_slave_out(c_WB_SLAVE_NIC),
+      nic_snk_i                 => wrc_wrf_src_out,
+      nic_snk_o                 => wrc_wrf_src_in,
+      nic_src_i                 => wrc_wrf_snk_out,
+      nic_src_o                 => wrc_wrf_snk_in,
+      pps_p_i                   => wrc_pps_csync_out_ext,
+      pps_valid_i               => wrc_pps_valid_out_ext,
+      vic_irqs_i                => (others => '0'),
+      vic_int_o                 => vic_irq,
+      txtsu_timestamps_i(0)     => wrc_timestamps_out,
+      txtsu_timestamps_ack_o(0) => wrc_timestamps_ack_in);
+
+```
+
+This repository also contains the driver, but this is not enough to have a working interface.
+The driver is registered at ethernet level but requires another driver to be probed.
+
 ## Prerequisites
 
 ### Gateware
@@ -71,6 +108,28 @@ echo 'xfile add ../../ip_cores/gn4124-core/hdl/spec/ip_cores/l2p_fifo.ngc' >> $@
 ```
 
 after `hdlmake` step and before `make` the bitstream is correctly builded
+
+## Try2
+
+Based on `spec` repository for golden bitstream and `wr-starting-kit` for
+drivers part
+
+### spec repository
+
+Note: *ise* must be in `PATH`
+
+```bash
+git clone https://ohwr.org/project/spec.git
+cd spec
+git submodule update --init
+cd hdl/syn/golden-45T
+hdlmake
+make
+
+sudo mkdir -p /lib/firmware/fmc
+sudo cp spec_golden.bin /lib/firmware/fmc/spec-init.bin
+```
+
 
 ## Software
 
