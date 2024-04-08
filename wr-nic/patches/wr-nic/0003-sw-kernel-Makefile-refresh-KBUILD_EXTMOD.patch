@@ -1,0 +1,30 @@
+From f2033855673dff072d05820796e7f9f7eaedcbb4 Mon Sep 17 00:00:00 2001
+From: Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
+Date: Mon, 8 Apr 2024 11:40:08 +0200
+Subject: [PATCH 3/3] sw/kernel/Makefile: refresh : KBUILD_EXTMOD
+
+Signed-off-by: Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
+---
+ sw/kernel/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sw/kernel/Makefile b/sw/kernel/Makefile
+index 17c8678..a911d38 100644
+--- a/sw/kernel/Makefile
++++ b/sw/kernel/Makefile
+@@ -9,10 +9,10 @@ GIT_VERSION ?= $(shell git describe --dirty --long --tags)
+ export GIT_VERSION
+ 
+ all modules:
+-	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
++	$(MAKE) -C $(LINUX) KBUILD_EXTMOD=$(shell pwd) modules
+ 
+ install modules_install:
+-	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules_install
++	$(MAKE) -C $(LINUX) KBUILD_EXTMOD=$(shell pwd) modules_install
+ 
+ # be able to run the "clean" rule even if $(LINUX) is not valid
+ clean:
+-- 
+2.43.2
+
