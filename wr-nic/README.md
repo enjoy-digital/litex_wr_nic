@@ -20,13 +20,20 @@ pip3 install --user -e .
 Both gateware and software are present in the same repo:
 
 ```bash
-git clone https://ohwr.org/project/wr-nic.git --recursive
+# No recursive here: some submodules have wrong URL
+git clone https://ohwr.org/project/wr-nic.git
 cd wr-nic
 
 # required because master is old and fixes are present
 # with recent kernel
 git checkout 28c5db8b96a7bca8effda3db14f9c3898c0aaac5
+# Now it's possible to fetch gitmodules
+# but recursive is not working (broken link again:-/ )
+git submodule update --init
 ```
+
+Software part needs few patches to be compatible with recent kernel.
+An useful tool to deal with multiples patches is `quilt` (`apt install quilt`).
 
 ## Gateware
 
@@ -67,19 +74,27 @@ after `hdlmake` step and before `make` the bitstream is correctly builded
 
 ## Software
 
+Before trying to build wr-nic driver *fmc-bus* driver must be present
+
+```bash
+git clone https://ohwr.org/project/fmc-bus.git
+cd fmc-bus
+quilt import /somewhere/white_rabbit_wut_tests/wr-nic/patches/fmc-bus/*.patch
+quilt push -a
+```
+
 kernel/software part is located in *sw* sub-directory. Latest commits has for
 goal to fix build with kernel 5.15. First step is to apply to custom patches to
 fix build with kernel > 5.15.
 
-An useful tool to deal with multiples patches is `quilt` (`apt install quilt`).
-
 ```bash
 cd wr-nic
-quilt import /somewhere/white_rabbit_wut_tests/wr-nic/patches/*.patch
+quilt import /somewhere/white_rabbit_wut_tests/wr-nic/patches/wr-nic/*.patch
+quilt push -a
 ```
 
 It's now possible to built/install drivers with:
 ```bash
 cd wr-nic/sw
-make
+FMC_BUS_ABS=/somewhere/fmc-bus make
 ```
