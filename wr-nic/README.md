@@ -35,6 +35,17 @@ cmp_nic_wrapper : wr_nic_wrapper
 This repository also contains the driver, but this is not enough to have a working interface.
 The driver is registered at ethernet level but requires another driver to be probed.
 
+## 10G-wr-nic
+
+Another [project](https://ohwr.org/project/10G-wr-nic) is dedicated to have a network interface with WR support
+
+No issues to build the bitstream, some fixes for drivers (as usual). But once
+the bitstream loaded and a `sudo modprobe spec` a dmesg indicates an error:
+```
+[    3.156754] spec-fmc-carrier 0000:01:00.0: enabling device (0000 -> 0002)
+[    3.191221] spec-fmc-carrier spec-0000:01:00.0: Application not found
+```
+
 ## Prerequisites
 
 ### Gateware
