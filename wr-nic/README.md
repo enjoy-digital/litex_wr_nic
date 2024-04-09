@@ -3,7 +3,7 @@
 
 This gateware as shown in figure:
 
-![wr-nic_gateware](figs/wr_nic_arch_v2.0.png)
+![wr-nic_gateware](../figs/wr_nic_arch_v2.0.png)
 
 contains the module wr-nic. This one is instanciated directly by the top level
 file (*hdl/top/nic/nic_top.vhd*) by:
