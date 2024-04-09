@@ -109,6 +109,38 @@ echo 'xfile add ../../ip_cores/gn4124-core/hdl/spec/ip_cores/l2p_fifo.ngc' >> $@
 
 after `hdlmake` step and before `make` the bitstream is correctly builded
 
+## Software
+
+As mentionned, *wr-nic* repository provides a driver but this one is also
+available in *spec-sw*. Latest repository seems obsolete and try to load
+directly a bitstream at start time. Best way seems for the low level aspect to use
+*spec* repository (by using *ohwr-build-scripts* to avoid dependencies
+complexity).
+
+Unfortunately after building all drivers:
+```
+sudo modprobe spec-fmc-carrier
+```
+
+fails with (dmesg):
+```
+[ 6954.470893] fpga_manager fpga0: fpga_mgr_unregister gn412x-fcl.2.auto
+[ 6956.141100] FPGA manager framework
+[ 6956.196808] gpio gpiochip0: (gn412x-gpio): not an immutable chip, please
+consider fixing it!
+[ 6956.197700] fpga_manager fpga0: gn412x-fcl.2.auto registered
+[ 6956.214478] spec-fmc-carrier 0000:01:00.0: Expected Little Endian devices
+BOM: 0x78010000
+[ 6956.214530] spec-fmc-carrier 0000:01:00.0: FPGA incorrectly programmed or
+empty (-22)
+```
+
+see [this line](https://ohwr.org/project/spec/blob/master/software/kernel/spec-core-fpga.c#L1168)
+
+with:
+- `#define SPEC_META_BOM_LE 0xFFFE0000`
+- `#define SPEC_META_BOM_END_MASK 0xFFFF0000`
+
 ## Try2
 
 Based on `spec` repository for golden bitstream and `wr-starting-kit` for
