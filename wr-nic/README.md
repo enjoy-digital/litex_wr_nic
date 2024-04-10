@@ -46,6 +46,10 @@ the bitstream loaded and a `sudo modprobe spec` a dmesg indicates an error:
 [    3.191221] spec-fmc-carrier spec-0000:01:00.0: Application not found
 ```
 
+After changing `g_APP_OFFSET` at *spec_base_wr* instanciation with a value > 0
+(`0000_2000`) previous error disapear but associated driver isn't probed ->
+unknown application ID or something similar ?
+
 ## Prerequisites
 
 ### Gateware
