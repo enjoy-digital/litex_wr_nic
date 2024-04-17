@@ -8,6 +8,20 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
 class EthernetPCIeSoC(SoCMini):
+    SoCMini.csr_map = {
+        "ethmac":                1,
+        "ethphy":                2,
+        "identifier_mem":        3,
+        "leds":                  4,
+
+        # PCIe.
+        "pcie_endpoint":         5,
+        "pcie_host_pcie2wb_dma": 6,
+        "pcie_host_wb2pcie_dma": 7,
+        "pcie_msi":              8,
+        "pcie_phy":              9,
+    }
+
     def add_ethernet_pcie(self, name="ethmac", phy=None, pcie_phy=None, phy_cd="eth", dynamic_ip=False,
                           software_debug=False,
                           nrxslots=32,
