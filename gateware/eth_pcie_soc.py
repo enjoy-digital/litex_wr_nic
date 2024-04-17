@@ -29,29 +29,38 @@ class EthernetPCIeSoC(SoCMini):
     # Add Ethernet ---------------------------------------------------------------------------------
     def __add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
         data_width              = 8,
-        nrxslots                = 32,
-        ntxslots                = 32,
+        nrxslots                = 2, rxslots_read_only  = True,
+        ntxslots                = 2, txslots_write_only = False,
+        with_timestamp          = False,
         with_timing_constraints = True,
         local_ip                = None,
-        remote_ip               = None):
+        remote_ip               = None,
+        with_pcie_eth           = True):
         # Imports
         from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
+        assert data_width in [8, 32, 128]
         with_sys_datapath = (data_width == 32)
         self.check_if_exists(name)
+        if with_timestamp:
+            self.timer0.add_uptime()
         ethmac = LiteEthMAC(
             phy        = phy,
             dw         = data_width,
             interface  = "wishbone",
             endianness = self.cpu.endianness,
-            nrxslots   = nrxslots,
-            ntxslots   = ntxslots,
-            timestamp  = None,
-            with_preamble_crc = not software_debug)
-        self.add_constant("ETHMAC_RX_WAIT_OFFSET", ethmac.interface.wait_ack_offset)
-        self.add_constant("ETHMAC_TX_READY_OFFSET", ethmac.interface.tx_ready_offset)
+            nrxslots   = nrxslots, rxslots_read_only  = rxslots_read_only,
+            ntxslots   = ntxslots, txslots_write_only = txslots_write_only,
+            timestamp  = None if not with_timestamp else self.timer0.uptime_cycles,
+            with_preamble_crc = not software_debug,
+            with_sys_datapath = with_sys_datapath)
+
+        if with_pcie_eth:
+            self.add_constant("ETHMAC_RX_WAIT_OFFSET", ethmac.interface.wait_ack_offset)
+            self.add_constant("ETHMAC_TX_READY_OFFSET", ethmac.interface.tx_ready_offset)
+
         if not with_sys_datapath:
             # Use PHY's eth_tx/eth_rx clock domains.
             ethmac = ClockDomainsRenamer({
@@ -59,12 +68,21 @@ class EthernetPCIeSoC(SoCMini):
                 "eth_rx": phy_cd + "_rx"})(ethmac)
         self.add_module(name=name, module=ethmac)
         # Compute Regions size and add it to the SoC.
-        self.ethmac_region_rx = SoCRegion(origin=0, size=ethmac.rx_slots.constant * ethmac.slot_size.constant, cached=False)
-        self.ethmac_region_tx = SoCRegion(origin=0, size=ethmac.tx_slots.constant * ethmac.slot_size.constant, cached=False)
-        self.pcie_mem_bus_rx.add_region(name="io",region=SoCIORegion(0x00000000,0x100000000))
-        self.pcie_mem_bus_tx.add_region(name="io",region=SoCIORegion(0x00000000,0x100000000))
-        self.pcie_mem_bus_rx.add_slave(name='ethmac_rx', slave=ethmac.rx_bus, region=self.ethmac_region_rx)
-        self.pcie_mem_bus_tx.add_slave(name='ethmac_tx', slave=ethmac.tx_bus, region=self.ethmac_region_tx)
+        if with_pcie_eth:
+            self.ethmac_region_rx = SoCRegion(origin=0, size=ethmac.rx_slots.constant * ethmac.slot_size.constant, cached=False)
+            self.ethmac_region_tx = SoCRegion(origin=0, size=ethmac.tx_slots.constant * ethmac.slot_size.constant, cached=False)
+            self.pcie_mem_bus_rx.add_region(name="io",region=SoCIORegion(0x00000000,0x100000000))
+            self.pcie_mem_bus_tx.add_region(name="io",region=SoCIORegion(0x00000000,0x100000000))
+            self.pcie_mem_bus_rx.add_slave(name='ethmac_rx', slave=ethmac.rx_bus, region=self.ethmac_region_rx)
+            self.pcie_mem_bus_tx.add_slave(name='ethmac_tx', slave=ethmac.tx_bus, region=self.ethmac_region_tx)
+        else:
+            ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
+            ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=ethmac_region_size, cached=False)
+            self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
+
+            # Add IRQs (if enabled).
+            if self.irq.enabled:
+                self.irq.add(name, use_loc_if_exists=True)
 
         # Dynamic IP (if enabled).
         if dynamic_ip:
@@ -176,7 +194,9 @@ class EthernetPCIeSoC(SoCMini):
             data_width              = data_width,
             nrxslots                = nrxslots,
             ntxslots                = ntxslots, 
-            with_timing_constraints = with_timing_constraints)
+            with_timing_constraints = with_timing_constraints,
+            with_pcie_eth           = True
+        )
 
         # PCIe
         self.__add_pcie(name="pcie", phy=pcie_phy,
