@@ -37,7 +37,7 @@ class EthernetPCIeSoC(SoCMini):
         remote_ip               = None,
         with_pcie_eth           = True):
         # Imports
-        from liteeth.mac import LiteEthMAC
+        from gateware.liteeth.mac_init import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
@@ -49,7 +49,7 @@ class EthernetPCIeSoC(SoCMini):
         ethmac = LiteEthMAC(
             phy        = phy,
             dw         = data_width,
-            interface  = "wishbone",
+            interface  = "pcie",
             endianness = self.cpu.endianness,
             nrxslots   = nrxslots, rxslots_read_only  = rxslots_read_only,
             ntxslots   = ntxslots, txslots_write_only = txslots_write_only,
