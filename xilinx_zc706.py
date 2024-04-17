@@ -73,24 +73,18 @@ class _CRG(LiteXModule):
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(SoCCore):
+class BaseSoC(SoCMini):
     def __init__(self, sys_clk_freq=125e6,
-        eth_ip          = "192.168.1.50",
-        remote_ip       = None,
-        eth_dynamic_ip  = False,
         with_led_chaser = True,
         **kwargs):
         platform = xilinx_zc706.Platform()
-
-        # When nor jtagbone, nor etherbone are set forces jtagbone.
-        kwargs["uart_name"]     = "crossover"
-        kwargs["with_jtagbone"] = True
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on ZC706", **kwargs)
+        SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on ZC706")
+        self.add_jtagbone()
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
         self.ethphy = K7_1000BASEX(
@@ -250,9 +244,6 @@ def main():
     parser = LiteXArgumentParser(platform=xilinx_zc706.Platform, description="LiteX SoC on ZC706.")
     parser.add_target_argument("--sys-clk-freq",   default=125e6, type=float, help="System clock frequency.")
     parser.add_target_argument("--programmer",     default="vivado",          help="Programmer select from Vivado/openFPGALoader.")
-    parser.add_target_argument("--eth-ip",         default="192.168.1.50",    help="Ethernet/Etherbone IP address.")
-    parser.add_target_argument("--remote-ip",      default="192.168.1.100",   help="Remote IP address of TFTP server.")
-    parser.add_target_argument("--eth-dynamic-ip", action="store_true",       help="Enable dynamic Ethernet IP addresses setting.")
     parser.add_target_argument("--with-pcie",      action="store_true",       help="Enable PCIe support.")
     parser.add_target_argument("--driver",         action="store_true",       help="Generate PCIe driver.")
     args = parser.parse_args()
@@ -262,9 +253,6 @@ def main():
 
     soc = BaseSoC(
         sys_clk_freq   = args.sys_clk_freq,
-        eth_ip         = args.eth_ip,
-        remote_ip      = args.remote_ip,
-        eth_dynamic_ip = args.eth_dynamic_ip,
         **parser.soc_argdict
     )
     builder = Builder(soc, **parser.builder_argdict)
