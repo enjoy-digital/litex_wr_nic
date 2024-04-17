@@ -8,8 +8,7 @@
 
 
 # FPGA PCIe Ethernet
-# ./xilinx_zc7006.py --no-compile-software --build
-# software fails to build
+# ./xilinx_zc7006.py --build
 
 #
 # Build/Load bitstream:
