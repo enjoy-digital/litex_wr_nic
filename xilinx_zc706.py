@@ -8,7 +8,7 @@
 
 
 # FPGA PCIe Ethernet
-# ./xilinx_zc7006.py --build
+# ./xilinx_zc7006.py --build --load
 
 #
 # Build/Load bitstream:

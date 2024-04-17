@@ -8,6 +8,8 @@
 # Copyright (c) 2014-2015 Yann Sionneau <ys@m-labs.hk>
 # SPDX-License-Identifier: BSD-2-Clause
 
+# FPGA PCIe Ethernet
+# ./xilinx_kc705.py --build --load
 import os
 
 from migen import *
