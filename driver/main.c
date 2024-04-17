@@ -33,6 +33,7 @@
 #include <linux/cdev.h>
 #include <linux/of_net.h>
 #include <linux/etherdevice.h>
+#include <linux/version.h>
 
 #include "litepcie.h"
 #include "csr.h"
@@ -372,13 +373,21 @@ static int liteeth_init(struct litepcie_device *lpdev)
 
 	priv->tx_buf = dma_alloc_coherent(&pdev->dev, TX_BUF_SIZE, &priv->tx_buf_dma, GFP_ATOMIC);
 
+#if 0
 	memcpy(netdev->dev_addr, mac_addr, ETH_ALEN);
+#else
+	 eth_hw_addr_set(netdev, mac_addr);
+#endif
 
 	netdev->netdev_ops = &liteeth_netdev_ops;
 	
 	netdev->watchdog_timeo = 60 * HZ;
 	
+#if 0
 	netif_napi_add(netdev, &priv->napi, liteeth_napi_poll, NAPI_POLL_WEIGHT);
+#else
+	netif_napi_add(netdev, &priv->napi, liteeth_napi_poll);
+#endif
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to register netdev %d\n", err);
@@ -448,7 +457,11 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 	dev_info(&dev->dev, "Version %s\n", fpga_identifier);
 
 	pci_set_master(dev);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)
 	ret = pci_set_dma_mask(dev, DMA_BIT_MASK(32));
+#else
+	ret = dma_set_mask(&dev->dev, DMA_BIT_MASK(DMA_ADDR_WIDTH));
+#endif
 	if (ret) {
 		dev_err(&dev->dev, "Failed to set DMA mask\n");
 		goto fail1;
