@@ -99,7 +99,6 @@ def main():
     from litex.build.parser import LiteXArgumentParser
     parser = LiteXArgumentParser(platform=xilinx_kc705.Platform, description="LiteX SoC on KC705.")
     parser.add_target_argument("--sys-clk-freq",   default=125e6, type=float, help="System clock frequency.")
-    parser.add_target_argument("--driver",         action="store_true",       help="Generate PCIe driver.")
     args = parser.parse_args()
 
     soc = BaseSoC(
@@ -109,9 +108,7 @@ def main():
     builder = Builder(soc, **parser.builder_argdict)
     if args.build:
         builder.build(**parser.toolchain_argdict)
-
-    if args.driver:
-        generate_litepcie_software(soc, os.path.join(builder.output_dir, "driver"))
+        soc.generate_software_header("driver")
 
     if args.load:
         prog = soc.platform.create_programmer()
