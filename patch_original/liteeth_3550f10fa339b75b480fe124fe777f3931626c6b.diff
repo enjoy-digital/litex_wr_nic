@@ -1,20 +1,3 @@
-diff -ru liteeth/mac/__init__.py /home/gwe/enjoydigital/fpga_pcie_ethernet/liteeth/liteeth/mac/__init__.py
---- liteeth/mac/__init__.py	2024-04-15 16:34:52.528374747 +0200
-+++ /home/gwe/enjoydigital/fpga_pcie_ethernet/liteeth/liteeth/mac/__init__.py	2024-04-15 15:52:25.128333547 +0200
-@@ -66,8 +66,12 @@
-             if full_memory_we:
-                 wishbone_interface = FullMemoryWE()(wishbone_interface)
-             self.submodules.interface = wishbone_interface
--            self.ev, self.bus = self.interface.sram.ev, self.interface.bus
-+            self.rx_bus = self.interface.rx_bus
-+            self.tx_bus = self.interface.tx_bus
-             self.csrs = self.interface.get_csrs() + self.core.get_csrs()
-+            self.rx_pcie_irq = self.interface.sram.rx_pcie_irq
-+            self.tx_pcie_irq = self.interface.sram.tx_pcie_irq
-+
-             if interface == "hybrid":
-                 # Hardware MAC
-                 self.submodules.crossbar     = LiteEthMACCrossbar(dw)
 diff -ru liteeth/mac/sram.py /home/gwe/enjoydigital/fpga_pcie_ethernet/liteeth/liteeth/mac/sram.py
 --- liteeth/mac/sram.py	2024-04-15 16:34:52.528374747 +0200
 +++ /home/gwe/enjoydigital/fpga_pcie_ethernet/liteeth/liteeth/mac/sram.py	2024-04-15 15:52:25.128333547 +0200
