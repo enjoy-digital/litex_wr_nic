@@ -112,10 +112,6 @@ class BaseSoC(SoCCore):
             )
             self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
-            if with_etherbone:
-                self.add_etherbone(phy=self.ethphy, ip_address=eth_ip, with_ethmac=with_ethernet)
-            elif with_ethernet:
-                self.add_ethernet(phy=self.ethphy, dynamic_ip=eth_dynamic_ip, local_ip=eth_ip, remote_ip=remote_ip)
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
