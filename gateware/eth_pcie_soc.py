@@ -1,11 +1,15 @@
  
 from migen import *
 
+from litex.build import tools
+
 from litex.gen import *
 
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
+from litex.soc.integration.export import get_csr_header, get_soc_header, get_mem_header
+
 
 class EthernetPCIeSoC(SoCMini):
     SoCMini.csr_map = {
@@ -148,3 +152,11 @@ class EthernetPCIeSoC(SoCMini):
 
         # Timing constraints.
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, pcie_phy.cd_pcie.clk)
+
+    def generate_software_header(self, dst):
+        csr_header = get_csr_header(self.csr_regions, self.constants, with_access_functions=False)
+        tools.write_to_file(os.path.join(dst, "csr.h"), csr_header)
+        self_header = get_soc_header(self.constants, with_access_functions=False)
+        tools.write_to_file(os.path.join(dst, "soc.h"), self_header)
+        mem_header = get_mem_header(self.mem_regions)
+        tools.write_to_file(os.path.join(dst, "mem.h"), mem_header)
