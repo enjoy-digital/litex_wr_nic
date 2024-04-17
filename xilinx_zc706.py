@@ -6,17 +6,11 @@
 # Copyright (c) 2024 Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-# Build/use
-# Build/Load bitstream:
-# ./xilinx_zc7006.py --with-etherbone --uart-name=crossover --csr-csv=csr.csv --build --load
-#
-# Test Ethernet:
-# ping 192.168.1.50
-#
-# Test Console:
-# litex_server --udp
-# litex_term crossover
-#
+
+# FPGA PCIe Ethernet
+# ./xilinx_zc7006.py --no-compile-software --build
+# software fails to build
+
 #
 # Build/Load bitstream:
 # ./xilinx_zc706.py --with-jtagbone --uart-name=crossover --csr-csv=csr.csv --build --load
@@ -263,8 +257,8 @@ def main():
     parser.add_target_argument("--driver",         action="store_true",       help="Generate PCIe driver.")
     args = parser.parse_args()
 
-    #args.driver        = True
-    args.cpu_name      = "None"
+    #args.driver   = True
+    args.cpu_name = "None"
 
     soc = BaseSoC(
         sys_clk_freq   = args.sys_clk_freq,
