@@ -90,8 +90,7 @@ class BaseSoC(SoCCore):
 
         # When nor jtagbone, nor etherbone are set forces jtagbone.
         kwargs["uart_name"]     = "crossover"
-        if not (kwargs["with_jtagbone"] or with_etherbone):
-            kwargs["with_jtagbone"] = True
+        kwargs["with_jtagbone"] = True
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
@@ -161,7 +160,7 @@ class BaseSoC(SoCCore):
         ethmac = ClockDomainsRenamer({
             "eth_tx": phy_cd + "_tx",
             "eth_rx": phy_cd + "_rx"})(ethmac)
-        setattr(self.submodules, name, ethmac)
+        self.add_module(name=name, module=ethmac)
         # Compute Regions size and add it to the SoC.
         ethmac_region_rx = SoCRegion(origin=0, size=ethmac.rx_slots.constant * ethmac.slot_size.constant, cached=False)
         ethmac_region_tx = SoCRegion(origin=0, size=ethmac.tx_slots.constant * ethmac.slot_size.constant, cached=False)
@@ -197,8 +196,10 @@ class BaseSoC(SoCCore):
         # MMAP.
         self.check_if_exists(f"{name}_mmap")
         mmap = LitePCIeWishboneMaster(self.pcie_endpoint, base_address=self.mem_map["csr"])
-        self.add_wb_master(mmap.wishbone)
-        setattr(self.submodules, f"{name}_mmap", mmap)
+        #self.add_wb_master(mmap.wishbone)
+        #setattr(self.submodules, f"{name}_mmap", mmap)
+        self.add_module(name=f"{name}_mmap", module=mmap)
+        self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
 
         pcie_host_wb2pcie_dma = LiteWishbone2PCIeDMANative(endpoint, data_width)
         self.submodules.pcie_host_wb2pcie_dma = pcie_host_wb2pcie_dma
