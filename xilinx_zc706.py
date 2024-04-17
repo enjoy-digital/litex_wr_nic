@@ -118,7 +118,6 @@ class BaseSoC(SoCCore):
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x4"),
                 data_width = 128,
                 bar0_size  = 0x20000)
-            self.add_pcie(phy=self.pcie_phy, ndmas=1)
 
         # PCIe + Ethernet --------------------------------------------------------------------------
         self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
@@ -138,6 +137,9 @@ class BaseSoC(SoCCore):
                           max_pending_requests=8,
                           with_msi=True):
         # Imports
+        from litex.soc.integration.soc import SoCBusHandler, SoCRegion, SoCIORegion
+        from litex.soc.interconnect import wishbone
+
         from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
         data_width=128
