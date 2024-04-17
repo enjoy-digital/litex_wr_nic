@@ -81,13 +81,10 @@ class _CRG(LiteXModule):
 
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=125e6,
-        with_ethernet   = False,
-        with_etherbone  = False,
         eth_ip          = "192.168.1.50",
         remote_ip       = None,
         eth_dynamic_ip  = False,
         with_led_chaser = True,
-        with_pcie       = False,
         **kwargs):
         platform = xilinx_zc706.Platform()
 
@@ -103,21 +100,19 @@ class BaseSoC(SoCCore):
         SoCCore.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on ZC706", **kwargs)
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
-        if with_ethernet or with_etherbone:
-            self.ethphy = K7_1000BASEX(
-                refclk_or_clk_pads = self.crg.cd_eth.clk,
-                data_pads          = self.platform.request("sfp", 0),
-                sys_clk_freq       = self.clk_freq,
-                with_csr           = False
-            )
-            self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
-            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
+        self.ethphy = K7_1000BASEX(
+            refclk_or_clk_pads = self.crg.cd_eth.clk,
+            data_pads          = self.platform.request("sfp", 0),
+            sys_clk_freq       = self.clk_freq,
+            with_csr           = False
+        )
+        self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
 
         # PCIe -------------------------------------------------------------------------------------
-        if with_pcie:
-            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x4"),
-                data_width = 128,
-                bar0_size  = 0x20000)
+        self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x4"),
+            data_width = 128,
+            bar0_size  = 0x20000)
 
         # PCIe + Ethernet --------------------------------------------------------------------------
         self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
@@ -260,8 +255,6 @@ def main():
     parser = LiteXArgumentParser(platform=xilinx_zc706.Platform, description="LiteX SoC on ZC706.")
     parser.add_target_argument("--sys-clk-freq",   default=125e6, type=float, help="System clock frequency.")
     parser.add_target_argument("--programmer",     default="vivado",          help="Programmer select from Vivado/openFPGALoader.")
-    parser.add_target_argument("--with-ethernet",  action="store_true",       help="Enable Ethernet support.")
-    parser.add_target_argument("--with-etherbone", action="store_true",       help="Enable Etherbone support.")
     parser.add_target_argument("--eth-ip",         default="192.168.1.50",    help="Ethernet/Etherbone IP address.")
     parser.add_target_argument("--remote-ip",      default="192.168.1.100",   help="Remote IP address of TFTP server.")
     parser.add_target_argument("--eth-dynamic-ip", action="store_true",       help="Enable dynamic Ethernet IP addresses setting.")
@@ -269,19 +262,14 @@ def main():
     parser.add_target_argument("--driver",         action="store_true",       help="Generate PCIe driver.")
     args = parser.parse_args()
 
-    args.with_ethernet = True
-    args.with_pcie     = True
-    args.driver        = True
+    #args.driver        = True
     args.cpu_name      = "None"
 
     soc = BaseSoC(
         sys_clk_freq   = args.sys_clk_freq,
-        with_ethernet  = args.with_ethernet,
-        with_etherbone = args.with_etherbone,
         eth_ip         = args.eth_ip,
         remote_ip      = args.remote_ip,
         eth_dynamic_ip = args.eth_dynamic_ip,
-        with_pcie      = args.with_pcie,
         **parser.soc_argdict
     )
     builder = Builder(soc, **parser.builder_argdict)
