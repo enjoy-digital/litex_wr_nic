@@ -26,32 +26,37 @@ class EthernetPCIeSoC(SoCMini):
         "pcie_phy":              9,
     }
 
+    # Add Ethernet ---------------------------------------------------------------------------------
     def __add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
         data_width              = 8,
         nrxslots                = 32,
         ntxslots                = 32,
-        with_timing_constraints = True):
-
+        with_timing_constraints = True,
+        local_ip                = None,
+        remote_ip               = None):
+        # Imports
         from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
+        with_sys_datapath = (data_width == 32)
         self.check_if_exists(name)
         ethmac = LiteEthMAC(
-            phy=phy,
-            dw=data_width,
-            interface="wishbone",
-            endianness=self.cpu.endianness,
-            nrxslots=nrxslots,
-            ntxslots=ntxslots,
-            timestamp=None,
-            with_preamble_crc=not software_debug)
+            phy        = phy,
+            dw         = data_width,
+            interface  = "wishbone",
+            endianness = self.cpu.endianness,
+            nrxslots   = nrxslots,
+            ntxslots   = ntxslots,
+            timestamp  = None,
+            with_preamble_crc = not software_debug)
         self.add_constant("ETHMAC_RX_WAIT_OFFSET", ethmac.interface.wait_ack_offset)
         self.add_constant("ETHMAC_TX_READY_OFFSET", ethmac.interface.tx_ready_offset)
-        # Use PHY's eth_tx/eth_rx clock domains.
-        ethmac = ClockDomainsRenamer({
-            "eth_tx": phy_cd + "_tx",
-            "eth_rx": phy_cd + "_rx"})(ethmac)
+        if not with_sys_datapath:
+            # Use PHY's eth_tx/eth_rx clock domains.
+            ethmac = ClockDomainsRenamer({
+                "eth_tx": phy_cd + "_tx",
+                "eth_rx": phy_cd + "_rx"})(ethmac)
         self.add_module(name=name, module=ethmac)
         # Compute Regions size and add it to the SoC.
         self.ethmac_region_rx = SoCRegion(origin=0, size=ethmac.rx_slots.constant * ethmac.slot_size.constant, cached=False)
@@ -61,14 +66,33 @@ class EthernetPCIeSoC(SoCMini):
         self.pcie_mem_bus_rx.add_slave(name='ethmac_rx', slave=ethmac.rx_bus, region=self.ethmac_region_rx)
         self.pcie_mem_bus_tx.add_slave(name='ethmac_tx', slave=ethmac.tx_bus, region=self.ethmac_region_tx)
 
+        # Dynamic IP (if enabled).
+        if dynamic_ip:
+            assert local_ip is None
+            self.add_constant("ETH_DYNAMIC_IP")
+
+        # Local/Remote IP Configuration (optional).
+        if local_ip:
+            add_ip_address_constants(self, "LOCALIP", local_ip)
+        if remote_ip:
+            add_ip_address_constants(self, "REMOTEIP", remote_ip)
+
+        # Software Debug
+        if software_debug:
+            self.add_constant("ETH_UDP_TX_DEBUG")
+            self.add_constant("ETH_UDP_RX_DEBUG")
+
         # Timing constraints
         if with_timing_constraints:
             eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
             eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
             if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
-                self.platform.add_period_constraint(eth_rx_clk, 1e9 / phy.rx_clk_freq)
-                self.platform.add_period_constraint(eth_tx_clk, 1e9 / phy.tx_clk_freq)
-                self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+                self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
+                if not eth_rx_clk is eth_tx_clk:
+                    self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
+                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+                else:
+                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
 
     def __add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32, data_width=None,
         with_dma_buffering    = True, dma_buffering_depth=1024,
@@ -79,9 +103,7 @@ class EthernetPCIeSoC(SoCMini):
         with_msi              = True, msi_type="msi", msi_width=32,
         with_ptm              = False):
 
-        from litedram.common import LiteDRAMNativePort
-        from litedram.core import LiteDRAMCore
-        from litedram.frontend.wishbone import LiteDRAMWishbone2Native
+        # Imports
         from gateware.litepcie.wishbone_dma import LitePCIe2WishboneDMANative, LiteWishbone2PCIeDMANative, PCIeInterruptTest
         from litepcie.core import LitePCIeEndpoint, LitePCIeMSI
         from litepcie.frontend.dma import LitePCIeDMA
