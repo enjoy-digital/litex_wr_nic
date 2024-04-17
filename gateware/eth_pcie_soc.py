@@ -148,33 +148,3 @@ class EthernetPCIeSoC(SoCMini):
 
         # Timing constraints.
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, pcie_phy.cd_pcie.clk)
-
-# Build --------------------------------------------------------------------------------------------
-def main():
-    from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=xilinx_zc706.Platform, description="LiteX SoC on ZC706.")
-    parser.add_target_argument("--sys-clk-freq",   default=125e6, type=float, help="System clock frequency.")
-    parser.add_target_argument("--programmer",     default="vivado",          help="Programmer select from Vivado/openFPGALoader.")
-    parser.add_target_argument("--driver",         action="store_true",       help="Generate PCIe driver.")
-    args = parser.parse_args()
-
-    #args.driver   = True
-    args.cpu_name = "None"
-
-    soc = BaseSoC(
-        sys_clk_freq   = args.sys_clk_freq,
-        **parser.soc_argdict
-    )
-    builder = Builder(soc, **parser.builder_argdict)
-    if args.build:
-        builder.build(**parser.toolchain_argdict)
-
-    if args.driver:
-        generate_litepcie_software(soc, os.path.join(builder.output_dir, "driver"))
-
-    if args.load:
-        prog = soc.platform.create_programmer(args.programmer)
-        prog.load_bitstream(builder.get_bitstream_filename(mode="sram"), device=1)
-
-if __name__ == "__main__":
-    main()
