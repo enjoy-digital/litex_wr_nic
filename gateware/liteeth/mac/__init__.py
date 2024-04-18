@@ -8,7 +8,7 @@
 from liteeth.common import *
 from liteeth.mac.common import *
 from liteeth.mac.core import LiteEthMACCore
-from liteeth.mac.wishbone import LiteEthMACWishboneInterface
+from gateware.liteeth.mac.wishbone import LiteEthMACWishboneInterface
 
 # MAC ----------------------------------------------------------------------------------------------
 
@@ -61,11 +61,12 @@ class LiteEthMAC(Module, AutoCSR):
             self.tx_slots  = CSRConstant(ntxslots)
             self.slot_size = CSRConstant(2**bits_for(eth_mtu))
             wishbone_interface = LiteEthMACWishboneInterface(
-                dw         = dw,
-                nrxslots   = nrxslots, rxslots_read_only  = rxslots_read_only,
-                ntxslots   = ntxslots, txslots_write_only = txslots_write_only,
-                endianness = endianness,
-                timestamp  = timestamp,
+                dw            = dw,
+                nrxslots      = nrxslots, rxslots_read_only  = rxslots_read_only,
+                ntxslots      = ntxslots, txslots_write_only = txslots_write_only,
+                endianness    = endianness,
+                timestamp     = timestamp,
+                with_pcie_eth = interface == "pcie",
             )
             # On some targets (Intel/Altera), the complex ports aren't inferred
             # as block ram, but are created with LUTs.  FullMemoryWe splits such
