@@ -325,12 +325,7 @@ class PCIeInterruptTest(Module,AutoCSR):
 
 
 class LiteWishbone2PCIeDMANative(Module, AutoCSR):
-    def __init__(self, endpoint, data_width=32):
-        port_wr = endpoint.crossbar.get_master_port(write_only=True)
-        self.submodules.dma_wr = dma_wr = LitePCIeDMAWriter(
-            endpoint=endpoint,
-            port=port_wr,
-            with_table=False)
+    def __init__(self, endpoint, dma_wr, data_width=32):
 
         dma_wr_desc = stream.Endpoint(descriptor_layout())
         self.submodules.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(), 16)
@@ -403,12 +398,7 @@ class LiteWishbone2PCIeDMANative(Module, AutoCSR):
 # LitePCIe2WishboneDMA --------------------------------------------------------------------------------
 
 class LitePCIe2WishboneDMANative(Module, AutoCSR):
-    def __init__(self, endpoint, data_width=32):
-        port_rd = endpoint.crossbar.get_master_port()
-        self.submodules.dma_rd = dma_rd = LitePCIeDMAReader(
-            endpoint=endpoint,
-            port=port_rd,
-            with_table=False)
+    def __init__(self, endpoint, dma_rd, data_width=32):
 
         dma_rd_desc = stream.Endpoint(descriptor_layout())
         self.submodules.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(), 1)

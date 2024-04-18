@@ -148,15 +148,6 @@ class EthernetPCIeSoC(SoCMini):
         self.add_module(name=f"{name}_mmap", module=mmap)
         self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
 
-        if with_pcie_eth:
-            from gateware.litepcie.wishbone_dma import LitePCIe2WishboneDMANative, LiteWishbone2PCIeDMANative, PCIeInterruptTest
-            pcie_host_wb2pcie_dma = LiteWishbone2PCIeDMANative(endpoint, data_width)
-            self.pcie_host_wb2pcie_dma = pcie_host_wb2pcie_dma
-            self.pcie_mem_bus_rx.add_master("pcie_master_wb2pcie", pcie_host_wb2pcie_dma.bus_wr)
-            pcie_host_pcie2wb_dma = LitePCIe2WishboneDMANative(endpoint, data_width)
-            self.pcie_host_pcie2wb_dma = pcie_host_pcie2wb_dma
-            self.pcie_mem_bus_tx.add_master("pcie_master_pcie2wb", pcie_host_pcie2wb_dma.bus_rd)
-
         # MSI.
         if with_msi:
             assert msi_type in ["msi", "msi-multi-vector", "msi-x"]
@@ -188,10 +179,12 @@ class EthernetPCIeSoC(SoCMini):
                 with_status       = with_dma_status,
                 address_width     = address_width,
                 data_width        = data_width,
+                with_table        = not with_pcie_eth,
             )
             self.add_module(name=f"{name}_dma{i}", module=dma)
-            self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
-            self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
+            if not with_pcie_eth:
+                self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
+                self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
         self.add_constant("DMA_CHANNELS",   ndmas)
         self.add_constant("DMA_ADDR_WIDTH", address_width)
 
@@ -239,12 +232,23 @@ class EthernetPCIeSoC(SoCMini):
 
         # PCIe
         self.__add_pcie(name="pcie", phy=pcie_phy,
+            ndmas                = 1,
             max_pending_requests = max_pending_requests,
             data_width           = data_width,
+            with_dma_buffering   = False,
+            with_dma_loopback    = False,
             with_msi             = with_msi,
             with_ptm             = False,
             with_pcie_eth        = True
         )
+
+        from gateware.litepcie.wishbone_dma import LitePCIe2WishboneDMANative, LiteWishbone2PCIeDMANative, PCIeInterruptTest
+        pcie_host_wb2pcie_dma = LiteWishbone2PCIeDMANative(self.pcie_endpoint, self.pcie_dma0.writer, data_width)
+        self.pcie_host_wb2pcie_dma = pcie_host_wb2pcie_dma
+        self.pcie_mem_bus_rx.add_master("pcie_master_wb2pcie", pcie_host_wb2pcie_dma.bus_wr)
+        pcie_host_pcie2wb_dma = LitePCIe2WishboneDMANative(self.pcie_endpoint, self.pcie_dma0.reader, data_width)
+        self.pcie_host_pcie2wb_dma = pcie_host_pcie2wb_dma
+        self.pcie_mem_bus_tx.add_master("pcie_master_pcie2wb", pcie_host_pcie2wb_dma.bus_rd)
 
         align_bits = log2_int(512)
         self.comb += [
