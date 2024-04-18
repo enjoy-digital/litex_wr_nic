@@ -368,19 +368,28 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 
         # FSM.
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
-        fsm.act("IDLE",
-            If(cmd_fifo.source.valid,
-               self.start_transfer.eq(1),
-               NextState("WAIT_PCIE"),
+        if with_eth_pcie:
+            fsm.act("IDLE",
+                If(cmd_fifo.source.valid,
+                   self.start_transfer.eq(1),
+                   NextState("WAIT_PCIE"),
+                )
             )
-        )
-        fsm.act("WAIT_PCIE",
-            If(self.transfer_ready,
-                read.eq(1),
-                NextValue(length, dw//8),
-                NextState("READ")
+            fsm.act("WAIT_PCIE",
+                If(self.transfer_ready,
+                    read.eq(1),
+                    NextValue(length, dw//8),
+                    NextState("READ")
+                )
             )
-        )
+        else:
+            fsm.act("IDLE",
+                If(cmd_fifo.source.valid,
+                    read.eq(1),
+                    NextValue(length, dw//8),
+                    NextState("READ")
+                )
+            )
         fsm.act("READ",
             source.valid.eq(1),
             source.last.eq(length >= cmd_fifo.source.length),
