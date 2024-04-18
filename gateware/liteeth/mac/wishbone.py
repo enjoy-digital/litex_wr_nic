@@ -9,7 +9,7 @@
 import math
 
 from liteeth.common import *
-from liteeth.mac import sram
+from gateware.liteeth.mac import sram
 
 from litex.soc.interconnect import wishbone
 
