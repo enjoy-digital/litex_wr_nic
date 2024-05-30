@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+
+# Copyright (C) 2024 Enjoy-Digital
+
+from litex.build.generic_platform import *
+from litex.build.xilinx import Xilinx7SeriesPlatform, VivadoProgrammer
+
+# IOs ----------------------------------------------------------------------------------------------
+
+_io = [
+    # Clk / Rst.
+    ("clk62_5", 0,
+        Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")),
+        Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")),
+    ),
+    ("rst", 0, Pins(""), IOStandard("LVCMOS33")),
+    # MGT RefClk
+    ("mgtrefclk", 0,
+        Subsignal("p", Pins("D6")),
+        Subsignal("n", Pins("D5")),
+    ),
+    ("mgtrefclk", 1,
+        Subsignal("p", Pins("B6")),
+        Subsignal("n", Pins("B5")),
+    ),
+
+    # Leds.
+    ("user_led", 0, Pins("H14"), IOStandard("LVCMOS25")),
+    ("user_led", 1, Pins("G14"), IOStandard("LVCMOS25")),
+    ("user_led", 2, Pins("H17"), IOStandard("LVCMOS25")),
+    ("user_led", 3, Pins("E18"), IOStandard("LVCMOS25")),
+
+    # Serial.
+    ("serial", 0,
+        Subsignal("tx", Pins("R17")),
+        Subsignal("rx", Pins("R16")),
+        IOStandard("LVCMOS33"),
+    ),
+
+    # VCXO Clk Control.
+    ("dac_ptp", 0,
+        Subsignal("ldac", Pins("U12")),
+        Subsignal("sync", Pins("V13")),
+        Subsignal("sclk", Pins("V14")),
+        Subsignal("sdi",  Pins("T13")),
+        Subsignal("sdo",  Pins("V12")), # Unused
+        IOStandard("LVCMOS33"),
+    ),
+
+    # SFP0
+    ("spf_disable_n", 0, Pins("U17"),         IOStandard("LVCMOS33")),
+    ("spf_fault",     0, Pins("V17"),         IOStandard("LVCMOS33")),
+    ("sfp_led",       0, Pins("G16"),         IOStandard("LVCMOS25")),
+    ("sfp_lose",      0, Pins("P18"),         IOStandard("LVCMOS33")),
+    ("spf_mode",      0, Pins("R18 T18 T17"), IOStandard("LVCMOS33")),
+    ("sfp_rs",        0, Pins("N16"),         IOStandard("LVCMOS33")),
+    ("sfp", 0,
+        Subsignal("txp", Pins("F2")),
+        Subsignal("txn", Pins("F1")),
+        Subsignal("rxp", Pins("A4")),
+        Subsignal("rxn", Pins("A3")),
+    ),
+    ("sfp_tx", 0,
+        Subsignal("p", Pins("F2")),
+        Subsignal("n", Pins("F1")),
+    ),
+    ("sfp_rx", 0,
+        Subsignal("p", Pins("A4")),
+        Subsignal("n", Pins("A3")),
+    ),
+
+    # SFP1
+    ("sfp_disable_n", 1, Pins("M15"),         IOStandard("LVCMOS33")),
+    ("sfp_fault",     1, Pins("L14"),         IOStandard("LVCMOS33")),
+    ("sfp_led",       1, Pins("G15"),         IOStandard("LVCMOS25")),
+    ("sfp_lose",      1, Pins("P15"),         IOStandard("LVCMOS33")),
+    ("sfp_mode",      1, Pins("T12 N14 M14"), IOStandard("LVCMOS33")),
+    ("sfp_rs",        1, Pins("R13"),         IOStandard("LVCMOS33")),
+    ("sfp", 1,
+        Subsignal("txp", Pins("B2")),
+        Subsignal("txn", Pins("B1")),
+        Subsignal("rxp", Pins("G4")),
+        Subsignal("rxn", Pins("G3")),
+    ),
+    ("sfp_tx", 1,
+        Subsignal("p", Pins("B2")),
+        Subsignal("n", Pins("B1")),
+    ),
+    ("sfp_rx", 1,
+        Subsignal("p", Pins("G4")),
+        Subsignal("n", Pins("G3")),
+    ),
+
+    # DELAY 0/1
+    ("delay", 0,
+        Subsignal("en",    Pins("J18")),
+        Subsignal("sclk",  Pins("K18")),
+        Subsignal("sdin",  Pins("J14")),
+        Subsignal("sload", Pins("M16")),
+        Subsignal("sload", Pins("M16")),
+        IOStandard("LVCMOS33"),
+    ),
+
+    # SPIFlash.
+    ("flash_cs_n", 0, Pins("L15"), IOStandard("LVCMOS33")),
+    ("flash", 0,
+        Subsignal("mosi", Pins("K16")),
+        Subsignal("miso", Pins("L17")),
+        Subsignal("wp",   Pins("J15")),
+        Subsignal("hold", Pins("J16")),
+        IOStandard("LVCMOS33"),
+    ),
+]
+
+# Connectors ---------------------------------------------------------------------------------------
+
+_connectors = [
+]
+# Platform -----------------------------------------------------------------------------------------
+
+class Platform(Xilinx7SeriesPlatform):
+    default_clk_name   = "clk62_5"
+    default_clk_period = 1e9/62.5e6
+
+    def __init__(self, toolchain="vivado"):
+        Xilinx7SeriesPlatform.__init__(self, "xc7a35tcsg325-2", _io,  _connectors, toolchain=toolchain)
+
+    def do_finalize(self, fragment):
+        Xilinx7SeriesPlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk62_5", loose=True), 1e9/62.5)
