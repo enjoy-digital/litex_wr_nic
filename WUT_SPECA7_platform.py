@@ -9,11 +9,12 @@ from litex.build.xilinx import Xilinx7SeriesPlatform, VivadoProgrammer
 
 _io = [
     # Clk / Rst.
+    ("clk_25m_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")),
     ("clk62_5", 0,
         Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")),
         Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")),
     ),
-    ("rst", 0, Pins(""), IOStandard("LVCMOS33")),
+    ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")),
     # MGT RefClk
     ("mgtrefclk", 0,
         Subsignal("p", Pins("D6")),
@@ -48,11 +49,11 @@ _io = [
     ),
 
     # SFP0
-    ("spf_disable_n", 0, Pins("U17"),         IOStandard("LVCMOS33")),
-    ("spf_fault",     0, Pins("V17"),         IOStandard("LVCMOS33")),
+    ("sfp_disable_n", 0, Pins("U17"),         IOStandard("LVCMOS33")),
+    ("sfp_fault",     0, Pins("V17"),         IOStandard("LVCMOS33")),
     ("sfp_led",       0, Pins("G16"),         IOStandard("LVCMOS25")),
     ("sfp_lose",      0, Pins("P18"),         IOStandard("LVCMOS33")),
-    ("spf_mode",      0, Pins("R18 T18 T17"), IOStandard("LVCMOS33")),
+    ("sfp_mode",      0, Pins("R18 T18 T17"), IOStandard("LVCMOS33")),
     ("sfp_rs",        0, Pins("N16"),         IOStandard("LVCMOS33")),
     ("sfp_i2c",       0,
         Subsignal("sda", Pins("T17")),
@@ -120,16 +121,24 @@ _io = [
         Subsignal("hold", Pins("J16")),
         IOStandard("LVCMOS33"),
     ),
+
 ]
 
 # Connectors ---------------------------------------------------------------------------------------
 
 _connectors = [
+    # EXT_MISC.
+    ["ext_misc",
+        # I2C SDA SCL
+        "M5 M2",
+        # GPIOs
+        "M1 M6 N6 N1 P1 M4 N4",
+    ],
 ]
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(Xilinx7SeriesPlatform):
-    default_clk_name   = "clk62_5"
+    default_clk_name   = "clk_25m_dmtd"
     default_clk_period = 1e9/62.5e6
 
     def __init__(self, toolchain="vivado"):
@@ -137,4 +146,4 @@ class Platform(Xilinx7SeriesPlatform):
 
     def do_finalize(self, fragment):
         Xilinx7SeriesPlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk62_5", loose=True), 1e9/62.5)
+        self.add_period_constraint(self.lookup_request("clk_25m_dmtd", loose=True), 1e9/25e6)
