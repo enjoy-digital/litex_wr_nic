@@ -12,6 +12,8 @@ import glob
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
+from spec_a7_platform import *
+
 from litex.build.generic_platform import *
 from litex.build.io import DifferentialInput, Tristate
 from litex.build.vhd2v_converter import *
@@ -28,8 +30,6 @@ from litex.soc.integration.builder import *
 from litescope import LiteScopeAnalyzer
 
 import list_files
-
-from WUT_SPECA7_platform import *
 
 # CRG ----------------------------------------------------------------------------------------------
 

@@ -15,7 +15,8 @@ _io = [
         Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")),
     ),
     ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")),
-    # MGT RefClk
+
+    # MGT RefClk.
     ("mgtrefclk", 0,
         Subsignal("p", Pins("D6")),
         Subsignal("n", Pins("D5")),
@@ -48,7 +49,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
-    # SFP0
+    # SFP0.
     ("sfp_disable_n", 0, Pins("U17"),         IOStandard("LVCMOS33")),
     ("sfp_fault",     0, Pins("V17"),         IOStandard("LVCMOS33")),
     ("sfp_led",       0, Pins("G16"),         IOStandard("LVCMOS25")),
@@ -75,7 +76,7 @@ _io = [
         Subsignal("n", Pins("A3")),
     ),
 
-    # SFP1
+    # SFP1.
     ("sfp_disable_n", 1, Pins("M15"),         IOStandard("LVCMOS33")),
     ("sfp_fault",     1, Pins("L14"),         IOStandard("LVCMOS33")),
     ("sfp_led",       1, Pins("G15"),         IOStandard("LVCMOS25")),
@@ -102,7 +103,7 @@ _io = [
         Subsignal("n", Pins("G3")),
     ),
 
-    # DELAY 0/1
+    # DELAY 0/1.
     ("delay", 0,
         Subsignal("en",    Pins("J18")),
         Subsignal("sclk",  Pins("K18")),
