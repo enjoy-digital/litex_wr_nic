@@ -9,12 +9,11 @@ import glob
 from litex.gen import *
 
 from litex.build.generic_platform import *
-from litex.build.vhd2v_converter import *
 from litex.build.xilinx import Xilinx7SeriesPlatform
 
-from litex.soc.integration.soc import SoCRegion
+from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
+from litex.soc.integration.builder  import *
 
 import list_files
 

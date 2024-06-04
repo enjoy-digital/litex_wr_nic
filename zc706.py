@@ -9,22 +9,20 @@ import argparse
 import sys
 import glob
 
+from litex_boards.platforms import xilinx_zc706
+
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.build.generic_platform import *
-from litex.build.io import DifferentialInput, Tristate
-from litex.build.vhd2v_converter import *
-from litex.build.xilinx import Xilinx7SeriesPlatform
+from litex.build.io               import DifferentialInput
 
-from litex.soc.cores.clock import *
+from litex.soc.cores.clock      import *
 from litex.soc.interconnect.csr import *
 
-from litex.soc.integration.soc import SoCRegion
+from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
-
-from litex_boards.platforms import xilinx_zc706
+from litex.soc.integration.builder  import *
 
 from litescope import LiteScopeAnalyzer
 
