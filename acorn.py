@@ -19,6 +19,8 @@ from litex.build.io               import DifferentialInput
 from litex.build.xilinx           import Xilinx7SeriesPlatform
 from litex.build.openfpgaloader   import OpenFPGALoader
 
+from litepcie.phy.s7pciephy import S7PCIEPHY
+
 from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
@@ -92,7 +94,7 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=125e6):
+    def __init__(self, sys_clk_freq=125e6, with_wr=True, with_pcie=True):
         platform = Platform()
         platform.add_extension(_ios, prepend=True)
 
@@ -106,20 +108,28 @@ class BaseSoC(SoCCore):
             with_jtagbone = True
         )
 
-        self.sfp        = platform.request("sfp")
-        self.sfp_i2c    = platform.request("sfp_i2c")
-        self.serial     = platform.request("serial")
-        self.leds       = platform.request_all("user_led")
-        self.flash      = platform.request("flash")
-        self.flash_cs_n = platform.request("flash_cs_n")
-        self.flash_clk  = Signal()
+        # White Rabbit -----------------------------------------------------------------------------
+        if with_wr:
+            self._add_white_rabbit_core()
+            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
-        self.led_fake_pps = Signal()
-        self.led_pps      = Signal()
-        self.led_link     = Signal()
-        self.led_act      = Signal()
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+        # PCIe -------------------------------------------------------------------------------------
+        if with_pcie:
+            self.comb += platform.request("pcie_clkreq_n").eq(0)
+            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
+                data_width = 64,
+                bar0_size  = 0x20000)
+            self.add_pcie(phy=self.pcie_phy,
+                ndmas         = 1,
+                address_width = 64,
+                with_ptm      = True)
+            # FIXME: Apply it to all targets (integrate it in LitePCIe?).
+            platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
+            platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
+            platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y4 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
+    def _add_white_rabbit_core(self):
+        # Config/Control/Status registers ----------------------------------------------------------
         self.control = CSRStorage(fields=[
             CSRField("sfp_los", size=1, offset=0, values=[
                 ("``0b0``", "Set Low."),
@@ -142,25 +152,36 @@ class BaseSoC(SoCCore):
             ], reset=0),
         ])
 
+        # # #
+
+        # Signals ----------------------------------------------------------------------------------
+        self.sfp          = self.platform.request("sfp")
+        self.sfp_i2c      = self.platform.request("sfp_i2c")
         self.sfp_tx_los   = Signal()
         self.sfp_tx_fault = Signal()
         self.sfp_det      = Signal()
+
+        self.serial       = self.platform.request("serial")
+        self.flash        = self.platform.request("flash")
+        self.flash_cs_n   = self.platform.request("flash_cs_n")
+        self.flash_clk    = Signal()
+
+        self.leds         = self.platform.request_all("user_led")
+        self.led_fake_pps = Signal()
+        self.led_pps      = Signal()
+        self.led_link     = Signal()
+        self.led_act      = Signal()
+
         self.wr_rstn      = Signal()
 
-        self.comb += [
-            self.sfp_tx_los.eq(self.control.fields.sfp_los),
-            self.sfp_tx_fault.eq(self.control.fields.sfp_fault),
-            self.sfp_det.eq(self.control.fields.sfp_detect),
-            self.wr_rstn.eq(~self.rst_ctrl.fields.reset),
-        ]
-
         # Debug
+        self.debug  = debug   = Signal(32)
         self.clk_ref_locked   = Signal()
         self.ext_ref_rst      = Signal()
         self.dbg_rdy          = Signal()
         self.clk_ref_62m5     = Signal()
         self.ready_for_reset  = Signal()
-        self.debug_pins       = platform.request("debug")
+        self.debug_pins       = self.platform.request("debug")
         # dac validation / analyze
         dac_layout            = [("sclk", 1), ("cs_n", 1), ("din", 1)]
         self.dac_dmtd         = Record(dac_layout)
@@ -169,6 +190,13 @@ class BaseSoC(SoCCore):
         self.cd_clk62m5       = ClockDomain()
         self.cnt_62m5         = Signal(4)
         self.cnt_125_gtp      = Signal(4)
+
+        self.comb += [
+            self.sfp_tx_los.eq(self.control.fields.sfp_los),
+            self.sfp_tx_fault.eq(self.control.fields.sfp_fault),
+            self.sfp_det.eq(self.control.fields.sfp_detect),
+            self.wr_rstn.eq(~self.rst_ctrl.fields.reset),
+        ]
 
         self.comb += [
             self.debug_pins.eq(Cat(self.clk_ref_62m5, self.crg.cd_clk_125m_gtp.clk,
@@ -180,8 +208,6 @@ class BaseSoC(SoCCore):
         self.sync.clk62m5 += self.cnt_62m5.eq(self.cnt_62m5 + 1)
         self.sync.clk_125m_gtp += self.cnt_125_gtp.eq(self.cnt_125_gtp + 1)
 
-
-        self.debug  = debug = Signal(32)
 
         # GTPE2_CHANNEL.
         GTPE2_CHANNEL_GT0_PLL1RESET_IN    = Signal()
@@ -211,8 +237,9 @@ class BaseSoC(SoCCore):
             GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT.eq(debug[19]),
         ]
 
-        # WR core
+        # WR core ----------------------------------------------------------------------------------
         self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "wrc_acorn.bram"))
+        self.add_sources()
 
         self.comb += self.leds.eq(Cat(~self.led_link, ~self.led_act, ~self.led_pps, ~self.led_fake_pps))
 
@@ -235,8 +262,6 @@ class BaseSoC(SoCCore):
             i_USRDONETS = 1,
         )
 
-        self.add_sources()
-
         cnt1 = Signal()
         cnt2 = Signal()
 
@@ -245,6 +270,7 @@ class BaseSoC(SoCCore):
             cnt2.eq(self.cnt_62m5[3]),
         ]
 
+        # LiteScope --------------------------------------------------------------------------------
         analyzer_signals = []
         if False:
             analyzer_signals += [
@@ -389,9 +415,15 @@ def main():
     from litex.build.parser import LiteXArgumentParser
     parser = LiteXArgumentParser(platform=Platform, description="Acorn WR.")
     parser.add_target_argument("--flash",        action="store_true",       help="Flash bitstream to SPI Flash.")
+    parser.add_target_argument("--with-wr",      action="store_true",       help="Enable White Rabbit Support.")
+    parser.add_target_argument("--with-pcie",    action="store_true",       help="Enable PCIe Communication.")
     args = parser.parse_args()
 
-    soc = BaseSoC()
+    soc = BaseSoC(
+        with_wr   = args.with_wr,
+        with_pcie = args.with_pcie
+    )
+
     builder = Builder(soc, **parser.builder_argdict)
     if args.build:
         builder.build(**parser.toolchain_argdict)
