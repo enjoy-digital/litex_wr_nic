@@ -531,6 +531,8 @@ def main():
     parser.add_target_argument("--with-pcie",    action="store_true",       help="Enable PCIe Communication.")
     args = parser.parse_args()
 
+    assert not (args.with_pcie and args.with_wr)
+
     soc = BaseSoC(
         with_wr   = args.with_wr,
         with_pcie = args.with_pcie
@@ -540,8 +542,9 @@ def main():
     if args.build:
         builder.build(**parser.toolchain_argdict)
 
-    software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
-    generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
+    if args.with_pcie:
+        software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
+        generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
 
     if args.load:
         prog = soc.platform.create_programmer()
