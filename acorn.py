@@ -200,12 +200,12 @@ class BaseSoC(SoCCore):
             for n in range(2):
                 pcie_ptm_sniffer_connections.append((
                     f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_k_wire_filter[{n}]", # Src.
-                    f"pcie_ptm_sniffer_tap/rx_ctl_in[{n}]",                      # Dst.
+                    f"sniffer_tap/rx_ctl_in[{n}]",                               # Dst.
                 ))
             for n in range(16):
                 pcie_ptm_sniffer_connections.append((
                     f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_wire_filter[{n}]", # Src.
-                    f"pcie_ptm_sniffer_tap/rx_data_in[{n}]",                   # Dst.
+                    f"sniffer_tap/rx_data_in[{n}]",                            # Dst.
                 ))
             for _from, _to in pcie_ptm_sniffer_connections:
                 platform.toolchain.pre_optimize_commands.append(f"set pin_driver [get_nets -of [get_pins {_to}]]")
