@@ -19,7 +19,10 @@ from litex.build.io               import DifferentialInput
 from litex.build.xilinx           import Xilinx7SeriesPlatform
 from litex.build.openfpgaloader   import OpenFPGALoader
 
+from litepcie.frontend.ptm import PCIePTMSniffer
+from litepcie.frontend.ptm import PTMCapabilities, PTMRequester
 from litepcie.phy.s7pciephy import S7PCIEPHY
+from litepcie.software import generate_litepcie_software, generate_litepcie_software_headers
 
 from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
@@ -30,6 +33,8 @@ from litex.soc.interconnect.csr import *
 from litex.soc.cores.clock import *
 
 from litescope import LiteScopeAnalyzer
+
+from gateware.time import TimeGenerator
 
 import list_files
 
@@ -63,12 +68,15 @@ class Platform(sqrl_acorn.Platform):
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq):
+    def __init__(self, platform, sys_clk_freq, with_wr=True, with_pcie=True):
         self.rst              = Signal()
         self.cd_sys           = ClockDomain()
-        self.cd_clk_125m_dmtd = ClockDomain()
-        self.cd_clk_125m_gtp  = ClockDomain()
-        self.cd_clk_10m_ext   = ClockDomain()
+        if with_wr:
+            self.cd_clk_125m_dmtd = ClockDomain()
+            self.cd_clk_125m_gtp  = ClockDomain()
+            self.cd_clk_10m_ext   = ClockDomain()
+        if with_pcie:
+            self.cd_clk50 = ClockDomain()
 
         # # #
 
@@ -81,15 +89,20 @@ class _CRG(LiteXModule):
         self. pll = pll = S7PLL()
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200_se, 200e6)
-        pll.create_clkout(self.cd_sys,           sys_clk_freq)
-        pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
-        pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
-        pll.create_clkout(self.cd_clk_10m_ext,   10e6,  margin=0)
+        pll.create_clkout(self.cd_sys, sys_clk_freq)
+        if with_wr:
+            pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+            pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
+            pll.create_clkout(self.cd_clk_10m_ext,   10e6,  margin=0)
 
-        platform.add_false_path_constraints(self.cd_sys.clk,           pll.clkin)
-        platform.add_false_path_constraints(self.cd_clk_125m_dmtd.clk, pll.clkin)
-        platform.add_false_path_constraints(self.cd_clk_125m_gtp.clk,  pll.clkin)
-        platform.add_false_path_constraints(self.cd_clk_10m_ext.clk,   pll.clkin)
+            platform.add_false_path_constraints(self.cd_clk_125m_dmtd.clk, pll.clkin)
+            platform.add_false_path_constraints(self.cd_clk_125m_gtp.clk,  pll.clkin)
+            platform.add_false_path_constraints(self.cd_clk_10m_ext.clk,   pll.clkin)
+
+        if with_pcie:
+            pll.create_clkout(self.cd_clk50,  50e6, margin=0)
+
+        platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -105,6 +118,7 @@ class BaseSoC(SoCCore):
 
         SoCMini.__init__(self, platform,
             clk_freq      = sys_clk_freq,
+            ident         = "LiteX SoC with PTM/WR Support",
             with_jtagbone = True
         )
 
@@ -118,7 +132,8 @@ class BaseSoC(SoCCore):
             self.comb += platform.request("pcie_clkreq_n").eq(0)
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width = 64,
-                bar0_size  = 0x20000)
+                bar0_size  = 0x20000,
+                with_ptm   = True)
             self.add_pcie(phy=self.pcie_phy,
                 ndmas         = 1,
                 address_width = 64,
@@ -127,6 +142,103 @@ class BaseSoC(SoCCore):
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
             platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
             platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y4 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
+
+            # PCIe <-> Sys-Clk false paths.
+            false_paths = [
+                ("{{*s7pciephy_clkout0}}", "sys_clk"),
+                ("{{*s7pciephy_clkout1}}", "sys_clk"),
+                ("{{*s7pciephy_clkout3}}", "sys_clk"),
+                ("{{*s7pciephy_clkout0}}", "{{*s7pciephy_clkout1}}")
+            ]
+            for clk0, clk1 in false_paths:
+                platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk0}] -to [get_clocks {clk1}]")
+                platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk1}] -to [get_clocks {clk0}]")
+
+            # PCIe PTM Sniffer -------------------------------------------------------------------------
+
+            # Since Xilinx PHY does not allow redirecting PTM TLP Messages to the AXI inferface, we have
+            # to sniff the GTPE2 -> PCIE2 RX Data to re-generate PTM TLP Messages.
+
+            # Sniffer Signals.
+            # ----------------
+            sniffer_rst_n   = Signal()
+            sniffer_clk     = Signal()
+            sniffer_rx_data = Signal(16)
+            sniffer_rx_ctl  = Signal(2)
+
+            # Sniffer Tap.
+            # ------------
+            rx_data = Signal(16)
+            rx_ctl  = Signal(2)
+            self.sync.pclk += rx_data.eq(rx_data + 1)
+            self.sync.pclk += rx_ctl.eq(rx_ctl + 1)
+            self.specials += Instance("sniffer_tap",
+                i_rst_n_in    = 1,
+                i_clk_in     = ClockSignal("pclk"),
+                i_rx_data_in = rx_data, # /!\ Fake, will be re-connected post-synthesis /!\.
+                i_rx_ctl_in  = rx_ctl,  # /!\ Fake, will be re-connected post-synthesis /!\.
+
+                o_rst_n_out   = sniffer_rst_n,
+                o_clk_out     = sniffer_clk,
+                o_rx_data_out = sniffer_rx_data,
+                o_rx_ctl_out  = sniffer_rx_ctl,
+            )
+
+            # Sniffer.
+            # --------
+            self.pcie_ptm_sniffer = PCIePTMSniffer(
+                rx_rst_n = sniffer_rst_n,
+                rx_clk   = sniffer_clk,
+                rx_data  = sniffer_rx_data,
+                rx_ctrl  = sniffer_rx_ctl,
+            )
+            self.pcie_ptm_sniffer.add_sources(platform)
+
+            # Sniffer Post-Synthesis connections.
+            # -----------------------------------
+            pcie_ptm_sniffer_connections = []
+            for n in range(2):
+                pcie_ptm_sniffer_connections.append((
+                    f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_k_wire_filter[{n}]", # Src.
+                    f"pcie_ptm_sniffer_tap/rx_ctl_in[{n}]",                      # Dst.
+                ))
+            for n in range(16):
+                pcie_ptm_sniffer_connections.append((
+                    f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_wire_filter[{n}]", # Src.
+                    f"pcie_ptm_sniffer_tap/rx_data_in[{n}]",                   # Dst.
+                ))
+            for _from, _to in pcie_ptm_sniffer_connections:
+                platform.toolchain.pre_optimize_commands.append(f"set pin_driver [get_nets -of [get_pins {_to}]]")
+                platform.toolchain.pre_optimize_commands.append(f"disconnect_net -net $pin_driver -objects {_to}")
+                platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net {_from} -objects {_to}")
+
+            # Time -------------------------------------------------------------------------------------
+
+            self.time_generator = TimeGenerator(
+                clk_domain = "clk50",
+                clk_freq   = 50e6,
+            )
+
+            # PTM --------------------------------------------------------------------------------------
+
+            # PTM Capabilities.
+            self.ptm_capabilities = PTMCapabilities(
+                pcie_endpoint     = self.pcie_endpoint,
+                requester_capable = True,
+            )
+
+            # PTM Requester.
+            self.ptm_requester = PTMRequester(
+                pcie_endpoint    = self.pcie_endpoint,
+                pcie_ptm_sniffer = self.pcie_ptm_sniffer,
+                sys_clk_freq     = sys_clk_freq,
+            )
+            self.comb += [
+                self.ptm_requester.time_clk.eq(ClockSignal("sys")),
+                self.ptm_requester.time_rst.eq(ResetSignal("sys")),
+                self.ptm_requester.time.eq(self.time_generator.time)
+            ]
+
 
     def _add_white_rabbit_core(self):
         # Config/Control/Status registers ----------------------------------------------------------
@@ -427,6 +539,9 @@ def main():
     builder = Builder(soc, **parser.builder_argdict)
     if args.build:
         builder.build(**parser.toolchain_argdict)
+
+    software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
+    generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
 
     if args.load:
         prog = soc.platform.create_programmer()
