@@ -205,6 +205,21 @@ class S7PCIEPHY(LiteXModule):
         m_axis_rx_tlast = Signal()
         m_axis_rx_tuser = Signal(32)
 
+        qpll_drp_crscode   = Signal(12)
+        qpll_drp_fsm       = Signal(18)
+        qpll_drp_done      = Signal(2)
+        qpll_drp_reset     = Signal(2)
+        qpll_qplllock      = Signal(2)
+        qpll_qplloutclk    = Signal(2)
+        qpll_qplloutrefclk = Signal(2)
+        qpll_qplld         = Signal(1)
+        qpll_qpllreset     = Signal(2)
+        qpll_drp_clk       = Signal(1)
+        qpll_drp_rst_n     = Signal(1)
+        qpll_drp_ovrd      = Signal(1)
+        qpll_drp_gen3      = Signal(1)
+        qpll_drp_start     = Signal(1)
+
         self.pcie_phy_params = dict(
             # PCI Express Interface ----------------------------------------------------------------
             # Clk/Rst
@@ -421,21 +436,79 @@ class S7PCIEPHY(LiteXModule):
             o_pcie_drp_do                                = Open(),
 
             # GTPE2 COMMON Sharing Changes.
-            i_qpll_drp_crscode                           = Signal(12),
-            i_qpll_drp_fsm                               = Signal(18),
-            i_qpll_drp_done                              = Signal(2),
-            i_qpll_drp_reset                             = Signal(2),
-            i_qpll_qplllock                              = Signal(2),
-            i_qpll_qplloutclk                            = Signal(2),
-            i_qpll_qplloutrefclk                         = Signal(2),
-            o_qpll_qplld                                 = Signal(1),
-            o_qpll_qpllreset                             = Signal(2),
-            o_qpll_drp_clk                               = Signal(1),
-            o_qpll_drp_rst_n                             = Signal(1),
-            o_qpll_drp_ovrd                              = Signal(1),
-            o_qpll_drp_gen3                              = Signal(1),
-            o_qpll_drp_start                             = Signal(1),
+            i_qpll_drp_crscode                           = qpll_drp_crscode,
+            i_qpll_drp_fsm                               = qpll_drp_fsm,
+            i_qpll_drp_done                              = qpll_drp_done,
+            i_qpll_drp_reset                             = qpll_drp_reset,
+            i_qpll_qplllock                              = qpll_qplllock,
+            i_qpll_qplloutclk                            = qpll_qplloutclk,
+            i_qpll_qplloutrefclk                         = qpll_qplloutrefclk,
+            o_qpll_qplld                                 = qpll_qplld,
+            o_qpll_qpllreset                             = qpll_qpllreset,
+            o_qpll_drp_clk                               = qpll_drp_clk,
+            o_qpll_drp_rst_n                             = qpll_drp_rst_n,
+            o_qpll_drp_ovrd                              = qpll_drp_ovrd,
+            o_qpll_drp_gen3                              = qpll_drp_gen3,
+            o_qpll_drp_start                             = qpll_drp_start,
         )
+
+        cpll_pd_refclk = Signal()
+        self.specials += Instance("BUFG", i_I=pcie_refclk, o_O=cpll_pd_refclk)
+
+        self.specials += Instance("pcie_s7_gt_common",
+            p_PCIE_SIM_MODE    = "TRUE",
+            p_PCIE_GT_DEVICE   = "GTP",
+            p_PCIE_USE_MODE    = "1.0",
+            p_PCIE_PLL_SEL     = "CPLL", # FIXME?
+            p_PCIE_REFCLK_FREQ = 0,      # FIXME?
+
+            i_CPLLPDREFCLK       = cpll_pd_refclk,
+            i_PIPE_CLK           = pcie_refclk,
+            i_QPLL_QPLLPD        = qpll_qplld,
+            i_QPLL_QPLLRESET     = qpll_qpllreset[0],
+            i_QPLL_DRP_CLK       = qpll_drp_clk,
+            i_QPLL_DRP_RST_N     = qpll_drp_rst_n,
+            i_QPLL_DRP_OVRD      = qpll_drp_ovrd,
+            i_QPLL_DRP_GEN3      = qpll_drp_gen3,
+            i_QPLL_DRP_START     = qpll_drp_start,
+            o_QPLL_DRP_CRSCODE   = qpll_drp_crscode[0:6],
+            o_QPLL_DRP_FSM       = qpll_drp_fsm[0:10],
+            o_QPLL_DRP_DONE      = qpll_drp_done[0],
+            o_QPLL_DRP_RESET     = qpll_drp_reset[0],
+            o_QPLL_QPLLLOCK      = qpll_qplllock[0],
+            o_QPLL_QPLLOUTCLK    = qpll_qplloutclk[0],
+            o_QPLL_QPLLOUTREFCLK = qpll_qplloutrefclk[0],
+        )
+        self.specials += Instance("pcie_s7_gt_common",
+            p_PCIE_SIM_MODE    = "TRUE",
+            p_PCIE_GT_DEVICE   = "GTP",
+            p_PCIE_USE_MODE    = "1.0",
+            p_PCIE_PLL_SEL     = "CPLL", # FIXME?
+            p_PCIE_REFCLK_FREQ = 0,      # FIXME?
+
+            i_CPLLPDREFCLK       = cpll_pd_refclk,
+            i_PIPE_CLK           = pcie_refclk,
+            i_QPLL_QPLLPD        = qpll_qplld,
+            i_QPLL_QPLLRESET     = qpll_qpllreset[1],
+            i_QPLL_DRP_CLK       = qpll_drp_clk,
+            i_QPLL_DRP_RST_N     = qpll_drp_rst_n,
+            i_QPLL_DRP_OVRD      = qpll_drp_ovrd,
+            i_QPLL_DRP_GEN3      = qpll_drp_gen3,
+            i_QPLL_DRP_START     = qpll_drp_start,
+            o_QPLL_DRP_CRSCODE   = qpll_drp_crscode[6:12],
+            o_QPLL_DRP_FSM       = qpll_drp_fsm[10:18],
+            o_QPLL_DRP_DONE      = qpll_drp_done[1],
+            o_QPLL_DRP_RESET     = qpll_drp_reset[1],
+            o_QPLL_QPLLLOCK      = qpll_qplllock[1],
+            o_QPLL_QPLLOUTCLK    = qpll_qplloutclk[1],
+            o_QPLL_QPLLOUTREFCLK = qpll_qplloutrefclk[1],
+        )
+        current_file_path = os.path.dirname(os.path.abspath(__file__))
+        self.platform.add_source(os.path.join(current_file_path, "pcie_s7_gt_common.v"))
+        self.platform.add_source(os.path.join(current_file_path, "pcie_s7_qpll_drp.v"))
+        self.platform.add_source(os.path.join(current_file_path, "pcie_s7_qpll_wrapper.v"))
+        self.platform.add_source(os.path.join(current_file_path, "pcie_s7_gtp_cpllpd_ovrd.v"))
+
         if pcie_data_width == 128:
             rx_is_sof = m_axis_rx_tuser[10:15] # Start of a new packet header in m_axis_rx_tdata.
             rx_is_eof = m_axis_rx_tuser[17:22] # End of a packet in m_axis_rx_tdata.
@@ -540,12 +613,12 @@ class S7PCIEPHY(LiteXModule):
             platform.toolchain.pre_synthesis_commands += ip_tcl
 
         # Reset LOC constraints on GTPE2_COMMON and BRAM36 from .xci (we only want to keep Timing constraints).
-        if platform.device.startswith("xc7a"):
-            platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_common.gtpe2_common_i}}]")
-        else:
-            platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtx_common.gtxe2_common_i}}]")
-        if self.nlanes != 8:
-            platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*genblk*.bram36_tdp_bl.bram36_tdp_bl}}]")
+        #if platform.device.startswith("xc7a"):
+        #    platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_common.gtpe2_common_i}}]")
+        #else:
+        #    platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtx_common.gtxe2_common_i}}]")
+        #if self.nlanes != 8:
+        #    platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*genblk*.bram36_tdp_bl.bram36_tdp_bl}}]")
 
     # External Hard IP -----------------------------------------------------------------------------
     def use_external_hard_ip(self, hard_ip_path, hard_ip_filename):
