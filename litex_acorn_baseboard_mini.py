@@ -28,7 +28,8 @@ from litex.build.generic_platform import IOStandard, Subsignal, Pins
 from liteeth.phy.a7_gtp import QPLLSettings, QPLL
 from liteeth.phy.a7_1000basex import A7_1000BASEX
 
-from litepcie.phy.s7pciephy import S7PCIEPHY
+from gateware.litepcie.s7pciephy import S7PCIEPHY
+#from litepcie.phy.s7pciephy import S7PCIEPHY
 from litepcie.software import generate_litepcie_software
 
 from gateware.eth_pcie_soc import EthernetPCIeSoC
@@ -89,44 +90,44 @@ class BaseSoC(EthernetPCIeSoC):
         SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Acorn CLE-101/215(+)")
         self.add_jtagbone()
 
-        # Ethernet / PCIE RefClk/Shared-QPLL -------------------------------------------------------
-
-        # Ethernet QPLL Settings.
-        qpll_eth_settings = QPLLSettings(
-            refclksel  = 0b111,
-            fbdiv      = 4,
-            fbdiv_45   = 4,
-            refclk_div = 1,
-        )
-
-        # PCIe QPLL Settings.
-        # TODO.
-
-        # Shared QPLL.
-        self.qpll = qpll = QPLL(
-            gtgrefclk0    = self.crg.cd_eth_ref.clk,
-            qpllsettings0 = qpll_eth_settings,
-        )
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-
-        # Ethernet ---------------------------------------------------------------------------------
-        _eth_io = [
-            ("sfp", 0,
-                Subsignal("txp", Pins("D5")),
-                Subsignal("txn", Pins("C5")),
-                Subsignal("rxp", Pins("D11")),
-                Subsignal("rxn", Pins("C11")),
-            ),
-        ]
-        platform.add_extension(_eth_io)
-
-        self.ethphy = A7_1000BASEX(
-            qpll_channel = qpll.channels[0],
-            data_pads    = self.platform.request("sfp"),
-            sys_clk_freq = sys_clk_freq,
-            rx_polarity  = 1,  # Inverted on Acorn.
-            tx_polarity  = 0   # Inverted on Acorn and on baseboard.
-        )
+#        # Ethernet / PCIE RefClk/Shared-QPLL -------------------------------------------------------
+#
+#        # Ethernet QPLL Settings.
+#        qpll_eth_settings = QPLLSettings(
+#            refclksel  = 0b111,
+#            fbdiv      = 4,
+#            fbdiv_45   = 4,
+#            refclk_div = 1,
+#        )
+#
+#        # PCIe QPLL Settings.
+#        # TODO.
+#
+#        # Shared QPLL.
+#        self.qpll = qpll = QPLL(
+#            gtgrefclk0    = self.crg.cd_eth_ref.clk,
+#            qpllsettings0 = qpll_eth_settings,
+#        )
+#        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+#
+#        # Ethernet ---------------------------------------------------------------------------------
+#        _eth_io = [
+#            ("sfp", 0,
+#                Subsignal("txp", Pins("D5")),
+#                Subsignal("txn", Pins("C5")),
+#                Subsignal("rxp", Pins("D11")),
+#                Subsignal("rxn", Pins("C11")),
+#            ),
+#        ]
+#        platform.add_extension(_eth_io)
+#
+#        self.ethphy = A7_1000BASEX(
+#            qpll_channel = qpll.channels[0],
+#            data_pads    = self.platform.request("sfp"),
+#            sys_clk_freq = sys_clk_freq,
+#            rx_polarity  = 1,  # Inverted on Acorn.
+#            tx_polarity  = 0   # Inverted on Acorn and on baseboard.
+#        )
 
         # PCIe -------------------------------------------------------------------------------------
         self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1_baseboard"),
@@ -135,8 +136,10 @@ class BaseSoC(EthernetPCIeSoC):
         platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
         platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y4 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
-        # PCIe + Ethernet --------------------------------------------------------------------------
-        self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
+#        # PCIe + Ethernet --------------------------------------------------------------------------
+#        self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
+
+        self.add_pcie(phy=self.pcie_phy, ndmas=1)
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
