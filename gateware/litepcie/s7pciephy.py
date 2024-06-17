@@ -470,6 +470,12 @@ class S7PCIEPHY(LiteXModule):
                 "User_Clk_Freq"      : 125 if self.nlanes != 8 else 250,
             }
 
+            # GTPE2 COMMON Sharing Changes.
+            config.update({
+                "mode_selection"   : "Advanced",
+                "en_ext_gt_common" : True,
+            })
+
             # Interrupts parameters.
             assert self.msi_type in ["msi", "msi-multi-vector", "msi-x"]
             config.update({
