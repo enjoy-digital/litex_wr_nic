@@ -617,8 +617,8 @@ class S7PCIEPHY(LiteXModule):
         #    platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_common.gtpe2_common_i}}]")
         #else:
         #    platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtx_common.gtxe2_common_i}}]")
-        #if self.nlanes != 8:
-        #    platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*genblk*.bram36_tdp_bl.bram36_tdp_bl}}]")
+        if self.nlanes != 8:
+            platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*genblk*.bram36_tdp_bl.bram36_tdp_bl}}]")
 
     # External Hard IP -----------------------------------------------------------------------------
     def use_external_hard_ip(self, hard_ip_path, hard_ip_filename):
