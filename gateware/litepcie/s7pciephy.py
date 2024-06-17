@@ -419,6 +419,22 @@ class S7PCIEPHY(LiteXModule):
             i_pcie_drp_di                                = 0,
             o_pcie_drp_rdy                               = Open(),
             o_pcie_drp_do                                = Open(),
+
+            # GTPE2 COMMON Sharing Changes.
+            i_qpll_drp_crscode                           = Signal(12),
+            i_qpll_drp_fsm                               = Signal(18),
+            i_qpll_drp_done                              = Signal(2),
+            i_qpll_drp_reset                             = Signal(2),
+            i_qpll_qplllock                              = Signal(2),
+            i_qpll_qplloutclk                            = Signal(2),
+            i_qpll_qplloutrefclk                         = Signal(2),
+            o_qpll_qplld                                 = Signal(1),
+            o_qpll_qpllreset                             = Signal(2),
+            o_qpll_drp_clk                               = Signal(1),
+            o_qpll_drp_rst_n                             = Signal(1),
+            o_qpll_drp_ovrd                              = Signal(1),
+            o_qpll_drp_gen3                              = Signal(1),
+            o_qpll_drp_start                             = Signal(1),
         )
         if pcie_data_width == 128:
             rx_is_sof = m_axis_rx_tuser[10:15] # Start of a new packet header in m_axis_rx_tdata.
