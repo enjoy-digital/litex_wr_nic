@@ -25,14 +25,14 @@ from litex.soc.cores.led import LedChaser
 
 from litex.build.generic_platform import IOStandard, Subsignal, Pins
 
+from litepcie.phy.s7pciephy import S7PCIEPHY
+
 from liteeth.phy.a7_gtp import QPLLSettings, QPLL
 from liteeth.phy.a7_1000basex import A7_1000BASEX
 
 from litepcie.software import generate_litepcie_software
 
 from gateware.eth_pcie_soc import EthernetPCIeSoC
-
-from gateware.litepcie.s7pciephy import S7PCIEPHY
 
 # Platform -----------------------------------------------------------------------------------------
 
@@ -147,8 +147,6 @@ class BaseSoC(EthernetPCIeSoC):
             tx_polarity  = 0   # Inverted on Acorn and on baseboard.
         )
         self.add_etherbone(phy=self.ethphy, ip_address="192.168.1.50")
-
-
 
 #        # PCIe + Ethernet -------------------------------------------------------------------------
 #        self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
