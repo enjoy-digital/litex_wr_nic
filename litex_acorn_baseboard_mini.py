@@ -135,8 +135,22 @@ class BaseSoC(EthernetPCIeSoC):
 
         self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1_baseboard"),
             data_width = 64,
-            bar0_size  = 0x20000)
+            bar0_size  = 0x20000,
+        )
+        # PCIe QPLL Settings.
+        qpll_pcie_settings = QPLLSettings(
+            refclksel  = 0b001,
+            fbdiv      = 5,
+            fbdiv_45   = 5,
+            refclk_div = 1,
+        )
 
+        # Shared QPLL.
+        self.qpll = qpll = QPLL(
+            gtrefclk0     = self.pcie_phy.pcie_refclk,
+            qpllsettings0 = qpll_pcie_settings,
+        )
+        self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
         platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
         platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
@@ -160,7 +174,7 @@ def main():
     args = parser.parse_args()
 
     soc = BaseSoC(
-        sys_clk_freq   = args.sys_clk_freq,
+        sys_clk_freq = args.sys_clk_freq,
         **parser.soc_argdict
     )
     builder = Builder(soc, **parser.builder_argdict)

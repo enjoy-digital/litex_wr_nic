@@ -434,47 +434,7 @@ class S7PCIEPHY(LiteXModule):
             i_pcie_drp_di                                = 0,
             o_pcie_drp_rdy                               = Open(),
             o_pcie_drp_do                                = Open(),
-
-            # GTPE2 COMMON Sharing Changes.
-            i_qpll_drp_crscode                           = 0,
-            i_qpll_drp_fsm                               = 0,
-            i_qpll_drp_done                              = 1,
-            i_qpll_drp_reset                             = 0,
-            o_qpll_drp_clk                               = Open(),
-            o_qpll_drp_rst_n                             = Open(),
-            o_qpll_drp_ovrd                              = Open(),
-            o_qpll_drp_gen3                              = Open(),
-            o_qpll_drp_start                             = Open(),
-
-            i_qpll_qplllock                              = qpll_qplllock,
-            i_qpll_qplloutclk                            = qpll_qplloutclk,
-            i_qpll_qplloutrefclk                         = qpll_qplloutrefclk,
-            o_qpll_qplld                                 = qpll_qplld,
-            o_qpll_qpllreset                             = qpll_qpllreset,
         )
-
-        from liteeth.phy.a7_gtp import QPLLSettings, QPLL
-
-         # PCIe QPLL Settings.
-        qpll_pcie_settings = QPLLSettings(
-            refclksel  = 0b001,
-            fbdiv      = 5,
-            fbdiv_45   = 5,
-            refclk_div = 1,
-        )
-
-        # Shared QPLL.
-        self.qpll = qpll = QPLL(
-            gtrefclk0     = pcie_refclk,
-            qpllsettings0 = qpll_pcie_settings,
-        )
-
-        self.comb += [
-            qpll_qplllock.eq(qpll.channels[0].lock),
-            qpll_qplloutclk.eq(qpll.channels[0].clk),
-            qpll_qplloutrefclk.eq(qpll.channels[0].refclk),
-            qpll.channels[0].reset.eq(qpll_qpllreset),
-        ]
 
         if pcie_data_width == 128:
             rx_is_sof = m_axis_rx_tuser[10:15] # Start of a new packet header in m_axis_rx_tdata.
@@ -499,6 +459,32 @@ class S7PCIEPHY(LiteXModule):
     # LTSSM Tracer ---------------------------------------------------------------------------------
     def add_ltssm_tracer(self):
         self.ltssm_tracer = LTSSMTracer(self._link_status.fields.ltssm)
+
+    # External QPLL (Sharing) ----------------------------------------------------------------------
+    def use_external_qpll(self, qpll_channel):
+        self.pcie_phy_params.update(
+            # QPLL DRP Interface (not used).
+            i_qpll_drp_crscode   = 0,
+            i_qpll_drp_fsm       = 0,
+            i_qpll_drp_done      = 1,
+            i_qpll_drp_reset     = 0,
+            o_qpll_drp_clk       = Open(),
+            o_qpll_drp_rst_n     = Open(),
+            o_qpll_drp_ovrd      = Open(),
+            o_qpll_drp_gen3      = Open(),
+            o_qpll_drp_start     = Open(),
+
+            # QPLL Clk Interface.
+            i_qpll_qplllock      = qpll_channel.lock,
+            i_qpll_qplloutclk    = qpll_channel.clk,
+            i_qpll_qplloutrefclk = qpll_channel.refclk,
+            o_qpll_qplld         = Open(),
+            o_qpll_qpllreset     = qpll_channel.reset,
+        )
+        self.config.update({
+            "mode_selection"   : "Advanced",
+            "en_ext_gt_common" : True,
+        })
 
     # Hard IP sources ------------------------------------------------------------------------------
     def update_config(self, config):
@@ -525,12 +511,6 @@ class S7PCIEPHY(LiteXModule):
                 "Trgt_Link_Speed"    : "4'h2",
                 "User_Clk_Freq"      : 125 if self.nlanes != 8 else 250,
             }
-
-            # GTPE2 COMMON Sharing Changes.
-            config.update({
-                "mode_selection"   : "Advanced",
-                "en_ext_gt_common" : True,
-            })
 
             # Interrupts parameters.
             assert self.msi_type in ["msi", "msi-multi-vector", "msi-x"]
@@ -580,10 +560,11 @@ class S7PCIEPHY(LiteXModule):
             platform.toolchain.pre_synthesis_commands += ip_tcl
 
         # Reset LOC constraints on GTPE2_COMMON and BRAM36 from .xci (we only want to keep Timing constraints).
-        #if platform.device.startswith("xc7a"):
-        #    platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_common.gtpe2_common_i}}]")
-        #else:
-        #    platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtx_common.gtxe2_common_i}}]")
+        if "en_ext_gt_common" not in self.config.keys():
+            if platform.device.startswith("xc7a"):
+                platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_common.gtpe2_common_i}}]")
+            else:
+                platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtx_common.gtxe2_common_i}}]")
         if self.nlanes != 8:
             platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*genblk*.bram36_tdp_bl.bram36_tdp_bl}}]")
 
