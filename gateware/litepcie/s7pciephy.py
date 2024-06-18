@@ -453,11 +453,7 @@ class S7PCIEPHY(LiteXModule):
             o_qpll_qpllreset                             = qpll_qpllreset,
         )
 
-        cpll_pd_refclk = Signal()
-        self.specials += Instance("BUFG", i_I=pcie_refclk, o_O=cpll_pd_refclk)
-
         self.specials += Instance("pcie_s7_gt_common",
-            i_CPLLPDREFCLK       = cpll_pd_refclk,
             i_PIPE_CLK           = pcie_refclk,
             i_QPLL_QPLLPD        = qpll_qplld,
             i_QPLL_QPLLRESET     = qpll_qpllreset,

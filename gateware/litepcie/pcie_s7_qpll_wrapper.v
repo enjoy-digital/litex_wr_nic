@@ -64,7 +64,6 @@ module pcie_s7_qpll_wrapper
 (    
     
     //---------- QPLL Clock Ports --------------------------
-    input               QPLL_CPLLPDREFCLK,
     input               QPLL_GTGREFCLK,
     input               QPLL_QPLLLOCKDETCLK,
     

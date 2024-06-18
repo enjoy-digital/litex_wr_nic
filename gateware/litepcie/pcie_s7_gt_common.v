@@ -55,7 +55,6 @@
 (* DowngradeIPIdentifiedWarnings = "yes" *)
 module pcie_s7_gt_common
 (
-input                   CPLLPDREFCLK,
 input               	PIPE_CLK,
 input               	QPLL_QPLLPD,
 input               	QPLL_QPLLRESET,
@@ -68,7 +67,6 @@ output                  QPLL_QPLLOUTREFCLK
 pcie_s7_qpll_wrapper qpll_wrapper_i
         (
         //---------- QPLL Clock Ports --------------
-            .QPLL_CPLLPDREFCLK              (CPLLPDREFCLK),
             .QPLL_GTGREFCLK                 (PIPE_CLK),
             .QPLL_QPLLLOCKDETCLK            (1'd0),
             .QPLL_QPLLOUTCLK                (QPLL_QPLLOUTCLK),
