@@ -133,15 +133,7 @@ pcie_s7_qpll_drp #
 
 
         //---------- QPLL Wrapper ------------------------------------------
-pcie_s7_qpll_wrapper #
-        (
-	        .PCIE_SIM_MODE                  (PCIE_SIM_MODE),                // PCIe sim mode
-	        .PCIE_GT_DEVICE                 (PCIE_GT_DEVICE),               // PCIe GT device
-	        .PCIE_USE_MODE                  (PCIE_USE_MODE),                // PCIe use mode
-	        .PCIE_PLL_SEL                   (PCIE_PLL_SEL),                 // PCIe PLL select for Gen1/Gen2 only
-	        .PCIE_REFCLK_FREQ               (PCIE_REFCLK_FREQ)              // PCIe reference clock frequency
-        )
-        qpll_wrapper_i
+pcie_s7_qpll_wrapper qpll_wrapper_i
         (
         //---------- QPLL Clock Ports --------------
             .QPLL_CPLLPDREFCLK              (CPLLPDREFCLK),

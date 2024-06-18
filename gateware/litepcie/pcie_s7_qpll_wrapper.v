@@ -56,25 +56,11 @@
 //  Version      :  18.1
 //------------------------------------------------------------------------------
 
-
-
 `timescale 1ns / 1ps
-
-
 
 //---------- QPLL Wrapper ----------------------------------------------------
 (* DowngradeIPIdentifiedWarnings = "yes" *)
-module pcie_s7_qpll_wrapper #
-(
-    
-    parameter PCIE_SIM_MODE    = "FALSE",                   // PCIe sim mode
-    parameter PCIE_GT_DEVICE   = "GTX",                     // PCIe GT device
-    parameter PCIE_USE_MODE    = "3.0",                     // PCIe use mode
-    parameter PCIE_PLL_SEL     = "CPLL",                    // PCIe PLL select for Gen1/Gen2 only
-    parameter PCIE_REFCLK_FREQ = 0                          // PCIe reference clock frequency
- 
-)
-
+module pcie_s7_qpll_wrapper
 (    
     
     //---------- QPLL Clock Ports --------------------------
@@ -101,32 +87,6 @@ module pcie_s7_qpll_wrapper #
     output              QPLL_DRPRDY
     
 );
-
-
-
-    //---------- Select QPLL Feedback Divider --------------
-    //  N = 100 for 100 MHz ref clk and 10Gb/s line rate
-    //  N =  80 for 125 MHz ref clk and 10Gb/s line rate
-    //  N =  40 for 250 MHz ref clk and 10Gb/s line rate
-    //------------------------------------------------------
-    //  N =  80 for 100 MHz ref clk and  8Gb/s line rate
-    //  N =  64 for 125 MHz ref clk and  8Gb/s line rate
-    //  N =  32 for 250 MHz ref clk and  8Gb/s line rate
-    //------------------------------------------------------
-    localparam QPLL_FBDIV = (PCIE_REFCLK_FREQ == 2) && (PCIE_PLL_SEL == "QPLL") ? 10'b0010000000 : 
-                            (PCIE_REFCLK_FREQ == 1) && (PCIE_PLL_SEL == "QPLL") ? 10'b0100100000 : 
-                            (PCIE_REFCLK_FREQ == 0) && (PCIE_PLL_SEL == "QPLL") ? 10'b0101110000 : 
-                            (PCIE_REFCLK_FREQ == 2) && (PCIE_PLL_SEL == "CPLL") ? 10'b0001100000 : 
-                            (PCIE_REFCLK_FREQ == 1) && (PCIE_PLL_SEL == "CPLL") ? 10'b0011100000 : 10'b0100100000;
-    
-    //---------- Select GTP QPLL Feedback Divider ----------                     
-    localparam GTP_QPLL_FBDIV  = (PCIE_REFCLK_FREQ == 2) ? 3'd2 :
-                                 (PCIE_REFCLK_FREQ == 1) ? 3'd4 : 3'd5;
-
-    //---------- Select BIAS_CFG ---------------------------
-    localparam BIAS_CFG = ((PCIE_USE_MODE == "1.0") && (PCIE_PLL_SEL == "CPLL")) ? 64'h0000042000001000 : 64'h0000040000001000;
-
-
     //---------- GTP Common Module ---------------------------------------------
     GTPE2_COMMON #
     (
@@ -134,8 +94,8 @@ module pcie_s7_qpll_wrapper #
         //---------- Simulation Attributes -------------------------------------                                                     
         .SIM_PLL0REFCLK_SEL             (3'b001),                               //                                                   
         .SIM_PLL1REFCLK_SEL             (3'b001),                               //                                                   
-        .SIM_RESET_SPEEDUP              (PCIE_SIM_MODE),                        //                                                   
-        .SIM_VERSION                    (PCIE_USE_MODE),                        //                                                   
+        .SIM_RESET_SPEEDUP              ("FALSE"),                              //
+        .SIM_VERSION                    ("2.0"),                               //
                                                                                                                                      
         //---------- Clock Attributes ------------------------------------------                                                     
         .PLL0_CFG                       (27'h01F024C),                          // Optimized for IES                                                  
@@ -143,8 +103,8 @@ module pcie_s7_qpll_wrapper #
         .PLL_CLKOUT_CFG                 (8'd0),                                 // Optimized for IES                                                   
         .PLL0_DMON_CFG                  (1'b0),                                 // Optimized for IES                                                  
         .PLL1_DMON_CFG                  (1'b0),                                 // Optimized for IES                                      
-        .PLL0_FBDIV                     (GTP_QPLL_FBDIV),                       // Optimized for IES                                                  
-        .PLL1_FBDIV                     (GTP_QPLL_FBDIV),                       // Optimized for IES                                                   
+        .PLL0_FBDIV                     (3'd5),                                 // Optimized for IES
+        .PLL1_FBDIV                     (3'd5),                                 // Optimized for IES
         .PLL0_FBDIV_45                  (5),                                    // Optimized for IES                                                  
         .PLL1_FBDIV_45                  (5),                                    // Optimized for IES                                                  
         .PLL0_INIT_CFG                  (24'h00001E),                           // Optimized for IES                                                  
