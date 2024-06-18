@@ -453,16 +453,16 @@ class S7PCIEPHY(LiteXModule):
             o_qpll_qpllreset                             = qpll_qpllreset,
         )
 
-        self.specials += Instance("pcie_s7_gt_common",
-            i_PIPE_CLK           = pcie_refclk,
-            i_QPLL_QPLLPD        = qpll_qplld,
-            i_QPLL_QPLLRESET     = qpll_qpllreset,
-            o_QPLL_QPLLLOCK      = qpll_qplllock,
-            o_QPLL_QPLLOUTCLK    = qpll_qplloutclk,
-            o_QPLL_QPLLOUTREFCLK = qpll_qplloutrefclk,
+        self.specials += Instance("pcie_s7_qpll_wrapper",
+            i_QPLL_GTGREFCLK      = pcie_refclk,
+            i_QPLL_QPLLPD         = qpll_qplld,
+            i_QPLL_QPLLLOCKDETCLK = 0,
+            i_QPLL_QPLLRESET      = qpll_qpllreset,
+            o_QPLL_QPLLLOCK       = qpll_qplllock,
+            o_QPLL_QPLLOUTCLK     = qpll_qplloutclk,
+            o_QPLL_QPLLOUTREFCLK  = qpll_qplloutrefclk,
         )
         current_file_path = os.path.dirname(os.path.abspath(__file__))
-        self.platform.add_source(os.path.join(current_file_path, "pcie_s7_gt_common.v"))
         self.platform.add_source(os.path.join(current_file_path, "pcie_s7_qpll_wrapper.v"))
 
         if pcie_data_width == 128:

@@ -73,17 +73,7 @@ module pcie_s7_qpll_wrapper
     
     //---------- QPLL Reset Ports --------------------------
     input               QPLL_QPLLPD,
-    input               QPLL_QPLLRESET,
-
-    //---------- QPLL DRP Ports ----------------------------
-    input               QPLL_DRPCLK,
-    input       [ 7:0]  QPLL_DRPADDR,
-    input               QPLL_DRPEN,
-    input       [15:0]  QPLL_DRPDI,
-    input               QPLL_DRPWE,
-    
-    output      [15:0]  QPLL_DRPDO,
-    output              QPLL_DRPRDY
+    input               QPLL_QPLLRESET
     
 );
     //---------- GTP Common Module ---------------------------------------------
@@ -160,14 +150,14 @@ module pcie_s7_qpll_wrapper
         .PLL1RESET                      ( 1'd1),                                //                       
                                                                                                    
         //---------- DRP -------------------------------------------------------                         
-        .DRPCLK                         (QPLL_DRPCLK),                          //                       
-        .DRPADDR                        (QPLL_DRPADDR),                         //                       
-        .DRPEN                          (QPLL_DRPEN),                           //                       
-        .DRPDI                          (QPLL_DRPDI),                           //                       
-        .DRPWE                          (QPLL_DRPWE),                           //                       
+        .DRPCLK                         (1'd0),                          //
+        .DRPADDR                        (1'd0),                         //
+        .DRPEN                          (1'd0),                           //
+        .DRPDI                          (1'd0),                           //
+        .DRPWE                          (1'd0),                           //
                                                                                                          
-        .DRPDO                          (QPLL_DRPDO),                           //                       
-        .DRPRDY                         (QPLL_DRPRDY),                          //                       
+        .DRPDO                          (),                           //
+        .DRPRDY                         (),                          //
                                                                                                          
         //---------- Band Gap --------------------------------------------------                         
         .BGBYPASSB                      ( 1'd1),                                // Optimized for IES                      
