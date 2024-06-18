@@ -436,55 +436,37 @@ class S7PCIEPHY(LiteXModule):
             o_pcie_drp_do                                = Open(),
 
             # GTPE2 COMMON Sharing Changes.
-            #i_qpll_drp_crscode                           = qpll_drp_crscode,
-            #i_qpll_drp_fsm                               = qpll_drp_fsm,
-            #i_qpll_drp_done                              = qpll_drp_done,
-            #i_qpll_drp_reset                             = qpll_drp_reset,
+            i_qpll_drp_crscode                           = 0,
+            i_qpll_drp_fsm                               = 0,
+            i_qpll_drp_done                              = 1,
+            i_qpll_drp_reset                             = 0,
+            o_qpll_drp_clk                               = Open(),
+            o_qpll_drp_rst_n                             = Open(),
+            o_qpll_drp_ovrd                              = Open(),
+            o_qpll_drp_gen3                              = Open(),
+            o_qpll_drp_start                             = Open(),
+
             i_qpll_qplllock                              = qpll_qplllock,
             i_qpll_qplloutclk                            = qpll_qplloutclk,
             i_qpll_qplloutrefclk                         = qpll_qplloutrefclk,
             o_qpll_qplld                                 = qpll_qplld,
             o_qpll_qpllreset                             = qpll_qpllreset,
-            #o_qpll_drp_clk                               = qpll_drp_clk,
-            #o_qpll_drp_rst_n                             = qpll_drp_rst_n,
-            #o_qpll_drp_ovrd                              = qpll_drp_ovrd,
-            #o_qpll_drp_gen3                              = qpll_drp_gen3,
-            #o_qpll_drp_start                             = qpll_drp_start,
-
-            i_qpll_drp_done  = 1,
-            i_qpll_drp_reset = 0,
         )
 
         cpll_pd_refclk = Signal()
         self.specials += Instance("BUFG", i_I=pcie_refclk, o_O=cpll_pd_refclk)
 
         self.specials += Instance("pcie_s7_gt_common",
-            p_PCIE_SIM_MODE    = "TRUE",
-            p_PCIE_GT_DEVICE   = "GTP",
-            p_PCIE_USE_MODE    = "1.0",
-            p_PCIE_PLL_SEL     = "CPLL",
-            p_PCIE_REFCLK_FREQ = 0,
-
             i_CPLLPDREFCLK       = cpll_pd_refclk,
             i_PIPE_CLK           = pcie_refclk,
             i_QPLL_QPLLPD        = qpll_qplld,
             i_QPLL_QPLLRESET     = qpll_qpllreset,
-            i_QPLL_DRP_CLK       = qpll_drp_clk,
-            i_QPLL_DRP_RST_N     = qpll_drp_rst_n,
-            i_QPLL_DRP_OVRD      = qpll_drp_ovrd,
-            i_QPLL_DRP_GEN3      = qpll_drp_gen3,
-            i_QPLL_DRP_START     = qpll_drp_start,
-            o_QPLL_DRP_CRSCODE   = qpll_drp_crscode,
-            o_QPLL_DRP_FSM       = qpll_drp_fsm,
-            o_QPLL_DRP_DONE      = qpll_drp_done,
-            o_QPLL_DRP_RESET     = qpll_drp_reset,
             o_QPLL_QPLLLOCK      = qpll_qplllock,
             o_QPLL_QPLLOUTCLK    = qpll_qplloutclk,
             o_QPLL_QPLLOUTREFCLK = qpll_qplloutrefclk,
         )
         current_file_path = os.path.dirname(os.path.abspath(__file__))
         self.platform.add_source(os.path.join(current_file_path, "pcie_s7_gt_common.v"))
-        self.platform.add_source(os.path.join(current_file_path, "pcie_s7_qpll_drp.v"))
         self.platform.add_source(os.path.join(current_file_path, "pcie_s7_qpll_wrapper.v"))
 
         if pcie_data_width == 128:
