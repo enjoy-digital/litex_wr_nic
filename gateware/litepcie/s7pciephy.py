@@ -483,7 +483,6 @@ class S7PCIEPHY(LiteXModule):
         self.platform.add_source(os.path.join(current_file_path, "pcie_s7_gt_common.v"))
         self.platform.add_source(os.path.join(current_file_path, "pcie_s7_qpll_drp.v"))
         self.platform.add_source(os.path.join(current_file_path, "pcie_s7_qpll_wrapper.v"))
-        self.platform.add_source(os.path.join(current_file_path, "pcie_s7_gtp_cpllpd_ovrd.v"))
 
         if pcie_data_width == 128:
             rx_is_sof = m_axis_rx_tuser[10:15] # Start of a new packet header in m_axis_rx_tdata.

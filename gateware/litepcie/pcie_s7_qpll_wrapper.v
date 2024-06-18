@@ -127,9 +127,6 @@ module pcie_s7_qpll_wrapper #
     localparam BIAS_CFG = ((PCIE_USE_MODE == "1.0") && (PCIE_PLL_SEL == "CPLL")) ? 64'h0000042000001000 : 64'h0000040000001000;
 
 
-    wire cpllpd;        
-    wire cpllrst;       
-
     //---------- GTP Common Module ---------------------------------------------
     GTPE2_COMMON #
     (
@@ -198,9 +195,9 @@ module pcie_s7_qpll_wrapper #
         .DMONITOROUT                    (),                                     // 
                                                                                                          
         //---------- Reset -----------------------------------------------------                         
-        .PLL0PD                         (cpllpd | QPLL_QPLLPD),                 //                       
+        .PLL0PD                         (QPLL_QPLLPD),                 //
         .PLL1PD                         ( 1'd1),                                //                       
-        .PLL0RESET                      (cpllrst | QPLL_QPLLRESET),             //                       
+        .PLL0RESET                      (QPLL_QPLLRESET),             //
         .PLL1RESET                      ( 1'd1),                                //                       
                                                                                                    
         //---------- DRP -------------------------------------------------------                         
@@ -229,12 +226,5 @@ module pcie_s7_qpll_wrapper #
         .PMARSVDOUT                     ()                                      //  
     
     );
-   
-pcie_s7_gtp_cpllpd_ovrd cpllPDInst (                                                                                   
-        .i_ibufds_gte2(QPLL_CPLLPDREFCLK),                                                                                 
-        .o_cpllpd_ovrd(cpllpd),                                                                                       
-        .o_cpllreset_ovrd(cpllrst));                       
 
 endmodule
-
-                                              
