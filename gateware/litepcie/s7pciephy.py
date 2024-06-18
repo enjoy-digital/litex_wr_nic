@@ -205,20 +205,20 @@ class S7PCIEPHY(LiteXModule):
         m_axis_rx_tlast = Signal()
         m_axis_rx_tuser = Signal(32)
 
-        qpll_drp_crscode   = Signal(12)
-        qpll_drp_fsm       = Signal(18)
-        qpll_drp_done      = Signal(2)
-        qpll_drp_reset     = Signal(2)
-        qpll_qplllock      = Signal(2)
-        qpll_qplloutclk    = Signal(2)
-        qpll_qplloutrefclk = Signal(2)
-        qpll_qplld         = Signal(1)
-        qpll_qpllreset     = Signal(2)
-        qpll_drp_clk       = Signal(1)
-        qpll_drp_rst_n     = Signal(1)
-        qpll_drp_ovrd      = Signal(1)
-        qpll_drp_gen3      = Signal(1)
-        qpll_drp_start     = Signal(1)
+        qpll_drp_crscode   = Signal(6)
+        qpll_drp_fsm       = Signal(10)
+        qpll_drp_done      = Signal()
+        qpll_drp_reset     = Signal()
+        qpll_qplllock      = Signal()
+        qpll_qplloutclk    = Signal()
+        qpll_qplloutrefclk = Signal()
+        qpll_qplld         = Signal()
+        qpll_qpllreset     = Signal()
+        qpll_drp_clk       = Signal()
+        qpll_drp_rst_n     = Signal()
+        qpll_drp_ovrd      = Signal()
+        qpll_drp_gen3      = Signal()
+        qpll_drp_start     = Signal()
 
         self.pcie_phy_params = dict(
             # PCI Express Interface ----------------------------------------------------------------
@@ -459,49 +459,25 @@ class S7PCIEPHY(LiteXModule):
             p_PCIE_SIM_MODE    = "TRUE",
             p_PCIE_GT_DEVICE   = "GTP",
             p_PCIE_USE_MODE    = "1.0",
-            p_PCIE_PLL_SEL     = "CPLL", # FIXME?
-            p_PCIE_REFCLK_FREQ = 0,      # FIXME?
+            p_PCIE_PLL_SEL     = "CPLL",
+            p_PCIE_REFCLK_FREQ = 0,
 
             i_CPLLPDREFCLK       = cpll_pd_refclk,
             i_PIPE_CLK           = pcie_refclk,
             i_QPLL_QPLLPD        = qpll_qplld,
-            i_QPLL_QPLLRESET     = qpll_qpllreset[0],
+            i_QPLL_QPLLRESET     = qpll_qpllreset,
             i_QPLL_DRP_CLK       = qpll_drp_clk,
             i_QPLL_DRP_RST_N     = qpll_drp_rst_n,
             i_QPLL_DRP_OVRD      = qpll_drp_ovrd,
             i_QPLL_DRP_GEN3      = qpll_drp_gen3,
             i_QPLL_DRP_START     = qpll_drp_start,
-            o_QPLL_DRP_CRSCODE   = qpll_drp_crscode[0:6],
-            o_QPLL_DRP_FSM       = qpll_drp_fsm[0:10],
-            o_QPLL_DRP_DONE      = qpll_drp_done[0],
-            o_QPLL_DRP_RESET     = qpll_drp_reset[0],
-            o_QPLL_QPLLLOCK      = qpll_qplllock[0],
-            o_QPLL_QPLLOUTCLK    = qpll_qplloutclk[0],
-            o_QPLL_QPLLOUTREFCLK = qpll_qplloutrefclk[0],
-        )
-        self.specials += Instance("pcie_s7_gt_common",
-            p_PCIE_SIM_MODE    = "TRUE",
-            p_PCIE_GT_DEVICE   = "GTP",
-            p_PCIE_USE_MODE    = "1.0",
-            p_PCIE_PLL_SEL     = "CPLL", # FIXME?
-            p_PCIE_REFCLK_FREQ = 0,      # FIXME?
-
-            i_CPLLPDREFCLK       = cpll_pd_refclk,
-            i_PIPE_CLK           = pcie_refclk,
-            i_QPLL_QPLLPD        = qpll_qplld,
-            i_QPLL_QPLLRESET     = qpll_qpllreset[1],
-            i_QPLL_DRP_CLK       = qpll_drp_clk,
-            i_QPLL_DRP_RST_N     = qpll_drp_rst_n,
-            i_QPLL_DRP_OVRD      = qpll_drp_ovrd,
-            i_QPLL_DRP_GEN3      = qpll_drp_gen3,
-            i_QPLL_DRP_START     = qpll_drp_start,
-            o_QPLL_DRP_CRSCODE   = qpll_drp_crscode[6:12],
-            o_QPLL_DRP_FSM       = qpll_drp_fsm[10:18],
-            o_QPLL_DRP_DONE      = qpll_drp_done[1],
-            o_QPLL_DRP_RESET     = qpll_drp_reset[1],
-            o_QPLL_QPLLLOCK      = qpll_qplllock[1],
-            o_QPLL_QPLLOUTCLK    = qpll_qplloutclk[1],
-            o_QPLL_QPLLOUTREFCLK = qpll_qplloutrefclk[1],
+            o_QPLL_DRP_CRSCODE   = qpll_drp_crscode,
+            o_QPLL_DRP_FSM       = qpll_drp_fsm,
+            o_QPLL_DRP_DONE      = qpll_drp_done,
+            o_QPLL_DRP_RESET     = qpll_drp_reset,
+            o_QPLL_QPLLLOCK      = qpll_qplllock,
+            o_QPLL_QPLLOUTCLK    = qpll_qplloutclk,
+            o_QPLL_QPLLOUTREFCLK = qpll_qplloutrefclk,
         )
         current_file_path = os.path.dirname(os.path.abspath(__file__))
         self.platform.add_source(os.path.join(current_file_path, "pcie_s7_gt_common.v"))
