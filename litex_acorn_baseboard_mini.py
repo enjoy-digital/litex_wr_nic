@@ -32,6 +32,8 @@ from litepcie.software import generate_litepcie_software
 
 from gateware.eth_pcie_soc import EthernetPCIeSoC
 
+from gateware.litepcie.s7pciephy import S7PCIEPHY
+
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(sqrl_acorn.Platform):
@@ -88,55 +90,8 @@ class BaseSoC(EthernetPCIeSoC):
         SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Acorn CLE-101/215(+)")
         self.add_jtagbone()
 
-#        # Ethernet / PCIE RefClk/Shared-QPLL -------------------------------------------------------
-#
-#        # Ethernet QPLL Settings.
-#        qpll_eth_settings = QPLLSettings(
-#            refclksel  = 0b111,
-#            fbdiv      = 4,
-#            fbdiv_45   = 4,
-#            refclk_div = 1,
-#        )
-#
-#        # PCIe QPLL Settings.
-#        # TODO.
-#
-#        # Shared QPLL.
-#        self.qpll = qpll = QPLL(
-#            gtgrefclk0    = self.crg.cd_eth_ref.clk,
-#            qpllsettings0 = qpll_eth_settings,
-#        )
-#        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-#
-#        # Ethernet ---------------------------------------------------------------------------------
-#        _eth_io = [
-#            ("sfp", 0,
-#                Subsignal("txp", Pins("D5")),
-#                Subsignal("txn", Pins("C5")),
-#                Subsignal("rxp", Pins("D11")),
-#                Subsignal("rxn", Pins("C11")),
-#            ),
-#        ]
-#        platform.add_extension(_eth_io)
-#
-#        self.ethphy = A7_1000BASEX(
-#            qpll_channel = qpll.channels[0],
-#            data_pads    = self.platform.request("sfp"),
-#            sys_clk_freq = sys_clk_freq,
-#            rx_polarity  = 1,  # Inverted on Acorn.
-#            tx_polarity  = 0   # Inverted on Acorn and on baseboard.
-#        )
+        # PCIe / Ethernet Shared QPLL Settings -----------------------------------------------------
 
-        # PCIe -------------------------------------------------------------------------------------
-
-        from gateware.litepcie.s7pciephy import S7PCIEPHY
-
-        #from litepcie.phy.s7pciephy import S7PCIEPHY
-
-        self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1_baseboard"),
-            data_width = 64,
-            bar0_size  = 0x20000,
-        )
         # PCIe QPLL Settings.
         qpll_pcie_settings = QPLLSettings(
             refclksel  = 0b001,
@@ -145,19 +100,58 @@ class BaseSoC(EthernetPCIeSoC):
             refclk_div = 1,
         )
 
-        # Shared QPLL.
+        # Ethernet QPLL Settings.
+        qpll_eth_settings = QPLLSettings(
+            refclksel  = 0b111,
+            fbdiv      = 4,
+            fbdiv_45   = 4,
+            refclk_div = 1,
+        )
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+
+        # PCIe -------------------------------------------------------------------------------------
+
+        self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1_baseboard"),
+            data_width = 64,
+            bar0_size  = 0x20000,
+        )
+        platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
+        platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
+        self.add_pcie(phy=self.pcie_phy, ndmas=1)
+
+        # Shared QPLL ------------------------------------------------------------------------------
         self.qpll = qpll = QPLL(
             gtrefclk0     = self.pcie_phy.pcie_refclk,
             qpllsettings0 = qpll_pcie_settings,
+            gtgrefclk1    = self.crg.cd_eth_ref.clk,
+            qpllsettings1 = qpll_eth_settings,
         )
         self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
-        platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
-        platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
-#        # PCIe + Ethernet --------------------------------------------------------------------------
+        # Ethernet ---------------------------------------------------------------------------------
+        _eth_io = [
+            ("sfp", 0,
+                Subsignal("txp", Pins(" D5")),
+                Subsignal("txn", Pins(" C5")),
+                Subsignal("rxp", Pins("D11")),
+                Subsignal("rxn", Pins("C11")),
+            ),
+        ]
+        platform.add_extension(_eth_io)
+
+        self.ethphy = A7_1000BASEX(
+            qpll_channel = qpll.channels[1],
+            data_pads    = self.platform.request("sfp"),
+            sys_clk_freq = sys_clk_freq,
+            rx_polarity  = 1,  # Inverted on Acorn.
+            tx_polarity  = 0   # Inverted on Acorn and on baseboard.
+        )
+        self.add_etherbone(phy=self.ethphy, ip_address="192.168.1.50")
+
+
+
+#        # PCIe + Ethernet -------------------------------------------------------------------------
 #        self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
-
-        self.add_pcie(phy=self.pcie_phy, ndmas=1)
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
