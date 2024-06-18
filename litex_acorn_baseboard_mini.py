@@ -117,7 +117,7 @@ class BaseSoC(EthernetPCIeSoC):
         )
         platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
         platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
-        self.add_pcie(phy=self.pcie_phy, ndmas=1)
+        #self.add_pcie(phy=self.pcie_phy, ndmas=1)
 
         # Shared QPLL ------------------------------------------------------------------------------
         self.qpll = qpll = QPLL(
@@ -146,10 +146,10 @@ class BaseSoC(EthernetPCIeSoC):
             rx_polarity  = 1,  # Inverted on Acorn.
             tx_polarity  = 0   # Inverted on Acorn and on baseboard.
         )
-        self.add_etherbone(phy=self.ethphy, ip_address="192.168.1.50")
+        #self.add_etherbone(phy=self.ethphy, ip_address="192.168.1.50")
 
-#        # PCIe + Ethernet -------------------------------------------------------------------------
-#        self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
+        # PCIe + Ethernet --------------------------------------------------------------------------
+        self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
