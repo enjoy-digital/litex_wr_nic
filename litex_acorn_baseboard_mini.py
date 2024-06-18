@@ -129,9 +129,9 @@ class BaseSoC(EthernetPCIeSoC):
 
         # PCIe -------------------------------------------------------------------------------------
 
-        #from gateware.litepcie.s7pciephy import S7PCIEPHY
+        from gateware.litepcie.s7pciephy import S7PCIEPHY
 
-        from litepcie.phy.s7pciephy import S7PCIEPHY
+        #from litepcie.phy.s7pciephy import S7PCIEPHY
 
         self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1_baseboard"),
             data_width = 64,
