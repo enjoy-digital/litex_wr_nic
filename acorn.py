@@ -127,14 +127,9 @@ class BaseSoC(SoCCore):
             with_jtagbone = True
         )
 
-        # White Rabbit -----------------------------------------------------------------------------
-        if with_wr:
-            self._add_white_rabbit_core()
-            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
-            self.comb += platform.request("pcie_clkreq_n").eq(0)
+            #self.comb += platform.request("pcie_clkreq_n").eq(0) # FIXME : Conflict with serial_tx?
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1_baseboard"),
                 data_width = 64,
                 bar0_size  = 0x20000,
@@ -241,6 +236,11 @@ class BaseSoC(SoCCore):
                 platform.toolchain.pre_optimize_commands.append(f"set pin_driver [get_nets -of [get_pins {_to}]]")
                 platform.toolchain.pre_optimize_commands.append(f"disconnect_net -net $pin_driver -objects {_to}")
                 platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net {_from} -objects {_to}")
+
+            # White Rabbit -----------------------------------------------------------------------------
+            if with_wr:
+                self._add_white_rabbit_core()
+                platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
             # Time -------------------------------------------------------------------------------------
 
@@ -519,6 +519,10 @@ class BaseSoC(SoCCore):
             o_led_act_o           = self.led_act,
 
             o_debug               = self.debug,
+            o_qpll_reset          = self.qpll.channels[1].reset,
+            i_qpll_clk            = self.qpll.channels[1].clk,
+            i_qpll_refclk         = self.qpll.channels[1].refclk,
+            i_qpll_lock           = self.qpll.channels[1].lock,
         )
 
     def add_sources(self):
@@ -561,8 +565,6 @@ def main():
     parser.add_target_argument("--with-pcie",    action="store_true",       help="Enable PCIe Communication.")
     args = parser.parse_args()
 
-    assert not (args.with_pcie and args.with_wr)
-
     soc = BaseSoC(
         with_wr   = args.with_wr,
         with_pcie = args.with_pcie
@@ -571,10 +573,9 @@ def main():
     builder = Builder(soc, **parser.builder_argdict)
     if args.build:
         builder.build(**parser.toolchain_argdict)
-
-    if args.with_pcie:
-        software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
-        generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
+        if args.with_pcie:
+            software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
+            generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
 
     if args.load:
         prog = soc.platform.create_programmer()

@@ -122,7 +122,11 @@ entity wr_gtp_phy_family7 is
 
     rdy_o            : out  std_logic;
 
-    debug            : out std_logic_vector(31 downto 0)
+    debug            : out std_logic_vector(31 downto 0);
+    qpll_reset  : out std_logic;
+    qpll_clk    : in  std_logic;
+    qpll_refclk : in  std_logic;
+    qpll_lock   : in  std_logic
   );
 end entity wr_gtp_phy_family7;
 
@@ -405,21 +409,23 @@ begin
     GT0_PLL1REFCLKLOST_OUT   =>  open,
     GT0_PLL1RESET_IN         =>  pll1_reset,
     GT0_PLL1PD_IN            =>  pll1_pd,
-    debug                    =>  debug
+    debug                    =>  debug,
+    qpll_clk                 => qpll_clk,
+    qpll_refclk              => qpll_refclk
   );
 
   gen_pll0_support: if g_gtp_enable_pll0 = '1' generate
-    pll0_reset <= ready_for_reset;
+    qpll_reset <= ready_for_reset;
     pll1_reset <= '0';
-	pll_locked_i <= pll0_locked;
+	pll_locked_i <= qpll_lock;
 	pll0_pd      <= '0';
 	pll1_pd      <= '1';
   end generate gen_pll0_support;
 
   gen_pll1_support: if g_gtp_enable_pll1 = '1' generate
     pll0_reset <= '0';
-    pll1_reset <= ready_for_reset;
-	pll_locked_i <= pll1_locked;
+    qpll_reset <= ready_for_reset;
+	pll_locked_i <= qpll_lock;
 	pll0_pd      <= '1';
 	pll1_pd      <= '0';
   end generate gen_pll1_support;
