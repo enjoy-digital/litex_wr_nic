@@ -2,8 +2,11 @@
 
 # Copyright (C) 2024 Enjoy-Digital.
 
-# ./acorn.py --csr-csv=csr.csv --build --load
-# litex_server --jtag --jtag-config=openocd_xc7_ft2232.cfg
+# ./acorn.py --with-wr   --build -> With White Rabbit.
+# ./acorn.py --with-pcie --build -> With PCIe.
+
+# Objective: ./acorn.py --with-wr --with-pcie --build :)
+
 
 import argparse
 import sys
