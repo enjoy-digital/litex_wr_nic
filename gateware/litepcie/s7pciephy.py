@@ -436,20 +436,23 @@ class S7PCIEPHY(LiteXModule):
             o_pcie_drp_do                                = Open(),
 
             # GTPE2 COMMON Sharing Changes.
-            i_qpll_drp_crscode                           = qpll_drp_crscode,
-            i_qpll_drp_fsm                               = qpll_drp_fsm,
-            i_qpll_drp_done                              = qpll_drp_done,
-            i_qpll_drp_reset                             = qpll_drp_reset,
+            #i_qpll_drp_crscode                           = qpll_drp_crscode,
+            #i_qpll_drp_fsm                               = qpll_drp_fsm,
+            #i_qpll_drp_done                              = qpll_drp_done,
+            #i_qpll_drp_reset                             = qpll_drp_reset,
             i_qpll_qplllock                              = qpll_qplllock,
             i_qpll_qplloutclk                            = qpll_qplloutclk,
             i_qpll_qplloutrefclk                         = qpll_qplloutrefclk,
             o_qpll_qplld                                 = qpll_qplld,
             o_qpll_qpllreset                             = qpll_qpllreset,
-            o_qpll_drp_clk                               = qpll_drp_clk,
-            o_qpll_drp_rst_n                             = qpll_drp_rst_n,
-            o_qpll_drp_ovrd                              = qpll_drp_ovrd,
-            o_qpll_drp_gen3                              = qpll_drp_gen3,
-            o_qpll_drp_start                             = qpll_drp_start,
+            #o_qpll_drp_clk                               = qpll_drp_clk,
+            #o_qpll_drp_rst_n                             = qpll_drp_rst_n,
+            #o_qpll_drp_ovrd                              = qpll_drp_ovrd,
+            #o_qpll_drp_gen3                              = qpll_drp_gen3,
+            #o_qpll_drp_start                             = qpll_drp_start,
+
+            i_qpll_drp_done  = 1,
+            i_qpll_drp_reset = 0,
         )
 
         cpll_pd_refclk = Signal()
