@@ -155,10 +155,21 @@ class BaseSoC(SoCCore):
                 fbdiv_45   = 5,
                 refclk_div = 1,
             )
+            # White Rabbit QPLL Settings.
+            qpll_wr_settings = QPLLSettings(
+                refclksel  = 0b111, # FIXME: Get it from WR files.
+                fbdiv      = 4,     # FIXME: Get it from WR files.
+                fbdiv_45   = 4,     # FIXME: Get it from WR files.
+                refclk_div = 1,     # FIXME: Get it from WR files.
+            )
+            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+
             # Shared QPLL.
             self.qpll = qpll = QPLL(
                 gtrefclk0     = self.pcie_phy.pcie_refclk,
                 qpllsettings0 = qpll_pcie_settings,
+                gtgrefclk1    = 0, # FIXME.
+                qpllsettings1 = qpll_wr_settings,
             )
             self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
 
