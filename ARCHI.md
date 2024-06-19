@@ -1,253 +1,108 @@
-# gateware/litepcie/wishbone_dma.py:
+# Project Overview: LitePCIe and LiteEth Integration
 
-## WishboneDMAReaderCtrl
-The `WishboneDMAReaderCtrl` module is responsible for reading data from the Wishbone MMAP memory and sending it to a destination. It inherits from `WishboneDMAReader`.
+## Goals
+The primary goal of this project is to integrate Ethernet MAC functionality with PCIe capabilities within an FPGA-based System-on-Chip (SoC) design. This integration aims to provide efficient data transfer and communication between Ethernet and PCIe subsystems using the LiteX framework, leveraging Wishbone interfaces and DMA engines for optimal performance.
 
-### Parameters:
-- `bus`: The Wishbone bus of the SoC to read from.
-- `endianness`: Specifies the byte order for reading.
+## Architecture
+The project architecture revolves around two main subsystems: Ethernet MAC and PCIe, interconnected through Wishbone buses. The integration ensures seamless communication and high-speed data transfer between these subsystems.
 
-### Attributes:
-- `sink`: Receives addresses to read.
-- `source`: Outputs the read data.
+### Main Components
+1. **Ethernet MAC (LiteEth)**
+   - Handles Ethernet frame transmission and reception.
+   - Uses SRAM for packet buffering.
+   - Connects to the Wishbone bus for memory-mapped access.
 
-### Functionality:
-- The `add_ctrl` method initializes various control signals (base address, length, enable, etc.) and sets up a Finite State Machine (FSM) to manage the reading process. The FSM transitions between `IDLE`, `RUN`, and `DONE` states, handling address incrementing and looping if required.
+2. **PCIe Subsystem (LitePCIe)**
+   - Provides high-speed data transfer capabilities via PCIe.
+   - Includes endpoint and DMA engines for efficient communication.
+   - Connects to the Wishbone bus for memory-mapped access.
 
-## WishboneDMAWriterCtrl
-The `WishboneDMAWriterCtrl` module writes data to the Wishbone MMAP memory. It extends `WishboneDMAWriter`.
+3. **Wishbone Bus**
+   - Acts as the primary interconnect for memory-mapped peripherals.
+   - Connects Ethernet MAC and PCIe subsystems to the CPU and other SoC components.
 
-### Parameters:
-- `bus`: The Wishbone bus to write to.
-- `endianness`: Specifies the byte order for writing.
+4. **DMA Engines**
+   - Facilitate direct memory access between PCIe and Wishbone interfaces.
+   - Ensure high-performance data transfer.
 
-### Attributes:
-- `sink`: Receives addresses and data to write.
+5. **MSI (Message Signaled Interrupts)**
+   - Manage interrupt signals for efficient event handling, particularly for Ethernet RX/TX operations.
 
-### Functionality:
-- The `add_ctrl` method configures control signals and an FSM similar to `WishboneDMAReaderCtrl`. The FSM manages writing data to the specified addresses and handles looping if needed.
+### Component Descriptions
 
-## dma_descriptor_layout
-This function defines the layout for DMA descriptors, specifying the fields for host address, bus address, and length. This layout is used to describe data transfers.
+#### WishboneDMAReaderCtrl
+- Reads data from Wishbone MMAP memory and sends it to a destination.
+- Manages control signals and data flow using a Finite State Machine (FSM).
 
-## LiteWishbone2PCIeDMA
-The `LiteWishbone2PCIeDMA` module handles DMA transfers from the Wishbone bus to the PCIe interface.
+#### WishboneDMAWriterCtrl
+- Writes data to Wishbone MMAP memory.
+- Uses an FSM to manage writing operations, control signals, and looping.
 
-### Parameters:
-- `endpoint`: The PCIe endpoint.
-- `data_width`: The data width of the bus.
+#### dma_descriptor_layout
+- Defines the layout for DMA descriptors used in data transfers.
 
-### Functionality:
-- Integrates various submodules (`dma_wr`, `dma_fifo`, `fifo_wr`, `wb_dma`, `conv_wr`) to manage the flow of data from the Wishbone bus to PCIe.
-- Uses control registers (CSR) for configuration (host address, length, bus address, etc.).
-- An FSM controls the state of the DMA transfer, ensuring proper data flow and signaling completion via interrupts.
+#### LiteWishbone2PCIeDMA
+- Handles DMA transfers from the Wishbone bus to the PCIe interface.
+- Manages data flow, configuration, and control using various submodules and CSRs.
 
-## LitePCIe2WishboneDMA
-The `LitePCIe2WishboneDMA` module handles DMA transfers from the PCIe interface to the Wishbone bus.
+#### LitePCIe2WishboneDMA
+- Handles DMA transfers from the PCIe interface to the Wishbone bus.
+- Uses submodules and CSRs for configuration and control, ensuring proper data flow.
 
-### Parameters:
-- `endpoint`: The PCIe endpoint.
-- `data_width`: The data width of the bus.
+#### PCIeInterruptTest
+- Tests PCIe interrupts by providing CSR to trigger IRQ signals.
 
-### Functionality:
-- Integrates submodules (`dma_rd`, `dma_fifo`, `fifo_rd`, `wb_dma`, `conv_rd`) to manage data flow from PCIe to the Wishbone bus.
-- Uses CSR for configuration and control.
-- An FSM manages the transfer states, ensuring data is correctly written to the Wishbone memory and signaling completion via interrupts.
+#### LiteWishbone2PCIeDMANative
+- Manages native DMA transfers from Wishbone to PCIe without additional descriptor tables.
+- Directly links Wishbone memory read operations to PCIe writes.
 
-## PCIeInterruptTest
-This module is a simple test for PCIe interrupts, providing CSR to trigger three different IRQ signals.
+#### LitePCIe2WishboneDMANative
+- Handles native DMA transfers from PCIe to Wishbone.
+- Uses control signals and FSM for streamlined data transfer.
 
-## LiteWishbone2PCIeDMANative
-The `LiteWishbone2PCIeDMANative` module is similar to `LiteWishbone2PCIeDMA` but focuses on native DMA transfer without additional descriptor tables.
+#### LiteEthMACSRAMWriter
+- Writes Ethernet frames to SRAM.
+- Manages packet writing, error handling, and optional timestamping.
 
-### Functionality:
-- Manages DMA transfers directly using control signals and FSM.
-- Simplifies the process by eliminating intermediate descriptor tables, directly linking Wishbone memory read operations to PCIe writes.
+#### LiteEthMACSRAMReader
+- Reads Ethernet frames from SRAM and outputs them through a source endpoint.
+- Supports optional timestamping and PCIe integration.
 
-## LitePCIe2WishboneDMANative
-The `LitePCIe2WishboneDMANative` module handles native DMA transfers from PCIe to Wishbone.
+#### LiteEthMACSRAM
+- Combines writer and reader modules for complete SRAM-based Ethernet MAC functionality.
+- Supports both packet transmission and reception with optional PCIe integration.
 
-### Functionality:
-- Directly manages DMA transfers from PCIe reads to Wishbone writes.
-- Uses control signals and an FSM to streamline data transfer without intermediate descriptors.
+#### LiteEthMACWishboneInterface
+- Integrates Ethernet MAC functionality with a Wishbone bus interface.
+- Manages Ethernet frame storage and transfer using SRAM and connects to the Wishbone bus.
 
-# gateware/liteeth/mac/sram.py:
+## Integration Methods
 
-## LiteEthMACSRAMWriter
-The `LiteEthMACSRAMWriter` module is responsible for writing Ethernet frames to SRAM. It handles incoming packets and stores them in memory, including CRC error checking and optional timestamping.
+### EthernetPCIeSoC Class
+This class integrates Ethernet MAC and PCIe functionalities into a cohesive SoC design.
 
-### Parameters:
-- `dw`: Data width.
-- `depth`: Depth of the SRAM.
-- `nslots`: Number of slots for buffering.
-- `endianness`: Byte order (big or little).
-- `timestamp`: Optional timestamp signal for packets.
-- `with_eth_pcie`: Enable PCIe integration.
+#### CSR Map
+Maps various components to Control and Status Registers (CSR) for software configuration and control.
 
-### Attributes:
-- `sink`: Endpoint for incoming Ethernet packets.
-- `crc_error`: Signal indicating CRC errors.
-- Various CSR registers for status, error count, and control.
+#### `__add_ethernet` Method
+Adds an Ethernet MAC module to the SoC, configuring its parameters and connecting it to the appropriate interfaces. It also configures memory regions and Wishbone interfaces for RX and TX slots.
 
-### Functionality:
-- Sets up a finite state machine (FSM) to manage packet writing, error handling, and discarding invalid packets.
-- Supports optional PCIe integration with control and status signals.
-- Manages memory writes with endianness handling and multi-slot buffering.
+#### `__add_pcie` Method
+Adds a PCIe subsystem to the SoC, configuring the PCIe PHY, endpoint, DMA engines, and MSI. It manages memory mapping and interrupt handling for efficient data transfer.
 
-## LiteEthMACSRAMReader
-The `LiteEthMACSRAMReader` module reads Ethernet frames from SRAM and outputs them through a source endpoint. It supports optional timestamping and PCIe integration.
+#### `add_ethernet_pcie` Method
+Integrates both Ethernet and PCIe subsystems in the SoC, ensuring proper configuration and connectivity. It sets up interconnections between Ethernet MAC and PCIe DMA engines for seamless data flow.
 
-### Parameters:
-- `dw`: Data width.
-- `depth`: Depth of the SRAM.
-- `nslots`: Number of slots for buffering.
-- `endianness`: Byte order (big or little).
-- `timestamp`: Optional timestamp signal for packets.
-- `with_eth_pcie`: Enable PCIe integration.
+#### `generate_software_header` Method
+Generates software headers for CSR, SoC, and memory regions, enabling software access to hardware configurations.
 
-### Attributes:
-- `source`: Endpoint for outgoing Ethernet packets.
-- Various CSR registers for control and status.
+## Global Architecture and Interconnections
+The `EthernetPCIeSoC` class integrates Ethernet MAC and PCIe subsystems into a unified SoC architecture with the following components:
 
-### Functionality:
-- Uses an FSM to manage reading from memory, handling packet lengths, and triggering events.
-- Supports optional PCIe integration with control and status signals.
-- Manages memory reads with endianness handling and multi-slot buffering.
+1. **Ethernet MAC**: Manages Ethernet frame transmission and reception using SRAM for buffering and Wishbone interfaces for access.
+2. **PCIe Subsystem**: Provides high-speed data transfer with endpoint and DMA engines connected to the Wishbone bus.
+3. **Wishbone Bus**: Acts as the main interconnect for peripherals, ensuring communication between Ethernet MAC, PCIe, CPU, and other components.
+4. **DMA Engines**: Enable direct memory access between PCIe and Wishbone, ensuring efficient data transfer.
+5. **MSI**: Manages interrupts for handling Ethernet RX/TX operations efficiently.
 
-## LiteEthMACSRAM
-The `LiteEthMACSRAM` module combines the writer and reader modules to create a complete SRAM-based Ethernet MAC. It supports both packet transmission and reception, with optional PCIe integration.
-
-### Parameters:
-- `dw`: Data width.
-- `depth`: Depth of the SRAM.
-- `nrxslots`: Number of RX slots.
-- `ntxslots`: Number of TX slots.
-- `endianness`: Byte order (big or little).
-- `timestamp`: Optional timestamp signal for packets.
-- `with_eth_pcie`: Enable PCIe integration.
-
-### Attributes:
-- `sink`: Endpoint for incoming Ethernet packets (connected to writer).
-- `source`: Endpoint for outgoing Ethernet packets (connected to reader).
-
-### Functionality:
-- Integrates the `LiteEthMACSRAMWriter` and `LiteEthMACSRAMReader` modules.
-- Provides optional PCIe integration with IRQ handling.
-- Supports shared IRQ for both writer and reader when PCIe is not used.
-
-# gateware/liteeth/mac/wishbone.py:
-
-## LiteEthMACWishboneInterface
-The `LiteEthMACWishboneInterface` module facilitates the integration of Ethernet MAC functionality with a Wishbone bus interface. It handles the storage and transfer of Ethernet frames using SRAM and connects to the Wishbone bus for memory-mapped access.
-
-### Parameters:
-- `dw`: Data width.
-- `nrxslots`: Number of RX slots.
-- `ntxslots`: Number of TX slots.
-- `endianness`: Byte order (big or little).
-- `timestamp`: Optional timestamp signal for packets.
-- `rxslots_read_only`: If RX slots should be read-only.
-- `txslots_write_only`: If TX slots should be write-only.
-- `with_pcie_eth`: Enable PCIe Ethernet integration.
-
-### Attributes:
-- `sink`: Endpoint for incoming Ethernet packets.
-- `source`: Endpoint for outgoing Ethernet packets.
-- `rx_bus`: Wishbone interface for RX when PCIe Ethernet is enabled.
-- `tx_bus`: Wishbone interface for TX when PCIe Ethernet is enabled.
-- `bus`: Wishbone interface for non-PCIe Ethernet configurations.
-
-### Functionality:
-- The module sets up storage for Ethernet frames in SRAM with configurable depth based on the Ethernet MTU and data width.
-- It instantiates the `LiteEthMACSRAM` module to manage the actual SRAM storage for both RX and TX operations.
-- Connections are made between the sink/source endpoints and the `LiteEthMACSRAM` module for packet handling.
-- Depending on the `with_pcie_eth` parameter, it configures Wishbone interfaces for RX and TX slots, creating separate SRAM interfaces for each slot.
-- Exposes these SRAM interfaces on a single Wishbone bus using the `wishbone.SRAM` and `wishbone.Decoder` modules for both RX and TX operations.
-- For PCIe Ethernet configurations, separate Wishbone buses are used for RX and TX, with corresponding decoders.
-
-# gateware/eth_pcie_soc.py:
-
-## Overview
-The `EthernetPCIeSoC` class integrates Ethernet MAC functionality with PCIe capabilities in a System-on-Chip (SoC) design using the LiteX framework. This integration involves configuring Ethernet and PCIe subsystems, connecting them to Wishbone buses, and ensuring proper data flow and control. The following sections describe the integration methods and the global architecture, explaining how the previously described modules are interconnected.
-
-## EthernetPCIeSoC Class
-### CSR Map
-The `csr_map` dictionary maps various components to CSR (Control and Status Registers) addresses, facilitating their configuration and control through software.
-
-### `__add_ethernet` Method
-This method adds an Ethernet MAC module to the SoC, configuring its parameters and connecting it to the appropriate interfaces.
-
-#### Parameters:
-- `name`: Name of the Ethernet MAC module.
-- `phy`: Physical layer interface.
-- `phy_cd`: Clock domain for the PHY.
-- `dynamic_ip`: Enable dynamic IP addressing.
-- `software_debug`: Enable software debugging.
-- `data_width`: Data width for the MAC.
-- `nrxslots`, `ntxslots`: Number of RX and TX slots.
-- `rxslots_read_only`, `txslots_write_only`: Read-only or write-only configuration for slots.
-- `with_timestamp`: Enable packet timestamping.
-- `with_timing_constraints`: Add timing constraints for the PHY.
-- `local_ip`, `remote_ip`: Local and remote IP addresses.
-- `with_pcie_eth`: Enable PCIe Ethernet integration.
-
-#### Functionality:
-- Instantiates the `LiteEthMAC` module with the specified parameters.
-- Connects the MAC's sink and source endpoints to the SoC's interfaces.
-- Configures memory regions and Wishbone interfaces for RX and TX slots.
-- Adds dynamic IP and timing constraints if specified.
-
-### `__add_pcie` Method
-This method adds a PCIe subsystem to the SoC, configuring the PCIe PHY, endpoint, DMA engines, and MSI (Message Signaled Interrupts).
-
-#### Parameters:
-- `name`: Name of the PCIe subsystem.
-- `phy`: Physical layer interface for PCIe.
-- `ndmas`: Number of DMA engines.
-- `max_pending_requests`: Maximum pending requests for PCIe.
-- `address_width`, `data_width`: Address and data width for PCIe.
-- `with_dma_buffering`, `dma_buffering_depth`: Enable and configure DMA buffering.
-- `with_dma_loopback`: Enable DMA loopback.
-- `with_dma_synchronizer`: Enable DMA synchronizer.
-- `with_dma_monitor`, `with_dma_status`: Enable DMA monitoring and status.
-- `with_msi`, `msi_type`, `msi_width`: Enable and configure MSI.
-- `with_ptm`: Enable Precision Time Measurement.
-- `with_pcie_eth`: Enable PCIe Ethernet integration.
-
-#### Functionality:
-- Instantiates the `LitePCIeEndpoint` and `LitePCIeWishboneMaster` modules for PCIe endpoint and MMAP (Memory Map) interfaces.
-- Configures MSI for interrupt handling, connecting Ethernet RX/TX IRQs if PCIe Ethernet is enabled.
-- Adds DMA engines for data transfer, configuring their parameters and connecting IRQs.
-- Adds timing constraints for the PCIe PHY.
-
-### `add_ethernet_pcie` Method
-This method integrates both Ethernet and PCIe subsystems in the SoC, ensuring proper configuration and connectivity.
-
-#### Parameters:
-- `name`: Name of the Ethernet MAC module.
-- `phy`, `pcie_phy`: Physical layer interfaces for Ethernet and PCIe.
-- `phy_cd`: Clock domain for the PHY.
-- `dynamic_ip`: Enable dynamic IP addressing.
-- `software_debug`: Enable software debugging.
-- `nrxslots`, `ntxslots`: Number of RX and TX slots.
-- `with_timing_constraints`: Add timing constraints for the PHY.
-- `max_pending_requests`: Maximum pending requests for PCIe.
-- `with_msi`: Enable MSI.
-
-#### Functionality:
-- Adds Ethernet MAC and PCIe subsystems using `__add_ethernet` and `__add_pcie` methods.
-- Configures memory buses (`pcie_mem_bus_rx` and `pcie_mem_bus_tx`) for PCIe RX and TX data paths.
-- Instantiates and connects DMA engines for data transfer between PCIe and Wishbone interfaces.
-- Sets up interconnections between Ethernet MAC and PCIe DMA engines, ensuring proper data flow and control signals.
-
-### `generate_software_header` Method
-This method generates software headers for CSR, SoC, and memory regions, enabling software access to hardware configurations.
-
-## Global Architecture and Interconnection
-The `EthernetPCIeSoC` class integrates Ethernet MAC and PCIe subsystems into a cohesive SoC architecture using the following components:
-
-1. **Ethernet MAC**: Handles Ethernet frame transmission and reception, using SRAM for packet buffering and Wishbone interfaces for memory-mapped access.
-2. **PCIe Subsystem**: Provides high-speed data transfer capabilities via PCIe, with endpoint and DMA engines for efficient communication.
-3. **Wishbone Bus**: Serves as the primary interconnect for memory-mapped peripherals, connecting Ethernet MAC and PCIe subsystems to the CPU and other SoC components.
-4. **DMA Engines**: Facilitate direct memory access between PCIe and Wishbone interfaces, ensuring high-performance data transfer.
-5. **MSI (Message Signaled Interrupts)**: Manage interrupt signals for efficient event handling, particularly for Ethernet RX/TX operations.
+The integration ensures high-performance data transfer and communication between Ethernet and PCIe subsystems, leveraging DMA engines and Wishbone interfaces for optimal performance and flexibility.
