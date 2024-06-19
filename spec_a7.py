@@ -259,7 +259,7 @@ class BaseSoC(SoCCore):
 
     def gen_xwrc_board_acorn(self, bram):
 
-        self.specials += Instance("xwrc_board_acorn",
+        self.specials += Instance("xwrc_board_artix7",
             p_g_simulation                 = 0,
             #p_g_with_external_clock_input  = 1,
             #p_g_dpram_initf               = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16_direct_dmtd.bram",
@@ -344,7 +344,7 @@ class BaseSoC(SoCCore):
 
         custom_files = [
             "gateware/xwrc_platform_vivado.vhd",
-            "gateware/xwrc_board_speca7.vhd",
+            "gateware/xwrc_board_artix7.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
