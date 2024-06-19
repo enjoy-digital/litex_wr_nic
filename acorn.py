@@ -345,35 +345,6 @@ class BaseSoC(SoCCore):
         self.sync.clk62m5 += self.cnt_62m5.eq(self.cnt_62m5 + 1)
         self.sync.clk_125m_gtp += self.cnt_125_gtp.eq(self.cnt_125_gtp + 1)
 
-
-        # GTPE2_CHANNEL.
-        GTPE2_CHANNEL_GT0_PLL1RESET_IN    = Signal()
-        GTPE2_CHANNEL_GT0_DRP_BUSY_OUT    = Signal()
-        GTPE2_CHANNEL_GT0_GTRXRESET_IN    = Signal()
-        GTPE2_CHANNEL_GT0_GTTXRESET_IN    = Signal()
-        GTPE2_CHANNEL_GT0_RXRESETDONE_OUT = Signal()
-        GTPE2_CHANNEL_GT0_TXRESETDONE_OUT = Signal()
-        self.comb += [
-            GTPE2_CHANNEL_GT0_PLL1RESET_IN.eq(   debug[0]),
-            GTPE2_CHANNEL_GT0_DRP_BUSY_OUT.eq(   debug[1]),
-            GTPE2_CHANNEL_GT0_GTRXRESET_IN.eq(   debug[2]),
-            GTPE2_CHANNEL_GT0_GTTXRESET_IN.eq(   debug[3]),
-            GTPE2_CHANNEL_GT0_RXRESETDONE_OUT.eq(debug[4]),
-            GTPE2_CHANNEL_GT0_TXRESETDONE_OUT.eq(debug[5]),
-        ]
-
-        # GTPE2_COMMON.
-        GTPE2_COMMON_GT0_PLL1RESET_IN       = Signal()
-        GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN  = Signal()
-        GTPE2_COMMON_GT0_PLL1LOCK_OUT       = Signal()
-        GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT = Signal()
-        self.comb += [
-            GTPE2_COMMON_GT0_PLL1RESET_IN.eq(      debug[16]),
-            GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN.eq( debug[17]),
-            GTPE2_COMMON_GT0_PLL1LOCK_OUT.eq(      debug[18]),
-            GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT.eq(debug[19]),
-        ]
-
         # WR core ----------------------------------------------------------------------------------
         self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "wrc_acorn.bram"))
         self.add_sources()
@@ -397,50 +368,6 @@ class BaseSoC(SoCCore):
             i_USRCCLKTS = 0,
             i_USRDONEO  = 1,
             i_USRDONETS = 1,
-        )
-
-        cnt1 = Signal()
-        cnt2 = Signal()
-
-        self.comb += [
-            cnt1.eq(self.cnt_125_gtp[3]),
-            cnt2.eq(self.cnt_62m5[3]),
-        ]
-
-        # LiteScope --------------------------------------------------------------------------------
-        analyzer_signals = []
-        if False:
-            analyzer_signals += [
-                self.crg.cd_clk_125m_dmtd.rst,
-                self.ext_ref_rst,
-                self.clk_ref_locked,
-                self.dbg_rdy,
-                self.ready_for_reset,
-                cnt1,
-                cnt2,
-                GTPE2_CHANNEL_GT0_PLL1RESET_IN,
-                GTPE2_CHANNEL_GT0_DRP_BUSY_OUT,
-                GTPE2_CHANNEL_GT0_GTRXRESET_IN,
-                GTPE2_CHANNEL_GT0_GTTXRESET_IN,
-                GTPE2_CHANNEL_GT0_RXRESETDONE_OUT,
-                GTPE2_CHANNEL_GT0_TXRESETDONE_OUT,
-                GTPE2_COMMON_GT0_PLL1RESET_IN,
-                GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN,
-                GTPE2_COMMON_GT0_PLL1LOCK_OUT,
-                GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT,
-            ]
-
-        if True:
-            analyzer_signals += [
-                self.dac_refclk,
-                self.dac_dmtd,
-            ]
-
-        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-            depth        = 256,
-            clock_domain = "sys",
-            register     = True,
-            csr_csv      = "analyzer.csv"
         )
 
     def gen_xwrc_board_acorn(self, bram):

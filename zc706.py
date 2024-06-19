@@ -206,49 +206,6 @@ class BaseSoC(SoCCore):
 
         self.add_sources()
 
-        cnt1 = Signal()
-        cnt2 = Signal()
-
-        self.comb += [
-            cnt1.eq(self.cnt_125_gtp[3]),
-            cnt2.eq(self.cnt_62m5[3]),
-        ]
-
-        analyzer_signals = []
-        if True:
-            analyzer_signals += [
-                self.crg.cd_clk_125m_dmtd.rst,
-                self.ext_ref_rst,
-                self.clk_ref_locked,
-                self.dbg_rdy,
-                self.ready_for_reset,
-                cnt1,
-                cnt2,
-                GTPX2_CHANNEL_CPLLRESET_IN,
-                GTPX2_CHANNEL_RXCDRRESET_IN,
-                GTPX2_CHANNEL_GTRXRESET_IN,
-                GTPX2_CHANNEL_RXPMARESET_IN,
-                GTPX2_CHANNEL_RXRESETDONE_OUT,
-                GTPX2_CHANNEL_GTTXRESET_IN,
-                GTPX2_CHANNEL_TXRESETDONE_OUT,
-                GTPX2_CHANNEL_CPLLREFCLKLOST_OUT,
-                GTPX2_CHANNEL_CPLLFBCLKLOST_OUT,
-                GTPX2_CHANNEL_CPLLLOCKDETCLK_IN,
-            ]
-
-        if False:
-            analyzer_signals += [
-                self.dac_refclk,
-                self.dac_dmtd,
-            ]
-
-        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-            depth        = 256,
-            clock_domain = "sys",
-            register     = True,
-            csr_csv      = "analyzer.csv"
-        )
-
     def gen_xwrc_board_acorn(self, bram):
 
         self.specials += Instance("xwrc_board_zc706",
