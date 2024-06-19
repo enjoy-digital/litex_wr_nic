@@ -181,12 +181,7 @@ entity xwrc_platform_xilinx is
     ext_ref_mul_o         : out std_logic;
     ext_ref_mul_locked_o  : out std_logic;
     ext_ref_mul_stopped_o : out std_logic;
-    ext_ref_rst_i         : in  std_logic             := '0';
-    debug                 : out std_logic_vector(31 downto 0);
-    qpll_reset  : out std_logic;
-    qpll_clk    : in  std_logic;
-    qpll_refclk : in  std_logic;
-    qpll_lock   : in  std_logic
+    ext_ref_rst_i         : in  std_logic             := '0'
     );
 
 end entity xwrc_platform_xilinx;
@@ -735,7 +730,6 @@ begin  -- architecture rtl
         loopen_i       => phy16_i.loopen_vec,
         tx_prbs_sel_i  => phy16_i.tx_prbs_sel,
         rdy_o          => phy16_o.rdy,
-        debug          => debug,
 
         pad_txn_o => sfp_txn_o,
         pad_txp_o => sfp_txp_o,
@@ -830,12 +824,7 @@ begin  -- architecture rtl
         pad_rxn_i => sfp_rxn_i,
         pad_rxp_i => sfp_rxp_i,
 
-        tx_locked_o   => clk_ref_locked,
-        debug         => debug,
-        qpll_reset            => qpll_reset,
-        qpll_clk              => qpll_clk,
-        qpll_refclk           => qpll_refclk,
-        qpll_lock             => qpll_lock
+        tx_locked_o   => clk_ref_locked
         );
 
     clk_125m_ref_o       <= clk_ref;
