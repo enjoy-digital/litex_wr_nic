@@ -330,9 +330,9 @@ class BaseSoC(SoCCore):
             i_sfp_det_i           = self.sfp_det,
             io_sfp_sda            = self.sfp_i2c.sda,
             io_sfp_scl            = self.sfp_i2c.scl,
-            o_sfp_rate_select_o   = self.sfp_rs,
+            #o_sfp_rate_select_o   = self.sfp_rs, # FIXME/CHECKME.
             i_sfp_tx_fault_i      = self.sfp_tx_fault,
-            o_sfp_tx_disable_o    = self.sfp_disable_n,
+            #o_sfp_tx_disable_o    = self.sfp_disable_n, # FIXME/CHECKME.
             i_sfp_tx_los_i        = self.sfp_tx_los,
 
             #eeprom_sda_i        => eeprom_sda_in,
