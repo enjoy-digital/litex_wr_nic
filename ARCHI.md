@@ -164,3 +164,90 @@ The `LiteEthMACWishboneInterface` module facilitates the integration of Ethernet
 - Depending on the `with_pcie_eth` parameter, it configures Wishbone interfaces for RX and TX slots, creating separate SRAM interfaces for each slot.
 - Exposes these SRAM interfaces on a single Wishbone bus using the `wishbone.SRAM` and `wishbone.Decoder` modules for both RX and TX operations.
 - For PCIe Ethernet configurations, separate Wishbone buses are used for RX and TX, with corresponding decoders.
+
+# gateware/eth_pcie_soc.py:
+
+## Overview
+The `EthernetPCIeSoC` class integrates Ethernet MAC functionality with PCIe capabilities in a System-on-Chip (SoC) design using the LiteX framework. This integration involves configuring Ethernet and PCIe subsystems, connecting them to Wishbone buses, and ensuring proper data flow and control. The following sections describe the integration methods and the global architecture, explaining how the previously described modules are interconnected.
+
+## EthernetPCIeSoC Class
+### CSR Map
+The `csr_map` dictionary maps various components to CSR (Control and Status Registers) addresses, facilitating their configuration and control through software.
+
+### `__add_ethernet` Method
+This method adds an Ethernet MAC module to the SoC, configuring its parameters and connecting it to the appropriate interfaces.
+
+#### Parameters:
+- `name`: Name of the Ethernet MAC module.
+- `phy`: Physical layer interface.
+- `phy_cd`: Clock domain for the PHY.
+- `dynamic_ip`: Enable dynamic IP addressing.
+- `software_debug`: Enable software debugging.
+- `data_width`: Data width for the MAC.
+- `nrxslots`, `ntxslots`: Number of RX and TX slots.
+- `rxslots_read_only`, `txslots_write_only`: Read-only or write-only configuration for slots.
+- `with_timestamp`: Enable packet timestamping.
+- `with_timing_constraints`: Add timing constraints for the PHY.
+- `local_ip`, `remote_ip`: Local and remote IP addresses.
+- `with_pcie_eth`: Enable PCIe Ethernet integration.
+
+#### Functionality:
+- Instantiates the `LiteEthMAC` module with the specified parameters.
+- Connects the MAC's sink and source endpoints to the SoC's interfaces.
+- Configures memory regions and Wishbone interfaces for RX and TX slots.
+- Adds dynamic IP and timing constraints if specified.
+
+### `__add_pcie` Method
+This method adds a PCIe subsystem to the SoC, configuring the PCIe PHY, endpoint, DMA engines, and MSI (Message Signaled Interrupts).
+
+#### Parameters:
+- `name`: Name of the PCIe subsystem.
+- `phy`: Physical layer interface for PCIe.
+- `ndmas`: Number of DMA engines.
+- `max_pending_requests`: Maximum pending requests for PCIe.
+- `address_width`, `data_width`: Address and data width for PCIe.
+- `with_dma_buffering`, `dma_buffering_depth`: Enable and configure DMA buffering.
+- `with_dma_loopback`: Enable DMA loopback.
+- `with_dma_synchronizer`: Enable DMA synchronizer.
+- `with_dma_monitor`, `with_dma_status`: Enable DMA monitoring and status.
+- `with_msi`, `msi_type`, `msi_width`: Enable and configure MSI.
+- `with_ptm`: Enable Precision Time Measurement.
+- `with_pcie_eth`: Enable PCIe Ethernet integration.
+
+#### Functionality:
+- Instantiates the `LitePCIeEndpoint` and `LitePCIeWishboneMaster` modules for PCIe endpoint and MMAP (Memory Map) interfaces.
+- Configures MSI for interrupt handling, connecting Ethernet RX/TX IRQs if PCIe Ethernet is enabled.
+- Adds DMA engines for data transfer, configuring their parameters and connecting IRQs.
+- Adds timing constraints for the PCIe PHY.
+
+### `add_ethernet_pcie` Method
+This method integrates both Ethernet and PCIe subsystems in the SoC, ensuring proper configuration and connectivity.
+
+#### Parameters:
+- `name`: Name of the Ethernet MAC module.
+- `phy`, `pcie_phy`: Physical layer interfaces for Ethernet and PCIe.
+- `phy_cd`: Clock domain for the PHY.
+- `dynamic_ip`: Enable dynamic IP addressing.
+- `software_debug`: Enable software debugging.
+- `nrxslots`, `ntxslots`: Number of RX and TX slots.
+- `with_timing_constraints`: Add timing constraints for the PHY.
+- `max_pending_requests`: Maximum pending requests for PCIe.
+- `with_msi`: Enable MSI.
+
+#### Functionality:
+- Adds Ethernet MAC and PCIe subsystems using `__add_ethernet` and `__add_pcie` methods.
+- Configures memory buses (`pcie_mem_bus_rx` and `pcie_mem_bus_tx`) for PCIe RX and TX data paths.
+- Instantiates and connects DMA engines for data transfer between PCIe and Wishbone interfaces.
+- Sets up interconnections between Ethernet MAC and PCIe DMA engines, ensuring proper data flow and control signals.
+
+### `generate_software_header` Method
+This method generates software headers for CSR, SoC, and memory regions, enabling software access to hardware configurations.
+
+## Global Architecture and Interconnection
+The `EthernetPCIeSoC` class integrates Ethernet MAC and PCIe subsystems into a cohesive SoC architecture using the following components:
+
+1. **Ethernet MAC**: Handles Ethernet frame transmission and reception, using SRAM for packet buffering and Wishbone interfaces for memory-mapped access.
+2. **PCIe Subsystem**: Provides high-speed data transfer capabilities via PCIe, with endpoint and DMA engines for efficient communication.
+3. **Wishbone Bus**: Serves as the primary interconnect for memory-mapped peripherals, connecting Ethernet MAC and PCIe subsystems to the CPU and other SoC components.
+4. **DMA Engines**: Facilitate direct memory access between PCIe and Wishbone interfaces, ensuring high-performance data transfer.
+5. **MSI (Message Signaled Interrupts)**: Manage interrupt signals for efficient event handling, particularly for Ethernet RX/TX operations.
