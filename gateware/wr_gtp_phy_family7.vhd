@@ -415,17 +415,17 @@ begin
   );
 
   gen_pll0_support: if g_gtp_enable_pll0 = '1' generate
-    qpll_reset <= ready_for_reset;
+    pll0_reset <= ready_for_reset;
     pll1_reset <= '0';
-	pll_locked_i <= qpll_lock;
+	pll_locked_i <= pll0_locked;
 	pll0_pd      <= '0';
 	pll1_pd      <= '1';
   end generate gen_pll0_support;
 
   gen_pll1_support: if g_gtp_enable_pll1 = '1' generate
     pll0_reset <= '0';
-    qpll_reset <= ready_for_reset;
-	pll_locked_i <= qpll_lock;
+    pll1_reset <= ready_for_reset;
+	pll_locked_i <= pll1_locked;
 	pll0_pd      <= '1';
 	pll1_pd      <= '0';
   end generate gen_pll1_support;
