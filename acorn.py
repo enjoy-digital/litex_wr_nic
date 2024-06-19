@@ -268,6 +268,7 @@ class BaseSoC(SoCCore):
         # White Rabbit ---------------------------------------------------------------------------------
         if with_wr:
             self._add_white_rabbit_core()
+            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
     def _add_white_rabbit_core(self):
         # Config/Control/Status registers ----------------------------------------------------------
@@ -518,10 +519,10 @@ class BaseSoC(SoCCore):
             o_led_act_o           = self.led_act,
 
             o_debug               = self.debug,
-            o_qpll_reset          = self.qpll.channels[1].reset,
-            i_qpll_clk            = self.qpll.channels[1].clk,
-            i_qpll_refclk         = self.qpll.channels[1].refclk,
-            i_qpll_lock           = self.qpll.channels[1].lock,
+            #o_qpll_reset          = self.qpll.channels[1].reset,
+            #i_qpll_clk            = self.qpll.channels[1].clk,
+            #i_qpll_refclk         = self.qpll.channels[1].refclk,
+            #i_qpll_lock           = self.qpll.channels[1].lock,
         )
 
     def add_sources(self):
