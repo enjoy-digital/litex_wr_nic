@@ -22,6 +22,8 @@ from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
+from liteeth.phy.a7_gtp import QPLLSettings, QPLL
+
 from litex.soc.interconnect.csr import *
 
 from litex.soc.cores.clock      import *
@@ -87,7 +89,39 @@ class BaseSoC(SoCCore):
         )
 
         # GTP Clock.
-        self.gtp_clk_ref = platform.request("mgtrefclk", 1)
+        gtp_refclk      = Signal()
+        gtp_refclk_pads = platform.request("mgtrefclk", 1)
+
+        self.specials += Instance("IBUFDS_GTE2",
+            i_CEB = 0,
+            i_I   = gtp_refclk_pads.p,
+            i_IB  = gtp_refclk_pads.n,
+            o_O   = gtp_refclk
+        )
+
+        # PCIe QPLL Settings.
+        qpll_pcie_settings = QPLLSettings(
+            refclksel  = 0b001,
+            fbdiv      = 5,
+            fbdiv_45   = 5,
+            refclk_div = 1,
+        )
+        # White Rabbit QPLL Settings.
+        qpll_wr_settings = QPLLSettings(
+            refclksel  = 0b111,
+            fbdiv      = 4,
+            fbdiv_45   = 5,
+            refclk_div = 1,
+        )
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+
+        # Shared QPLL.
+        self.qpll = qpll = QPLL(
+            gtrefclk0     = 0,
+            qpllsettings0 = qpll_pcie_settings,
+            gtgrefclk1    = gtp_refclk,
+            qpllsettings1 = qpll_wr_settings,
+        )
 
         # SFP.
         self.sfp           = platform.request("sfp", 0)
@@ -274,8 +308,7 @@ class BaseSoC(SoCCore):
 
             i_areset_n_i          = ~ResetSignal("sys") & self.wr_rstn,
             i_clk_125m_dmtd_i     = ClockSignal("clk_25m_dmtd"),
-            i_clk_125m_gtp_p_i    = self.gtp_clk_ref.p,
-            i_clk_125m_gtp_n_i    = self.gtp_clk_ref.n,
+            #i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
             i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
             #clk_sys_62m5_o      => clk_sys_62m5,
             #clk_ref_62m5_o      => clk_ref_62m5,
@@ -328,7 +361,10 @@ class BaseSoC(SoCCore):
             o_led_link_o          = self.led_link,
             o_led_act_o           = self.led_act,
 
-            o_debug               = self.debug,
+            o_GT0_EXT_QPLL_RESET  = self.qpll.channels[1].reset,
+            i_GT0_EXT_QPLL_CLK    = self.qpll.channels[1].clk,
+            i_GT0_EXT_QPLL_REFCLK = self.qpll.channels[1].refclk,
+            i_GT0_EXT_QPLL_LOCK   = self.qpll.channels[1].lock,
         )
 
     def add_sources(self):
