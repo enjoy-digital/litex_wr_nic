@@ -2,11 +2,7 @@
 
 # Copyright (C) 2024 Enjoy-Digital.
 
-# ./acorn.py --with-wr   --build -> With White Rabbit.
-# ./acorn.py --with-pcie --build -> With PCIe.
-
-# Objective: ./acorn.py --with-wr --with-pcie --build :)
-
+# ./acorn.py --build --load
 
 import argparse
 import sys
@@ -558,15 +554,10 @@ class BaseSoC(SoCCore):
 def main():
     from litex.build.parser import LiteXArgumentParser
     parser = LiteXArgumentParser(platform=Platform, description="Acorn WR.")
-    parser.add_target_argument("--flash",        action="store_true",       help="Flash bitstream to SPI Flash.")
-    parser.add_target_argument("--with-wr",      action="store_true",       help="Enable White Rabbit Support.")
-    parser.add_target_argument("--with-pcie",    action="store_true",       help="Enable PCIe Communication.")
+    parser.add_target_argument("--flash", action="store_true", help="Flash bitstream to SPI Flash.")
     args = parser.parse_args()
 
-    soc = BaseSoC(
-        with_wr   = args.with_wr,
-        with_pcie = args.with_pcie
-    )
+    soc = BaseSoC()
 
     builder = Builder(soc, **parser.builder_argdict)
     if args.build:
