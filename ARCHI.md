@@ -134,3 +134,33 @@ The `LiteEthMACSRAM` module combines the writer and reader modules to create a c
 - Integrates the `LiteEthMACSRAMWriter` and `LiteEthMACSRAMReader` modules.
 - Provides optional PCIe integration with IRQ handling.
 - Supports shared IRQ for both writer and reader when PCIe is not used.
+
+# gateware/liteeth/mac/wishbone.py:
+
+## LiteEthMACWishboneInterface
+The `LiteEthMACWishboneInterface` module facilitates the integration of Ethernet MAC functionality with a Wishbone bus interface. It handles the storage and transfer of Ethernet frames using SRAM and connects to the Wishbone bus for memory-mapped access.
+
+### Parameters:
+- `dw`: Data width.
+- `nrxslots`: Number of RX slots.
+- `ntxslots`: Number of TX slots.
+- `endianness`: Byte order (big or little).
+- `timestamp`: Optional timestamp signal for packets.
+- `rxslots_read_only`: If RX slots should be read-only.
+- `txslots_write_only`: If TX slots should be write-only.
+- `with_pcie_eth`: Enable PCIe Ethernet integration.
+
+### Attributes:
+- `sink`: Endpoint for incoming Ethernet packets.
+- `source`: Endpoint for outgoing Ethernet packets.
+- `rx_bus`: Wishbone interface for RX when PCIe Ethernet is enabled.
+- `tx_bus`: Wishbone interface for TX when PCIe Ethernet is enabled.
+- `bus`: Wishbone interface for non-PCIe Ethernet configurations.
+
+### Functionality:
+- The module sets up storage for Ethernet frames in SRAM with configurable depth based on the Ethernet MTU and data width.
+- It instantiates the `LiteEthMACSRAM` module to manage the actual SRAM storage for both RX and TX operations.
+- Connections are made between the sink/source endpoints and the `LiteEthMACSRAM` module for packet handling.
+- Depending on the `with_pcie_eth` parameter, it configures Wishbone interfaces for RX and TX slots, creating separate SRAM interfaces for each slot.
+- Exposes these SRAM interfaces on a single Wishbone bus using the `wishbone.SRAM` and `wishbone.Decoder` modules for both RX and TX operations.
+- For PCIe Ethernet configurations, separate Wishbone buses are used for RX and TX, with corresponding decoders.
