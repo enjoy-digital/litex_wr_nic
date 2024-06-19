@@ -517,11 +517,10 @@ class BaseSoC(SoCCore):
             o_led_link_o          = self.led_link,
             o_led_act_o           = self.led_act,
 
-            o_debug               = self.debug,
-            o_qpll_reset          = self.qpll.channels[1].reset,
-            i_qpll_clk            = self.qpll.channels[1].clk,
-            i_qpll_refclk         = self.qpll.channels[1].refclk,
-            i_qpll_lock           = self.qpll.channels[1].lock,
+            o_GT0_EXT_QPLL_RESET  = self.qpll.channels[1].reset,
+            i_GT0_EXT_QPLL_CLK    = self.qpll.channels[1].clk,
+            i_GT0_EXT_QPLL_REFCLK = self.qpll.channels[1].refclk,
+            i_GT0_EXT_QPLL_LOCK   = self.qpll.channels[1].lock,
         )
 
     def add_sources(self):

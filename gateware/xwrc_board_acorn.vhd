@@ -240,12 +240,10 @@ entity xwrc_board_acorn is
     -- Link ok indication
     link_ok_o  : out std_logic;
 
-    debug : out std_logic_vector(31 downto 0);
-
-    qpll_reset  : out std_logic;
-    qpll_clk    : in  std_logic;
-    qpll_refclk : in  std_logic;
-    qpll_lock   : in  std_logic
+    GT0_EXT_QPLL_RESET  : out std_logic;
+    GT0_EXT_QPLL_CLK    : in  std_logic;
+    GT0_EXT_QPLL_REFCLK : in  std_logic;
+    GT0_EXT_QPLL_LOCK   : in  std_logic
     );
 
 end entity xwrc_board_acorn;
@@ -351,11 +349,10 @@ begin  -- architecture struct
       ext_ref_mul_locked_o  => ext_ref_mul_locked,
       ext_ref_mul_stopped_o => ext_ref_mul_stopped,
       ext_ref_rst_i         => ext_ref_rst,
-      debug                 => debug,
-      qpll_reset            => qpll_reset,
-      qpll_clk              => qpll_clk,
-      qpll_refclk           => qpll_refclk,
-      qpll_lock             => qpll_lock
+      GT0_EXT_QPLL_RESET    => GT0_EXT_QPLL_RESET,
+      GT0_EXT_QPLL_CLK      => GT0_EXT_QPLL_CLK,
+      GT0_EXT_QPLL_REFCLK   => GT0_EXT_QPLL_REFCLK,
+      GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK
     );
 
   clk_ref_62m5_o <= clk_ref_62m5;
