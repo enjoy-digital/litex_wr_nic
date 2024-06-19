@@ -346,7 +346,12 @@ begin  -- architecture struct
       ext_ref_mul_o         => ext_ref_mul,
       ext_ref_mul_locked_o  => ext_ref_mul_locked,
       ext_ref_mul_stopped_o => ext_ref_mul_stopped,
-      ext_ref_rst_i         => ext_ref_rst);
+      ext_ref_rst_i         => ext_ref_rst,
+      GT0_EXT_QPLL_RESET    => open,
+      GT0_EXT_QPLL_CLK      => '0',
+      GT0_EXT_QPLL_REFCLK   => '0',
+      GT0_EXT_QPLL_LOCK     => '0'
+  );
 
   clk_ref_62m5_o <= clk_ref_62m5;
 
