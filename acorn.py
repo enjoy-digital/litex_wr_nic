@@ -163,7 +163,7 @@ class BaseSoC(SoCCore):
             self.qpll = qpll = QPLL(
                 gtrefclk0     = self.pcie_phy.pcie_refclk,
                 qpllsettings0 = qpll_pcie_settings,
-                gtgrefclk1    = ClockSignal("clk_125m_gtp"),
+                gtgrefclk1    = self.crg.cd_clk_125m_gtp.clk,
                 qpllsettings1 = qpll_wr_settings,
             )
             self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
@@ -237,11 +237,6 @@ class BaseSoC(SoCCore):
                 platform.toolchain.pre_optimize_commands.append(f"disconnect_net -net $pin_driver -objects {_to}")
                 platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net {_from} -objects {_to}")
 
-            # White Rabbit -----------------------------------------------------------------------------
-            if with_wr:
-                self._add_white_rabbit_core()
-                platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-
             # Time -------------------------------------------------------------------------------------
 
             self.time_generator = TimeGenerator(
@@ -269,6 +264,10 @@ class BaseSoC(SoCCore):
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
 
+
+        # White Rabbit ---------------------------------------------------------------------------------
+        if with_wr:
+            self._add_white_rabbit_core()
 
     def _add_white_rabbit_core(self):
         # Config/Control/Status registers ----------------------------------------------------------
