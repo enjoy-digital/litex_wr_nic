@@ -182,11 +182,10 @@ entity xwrc_platform_xilinx is
     ext_ref_mul_locked_o  : out std_logic;
     ext_ref_mul_stopped_o : out std_logic;
     ext_ref_rst_i         : in  std_logic             := '0';
-    debug                 : out std_logic_vector(31 downto 0);
-    qpll_reset  : out std_logic;
-    qpll_clk    : in  std_logic;
-    qpll_refclk : in  std_logic;
-    qpll_lock   : in  std_logic
+    GT0_EXT_QPLL_RESET    : out std_logic;
+    GT0_EXT_QPLL_CLK      : in  std_logic;
+    GT0_EXT_QPLL_REFCLK   : in  std_logic;
+    GT0_EXT_QPLL_LOCK     : in  std_logic
     );
 
 end entity xwrc_platform_xilinx;
@@ -735,14 +734,13 @@ begin  -- architecture rtl
         loopen_i       => phy16_i.loopen_vec,
         tx_prbs_sel_i  => phy16_i.tx_prbs_sel,
         rdy_o          => phy16_o.rdy,
-        debug          => debug,
 
-        pad_txn_o => sfp_txn_o,
-        pad_txp_o => sfp_txp_o,
-        pad_rxn_i => sfp_rxn_i,
-        pad_rxp_i => sfp_rxp_i,
+        pad_txn_o      => sfp_txn_o,
+        pad_txp_o      => sfp_txp_o,
+        pad_rxn_i      => sfp_rxn_i,
+        pad_rxp_i      => sfp_rxp_i,
 
-        tx_locked_o   => clk_ref_locked);
+        tx_locked_o    => clk_ref_locked);
 
     clk_125m_ref_o       <= clk_ref;
     clk_ref_locked_o     <= clk_ref_locked;
@@ -802,40 +800,39 @@ begin  -- architecture rtl
 
     cmp_gtp: entity work.wr_gtp_phy_family7
       generic map(
-        g_simulation => g_simulation,
+        g_simulation      => g_simulation,
         g_gtp_enable_pll0 => g_gtp_enable_pll0,
         g_gtp_enable_pll1 => g_gtp_enable_pll1,
-        txpolarity   => txpolarity,
-        rxpolarity   => rxpolarity)
+        txpolarity        => txpolarity,
+        rxpolarity        => rxpolarity)
       port map(
-        ready_for_reset_o => ready_for_reset_o,
-        clk_gtp_i      => clk_125m_gtp_buf,
-        tx_out_clk_o   => clk_ref,
-        tx_data_i      => phy16_i.tx_data,
-        tx_k_i         => phy16_i.tx_k,
-        tx_disparity_o => phy16_o.tx_disparity,
-        tx_enc_err_o   => phy16_o.tx_enc_err,
-        rx_rbclk_o     => phy16_o.rx_clk,
-        rx_data_o      => phy16_o.rx_data,
-        rx_k_o         => phy16_o.rx_k,
-        rx_enc_err_o   => phy16_o.rx_enc_err,
-        rx_bitslide_o  => phy16_o.rx_bitslide,
-        rst_i          => phy16_i.rst,
-        loopen_i       => phy16_i.loopen_vec,
-        tx_prbs_sel_i  => phy16_i.tx_prbs_sel,
-        rdy_o          => phy16_o.rdy,
+        ready_for_reset_o   => ready_for_reset_o,
+        clk_gtp_i           => clk_125m_gtp_buf,
+        tx_out_clk_o        => clk_ref,
+        tx_data_i           => phy16_i.tx_data,
+        tx_k_i              => phy16_i.tx_k,
+        tx_disparity_o      => phy16_o.tx_disparity,
+        tx_enc_err_o        => phy16_o.tx_enc_err,
+        rx_rbclk_o          => phy16_o.rx_clk,
+        rx_data_o           => phy16_o.rx_data,
+        rx_k_o              => phy16_o.rx_k,
+        rx_enc_err_o        => phy16_o.rx_enc_err,
+        rx_bitslide_o       => phy16_o.rx_bitslide,
+        rst_i               => phy16_i.rst,
+        loopen_i            => phy16_i.loopen_vec,
+        tx_prbs_sel_i       => phy16_i.tx_prbs_sel,
+        rdy_o               => phy16_o.rdy,
 
-        pad_txn_o => sfp_txn_o,
-        pad_txp_o => sfp_txp_o,
-        pad_rxn_i => sfp_rxn_i,
-        pad_rxp_i => sfp_rxp_i,
+        pad_txn_o           => sfp_txn_o,
+        pad_txp_o           => sfp_txp_o,
+        pad_rxn_i           => sfp_rxn_i,
+        pad_rxp_i           => sfp_rxp_i,
 
-        tx_locked_o   => clk_ref_locked,
-        debug         => debug,
-        qpll_reset            => qpll_reset,
-        qpll_clk              => qpll_clk,
-        qpll_refclk           => qpll_refclk,
-        qpll_lock             => qpll_lock
+        tx_locked_o         => clk_ref_locked,
+        GT0_EXT_QPLL_RESET  => GT0_EXT_QPLL_RESET,
+        GT0_EXT_QPLL_CLK    => GT0_EXT_QPLL_CLK,
+        GT0_EXT_QPLL_REFCLK => GT0_EXT_QPLL_REFCLK,
+        GT0_EXT_QPLL_LOCK   => GT0_EXT_QPLL_LOCK
         );
 
     clk_125m_ref_o       <= clk_ref;

@@ -346,8 +346,7 @@ begin  -- architecture struct
       ext_ref_mul_o         => ext_ref_mul,
       ext_ref_mul_locked_o  => ext_ref_mul_locked,
       ext_ref_mul_stopped_o => ext_ref_mul_stopped,
-      ext_ref_rst_i         => ext_ref_rst,
-      debug                 => debug);
+      ext_ref_rst_i         => ext_ref_rst);
 
   clk_ref_62m5_o <= clk_ref_62m5;
 

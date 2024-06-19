@@ -243,7 +243,10 @@ entity xwrc_board_acorn is
     -- Link ok indication
     link_ok_o  : out std_logic;
 
-    debug : out std_logic_vector(31 downto 0)
+    GT0_EXT_QPLL_RESET  : out std_logic;
+    GT0_EXT_QPLL_CLK    : in  std_logic;
+    GT0_EXT_QPLL_REFCLK : in  std_logic;
+    GT0_EXT_QPLL_LOCK   : in  std_logic
     );
 
 end entity xwrc_board_acorn;
@@ -316,8 +319,8 @@ begin  -- architecture struct
       g_use_default_plls          => TRUE,
       g_simulation                => 0,
       g_input_clk_single          => FALSE,
-      g_gtp_enable_pll0           => '1',
-      g_gtp_enable_pll1           => '0',
+      g_gtp_enable_pll0           => '0',
+      g_gtp_enable_pll1           => '1',
       txpolarity                  => txpolarity,
       rxpolarity                  => rxpolarity)
     port map (
@@ -349,7 +352,11 @@ begin  -- architecture struct
       ext_ref_mul_locked_o  => ext_ref_mul_locked,
       ext_ref_mul_stopped_o => ext_ref_mul_stopped,
       ext_ref_rst_i         => ext_ref_rst,
-      debug                 => debug);
+      GT0_EXT_QPLL_RESET    => GT0_EXT_QPLL_RESET,
+      GT0_EXT_QPLL_CLK      => GT0_EXT_QPLL_CLK,
+      GT0_EXT_QPLL_REFCLK   => GT0_EXT_QPLL_REFCLK,
+      GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK
+    );
 
   clk_ref_62m5_o <= clk_ref_62m5;
 
