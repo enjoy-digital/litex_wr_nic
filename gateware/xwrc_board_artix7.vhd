@@ -52,7 +52,7 @@ use work.wr_clbv3_pkg.all;
 library unisim;
 use unisim.vcomponents.all;
 
-entity xwrc_board_acorn is
+entity xwrc_board_artix7 is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean              := TRUE;
@@ -246,9 +246,9 @@ entity xwrc_board_acorn is
     GT0_EXT_QPLL_LOCK   : in  std_logic
     );
 
-end entity xwrc_board_acorn;
+end entity xwrc_board_artix7;
 
-architecture struct of xwrc_board_acorn is
+architecture struct of xwrc_board_artix7 is
 
   -----------------------------------------------------------------------------
   -- Signals
