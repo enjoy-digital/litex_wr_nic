@@ -5,11 +5,13 @@ from litex.build import tools
 
 from litex.gen import *
 
-from litex.soc.cores.clock import *
-from litex.soc.integration.soc import SoCBusHandler, SoCRegion, SoCIORegion
+from litex.soc.interconnect import wishbone
+
+from litex.soc.cores.clock          import *
+from litex.soc.integration.soc      import SoCBusHandler, SoCRegion, SoCIORegion
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
-from litex.soc.integration.export import get_csr_header, get_soc_header, get_mem_header
+from litex.soc.integration.builder  import *
+from litex.soc.integration.export   import get_csr_header, get_soc_header, get_mem_header
 
 class EthernetPCIeSoC(SoCMini):
     SoCMini.csr_map = {
@@ -47,15 +49,16 @@ class EthernetPCIeSoC(SoCMini):
         if with_timestamp:
             self.timer0.add_uptime()
         ethmac = LiteEthMAC(
-            phy        = phy,
-            dw         = data_width,
-            interface  = "pcie",
-            endianness = self.cpu.endianness,
-            nrxslots   = nrxslots, rxslots_read_only  = rxslots_read_only,
-            ntxslots   = ntxslots, txslots_write_only = txslots_write_only,
-            timestamp  = None if not with_timestamp else self.timer0.uptime_cycles,
+            phy               = phy,
+            dw                = data_width,
+            interface         = "pcie",
+            endianness        = self.cpu.endianness,
+            nrxslots          = nrxslots, rxslots_read_only  = rxslots_read_only,
+            ntxslots          = ntxslots, txslots_write_only = txslots_write_only,
+            timestamp         = None if not with_timestamp else self.timer0.uptime_cycles,
             with_preamble_crc = not software_debug,
-            with_sys_datapath = with_sys_datapath)
+            with_sys_datapath = with_sys_datapath
+        )
 
         if with_pcie_eth:
             self.add_constant("ETHMAC_RX_WAIT_OFFSET", ethmac.interface.wait_ack_offset)
@@ -198,23 +201,16 @@ class EthernetPCIeSoC(SoCMini):
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, phy.cd_pcie.clk)
 
     def add_ethernet_pcie(self, name="ethmac", phy=None, pcie_phy=None, phy_cd="eth", dynamic_ip=False,
-                          software_debug=False,
-                          nrxslots=32,
-                          ntxslots=32,
-                          with_timing_constraints=True,
-                          max_pending_requests=8,
-                          with_msi=True):
-        # Imports
-        from litex.soc.interconnect import wishbone
+        software_debug          = False,
+        nrxslots                = 32,
+        ntxslots                = 32,
+        with_timing_constraints = True,
+        max_pending_requests    = 8,
+        with_msi                = True):
 
         data_width = 128
-
-        self.submodules.pcie_mem_bus_rx = SoCBusHandler(
-            data_width=data_width
-        )
-        self.submodules.pcie_mem_bus_tx = SoCBusHandler(
-            data_width=data_width
-        )
+        self.pcie_mem_bus_rx = SoCBusHandler(data_width=data_width)
+        self.pcie_mem_bus_tx = SoCBusHandler(data_width=data_width)
         
         # MAC.
         self.__add_ethernet(
@@ -266,13 +262,15 @@ class EthernetPCIeSoC(SoCMini):
             self.ethmac.interface.sram.reader.transfer_ready.eq(self.pcie_host_pcie2wb_dma.ready),
         ]
 
-        self.submodules.bus_interconnect_tx = wishbone.InterconnectPointToPoint(
-            master=next(iter(self.pcie_mem_bus_tx.masters.values())),
-            slave=next(iter(self.pcie_mem_bus_tx.slaves.values())))
+        self.bus_interconnect_tx = wishbone.InterconnectPointToPoint(
+            master = next(iter(self.pcie_mem_bus_tx.masters.values())),
+            slave  = next(iter( self.pcie_mem_bus_tx.slaves.values())),
+        )
 
-        self.submodules.bus_interconnect_rx = wishbone.InterconnectPointToPoint(
-            master=next(iter(self.pcie_mem_bus_rx.masters.values())),
-            slave=next(iter(self.pcie_mem_bus_rx.slaves.values())))
+        self.bus_interconnect_rx = wishbone.InterconnectPointToPoint(
+            master = next(iter(self.pcie_mem_bus_rx.masters.values())),
+            slave  = next(iter( self.pcie_mem_bus_rx.slaves.values())),
+        )
 
 
     def generate_software_header(self, dst):
