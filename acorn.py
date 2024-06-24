@@ -372,7 +372,7 @@ class BaseSoC(SoCCore):
 
     def gen_xwrc_board_acorn(self, bram):
 
-        self.specials += Instance("xwrc_board_artix7",
+        self.specials += Instance("xwrc_board_artix7_wrapper",
             p_g_simulation                 = 0,
             #p_g_with_external_clock_input  = 1,
             #p_g_dpram_initf               = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16_direct_dmtd.bram",
@@ -444,6 +444,35 @@ class BaseSoC(SoCCore):
             i_GT0_EXT_QPLL_CLK    = self.qpll.channels[1].clk,
             i_GT0_EXT_QPLL_REFCLK = self.qpll.channels[1].refclk,
             i_GT0_EXT_QPLL_LOCK   = self.qpll.channels[1].lock,
+
+            # Wishbone Streaming TX Interface
+            i_wrs_tx_data_i                = 0,       # TX data input.
+            i_wrs_tx_valid_i               = 0,       # TX data valid input.
+            o_wrs_tx_dreq_o                = Open(),  # TX data request output.
+            i_wrs_tx_last_i                = 0,       # TX last data input.
+            i_wrs_tx_flush_i               = 0,       # TX flush input.
+            i_wrs_tx_cfg_mac_local         = 0,       # Local MAC address.
+            i_wrs_tx_cfg_mac_target        = 0,       # Target MAC address.
+            i_wrs_tx_cfg_ethertype         = 0,       # Ethertype.
+            i_wrs_tx_cfg_qtag_ena          = 0,       # VLAN tag enable.
+            i_wrs_tx_cfg_qtag_vid          = 0,       # VLAN tag ID.
+            i_wrs_tx_cfg_qtag_prio         = 0,       # VLAN tag priority.
+            i_wrs_tx_cfg_sw_reset          = 0,       # Software reset.
+
+            # Wishbone Streaming RX Interface
+            o_wrs_rx_first_o                   = Open(), # RX first data output.
+            o_wrs_rx_last_o                    = Open(), # RX last data output.
+            o_wrs_rx_data_o                    = Open(), # RX data output.
+            o_wrs_rx_valid_o                   = Open(), # RX data valid output.
+            i_wrs_rx_dreq_i                    = 0,      # RX data request input.
+            i_wrs_rx_cfg_mac_local             = 0,      # Local MAC address.
+            i_wrs_rx_cfg_mac_remote            = 0,      # Remote MAC address.
+            i_wrs_rx_cfg_ethertype             = 0,      # Ethertype.
+            i_wrs_rx_cfg_accept_broadcasts     = 0,      # Accept broadcasts.
+            i_wrs_rx_cfg_filter_remote         = 0,      # Filter by remote MAC address.
+            i_wrs_rx_cfg_fixed_latency         = 0,      # Fixed latency.
+            i_wrs_rx_cfg_fixed_latency_timeout = 0,      # Fixed latency timeout.
+            i_wrs_rx_cfg_sw_reset              = 0       # Software reset.
         )
 
     def add_sources(self):
@@ -459,11 +488,12 @@ class BaseSoC(SoCCore):
 
         custom_files = [
             "gateware/xwrc_platform_vivado.vhd",
-            "gateware/xwrc_board_artix7.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
             "gateware/wr_gtp_phy_family7.vhd",
+            "gateware/xwrc_board_artix7.vhd",
+            "gateware/xwrc_board_artix7_wrapper.vhd",
         ]
 
         for cf in custom_files:
@@ -489,9 +519,8 @@ def main():
     builder = Builder(soc, **parser.builder_argdict)
     if args.build:
         builder.build(**parser.toolchain_argdict)
-        if args.with_pcie:
-            software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
-            generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
+        software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
+        generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
 
     if args.load:
         prog = soc.platform.create_programmer()
