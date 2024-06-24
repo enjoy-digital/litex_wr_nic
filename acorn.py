@@ -37,6 +37,8 @@ from litescope import LiteScopeAnalyzer
 
 from gateware.time import TimeGenerator
 
+from litescope import LiteScopeAnalyzer
+
 import list_files
 
 # IOs ----------------------------------------------------------------------------------------------
@@ -397,6 +399,11 @@ class BaseSoC(SoCCore):
 
         self.wrs_rx_config = WRStreamersRXConfig()
 
+        wrs_rx_first = Signal()
+        wrs_rx_last  = Signal()
+        wrs_rx_data  = Signal(32)
+        wrs_rx_valid = Signal()
+
         self.specials += Instance("xwrc_board_artix7_wrapper",
             p_g_simulation                 = 0,
             #p_g_with_external_clock_input  = 1,
@@ -476,28 +483,41 @@ class BaseSoC(SoCCore):
             o_wrs_tx_dreq_o                = Open(),  # TX data request output.
             i_wrs_tx_last_i                = 0,       # TX last data input.
             i_wrs_tx_flush_i               = 0,       # TX flush input.
-            i_wrs_tx_cfg_mac_local         = self.wrs_tx_config.mac_local .storage, # Local MAC address.
+            i_wrs_tx_cfg_mac_local         = self.wrs_tx_config.mac_local.storage,  # Local MAC address.
             i_wrs_tx_cfg_mac_target        = self.wrs_tx_config.mac_target.storage, # Target MAC address.
-            i_wrs_tx_cfg_ethertype         = self.wrs_tx_config.ethertype .storage, # Ethertype.
-            i_wrs_tx_cfg_qtag_ena          = self.wrs_tx_config.qtag_ena  .storage, # VLAN tag enable.
-            i_wrs_tx_cfg_qtag_vid          = self.wrs_tx_config.qtag_vid  .storage, # VLAN tag ID.
-            i_wrs_tx_cfg_qtag_prio         = self.wrs_tx_config.qtag_prio .storage, # VLAN tag priority.
-            i_wrs_tx_cfg_sw_reset          = self.wrs_tx_config.sw_reset  .storage, # Software reset.
+            i_wrs_tx_cfg_ethertype         = self.wrs_tx_config.ethertype.storage,  # Ethertype.
+            i_wrs_tx_cfg_qtag_ena          = self.wrs_tx_config.qtag_ena.storage,   # VLAN tag enable.
+            i_wrs_tx_cfg_qtag_vid          = self.wrs_tx_config.qtag_vid.storage,   # VLAN tag ID.
+            i_wrs_tx_cfg_qtag_prio         = self.wrs_tx_config.qtag_prio.storage,  # VLAN tag priority.
+            i_wrs_tx_cfg_sw_reset          = self.wrs_tx_config.sw_reset.storage,   # Software reset.
 
             # Wishbone Streaming RX Interface
-            o_wrs_rx_first_o                   = Open(), # RX first data output.
-            o_wrs_rx_last_o                    = Open(), # RX last data output.
-            o_wrs_rx_data_o                    = Open(), # RX data output.
-            o_wrs_rx_valid_o                   = Open(), # RX data valid output.
-            i_wrs_rx_dreq_i                    = 0,      # RX data request input.
-            i_wrs_rx_cfg_mac_local             = self.wrs_rx_config.mac_local            .storage, # Local MAC address.
-            i_wrs_rx_cfg_mac_remote            = self.wrs_rx_config.mac_remote           .storage, # Remote MAC address.
-            i_wrs_rx_cfg_ethertype             = self.wrs_rx_config.ethertype            .storage, # Ethertype.
-            i_wrs_rx_cfg_accept_broadcasts     = self.wrs_rx_config.accept_broadcasts    .storage, # Accept broadcasts.
-            i_wrs_rx_cfg_filter_remote         = self.wrs_rx_config.filter_remote        .storage, # Filter by remote MAC address.
-            i_wrs_rx_cfg_fixed_latency         = self.wrs_rx_config.fixed_latency        .storage, # Fixed latency.
+            o_wrs_rx_first_o                   = wrs_rx_first, # RX first data output.
+            o_wrs_rx_last_o                    = wrs_rx_last,  # RX last data output.
+            o_wrs_rx_data_o                    = wrs_rx_data,  # RX data output.
+            o_wrs_rx_valid_o                   = wrs_rx_valid, # RX data valid output.
+            i_wrs_rx_dreq_i                    = 1,            # RX data request input.
+            i_wrs_rx_cfg_mac_local             = self.wrs_rx_config.mac_local.storage,             # Local MAC address.
+            i_wrs_rx_cfg_mac_remote            = self.wrs_rx_config.mac_remote.storage,            # Remote MAC address.
+            i_wrs_rx_cfg_ethertype             = self.wrs_rx_config.ethertype.storage,             # Ethertype.
+            i_wrs_rx_cfg_accept_broadcasts     = self.wrs_rx_config.accept_broadcasts.storage,     # Accept broadcasts.
+            i_wrs_rx_cfg_filter_remote         = self.wrs_rx_config.filter_remote.storage,         # Filter by remote MAC address.
+            i_wrs_rx_cfg_fixed_latency         = self.wrs_rx_config.fixed_latency.storage,         # Fixed latency.
             i_wrs_rx_cfg_fixed_latency_timeout = self.wrs_rx_config.fixed_latency_timeout.storage, # Fixed latency timeout.
-            i_wrs_rx_cfg_sw_reset              = self.wrs_rx_config.sw_reset             .storage, # Software reset.
+            i_wrs_rx_cfg_sw_reset              = self.wrs_rx_config.sw_reset.storage,              # Software reset.
+        )
+
+        analyzer_signals = [
+            wrs_rx_first,
+            wrs_rx_last ,
+            wrs_rx_data ,
+            wrs_rx_valid,
+        ]
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            depth        = 512,
+            clock_domain = "sys",
+            samplerate   = self.sys_clk_freq,
+            csr_csv      = "analyzer.csv"
         )
 
     def add_sources(self):
