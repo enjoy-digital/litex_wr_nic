@@ -97,8 +97,10 @@ class BaseSoC(EthernetPCIeSoC):
 
         # PCIe -------------------------------------------------------------------------------------
         self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
-            data_width = 64,
-            bar0_size  = 0x20000)
+            pcie_data_width = 64,
+            data_width      = 128,
+            bar0_size       = 0x20000,
+        )
 
         # PCIe + Ethernet --------------------------------------------------------------------------
         self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
