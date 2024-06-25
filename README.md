@@ -52,3 +52,7 @@ RX(371Mbit/s) and TX(868Mbit/s):
 ![rx_tx](https://user-images.githubusercontent.com/31961076/156330114-2d5f2750-5217-4660-91fa-5ea3226845ab.png)
 
 
+sudo ip addr add 192.168.1.122/24 dev enp5s0
+sudo ip link set enp5s0 up
+ip -s link show enp5s0
+ping -I enp5s0 192.168.1.1
