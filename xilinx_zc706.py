@@ -11,7 +11,7 @@
 # ./xilinx_zc7006.py --build --load
 
 #
-# Build/Load bitstream:
+# Build/Load bitstream:
 # ./xilinx_zc706.py --with-jtagbone --uart-name=crossover --csr-csv=csr.csv --build --load
 #
 # litex_server --jtag --jtag-config openocd_xc7z_smt2-nc.cfg
@@ -98,9 +98,10 @@ class BaseSoC(EthernetPCIeSoC):
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
 
         # PCIe -------------------------------------------------------------------------------------
-        self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x4"),
-            data_width = 128,
-            bar0_size  = 0x20000)
+        self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
+            data_width      = 64,
+            bar0_size       = 0x20000,
+        )
 
         # PCIe + Ethernet --------------------------------------------------------------------------
         self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)

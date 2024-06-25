@@ -87,7 +87,7 @@ class BaseSoC(EthernetPCIeSoC):
         self.crg = CRG(platform, sys_clk_freq, with_eth=True)
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Acorn CLE-101/215(+)")
+        SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Acorn CLE-101/215(+)", ident_version=True)
         self.add_jtagbone()
 
         # PCIe / Ethernet Shared QPLL Settings -----------------------------------------------------
@@ -112,8 +112,7 @@ class BaseSoC(EthernetPCIeSoC):
         # PCIe -------------------------------------------------------------------------------------
 
         self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1_baseboard"),
-            pcie_data_width = 64,
-            data_width      = 128,
+            data_width      = 64,
             bar0_size       = 0x20000,
         )
         platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")

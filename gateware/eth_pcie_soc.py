@@ -43,7 +43,7 @@ class EthernetPCIeSoC(SoCMini):
         from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
-        assert data_width in [8, 32, 128]
+        assert data_width in [8, 32, 64]
         with_sys_datapath = (data_width == 32)
         self.check_if_exists(name)
         if with_timestamp:
@@ -123,7 +123,7 @@ class EthernetPCIeSoC(SoCMini):
         max_pending_requests    = 8,
         with_msi                = True):
 
-        data_width = 128
+        data_width = 64
         self.pcie_mem_bus_rx = SoCBusHandler(data_width=data_width)
         self.pcie_mem_bus_tx = SoCBusHandler(data_width=data_width)
         
