@@ -33,6 +33,8 @@ from litepcie.software import generate_litepcie_software
 
 from gateware.eth_pcie_soc import EthernetPCIeSoC
 
+from liteeth.phy.k7_1000basex import K7_1000BASEX
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
@@ -41,6 +43,7 @@ class _CRG(LiteXModule):
         self.cd_sys    = ClockDomain()
         self.cd_sys4x  = ClockDomain()
         self.cd_idelay = ClockDomain()
+        self.cd_eth    = ClockDomain()
 
         # # #
 
@@ -55,6 +58,7 @@ class _CRG(LiteXModule):
         pll.create_clkout(self.cd_sys,    sys_clk_freq)
         pll.create_clkout(self.cd_sys4x,  4*sys_clk_freq)
         pll.create_clkout(self.cd_idelay, 200e6)
+        pll.create_clkout(self.cd_eth,    200e6)
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
 
         # IDelayCtrl.
@@ -63,7 +67,7 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(EthernetPCIeSoC):
-    def __init__(self, sys_clk_freq=125e6,
+    def __init__(self, sys_clk_freq=125e6, with_1000basex_ethernet=True,
         with_led_chaser = True,
         **kwargs):
         platform = xilinx_kc705.Platform()
@@ -76,10 +80,20 @@ class BaseSoC(EthernetPCIeSoC):
         self.add_jtagbone()
 
         # Ethernet ---------------------------------------------------------------------------------
-        self.ethphy = LiteEthPHY(
-            clock_pads = self.platform.request("eth_clocks"),
-            pads       = self.platform.request("eth"),
-            clk_freq   = self.clk_freq)
+        if with_1000basex_ethernet:
+            self.ethphy = K7_1000BASEX(
+                refclk_or_clk_pads = self.crg.cd_eth.clk,
+                data_pads          = self.platform.request("sfp", 0),
+                sys_clk_freq       = self.clk_freq,
+                with_csr           = False
+            )
+            self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
+            self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
+        else:
+            self.ethphy = LiteEthPHY(
+                clock_pads = self.platform.request("eth_clocks"),
+                pads       = self.platform.request("eth"),
+                clk_freq   = self.clk_freq)
 
         # PCIe -------------------------------------------------------------------------------------
         self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x4"),
