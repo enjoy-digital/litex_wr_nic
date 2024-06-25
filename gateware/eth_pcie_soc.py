@@ -115,91 +115,6 @@ class EthernetPCIeSoC(SoCMini):
                 else:
                     self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
 
-    # Add PCIe -------------------------------------------------------------------------------------
-    def __add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32, data_width=None,
-        with_dma_buffering    = True, dma_buffering_depth=1024,
-        with_dma_loopback     = True,
-        with_dma_synchronizer = False,
-        with_dma_monitor      = False,
-        with_dma_status       = False,
-        with_msi              = True, msi_type="msi", msi_width=32,
-        with_ptm              = False,
-        with_pcie_eth         = True):
-        # Imports
-        from litepcie.phy.uspciephy import USPCIEPHY
-        from litepcie.phy.usppciephy import USPPCIEPHY
-        from litepcie.core import LitePCIeEndpoint, LitePCIeMSI, LitePCIeMSIMultiVector, LitePCIeMSIX
-        from litepcie.frontend.dma import LitePCIeDMA
-        from litepcie.frontend.wishbone import LitePCIeWishboneMaster
-
-        # Checks.
-        assert self.csr.data_width == 32
-
-        # Endpoint.
-        self.check_if_exists(f"{name}_endpoint")
-        endpoint = LitePCIeEndpoint(phy,
-            max_pending_requests = max_pending_requests,
-            endianness           = phy.endianness,
-            address_width        = address_width,
-            with_ptm             = with_ptm,
-        )
-        self.add_module(name=f"{name}_endpoint", module=endpoint)
-
-        # MMAP.
-        self.check_if_exists(f"{name}_mmap")
-        mmap = LitePCIeWishboneMaster(self.pcie_endpoint, base_address=self.mem_map["csr"])
-        self.add_module(name=f"{name}_mmap", module=mmap)
-        self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
-
-        # MSI.
-        if with_msi:
-            assert msi_type in ["msi", "msi-multi-vector", "msi-x"]
-            self.check_if_exists(f"{name}_msi")
-            if msi_type == "msi":
-                msi = LitePCIeMSI(width=msi_width)
-            if msi_type == "msi-multi-vector":
-                msi = LitePCIeMSIMultiVector(width=msi_width)
-            if msi_type == "msi-x":
-                msi = LitePCIeMSIX(endpoint=self.pcie_endpoint, width=msi_width)
-            self.add_module(name=f"{name}_msi", module=msi)
-            if msi_type in ["msi", "msi-multi-vector"]:
-                self.comb += msi.source.connect(phy.msi)
-            self.msis = {}
-
-            if with_pcie_eth:
-                self.msis["ETHRX"] = self.ethmac.rx_pcie_irq
-                self.msis["ETHTX"] = self.ethmac.tx_pcie_irq
-
-        # DMAs.
-        for i in range(ndmas):
-            assert with_msi
-            self.check_if_exists(f"{name}_dma{i}")
-            dma = LitePCIeDMA(phy, endpoint,
-                with_buffering    = with_dma_buffering, buffering_depth=dma_buffering_depth,
-                with_loopback     = with_dma_loopback,
-                with_synchronizer = with_dma_synchronizer,
-                with_monitor      = with_dma_monitor,
-                with_status       = with_dma_status,
-                address_width     = address_width,
-                data_width        = data_width,
-                with_table        = not with_pcie_eth,
-            )
-            self.add_module(name=f"{name}_dma{i}", module=dma)
-            if not with_pcie_eth:
-                self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
-                self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
-        self.add_constant("DMA_CHANNELS",   ndmas)
-        self.add_constant("DMA_ADDR_WIDTH", address_width)
-
-        # Map/Connect IRQs.
-        if with_msi:
-            for i, (k, v) in enumerate(sorted(self.msis.items())):
-                self.comb += msi.irqs[i].eq(v)
-                self.add_constant(k + "_INTERRUPT", i)
-
-        # Timing constraints.
-        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, phy.cd_pcie.clk)
-
     def add_ethernet_pcie(self, name="ethmac", phy=None, pcie_phy=None, phy_cd="eth", dynamic_ip=False,
         software_debug          = False,
         nrxslots                = 32,
@@ -227,15 +142,19 @@ class EthernetPCIeSoC(SoCMini):
         )
 
         # PCIe
-        self.__add_pcie(name="pcie", phy=pcie_phy,
+        self.add_pcie(name="pcie", phy=pcie_phy,
             ndmas                = 1,
             max_pending_requests = max_pending_requests,
             data_width           = data_width,
             with_dma_buffering   = False,
             with_dma_loopback    = False,
+            with_dma_table       = False,
             with_msi             = with_msi,
+            msis                 = {
+                "ETHRX" : self.ethmac.rx_pcie_irq,
+                "ETHTX" : self.ethmac.tx_pcie_irq,
+            },
             with_ptm             = False,
-            with_pcie_eth        = True
         )
 
         from gateware.litepcie.wishbone_dma import LitePCIe2WishboneDMANative, LiteWishbone2PCIeDMANative, PCIeInterruptTest
