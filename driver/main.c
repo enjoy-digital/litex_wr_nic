@@ -481,7 +481,11 @@ static int liteeth_init(struct litepcie_device *lpdev)
 	netdev->watchdog_timeo = 60 * HZ;
 
 	/* Add NAPI to the network device */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
+	netif_napi_add(netdev, &priv->napi, liteeth_napi_poll, 64);
+#else
 	netif_napi_add(netdev, &priv->napi, liteeth_napi_poll);
+#endif
 
 	/* Register the network device */
 	err = register_netdev(netdev);
