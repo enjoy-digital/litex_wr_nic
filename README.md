@@ -57,5 +57,18 @@ sudo ip link set enp5s0 up
 ip -s link show enp5s0
 ping -I enp5s0 192.168.1.1
 
+
+Iperf:
+
+sudo apt install iperf3
+
+Server:
+iperf3 -s -B 192.168.1.121
+
+Client:
+iperf3 -c 192.168.1.121 -B 192.168.1.92
+
+
+PCIe Rescan:
 echo 1 | sudo tee /sys/bus/pci/devices/0000\:02\:00.0/remove
 echo 1 | sudo tee /sys/bus/pci/rescan
