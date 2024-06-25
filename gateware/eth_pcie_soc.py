@@ -51,7 +51,7 @@ class EthernetPCIeSoC(SoCMini):
         ethmac = LiteEthMAC(
             phy               = phy,
             dw                = data_width,
-            interface         = "pcie",
+            interface         = "wishbone",
             endianness        = self.cpu.endianness,
             nrxslots          = nrxslots, rxslots_read_only  = rxslots_read_only,
             ntxslots          = ntxslots, txslots_write_only = txslots_write_only,
@@ -70,8 +70,8 @@ class EthernetPCIeSoC(SoCMini):
         self.ethmac_region_tx = SoCRegion(origin=0, size=ethmac.tx_slots.constant * ethmac.slot_size.constant, cached=False)
         self.pcie_mem_bus_rx.add_region(name="io",region=SoCIORegion(0x00000000,0x100000000))
         self.pcie_mem_bus_tx.add_region(name="io",region=SoCIORegion(0x00000000,0x100000000))
-        self.pcie_mem_bus_rx.add_slave(name='ethmac_rx', slave=ethmac.rx_bus, region=self.ethmac_region_rx)
-        self.pcie_mem_bus_tx.add_slave(name='ethmac_tx', slave=ethmac.tx_bus, region=self.ethmac_region_tx)
+        self.pcie_mem_bus_rx.add_slave(name='ethmac_rx', slave=ethmac.bus_rx, region=self.ethmac_region_rx)
+        self.pcie_mem_bus_tx.add_slave(name='ethmac_tx', slave=ethmac.bus_tx, region=self.ethmac_region_tx)
 
         # Dynamic IP (if enabled).
         if dynamic_ip:
@@ -139,8 +139,8 @@ class EthernetPCIeSoC(SoCMini):
             with_dma_table       = False,
             with_msi             = with_msi,
             msis                 = {
-                "ETHRX" : self.ethmac.rx_pcie_irq,
-                "ETHTX" : self.ethmac.tx_pcie_irq,
+                "ETHRX" : self.ethmac.interface.sram.rx_pcie_irq,
+                "ETHTX" : self.ethmac.interface.sram.tx_pcie_irq,
             },
             with_ptm             = False,
         )

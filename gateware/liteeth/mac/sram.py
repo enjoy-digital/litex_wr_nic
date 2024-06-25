@@ -424,6 +424,7 @@ class LiteEthMACSRAM(Module, AutoCSR):
         self.submodules.writer = LiteEthMACSRAMWriter(dw, depth, nrxslots, endianness, timestamp)
         self.submodules.reader = LiteEthMACSRAMReader(dw, depth, ntxslots, endianness, timestamp)
         if with_eth_pcie:
+            self.ev = Signal()
             self.rx_pcie_irq = self.writer.pcie_irq
             self.tx_pcie_irq = self.reader.pcie_irq
         else:
