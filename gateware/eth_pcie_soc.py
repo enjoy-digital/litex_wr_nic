@@ -57,13 +57,8 @@ class EthernetPCIeSoC(SoCMini):
             ntxslots          = ntxslots, txslots_write_only = txslots_write_only,
             timestamp         = None if not with_timestamp else self.timer0.uptime_cycles,
             with_preamble_crc = not software_debug,
-            with_sys_datapath = with_sys_datapath
+            with_sys_datapath = with_sys_datapath,
         )
-
-        if with_pcie_eth:
-            self.add_constant("ETHMAC_RX_WAIT_OFFSET", ethmac.interface.wait_ack_offset)
-            self.add_constant("ETHMAC_TX_READY_OFFSET", ethmac.interface.tx_ready_offset)
-
         if not with_sys_datapath:
             # Use PHY's eth_tx/eth_rx clock domains.
             ethmac = ClockDomainsRenamer({
@@ -140,6 +135,8 @@ class EthernetPCIeSoC(SoCMini):
             with_timing_constraints = with_timing_constraints,
             with_pcie_eth           = True
         )
+        self.add_constant("ETHMAC_RX_WAIT_OFFSET",  self.ethmac.interface.wait_ack_offset)
+        self.add_constant("ETHMAC_TX_READY_OFFSET", self.ethmac.interface.tx_ready_offset)
 
         # PCIe
         self.add_pcie(name="pcie", phy=pcie_phy,
