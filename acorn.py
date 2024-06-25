@@ -12,7 +12,7 @@ from litex.gen import *
 
 from litex.build.generic_platform import Subsignal, Pins
 from litex.build.io import DifferentialInput
-from litex.build.openocd import OpenOCD
+from litex.build.openfpgaloader import OpenFPGALoader
 
 from litex_boards.platforms import sqrl_acorn
 
@@ -37,8 +37,8 @@ from gateware.eth_pcie_soc import EthernetPCIeSoC
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(sqrl_acorn.Platform):
-    def create_programmer(self, name="openocd"):
-        return OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a200t.bit")
+    def create_programmer(self):
+        return OpenFPGALoader(cable="ft2232", fpga_part=f"xc7a200tfbg484", freq=10e6)
 
 _serial_io = [
     ("serial", 0,
@@ -163,6 +163,7 @@ def main():
     from litex.build.parser import LiteXArgumentParser
     parser = LiteXArgumentParser(platform=sqrl_acorn.Platform, description="LiteX SoC on Acorn CLE-101/215(+).")
     parser.add_target_argument("--sys-clk-freq", default=125e6, type=float, help="System clock frequency.")
+    parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
     args = parser.parse_args()
 
     soc = BaseSoC(
@@ -177,6 +178,10 @@ def main():
     if args.load:
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
+
+    if args.flash:
+        prog = soc.platform.create_programmer()
+        prog.flash(0, builder.get_bitstream_filename(mode="flash"))
 
 if __name__ == "__main__":
     main()
