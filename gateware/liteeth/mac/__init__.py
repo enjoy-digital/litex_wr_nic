@@ -66,7 +66,6 @@ class LiteEthMAC(Module, AutoCSR):
                 ntxslots      = ntxslots, txslots_write_only = txslots_write_only,
                 endianness    = endianness,
                 timestamp     = timestamp,
-                with_pcie_eth = interface == "pcie",
             )
             # On some targets (Intel/Altera), the complex ports aren't inferred
             # as block ram, but are created with LUTs.  FullMemoryWe splits such
@@ -79,8 +78,8 @@ class LiteEthMAC(Module, AutoCSR):
                 wishbone_interface = FullMemoryWE()(wishbone_interface)
             self.submodules.interface = wishbone_interface
             if interface == "pcie":
-                self.rx_bus = self.interface.rx_bus
-                self.tx_bus = self.interface.tx_bus
+                self.rx_bus = self.interface.bus_rx
+                self.tx_bus = self.interface.bus_tx
                 self.rx_pcie_irq = self.interface.sram.rx_pcie_irq
                 self.tx_pcie_irq = self.interface.sram.tx_pcie_irq
             else:
