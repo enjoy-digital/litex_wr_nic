@@ -96,8 +96,8 @@ class BaseSoC(EthernetPCIeSoC):
                 clk_freq   = self.clk_freq)
 
         # PCIe -------------------------------------------------------------------------------------
-        self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x4"),
-            data_width = 128,
+        self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
+            data_width = 64,
             bar0_size  = 0x20000)
 
         # PCIe + Ethernet --------------------------------------------------------------------------
