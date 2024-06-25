@@ -154,8 +154,9 @@ class BaseSoC(EthernetPCIeSoC):
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
             self.leds = LedChaser(
-                pads         = platform.request_all("user_led"),
+                pads         = platform.request("user_led", 0),
                 sys_clk_freq = sys_clk_freq)
+        self.comb += platform.request("user_led", 2).eq(~self.ethphy.link_up) # Inverted.
 
 # Build --------------------------------------------------------------------------------------------
 
