@@ -135,8 +135,8 @@ class EthernetPCIeSoC(SoCMini):
             with_timing_constraints = with_timing_constraints,
             with_pcie_eth           = True
         )
-        self.add_constant("ETHMAC_RX_WAIT_OFFSET",  self.ethmac.interface.wait_ack_offset)
-        self.add_constant("ETHMAC_TX_READY_OFFSET", self.ethmac.interface.tx_ready_offset)
+        self.add_constant("ETHMAC_RX_WAIT_OFFSET",  0) # CHECKME: See purpose in software.
+        self.add_constant("ETHMAC_TX_READY_OFFSET", 1) # CHECKME: See purpose in software.
 
         # PCIe
         self.add_pcie(name="pcie", phy=pcie_phy,

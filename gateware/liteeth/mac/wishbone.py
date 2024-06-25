@@ -36,9 +36,7 @@ class LiteEthMACWishboneInterface(Module, AutoCSR):
         self.submodules.sram = sram.LiteEthMACSRAM(dw, sram_depth, nrxslots, ntxslots, endianness, timestamp)
         self.comb += self.sink.connect(self.sram.sink)
         self.comb += self.sram.source.connect(self.source)
-        if with_pcie_eth:
-            self.wait_ack_offset = 0
-            self.tx_ready_offset = 1
+
         # Wishbone SRAM interfaces for the writer SRAM (i.e. Ethernet RX).
         wb_rx_sram_ifs = []
         for n in range(nrxslots):
