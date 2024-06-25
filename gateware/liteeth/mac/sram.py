@@ -36,9 +36,6 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
             self._enable          = CSRStorage(reset=0)
             self.start_transfer   = Signal(reset=0)
             self.transfer_ready   = Signal(reset=0)
-            #self.test1            = CSRStatus(32,reset=0)
-            #self.test2            = CSRStatus(32,reset=0)
-            #self.test3            = CSRStatus(32,reset=0)
             self._pending_slots   = CSRStatus(nslots,reset=0)
             self._clear_pending   = CSRStorage(nslots,reset=0)
             self._pending_length  = CSRStatus(32*nslots,reset=0)
@@ -155,8 +152,6 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
                 stat_fifo.source.ready.eq(self.ev.available.clear),
                 self.ev.available.trigger.eq(stat_fifo.source.valid),
             ]
-        #else:
-        #    self.comb += self.test3.status.eq(stat_fifo.level)
 
         self.comb += [
             self._slot.status.eq(stat_fifo.source.slot),
@@ -168,10 +163,6 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
             self.comb += self._timestamp.status.eq(stat_fifo.source.timestamp)
 
         if with_eth_pcie:
-            #self.sync += [
-            #    If(stat_fifo.source.valid,self.test1.status.eq(self.test1.status+1)),
-            #    If(self.pcie_irq, self.test2.status.eq(self.test2.status + 1))
-            #]
             self.submodules.irq_fsm = irq_fsm = FSM(reset_state="IDLE")
 
             self.comb += self.pcie_slot.eq(0xffffffff),
