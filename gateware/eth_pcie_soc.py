@@ -149,7 +149,8 @@ class EthernetPCIeSoC(SoCMini):
             with_ptm             = False,
         )
 
-        from gateware.wishbone_dma import LitePCIe2WishboneDMANative, LiteWishbone2PCIeDMANative
+        from gateware.wishbone2pcie_dma import LiteWishbone2PCIeDMANative
+        from gateware.pcie2wishbone_dma import LitePCIe2WishboneDMANative
         pcie_host_wb2pcie_dma = LiteWishbone2PCIeDMANative(self.pcie_endpoint, self.pcie_dma0.writer, data_width)
         self.pcie_host_wb2pcie_dma = pcie_host_wb2pcie_dma
         self.pcie_mem_bus_rx.add_master("pcie_master_wb2pcie", pcie_host_wb2pcie_dma.bus_wr)
