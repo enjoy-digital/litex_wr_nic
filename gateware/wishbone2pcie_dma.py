@@ -25,62 +25,61 @@ def dma_descriptor_layout():
 # LiteWishbone2PCIeDMANative -----------------------------------------------------------------------
 
 class LiteWishbone2PCIeDMANative(LiteXModule):
-    def __init__(self, endpoint, dma_wr, data_width=32):
+    def __init__(self, endpoint, dma, data_width=32):
 
-        dma_wr_desc = stream.Endpoint(descriptor_layout())
-        self.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(), 16)
-
-        desc_wr = stream.Endpoint(dma_descriptor_layout())
-        self.fifo_wr = fifo_wr = stream.SyncFIFO(dma_descriptor_layout(), 16)
+        dma_desc = stream.Endpoint(descriptor_layout())
+        self.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(), 1)
+        desc = stream.Endpoint(dma_descriptor_layout())
+        self.fifo = fifo = stream.SyncFIFO(dma_descriptor_layout(), 16)
 
         self.host_addr   = host_addr   = Signal(32)
         self.length      = length      = Signal(32)
         self.bus_addr    = bus_addr    = Signal(32)
         self.irq_disable = irq_disable = CSRStorage(1, description="Disable PCIe2Wishbone IRQ", reset=0)
         self.start       = start       = Signal(1)
-        self.ready       = Signal()
+        self.ready       = Signal(reset=0)
 
-        self.bus_wr = wishbone.Interface(data_width=data_width)
-        self.wb_dma = wb_dma = WishboneDMAReader(self.bus_wr, endianness="big")
+        self.bus = wishbone.Interface(data_width=data_width)
+        self.wb_dma = wb_dma = WishboneDMAReader(self.bus, endianness="big")
         wb_dma.add_ctrl()
-        self.conv_wr = conv_wr = stream.Converter(nbits_from=data_width, nbits_to=endpoint.phy.data_width)
+        self.conv = conv = stream.Converter(nbits_from=data_width, nbits_to=endpoint.phy.data_width)
         self.irq = Signal()
         dma_enable = Signal()
 
         self.comb += [
             wb_dma.enable.eq(dma_enable),
 
-            wb_dma.source.connect(conv_wr.sink),
-            conv_wr.source.connect(dma_wr.sink),
-            dma_wr_desc.connect(dma_fifo.sink),
-            dma_fifo.source.connect(dma_wr.desc_sink),
-            desc_wr.connect(fifo_wr.sink),
+            wb_dma.source.connect(conv.sink),
+            conv.source.connect(dma.sink),
+            dma_desc.connect(dma_fifo.sink),
+            dma_fifo.source.connect(dma.desc_sink),
+            desc.connect(fifo.sink),
 
-            desc_wr.host_addr.eq(host_addr),
-            desc_wr.length.eq(length),
-            desc_wr.bus_addr.eq(bus_addr),
-            desc_wr.valid.eq(start),
+            desc.host_addr.eq(host_addr),
+            desc.length.eq(length),
+            desc.bus_addr.eq(bus_addr),
+            desc.valid.eq(start),
 
-            wb_dma.base.eq(fifo_wr.source.bus_addr),
-            wb_dma.length.eq(fifo_wr.source.length),
-            dma_wr_desc.address.eq(fifo_wr.source.host_addr),
-            dma_wr_desc.length.eq(fifo_wr.source.length),
+            wb_dma.base.eq(fifo.source.bus_addr),
+            wb_dma.length.eq(fifo.source.length),
+            dma_desc.address.eq(fifo.source.host_addr),
+            dma_desc.length.eq(fifo.source.length),
         ]
 
         self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
         fsm.act("IDLE",
-            If(fifo_wr.source.valid & dma_wr_desc.ready,
+            If(fifo.source.valid & dma_desc.ready,
                 NextState("RUN"),
-                dma_wr_desc.valid.eq(1),
+                dma_desc.valid.eq(1),
                 NextValue(dma_enable, 1),
             )
         )
         fsm.act("RUN",
             If(wb_dma.done,
-                fifo_wr.source.ready.eq(1),
+                fifo.source.ready.eq(1),
                 NextState("IDLE"),
                 NextValue(dma_enable, 0),
                 self.irq.eq(~irq_disable.storage),
-                self.ready.eq(1)
+                self.ready.eq(1),
             )
         )

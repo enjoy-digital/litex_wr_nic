@@ -153,10 +153,10 @@ class EthernetPCIeSoC(SoCMini):
         from gateware.pcie2wishbone_dma import LitePCIe2WishboneDMANative
         pcie_host_wb2pcie_dma = LiteWishbone2PCIeDMANative(self.pcie_endpoint, self.pcie_dma0.writer, data_width)
         self.pcie_host_wb2pcie_dma = pcie_host_wb2pcie_dma
-        self.pcie_mem_bus_rx.add_master("pcie_master_wb2pcie", pcie_host_wb2pcie_dma.bus_wr)
+        self.pcie_mem_bus_rx.add_master("pcie_master_wb2pcie", pcie_host_wb2pcie_dma.bus)
         pcie_host_pcie2wb_dma = LitePCIe2WishboneDMANative(self.pcie_endpoint, self.pcie_dma0.reader, data_width)
         self.pcie_host_pcie2wb_dma = pcie_host_pcie2wb_dma
-        self.pcie_mem_bus_tx.add_master("pcie_master_pcie2wb", pcie_host_pcie2wb_dma.bus_rd)
+        self.pcie_mem_bus_tx.add_master("pcie_master_pcie2wb", pcie_host_pcie2wb_dma.bus)
 
         align_bits = log2_int(512)
         self.comb += [
