@@ -22,10 +22,11 @@ def dma_descriptor_layout():
     layout = [("host_addr", 32), ("bus_addr",32), ("length",  32)]
     return EndpointDescription(layout)
 
-# LitePCIe2WishboneDMANative -----------------------------------------------------------------------
+# LitePCIe2WishboneDMA -----------------------------------------------------------------------------
 
-class LitePCIe2WishboneDMANative(LiteXModule):
-    def __init__(self, endpoint, dma, data_width=32):
+class LitePCIe2WishboneDMA(LiteXModule):
+    def __init__(self, endpoint, dma, data_width=32, mode="pcie2wishbone"):
+        assert mode in ["pcie2wishbone", "wishbone2pcie"]
 
         dma_desc = stream.Endpoint(descriptor_layout())
         self.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(), 1)
@@ -40,17 +41,30 @@ class LitePCIe2WishboneDMANative(LiteXModule):
         self.ready       = Signal(reset=0)
 
         self.bus = wishbone.Interface(data_width=data_width)
-        self.wb_dma = wb_dma = WishboneDMAWriter(self.bus, endianness="big")
+        if mode == "pcie2wishbone":
+            self.wb_dma = wb_dma = WishboneDMAWriter(self.bus, endianness="big")
+            self.conv   = conv   = stream.Converter(nbits_from=endpoint.phy.data_width, nbits_to=data_width)
+        if mode == "wishbone2pcie":
+            self.wb_dma = wb_dma = WishboneDMAReader(self.bus, endianness="big")
+            self.conv   = conv   = stream.Converter(nbits_from=data_width, nbits_to=endpoint.phy.data_width)
         wb_dma.add_ctrl()
         self.irq = Signal()
-        self.conv = conv = stream.Converter(nbits_from=endpoint.phy.data_width, nbits_to=data_width)
+
         dma_enable = Signal()
+
+        if mode == "pcie2wishbone":
+            self.comb += [
+                dma.source.connect(conv.sink),
+                conv.source.connect(wb_dma.sink),
+            ]
+        if mode == "wishbone2pcie":
+            self.comb += [
+                wb_dma.source.connect(conv.sink),
+                conv.source.connect(dma.sink),
+            ]
 
         self.comb += [
             wb_dma.enable.eq(dma_enable),
-
-            dma.source.connect(conv.sink),
-            conv.source.connect(wb_dma.sink),
             dma_desc.connect(dma_fifo.sink),
             dma_fifo.source.connect(dma.desc_sink),
             desc.connect(fifo.sink),
