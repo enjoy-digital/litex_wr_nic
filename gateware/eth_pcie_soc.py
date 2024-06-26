@@ -1,4 +1,5 @@
- 
+import sys
+
 from migen import *
 
 from litex.build import tools
@@ -12,6 +13,9 @@ from litex.soc.integration.soc      import SoCBusHandler, SoCRegion, SoCIORegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 from litex.soc.integration.export   import get_csr_header, get_soc_header, get_mem_header
+
+from gateware.liteeth.mac import sram
+sys.modules['liteeth.mac.sram'] = sram #  Replace Liteeth SRAM with our custom implementation.
 
 class EthernetPCIeSoC(SoCMini):
     SoCMini.csr_map = {
@@ -39,7 +43,7 @@ class EthernetPCIeSoC(SoCMini):
         remote_ip               = None,
         with_pcie_eth           = True):
         # Imports
-        from gateware.liteeth.mac import LiteEthMAC
+        from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
