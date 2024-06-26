@@ -14,7 +14,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 from litex.soc.integration.export   import get_csr_header, get_soc_header, get_mem_header
 
-from gateware.liteeth.mac import sram
+from gateware import sram
 sys.modules['liteeth.mac.sram'] = sram #  Replace Liteeth SRAM with our custom implementation.
 
 class EthernetPCIeSoC(SoCMini):
