@@ -15,7 +15,7 @@ from litex.soc.integration.builder  import *
 from litex.soc.integration.export   import get_csr_header, get_soc_header, get_mem_header
 
 from gateware import sram
-sys.modules['liteeth.mac.sram'] = sram #  Replace Liteeth SRAM with our custom implementation.
+sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
 
 class EthernetPCIeSoC(SoCMini):
     SoCMini.csr_map = {
@@ -150,39 +150,42 @@ class EthernetPCIeSoC(SoCMini):
         )
 
         from gateware.dma import LitePCIe2WishboneDMA
-        pcie_host_wb2pcie_dma = LitePCIe2WishboneDMA(self.pcie_endpoint, self.pcie_dma0.writer, data_width, mode="wishbone2pcie")
-        self.pcie_host_wb2pcie_dma = pcie_host_wb2pcie_dma
-        self.pcie_mem_bus_rx.add_master("pcie_master_wb2pcie", pcie_host_wb2pcie_dma.bus)
-        pcie_host_pcie2wb_dma = LitePCIe2WishboneDMA(self.pcie_endpoint, self.pcie_dma0.reader, data_width, mode="pcie2wishbone")
-        self.pcie_host_pcie2wb_dma = pcie_host_pcie2wb_dma
-        self.pcie_mem_bus_tx.add_master("pcie_master_pcie2wb", pcie_host_pcie2wb_dma.bus)
 
         align_bits = log2_int(512)
-        self.comb += [
-            self.pcie_host_wb2pcie_dma.bus_addr.eq(self.ethmac_region_rx.origin + self.ethmac.interface.sram.writer.stat_fifo.source.slot * self.ethmac.slot_size.constant),
-            self.pcie_host_wb2pcie_dma.host_addr.eq(self.ethmac.interface.sram.writer.pcie_host_addr),
-            self.pcie_host_wb2pcie_dma.length.eq(Cat(Signal(align_bits,reset=0), (self.ethmac.interface.sram.writer.stat_fifo.source.length[align_bits:] + 1))),
-            self.pcie_host_wb2pcie_dma.start.eq(self.ethmac.interface.sram.writer.start_transfer),
-            self.ethmac.interface.sram.writer.transfer_ready.eq(self.pcie_host_wb2pcie_dma.ready),
-        ]
-        self.comb += [
-            self.pcie_host_pcie2wb_dma.bus_addr.eq(self.ethmac_region_tx.origin + self.ethmac.interface.sram.reader.cmd_fifo.source.slot * self.ethmac.slot_size.constant),
-            self.pcie_host_pcie2wb_dma.host_addr.eq(self.ethmac.interface.sram.reader.pcie_host_addr),
-            self.pcie_host_pcie2wb_dma.length.eq(Cat(Signal(align_bits, reset=0), (self.ethmac.interface.sram.reader.cmd_fifo.source.length[align_bits:] + 1))),
-            self.pcie_host_pcie2wb_dma.start.eq(self.ethmac.interface.sram.reader.start_transfer),
-            self.ethmac.interface.sram.reader.transfer_ready.eq(self.pcie_host_pcie2wb_dma.ready),
-        ]
 
-        self.bus_interconnect_tx = wishbone.InterconnectPointToPoint(
-            master = next(iter(self.pcie_mem_bus_tx.masters.values())),
-            slave  = next(iter( self.pcie_mem_bus_tx.slaves.values())),
-        )
-
+        # RX: Wishbone -> PCIe.
+        # ---------------------
+        pcie_wb2pcie_dma = LitePCIe2WishboneDMA(self.pcie_endpoint, self.pcie_dma0.writer, data_width, mode="wb2pcie")
+        self.pcie_wb2pcie_dma = pcie_wb2pcie_dma
+        self.pcie_mem_bus_rx.add_master("pcie_wb2pcie_dma", pcie_wb2pcie_dma.bus)
+        self.comb += [
+            self.pcie_wb2pcie_dma.bus_addr.eq(self.ethmac_region_rx.origin + self.ethmac.interface.sram.writer.stat_fifo.source.slot * self.ethmac.slot_size.constant),
+            self.pcie_wb2pcie_dma.host_addr.eq(self.ethmac.interface.sram.writer.pcie_host_addr),
+            self.pcie_wb2pcie_dma.length.eq(Cat(Signal(align_bits,reset=0), (self.ethmac.interface.sram.writer.stat_fifo.source.length[align_bits:] + 1))),
+            self.pcie_wb2pcie_dma.start.eq(self.ethmac.interface.sram.writer.start_transfer),
+            self.ethmac.interface.sram.writer.transfer_ready.eq(self.pcie_wb2pcie_dma.ready),
+        ]
         self.bus_interconnect_rx = wishbone.InterconnectPointToPoint(
             master = next(iter(self.pcie_mem_bus_rx.masters.values())),
             slave  = next(iter( self.pcie_mem_bus_rx.slaves.values())),
         )
 
+        # TX: PCIe -> Wishbone.
+        # ---------------------
+        pcie_pcie2wb_dma = LitePCIe2WishboneDMA(self.pcie_endpoint, self.pcie_dma0.reader, data_width, mode="pcie2wb")
+        self.pcie_pcie2wb_dma = pcie_pcie2wb_dma
+        self.pcie_mem_bus_tx.add_master("pcie_pcie2wb_dma", pcie_pcie2wb_dma.bus)
+        self.comb += [
+            self.pcie_pcie2wb_dma.bus_addr.eq(self.ethmac_region_tx.origin + self.ethmac.interface.sram.reader.cmd_fifo.source.slot * self.ethmac.slot_size.constant),
+            self.pcie_pcie2wb_dma.host_addr.eq(self.ethmac.interface.sram.reader.pcie_host_addr),
+            self.pcie_pcie2wb_dma.length.eq(Cat(Signal(align_bits, reset=0), (self.ethmac.interface.sram.reader.cmd_fifo.source.length[align_bits:] + 1))),
+            self.pcie_pcie2wb_dma.start.eq(self.ethmac.interface.sram.reader.start_transfer),
+            self.ethmac.interface.sram.reader.transfer_ready.eq(self.pcie_pcie2wb_dma.ready),
+        ]
+        self.bus_interconnect_tx = wishbone.InterconnectPointToPoint(
+            master = next(iter(self.pcie_mem_bus_tx.masters.values())),
+            slave  = next(iter( self.pcie_mem_bus_tx.slaves.values())),
+        )
 
     def generate_software_header(self, dst):
         csr_header = get_csr_header(self.csr_regions, self.constants, with_access_functions=False)

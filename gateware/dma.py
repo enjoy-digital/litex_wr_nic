@@ -25,8 +25,8 @@ def dma_descriptor_layout():
 # LitePCIe2WishboneDMA -----------------------------------------------------------------------------
 
 class LitePCIe2WishboneDMA(LiteXModule):
-    def __init__(self, endpoint, dma, data_width=32, mode="pcie2wishbone"):
-        assert mode in ["pcie2wishbone", "wishbone2pcie"]
+    def __init__(self, endpoint, dma, data_width=32, mode="pcie2wb"):
+        assert mode in ["pcie2wb", "wb2pcie"]
 
         dma_desc = stream.Endpoint(descriptor_layout())
         self.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(), 1)
@@ -41,10 +41,10 @@ class LitePCIe2WishboneDMA(LiteXModule):
         self.ready       = Signal(reset=0)
 
         self.bus = wishbone.Interface(data_width=data_width)
-        if mode == "pcie2wishbone":
+        if mode == "pcie2wb":
             self.wb_dma = wb_dma = WishboneDMAWriter(self.bus, endianness="big")
             self.conv   = conv   = stream.Converter(nbits_from=endpoint.phy.data_width, nbits_to=data_width)
-        if mode == "wishbone2pcie":
+        if mode == "wb2pcie":
             self.wb_dma = wb_dma = WishboneDMAReader(self.bus, endianness="big")
             self.conv   = conv   = stream.Converter(nbits_from=data_width, nbits_to=endpoint.phy.data_width)
         wb_dma.add_ctrl()
@@ -52,12 +52,12 @@ class LitePCIe2WishboneDMA(LiteXModule):
 
         dma_enable = Signal()
 
-        if mode == "pcie2wishbone":
+        if mode == "pcie2wb":
             self.comb += [
                 dma.source.connect(conv.sink),
                 conv.source.connect(wb_dma.sink),
             ]
-        if mode == "wishbone2pcie":
+        if mode == "wb2pcie":
             self.comb += [
                 wb_dma.source.connect(conv.sink),
                 conv.source.connect(dma.sink),
