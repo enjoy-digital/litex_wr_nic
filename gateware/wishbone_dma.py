@@ -22,144 +22,6 @@ def dma_descriptor_layout():
     layout = [("host_addr", 32), ("bus_addr",32), ("length",  32)]
     return EndpointDescription(layout)
 
-# WishboneDMAReaderCtrl ----------------------------------------------------------------------------
-
-class WishboneDMAReaderCtrl(WishboneDMAReader):
-    """Read data from Wishbone MMAP memory.
-
-    For every address written to the sink, one word will be produced on the source.
-
-    Parameters
-    ----------
-    bus : bus
-        Wishbone bus of the SoC to read from.
-
-    Attributes
-    ----------
-    sink : Record("address")
-        Sink for MMAP addresses to be read.
-
-    source : Record("data")
-        Source for MMAP word results from reading.
-    """
-    def __init__(self, bus, endianness="big"):
-        assert isinstance(bus, wishbone.Interface)
-        WishboneDMAReader.__init__(self,bus,endianness=endianness,with_csr=False)
-
-    def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
-        self.base   = Signal(64, reset=default_base)
-        self.length = Signal(32, reset=default_length)
-        self.enable = Signal(reset=default_enable)
-        self.done   = Signal()
-        self.loop   = Signal(reset=default_loop)
-        self.offset = Signal(32)
-
-        # # #
-
-        shift   = log2_int(self.bus.data_width//8)
-        base    = Signal(self.bus.adr_width)
-        offset  = Signal(self.bus.adr_width)
-        length  = Signal(self.bus.adr_width)
-        self.comb += base.eq(self.base[shift:])
-        self.comb += length.eq(self.length[shift:])
-
-        self.comb += self.offset.eq(offset)
-
-        fsm = FSM(reset_state="IDLE")
-        fsm = ResetInserter()(fsm)
-        self.submodules += fsm
-        self.comb += fsm.reset.eq(~self.enable)
-        fsm.act("IDLE",
-            NextValue(offset, 0),
-            NextState("RUN"),
-        )
-        fsm.act("RUN",
-            self.sink.valid.eq(1),
-            self.sink.last.eq(offset == (length - 1)),
-            self.sink.address.eq(base + offset),
-            If(self.sink.ready,
-                NextValue(offset, offset + 1),
-                If(self.sink.last,
-                    If(self.loop,
-                        NextValue(offset, 0)
-                    ).Else(
-                        NextState("DONE")
-                    )
-                )
-            )
-        )
-        fsm.act("DONE", self.done.eq(1))
-
-# WishboneDMAWriterCtrl ----------------------------------------------------------------------------
-
-class WishboneDMAWriterCtrl(WishboneDMAWriter):
-    """Write data to Wishbone MMAP memory.
-
-    Parameters
-    ----------
-    bus : bus
-        Wishbone bus of the SoC to read from.
-
-    Attributes
-    ----------
-    sink : Record("address", "data")
-        Sink for MMAP addresses/datas to be written.
-    """
-    def __init__(self, bus, endianness="big"):
-        assert isinstance(bus, wishbone.Interface)
-        WishboneDMAWriter.__init__(self,bus,endianness,with_csr=False)
-
-    def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
-        self._sink = self.sink
-        self.sink  = stream.Endpoint([("data", self.bus.data_width)])
-
-        self.base   = Signal(64, reset=default_base)
-        self.length = Signal(32, reset=default_length)
-        self.enable = Signal(reset=default_enable)
-        self.done   = Signal()
-        self.loop   = Signal(reset=default_loop)
-        self.offset = Signal(32)
-
-        # # #
-
-        shift   = log2_int(self.bus.data_width//8)
-        base    = Signal(self.bus.adr_width)
-        offset  = Signal(self.bus.adr_width)
-        length  = Signal(self.bus.adr_width)
-        self.comb += base.eq(self.base[shift:])
-        self.comb += length.eq(self.length[shift:])
-
-        self.comb += self.offset.eq(offset)
-
-        fsm = FSM(reset_state="IDLE")
-        fsm = ResetInserter()(fsm)
-        self.submodules += fsm
-        self.comb += fsm.reset.eq(~self.enable)
-        fsm.act("IDLE",
-            self.sink.ready.eq(1),
-            NextValue(offset, 0),
-            NextState("RUN"),
-        )
-        fsm.act("RUN",
-            self._sink.valid.eq(self.sink.valid),
-            self._sink.last.eq(offset == (length - 1)),
-            self._sink.address.eq(base + offset),
-            self._sink.data.eq(self.sink.data),
-            self.sink.ready.eq(self._sink.ready),
-            If(self.sink.valid & self.sink.ready,
-                NextValue(offset, offset + 1),
-                If(self._sink.last,
-                    If(self.loop,
-                        NextValue(offset, 0)
-                    ).Else(
-                        NextState("DONE")
-                    )
-                )
-            )
-        )
-        fsm.act("DONE", self.done.eq(1))
-
-
 # LiteWishbone2PCIeDMANative -----------------------------------------------------------------------
 
 class LiteWishbone2PCIeDMANative(LiteXModule):
@@ -179,7 +41,7 @@ class LiteWishbone2PCIeDMANative(LiteXModule):
         self.ready = Signal(reset=0)
 
         self.bus_wr = wishbone.Interface(data_width=data_width)
-        self.wb_dma = wb_dma = WishboneDMAReaderCtrl(self.bus_wr)
+        self.wb_dma = wb_dma = WishboneDMAReader(self.bus_wr)
         wb_dma.add_ctrl()
         self.conv_wr = conv_wr = stream.Converter(nbits_from=data_width, nbits_to=endpoint.phy.data_width)
         self.irq = Signal(reset=0)
@@ -244,7 +106,7 @@ class LitePCIe2WishboneDMANative(LiteXModule):
         self.ready = Signal(reset=0)
 
         self.bus_rd = wishbone.Interface(data_width=data_width)
-        self.wb_dma = wb_dma = WishboneDMAWriterCtrl(self.bus_rd)
+        self.wb_dma = wb_dma = WishboneDMAWriter(self.bus_rd)
         wb_dma.add_ctrl()
         self.irq = Signal(reset=0)
         self.conv_rd = conv_rd = stream.Converter(nbits_from=endpoint.phy.data_width, nbits_to=data_width)
