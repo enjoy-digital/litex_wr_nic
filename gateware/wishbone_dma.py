@@ -33,19 +33,19 @@ class LiteWishbone2PCIeDMANative(LiteXModule):
         desc_wr = stream.Endpoint(dma_descriptor_layout())
         self.fifo_wr = fifo_wr = stream.SyncFIFO(dma_descriptor_layout(), 16)
 
-        self.host_addr = host_addr = Signal(32, reset=0)
-        self.length = length = Signal(32, reset=0)
-        self.bus_addr = bus_addr = Signal(32, reset=0)
+        self.host_addr   = host_addr   = Signal(32)
+        self.length      = length      = Signal(32)
+        self.bus_addr    = bus_addr    = Signal(32)
         self.irq_disable = irq_disable = CSRStorage(1, description="Disable PCIe2Wishbone IRQ", reset=0)
-        self.start = start = Signal(1, reset=0)
-        self.ready = Signal(reset=0)
+        self.start       = start       = Signal(1)
+        self.ready       = Signal()
 
         self.bus_wr = wishbone.Interface(data_width=data_width)
-        self.wb_dma = wb_dma = WishboneDMAReader(self.bus_wr)
+        self.wb_dma = wb_dma = WishboneDMAReader(self.bus_wr, endianness="big")
         wb_dma.add_ctrl()
         self.conv_wr = conv_wr = stream.Converter(nbits_from=data_width, nbits_to=endpoint.phy.data_width)
-        self.irq = Signal(reset=0)
-        dma_enable = Signal(reset=0)
+        self.irq = Signal()
+        dma_enable = Signal()
 
         self.comb += [
             wb_dma.enable.eq(dma_enable),
@@ -67,17 +67,15 @@ class LiteWishbone2PCIeDMANative(LiteXModule):
             dma_wr_desc.length.eq(fifo_wr.source.length),
         ]
 
-        ctrl_fsm = FSM(reset_state="IDLE")
-        ctrl_fsm = ResetInserter()(ctrl_fsm)
-        self.ctrl_fsm = ctrl_fsm
-        ctrl_fsm.act("IDLE",
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
+        fsm.act("IDLE",
             If(fifo_wr.source.valid & dma_wr_desc.ready,
                 NextState("RUN"),
                 dma_wr_desc.valid.eq(1),
                 NextValue(dma_enable, 1),
             )
         )
-        ctrl_fsm.act("RUN",
+        fsm.act("RUN",
             If(wb_dma.done,
                 fifo_wr.source.ready.eq(1),
                 NextState("IDLE"),
@@ -98,19 +96,19 @@ class LitePCIe2WishboneDMANative(LiteXModule):
         desc_rd = stream.Endpoint(dma_descriptor_layout())
         self.fifo_rd = fifo_rd = stream.SyncFIFO(dma_descriptor_layout(), 16)
 
-        self.host_addr = host_addr = Signal(32, reset=0)
-        self.length = length = Signal(32, reset=0)
-        self.bus_addr = bus_addr = Signal(32, reset=0)
+        self.host_addr   = host_addr   = Signal(32)
+        self.length      = length      = Signal(32)
+        self.bus_addr    = bus_addr    = Signal(32)
         self.irq_disable = irq_disable = CSRStorage(1, description="Disable PCIe2Wishbone IRQ", reset=0)
-        self.start = start = Signal(1, reset=0)
-        self.ready = Signal(reset=0)
+        self.start       = start       = Signal(1)
+        self.ready       = Signal(reset=0)
 
         self.bus_rd = wishbone.Interface(data_width=data_width)
-        self.wb_dma = wb_dma = WishboneDMAWriter(self.bus_rd)
+        self.wb_dma = wb_dma = WishboneDMAWriter(self.bus_rd, endianness="big")
         wb_dma.add_ctrl()
-        self.irq = Signal(reset=0)
+        self.irq = Signal()
         self.conv_rd = conv_rd = stream.Converter(nbits_from=endpoint.phy.data_width, nbits_to=data_width)
-        dma_enable = Signal(reset=0)
+        dma_enable = Signal()
 
         self.comb += [
             wb_dma.enable.eq(dma_enable),
@@ -132,17 +130,15 @@ class LitePCIe2WishboneDMANative(LiteXModule):
             dma_rd_desc.length.eq(fifo_rd.source.length),
         ]
 
-        ctrl_fsm = FSM(reset_state="IDLE")
-        ctrl_fsm = ResetInserter()(ctrl_fsm)
-        self.ctrl_fsm = ctrl_fsm
-        ctrl_fsm.act("IDLE",
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
+        fsm.act("IDLE",
             If(fifo_rd.source.valid & dma_rd_desc.ready,
                 NextState("RUN"),
                 dma_rd_desc.valid.eq(1),
                 NextValue(dma_enable, 1),
             )
         )
-        ctrl_fsm.act("RUN",
+        fsm.act("RUN",
             If(wb_dma.done,
                 fifo_rd.source.ready.eq(1),
                 NextState("IDLE"),
