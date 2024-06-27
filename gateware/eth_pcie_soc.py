@@ -40,7 +40,6 @@ class EthernetPCIeSoC(SoCMini):
         with_msi                = True):
 
         data_width = 64
-        self.pcie_mem_bus_tx = SoCBusHandler(data_width=data_width)
         
         # MAC.
         self.add_ethernet(
@@ -55,11 +54,6 @@ class EthernetPCIeSoC(SoCMini):
         self.add_constant("ETHMAC_TX_READY_OFFSET", 1) # CHECKME: See purpose in software.
         del self.bus.slaves["ethmac_tx"]
         del self.bus.slaves["ethmac_rx"]
-
-         # Compute Regions size and add it to the SoC.
-        self.ethmac_region_tx = SoCRegion(origin=0, size=self.ethmac.tx_slots.constant * self.ethmac.slot_size.constant, cached=False)
-        self.pcie_mem_bus_tx.add_region(name="io",region=SoCIORegion(0x00000000,0x100000000))
-        self.pcie_mem_bus_tx.add_slave(name='ethmac_tx', slave=self.ethmac.bus_tx, region=self.ethmac_region_tx)
 
         # PCIe
         self.add_pcie(name="pcie", phy=pcie_phy,
@@ -76,8 +70,8 @@ class EthernetPCIeSoC(SoCMini):
             },
             with_ptm             = False,
         )
-
         from gateware.dma import LitePCIe2WishboneDMA
+
 
         align_bits = log2_int(512)
 
@@ -101,7 +95,6 @@ class EthernetPCIeSoC(SoCMini):
         # ---------------------
         pcie_pcie2wb_dma = LitePCIe2WishboneDMA(self.pcie_endpoint, self.pcie_dma0.reader, data_width, mode="pcie2wb")
         self.pcie_pcie2wb_dma = pcie_pcie2wb_dma
-        self.pcie_mem_bus_tx.add_master("pcie_pcie2wb_dma", pcie_pcie2wb_dma.bus)
         self.comb += [
             self.pcie_pcie2wb_dma.bus_addr.eq(self.ethmac.interface.sram.reader.cmd_fifo.source.slot * self.ethmac.slot_size.constant),
             self.pcie_pcie2wb_dma.host_addr.eq(self.ethmac.interface.sram.reader.pcie_host_addr),
@@ -110,8 +103,8 @@ class EthernetPCIeSoC(SoCMini):
             self.ethmac.interface.sram.reader.transfer_ready.eq(self.pcie_pcie2wb_dma.ready),
         ]
         self.bus_interconnect_tx = wishbone.InterconnectPointToPoint(
-            master = next(iter(self.pcie_mem_bus_tx.masters.values())),
-            slave  = next(iter( self.pcie_mem_bus_tx.slaves.values())),
+            master = pcie_pcie2wb_dma.bus,
+            slave  = self.ethmac.bus_tx,
         )
 
     def generate_software_header(self, dst):
