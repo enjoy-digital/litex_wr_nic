@@ -10,30 +10,27 @@ from migen import *
 
 from litex.gen import *
 
-from litex.build.generic_platform import Subsignal, Pins
-from litex.build.io import DifferentialInput
+from litex.build.io             import DifferentialInput
 from litex.build.openfpgaloader import OpenFPGALoader
 
 from litex_boards.platforms import sqrl_acorn
 
-from litex.soc.interconnect.csr import *
+from litex.soc.interconnect.csr     import *
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
+from litex.soc.integration.builder  import *
 
 from litex.soc.cores.clock import *
-from litex.soc.cores.led import LedChaser
+from litex.soc.cores.led   import LedChaser
 
-from litex.build.generic_platform import IOStandard, Subsignal, Pins
-
-from litepcie.software import generate_litepcie_software_headers
+from litepcie.software      import generate_litepcie_software_headers
 from litepcie.phy.s7pciephy import S7PCIEPHY
 
-from liteeth.phy.a7_gtp import QPLLSettings, QPLL
+from liteeth.phy.a7_gtp       import QPLLSettings, QPLL
 from liteeth.phy.a7_1000basex import A7_1000BASEX
 
 from litepcie.software import generate_litepcie_software
 
-from gateware.eth_pcie_soc import EthernetPCIeSoC
+from gateware.pcie_nic import PCIeNICSoC
 
 # Platform -----------------------------------------------------------------------------------------
 
@@ -70,18 +67,23 @@ class CRG(LiteXModule):
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(EthernetPCIeSoC):
-    def __init__(self, sys_clk_freq=125e6,
-        with_led_chaser = True,
-        **kwargs):
+class BaseSoC(PCIeNICSoC):
+    def __init__(self, sys_clk_freq=125e6, with_led_chaser = True, **kwargs):
+        # Platform ---------------------------------------------------------------------------------
+
         platform = Platform(variant="cle-215+")
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
 
         # CRG --------------------------------------------------------------------------------------
+
         self.crg = CRG(platform, sys_clk_freq, with_eth=True)
 
         # SoCCore ----------------------------------------------------------------------------------
+
         SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Acorn CLE-101/215(+)", ident_version=True)
+
+        # JTAGBone ---------------------------------------------------------------------------------
+
         self.add_jtagbone()
 
         # PCIe / Ethernet Shared QPLL Settings -----------------------------------------------------
@@ -111,9 +113,9 @@ class BaseSoC(EthernetPCIeSoC):
         )
         platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
         platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
-        #self.add_pcie(phy=self.pcie_phy, ndmas=1)
 
         # Shared QPLL ------------------------------------------------------------------------------
+
         self.qpll = qpll = QPLL(
             gtrefclk0     = self.pcie_phy.pcie_refclk,
             qpllsettings0 = qpll_pcie_settings,
@@ -123,6 +125,7 @@ class BaseSoC(EthernetPCIeSoC):
         self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
 
         # Ethernet ---------------------------------------------------------------------------------
+
         self.ethphy = A7_1000BASEX(
             qpll_channel = qpll.channels[1],
             data_pads    = self.platform.request("sfp"),
@@ -130,12 +133,13 @@ class BaseSoC(EthernetPCIeSoC):
             rx_polarity  = 1,  # Inverted on Acorn.
             tx_polarity  = 0   # Inverted on Acorn and on baseboard.
         )
-        #self.add_etherbone(phy=self.ethphy, ip_address="192.168.1.50")
 
-        # PCIe + Ethernet --------------------------------------------------------------------------
-        self.add_ethernet_pcie(eth_phy=self.ethphy, pcie_phy=self.pcie_phy)
+        # PCIe NIC ---------------------------------------------------------------------------------
+
+        self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phy=self.ethphy)
 
         # Leds -------------------------------------------------------------------------------------
+
         if with_led_chaser:
             self.leds = LedChaser(
                 pads         = platform.request("user_led", 0),
