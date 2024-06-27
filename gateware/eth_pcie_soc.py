@@ -91,7 +91,7 @@ class EthernetPCIeSoC(SoCMini):
         self.pcie_wb2pcie_dma = pcie_wb2pcie_dma
         self.pcie_mem_bus_rx.add_master("pcie_wb2pcie_dma", pcie_wb2pcie_dma.bus)
         self.comb += [
-            self.pcie_wb2pcie_dma.bus_addr.eq(self.ethmac_region_rx.origin + self.ethmac.interface.sram.writer.stat_fifo.source.slot * self.ethmac.slot_size.constant),
+            self.pcie_wb2pcie_dma.bus_addr.eq(self.ethmac.interface.sram.writer.stat_fifo.source.slot * self.ethmac.slot_size.constant),
             self.pcie_wb2pcie_dma.host_addr.eq(self.ethmac.interface.sram.writer.pcie_host_addr),
             self.pcie_wb2pcie_dma.length.eq(Cat(Signal(align_bits,reset=0), (self.ethmac.interface.sram.writer.stat_fifo.source.length[align_bits:] + 1))),
             self.pcie_wb2pcie_dma.start.eq(self.ethmac.interface.sram.writer.start_transfer),
@@ -108,7 +108,7 @@ class EthernetPCIeSoC(SoCMini):
         self.pcie_pcie2wb_dma = pcie_pcie2wb_dma
         self.pcie_mem_bus_tx.add_master("pcie_pcie2wb_dma", pcie_pcie2wb_dma.bus)
         self.comb += [
-            self.pcie_pcie2wb_dma.bus_addr.eq(self.ethmac_region_tx.origin + self.ethmac.interface.sram.reader.cmd_fifo.source.slot * self.ethmac.slot_size.constant),
+            self.pcie_pcie2wb_dma.bus_addr.eq(self.ethmac.interface.sram.reader.cmd_fifo.source.slot * self.ethmac.slot_size.constant),
             self.pcie_pcie2wb_dma.host_addr.eq(self.ethmac.interface.sram.reader.pcie_host_addr),
             self.pcie_pcie2wb_dma.length.eq(Cat(Signal(align_bits, reset=0), (self.ethmac.interface.sram.reader.cmd_fifo.source.length[align_bits:] + 1))),
             self.pcie_pcie2wb_dma.start.eq(self.ethmac.interface.sram.reader.start_transfer),
