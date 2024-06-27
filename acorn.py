@@ -2,7 +2,8 @@
 
 # Copyright (C) 2024 Enjoy-Digital.
 
-# ./acorn.py --build --load
+# ./acorn.py --csr-csv=csr.csv --build --load
+# litex_server --jtag --jtag-config=openocd_xc7_ft2232.cfg
 
 import argparse
 import sys
@@ -23,6 +24,7 @@ from litepcie.frontend.ptm  import PTMCapabilities, PTMRequester
 from litepcie.phy.s7pciephy import S7PCIEPHY
 from litepcie.software      import generate_litepcie_software_headers
 
+from litex.soc.interconnect         import wishbone
 from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
@@ -386,6 +388,12 @@ class BaseSoC(SoCCore):
         wrs_rx_data  = Signal(32)
         wrs_rx_valid = Signal()
 
+        wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
+        self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
+             origin = 0x2000_0000,
+             size   = 0x0100_0000,
+         ))
+
         self.specials += Instance("xwrc_board_artix7_wrapper",
             p_g_simulation                 = 0,
             #p_g_with_external_clock_input  = 1,
@@ -458,6 +466,18 @@ class BaseSoC(SoCCore):
             i_GT0_EXT_QPLL_CLK    = self.qpll.channels[1].clk,
             i_GT0_EXT_QPLL_REFCLK = self.qpll.channels[1].refclk,
             i_GT0_EXT_QPLL_LOCK   = self.qpll.channels[1].lock,
+
+            i_wb_slave_cyc    = wb_slave.cyc,
+            i_wb_slave_stb    = wb_slave.stb,
+            i_wb_slave_we     = wb_slave.we,
+            i_wb_slave_adr    = (wb_slave.adr & 0x0fff_ffff),
+            i_wb_slave_sel    = wb_slave.sel,
+            i_wb_slave_dat_i  = wb_slave.dat_w,
+            o_wb_slave_dat_o  = wb_slave.dat_r,
+            o_wb_slave_ack    = wb_slave.ack,
+            o_wb_slave_err    = wb_slave.err,
+            o_wb_slave_rty    = Open(),
+            o_wb_slave_stall  = Open(),
 
             # Wishbone Streaming TX Interface
             i_wrs_tx_data_i                = 0,       # TX data input.
