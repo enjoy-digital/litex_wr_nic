@@ -32,101 +32,7 @@ class EthernetPCIeSoC(SoCMini):
         "pcie_phy":              9,
     }
 
-    # Add Ethernet ---------------------------------------------------------------------------------
-    def __add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
-        data_width              = 8,
-        nrxslots                = 2, rxslots_read_only  = True,
-        ntxslots                = 2, txslots_write_only = False,
-        with_timestamp          = False,
-        with_timing_constraints = True,
-        local_ip                = None,
-        remote_ip               = None):
-        # Imports
-        from liteeth.mac import LiteEthMAC
-        from liteeth.phy.model import LiteEthPHYModel
-
-        # MAC.
-        assert data_width in [8, 32, 64]
-        with_sys_datapath = (data_width == 32)
-        self.check_if_exists(name)
-        if with_timestamp:
-            self.timer0.add_uptime()
-        ethmac = LiteEthMAC(
-            phy        = phy,
-            dw                = data_width,
-            interface  = "wishbone",
-            endianness = self.cpu.endianness,
-            nrxslots   = nrxslots, rxslots_read_only  = rxslots_read_only,
-            ntxslots   = ntxslots, txslots_write_only = txslots_write_only,
-            timestamp  = None if not with_timestamp else self.timer0.uptime_cycles,
-            with_preamble_crc = not software_debug,
-            with_sys_datapath = with_sys_datapath)
-        if not with_sys_datapath:
-            # Use PHY's eth_tx/eth_rx clock domains.
-            ethmac = ClockDomainsRenamer({
-                "eth_tx": phy_cd + "_tx",
-                "eth_rx": phy_cd + "_rx"})(ethmac)
-        self.add_module(name=name, module=ethmac)
-
-        # Compute Regions size and add it to the SoC.
-        ethmac_rx_region_size = ethmac.rx_slots.constant*ethmac.slot_size.constant
-        ethmac_tx_region_size = ethmac.tx_slots.constant*ethmac.slot_size.constant
-        ethmac_region_size    = ethmac_rx_region_size + ethmac_tx_region_size
-        self.bus.add_region(name, SoCRegion(
-            origin = self.mem_map.get(name, None),
-            size   = ethmac_region_size,
-            linker = True,
-            cached = False,
-        ))
-        ethmac_rx_region = SoCRegion(
-            origin = self.bus.regions[name].origin + 0,
-            size   = ethmac_rx_region_size,
-            linker = True,
-            cached = False,
-        )
-        self.bus.add_slave(name=f"{name}_rx", slave=ethmac.bus_rx, region=ethmac_rx_region)
-        ethmac_tx_region = SoCRegion(
-            origin = self.bus.regions[name].origin + ethmac_rx_region_size,
-            size   = ethmac_tx_region_size,
-            linker = True,
-            cached = False,
-        )
-        self.bus.add_slave(name=f"{name}_tx", slave=ethmac.bus_tx, region=ethmac_tx_region)
-
-        # Add IRQs (if enabled).
-        if self.irq.enabled:
-            self.irq.add(name, use_loc_if_exists=True)
-
-        # Dynamic IP (if enabled).
-        if dynamic_ip:
-            assert local_ip is None
-            self.add_constant("ETH_DYNAMIC_IP")
-
-        # Local/Remote IP Configuration (optional).
-        if local_ip:
-            add_ip_address_constants(self, "LOCALIP", local_ip)
-        if remote_ip:
-            add_ip_address_constants(self, "REMOTEIP", remote_ip)
-
-        # Software Debug
-        if software_debug:
-            self.add_constant("ETH_UDP_TX_DEBUG")
-            self.add_constant("ETH_UDP_RX_DEBUG")
-
-        # Timing constraints
-        if with_timing_constraints:
-            eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
-            eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
-            if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
-                self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
-                if not eth_rx_clk is eth_tx_clk:
-                    self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
-                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
-                else:
-                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
-
-    def add_ethernet_pcie(self, name="ethmac", phy=None, pcie_phy=None, phy_cd="eth", dynamic_ip=False,
-        software_debug          = False,
+    def add_ethernet_pcie(self, name="ethmac", phy=None, pcie_phy=None, phy_cd="eth",
         nrxslots                = 32,
         ntxslots                = 32,
         with_timing_constraints = True,
@@ -138,16 +44,13 @@ class EthernetPCIeSoC(SoCMini):
         self.pcie_mem_bus_tx = SoCBusHandler(data_width=data_width)
         
         # MAC.
-        self.__add_ethernet(
+        self.add_ethernet(
             name                    = name,
             phy                     = phy,
             phy_cd                  = phy_cd,
-            dynamic_ip              = dynamic_ip,
-            software_debug          = software_debug,
             data_width              = data_width,
             nrxslots                = nrxslots,
             ntxslots                = ntxslots, 
-            with_timing_constraints = with_timing_constraints
         )
         self.add_constant("ETHMAC_RX_WAIT_OFFSET",  0) # CHECKME: See purpose in software.
         self.add_constant("ETHMAC_TX_READY_OFFSET", 1) # CHECKME: See purpose in software.
