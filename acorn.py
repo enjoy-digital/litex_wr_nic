@@ -41,7 +41,6 @@ from litescope import LiteScopeAnalyzer
 
 import list_files
 
-
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(sqrl_acorn.Platform):
@@ -91,32 +90,35 @@ class _CRG(LiteXModule):
 
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=125e6, with_wr=True, with_pcie=True):
+        # Platform ---------------------------------------------------------------------------------
         platform = Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
 
         self.file_basedir     = os.path.abspath(os.path.dirname(__file__))
         self.wr_cores_basedir = os.path.join(self.file_basedir, "wr-cores")
 
+        # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
 
+        # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform,
             clk_freq      = sys_clk_freq,
-            ident         = "LiteX SoC with PTM/WR Support",
+            ident         = "PCIe NIC on LiteX Acorn BaseBoard Mini with WR/PTM support.",
             with_jtagbone = True
         )
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
-            #self.comb += platform.request("pcie_clkreq_n").eq(0) # FIXME : Conflict with serial_tx?
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width = 64,
                 bar0_size  = 0x20000,
-                with_ptm   = True)
+                with_ptm   = True,
+            )
             self.add_pcie(phy=self.pcie_phy,
                 ndmas         = 1,
                 address_width = 64,
-                with_ptm      = True)
-            # FIXME: Apply it to all targets (integrate it in LitePCIe?).
+                with_ptm      = True,
+            )
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
             platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
             platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
@@ -157,7 +159,7 @@ class BaseSoC(SoCCore):
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk0}] -to [get_clocks {clk1}]")
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk1}] -to [get_clocks {clk0}]")
 
-            # PCIe PTM Sniffer -------------------------------------------------------------------------
+            # PCIe PTM Sniffer ---------------------------------------------------------------------
 
             # Since Xilinx PHY does not allow redirecting PTM TLP Messages to the AXI inferface, we have
             # to sniff the GTPE2 -> PCIE2 RX Data to re-generate PTM TLP Messages.
@@ -215,14 +217,14 @@ class BaseSoC(SoCCore):
                 platform.toolchain.pre_optimize_commands.append(f"disconnect_net -net $pin_driver -objects {_to}")
                 platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net {_from} -objects {_to}")
 
-            # Time -------------------------------------------------------------------------------------
+            # Time ---------------------------------------------------------------------------------
 
             self.time_generator = TimeGenerator(
                 clk_domain = "clk50",
                 clk_freq   = 50e6,
             )
 
-            # PTM --------------------------------------------------------------------------------------
+            # PTM ----------------------------------------------------------------------------------
 
             # PTM Capabilities.
             self.ptm_capabilities = PTMCapabilities(
@@ -243,7 +245,7 @@ class BaseSoC(SoCCore):
             ]
 
 
-        # White Rabbit ---------------------------------------------------------------------------------
+        # White Rabbit -----------------------------------------------------------------------------
         if with_wr:
             self._add_white_rabbit_core()
 
