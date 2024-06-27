@@ -8,11 +8,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import wishbone
 
-from litex.soc.cores.clock          import *
-from litex.soc.integration.soc      import SoCBusHandler, SoCRegion, SoCIORegion
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder  import *
-from litex.soc.integration.export   import get_csr_header, get_soc_header, get_mem_header
 
 from gateware import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
@@ -108,11 +104,3 @@ class EthernetPCIeSoC(SoCMini):
             master = pcie_pcie2wb_dma.bus,
             slave  = self.ethmac.bus_tx,
         )
-
-    def generate_software_header(self, dst):
-        csr_header = get_csr_header(self.csr_regions, self.constants, with_access_functions=False)
-        tools.write_to_file(os.path.join(dst, "csr.h"), csr_header)
-        self_header = get_soc_header(self.constants, with_access_functions=False)
-        tools.write_to_file(os.path.join(dst, "soc.h"), self_header)
-        mem_header = get_mem_header(self.mem_regions)
-        tools.write_to_file(os.path.join(dst, "mem.h"), mem_header)

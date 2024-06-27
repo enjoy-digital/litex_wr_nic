@@ -25,6 +25,7 @@ from litex.soc.cores.led import LedChaser
 
 from litex.build.generic_platform import IOStandard, Subsignal, Pins
 
+from litepcie.software import generate_litepcie_software_headers
 from litepcie.phy.s7pciephy import S7PCIEPHY
 
 from liteeth.phy.a7_gtp import QPLLSettings, QPLL
@@ -174,7 +175,7 @@ def main():
     builder = Builder(soc, **parser.builder_argdict)
     if args.build:
         builder.build(**parser.toolchain_argdict)
-        soc.generate_software_header("driver")
+        generate_litepcie_software_headers(soc, "driver")
 
     if args.load:
         prog = soc.platform.create_programmer()
