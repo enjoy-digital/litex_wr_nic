@@ -40,7 +40,6 @@ class EthernetPCIeSoC(SoCMini):
         with_msi                = True):
 
         data_width = 64
-        self.pcie_mem_bus_rx = SoCBusHandler(data_width=data_width)
         self.pcie_mem_bus_tx = SoCBusHandler(data_width=data_width)
         
         # MAC.
@@ -58,11 +57,8 @@ class EthernetPCIeSoC(SoCMini):
         del self.bus.slaves["ethmac_rx"]
 
          # Compute Regions size and add it to the SoC.
-        self.ethmac_region_rx = SoCRegion(origin=0, size=self.ethmac.rx_slots.constant * self.ethmac.slot_size.constant, cached=False)
         self.ethmac_region_tx = SoCRegion(origin=0, size=self.ethmac.tx_slots.constant * self.ethmac.slot_size.constant, cached=False)
-        self.pcie_mem_bus_rx.add_region(name="io",region=SoCIORegion(0x00000000,0x100000000))
         self.pcie_mem_bus_tx.add_region(name="io",region=SoCIORegion(0x00000000,0x100000000))
-        self.pcie_mem_bus_rx.add_slave(name='ethmac_rx', slave=self.ethmac.bus_rx, region=self.ethmac_region_rx)
         self.pcie_mem_bus_tx.add_slave(name='ethmac_tx', slave=self.ethmac.bus_tx, region=self.ethmac_region_tx)
 
         # PCIe
@@ -89,7 +85,6 @@ class EthernetPCIeSoC(SoCMini):
         # ---------------------
         pcie_wb2pcie_dma = LitePCIe2WishboneDMA(self.pcie_endpoint, self.pcie_dma0.writer, data_width, mode="wb2pcie")
         self.pcie_wb2pcie_dma = pcie_wb2pcie_dma
-        self.pcie_mem_bus_rx.add_master("pcie_wb2pcie_dma", pcie_wb2pcie_dma.bus)
         self.comb += [
             self.pcie_wb2pcie_dma.bus_addr.eq(self.ethmac.interface.sram.writer.stat_fifo.source.slot * self.ethmac.slot_size.constant),
             self.pcie_wb2pcie_dma.host_addr.eq(self.ethmac.interface.sram.writer.pcie_host_addr),
@@ -98,8 +93,8 @@ class EthernetPCIeSoC(SoCMini):
             self.ethmac.interface.sram.writer.transfer_ready.eq(self.pcie_wb2pcie_dma.ready),
         ]
         self.bus_interconnect_rx = wishbone.InterconnectPointToPoint(
-            master = next(iter(self.pcie_mem_bus_rx.masters.values())),
-            slave  = next(iter( self.pcie_mem_bus_rx.slaves.values())),
+            master = pcie_wb2pcie_dma.bus,
+            slave  = self.ethmac.bus_rx,
         )
 
         # TX: PCIe -> Wishbone.
