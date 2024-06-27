@@ -41,13 +41,6 @@ class Platform(sqrl_acorn.Platform):
     def create_programmer(self):
         return OpenFPGALoader(cable="ft2232", fpga_part=f"xc7a200tfbg484", freq=10e6)
 
-_serial_io = [
-    ("serial", 0,
-        Subsignal("tx", Pins("G1"),  IOStandard("LVCMOS33")), # CLK_REQ
-        Subsignal("rx", Pins("Y13"), IOStandard("LVCMOS18")), # SMB_ALERT_N
-    ),
-]
-
 # CRG ----------------------------------------------------------------------------------------------
 
 class CRG(LiteXModule):
@@ -82,7 +75,7 @@ class BaseSoC(EthernetPCIeSoC):
         with_led_chaser = True,
         **kwargs):
         platform = Platform(variant="cle-215+")
-        platform.add_extension(_serial_io, prepend=True)
+        platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = CRG(platform, sys_clk_freq, with_eth=True)
@@ -112,7 +105,7 @@ class BaseSoC(EthernetPCIeSoC):
 
         # PCIe -------------------------------------------------------------------------------------
 
-        self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1_baseboard"),
+        self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
             data_width      = 64,
             bar0_size       = 0x20000,
         )
@@ -130,16 +123,6 @@ class BaseSoC(EthernetPCIeSoC):
         self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
 
         # Ethernet ---------------------------------------------------------------------------------
-        _eth_io = [
-            ("sfp", 0,
-                Subsignal("txp", Pins(" D5")),
-                Subsignal("txn", Pins(" C5")),
-                Subsignal("rxp", Pins("D11")),
-                Subsignal("rxn", Pins("C11")),
-            ),
-        ]
-        platform.add_extension(_eth_io)
-
         self.ethphy = A7_1000BASEX(
             qpll_channel = qpll.channels[1],
             data_pads    = self.platform.request("sfp"),
