@@ -96,6 +96,18 @@ entity xwrc_board_artix7_wrapper is
     wrf_src_err   : in std_logic;
     wrf_src_rty   : in std_logic;
 
+    wrf_snk_adr : in std_logic_vector(1 downto 0);
+    wrf_snk_dat : in std_logic_vector(15 downto 0);
+    wrf_snk_cyc : in std_logic;
+    wrf_snk_stb : in std_logic;
+    wrf_snk_we  : in std_logic;
+    wrf_snk_sel : in std_logic_vector(1 downto 0);
+
+    wrf_snk_ack   : out std_logic;
+    wrf_snk_stall : out std_logic;
+    wrf_snk_err   : out std_logic;
+    wrf_snk_rty   : out std_logic;
+
     -- WB Slave
     wb_slave_cyc    : in  std_logic;
     wb_slave_stb    : in  std_logic;
@@ -184,23 +196,6 @@ architecture wrapper of xwrc_board_artix7_wrapper is
   signal wb_slave_i : t_wishbone_slave_in  := cc_dummy_slave_in;
   signal wb_slave_o : t_wishbone_slave_out;
 
-
---  type t_wrf_source_out is record
---    adr : std_logic_vector(1 downto 0);
---    dat : std_logic_vector(15 downto 0);
---    cyc : std_logic;
---    stb : std_logic;
---    we  : std_logic;
---    sel : std_logic_vector(1 downto 0);
---  end record;
---
---  type t_wrf_source_in is record
---    ack   : std_logic;
---    stall : std_logic;
---    err   : std_logic;
---    rty   : std_logic;
---  end record;
-
 begin
 
   -- Map the individual signals to the record fields
@@ -232,6 +227,18 @@ begin
   wrf_src_i.stall <= wrf_src_stall;
   wrf_src_i.err   <= wrf_src_err;
   wrf_src_i.rty   <= wrf_src_rty;
+
+  wrf_snk_i.adr <= wrf_snk_adr;
+  wrf_snk_i.dat <= wrf_snk_dat;
+  wrf_snk_i.cyc <= wrf_snk_cyc;
+  wrf_snk_i.stb <= wrf_snk_stb;
+  wrf_snk_i.we  <= wrf_snk_we;
+  wrf_snk_i.sel <= wrf_snk_sel;
+
+  wrf_src_ack     <= wrf_snk_o.ack; 
+  wrf_src_stall   <= wrf_snk_o.stall;
+  wrf_src_err     <= wrf_snk_o.err;
+  wrf_src_rty     <= wrf_snk_o.rty;
 
   wb_slave_i.cyc  <= wb_slave_cyc;
   wb_slave_i.stb  <= wb_slave_stb;

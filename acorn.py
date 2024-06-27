@@ -396,7 +396,8 @@ class BaseSoC(SoCCore):
         wrs_rx_data.attr.add("keep")
         wrs_rx_valid.attr.add("keep")
 
-        wrf_src = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
+        wrf_src = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
+        wrf_snk = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
 
         wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
         self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
@@ -489,6 +490,7 @@ class BaseSoC(SoCCore):
             o_wb_slave_rty    = Open(),
             o_wb_slave_stall  = Open(),
 
+            # Wishbone Fabric Interface Source.
             o_wrf_src_adr  = wrf_src.adr,
             o_wrf_src_dat  = wrf_src.dat_w,
             o_wrf_src_cyc  = wrf_src.cyc,
@@ -500,6 +502,19 @@ class BaseSoC(SoCCore):
             i_wrf_src_stall = 0,
             i_wrf_src_err   = wrf_src.err,
             i_wrf_src_rty   = 0,
+
+            # Wishgone Fabric Interface Sink.
+            i_wrf_snk_adr  = wrf_snk.adr,
+            i_wrf_snk_dat  = wrf_snk.dat_w,
+            i_wrf_snk_cyc  = wrf_snk.cyc,
+            i_wrf_snk_stb  = wrf_snk.stb,
+            i_wrf_snk_we   = wrf_snk.we,
+            i_wrf_snk_sel  = wrf_snk.sel,
+
+            i_wrf_snk_ack   = wrf_snk.ack,
+            i_wrf_snk_stall = 0,
+            i_wrf_snk_err   = wrf_snk.err,
+            i_wrf_snk_rty   = 0,
 
             # Wishbone Streaming TX Interface
             i_wrs_tx_data_i                = 0,       # TX data input.
