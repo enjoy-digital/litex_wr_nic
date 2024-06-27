@@ -158,8 +158,10 @@ entity xwrc_board_artix7 is
     ---------------------------------------------------------------------------
     -- No External WB interface
     ---------------------------------------------------------------------------
+    wb_slave_i           : in  t_wishbone_slave_in  := cc_dummy_slave_in;
+    wb_slave_o           : out t_wishbone_slave_out;
 
-    ---------------------------------------------------------------------------
+    -- ---------------------------------------------------------------------------
     -- WR fabric interface (when g_fabric_iface = "plainfbrc")
     ---------------------------------------------------------------------------
     wrf_src_o : out t_wrf_source_out;
@@ -518,6 +520,8 @@ begin  -- architecture struct
       wrs_rx_valid_o       => wrs_rx_valid_o,
       wrs_rx_dreq_i        => wrs_rx_dreq_i,
       wrs_rx_cfg_i         => wrs_rx_cfg_i,
+      wb_slave_i           => wb_slave_i,
+      wb_slave_o           => wb_slave_o,
       aux_diag_i           => aux_diag_i,
       aux_diag_o           => aux_diag_o,
       tm_dac_value_o       => tm_dac_value_o,

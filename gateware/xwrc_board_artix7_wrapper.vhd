@@ -83,6 +83,19 @@ entity xwrc_board_artix7_wrapper is
     spi_mosi_o                           : out std_logic;
     spi_miso_i                           : in  std_logic := '0';
 
+    -- WB Slave
+    wb_slave_cyc    : in  std_logic;
+    wb_slave_stb    : in  std_logic;
+    wb_slave_we     : in  std_logic;
+    wb_slave_adr    : in  std_logic_vector(31 downto 0);
+    wb_slave_sel    : in  std_logic_vector(3 downto 0);
+    wb_slave_dat_i  : in  std_logic_vector(31 downto 0);
+    wb_slave_dat_o  : out std_logic_vector(31 downto 0);
+    wb_slave_ack    : out std_logic;
+    wb_slave_err    : out std_logic;
+    wb_slave_rty    : out std_logic;
+    wb_slave_stall  : out std_logic;
+
     -- WR streamers (when g_fabric_iface = "streamers")
     wrs_tx_data_i                        : in  std_logic_vector(31 downto 0);
     wrs_tx_valid_i                       : in  std_logic;
@@ -150,6 +163,9 @@ architecture wrapper of xwrc_board_artix7_wrapper is
   signal tx_streamer_cfg : t_tx_streamer_cfg;
   signal rx_streamer_cfg : t_rx_streamer_cfg;
 
+  signal wb_slave_i : t_wishbone_slave_in  := cc_dummy_slave_in;
+  signal wb_slave_o : t_wishbone_slave_out;
+
 begin
 
   -- Map the individual signals to the record fields
@@ -169,6 +185,19 @@ begin
   rx_streamer_cfg.fixed_latency         <= wrs_rx_cfg_fixed_latency;
   rx_streamer_cfg.fixed_latency_timeout <= wrs_rx_cfg_fixed_latency_timeout;
   rx_streamer_cfg.sw_reset              <= wrs_rx_cfg_sw_reset;
+
+  wb_slave_i.cyc  <= wb_slave_cyc;
+  wb_slave_i.stb  <= wb_slave_stb;
+  wb_slave_i.adr  <= std_logic_vector(wb_slave_adr);
+  wb_slave_i.sel  <= std_logic_vector(wb_slave_sel);
+  wb_slave_i.we   <= wb_slave_we;
+  wb_slave_i.dat  <= std_logic_vector(wb_slave_dat_i);
+
+  wb_slave_dat_o  <= std_logic_vector(wb_slave_o.dat);
+  wb_slave_ack    <= wb_slave_o.ack;
+  wb_slave_err    <= wb_slave_o.err;
+  wb_slave_rty    <= wb_slave_o.rty;
+  wb_slave_stall  <= wb_slave_o.stall;
 
   u_xwrc_board_artix7 : entity work.xwrc_board_artix7
     generic map (
@@ -233,6 +262,8 @@ begin
       wrs_rx_valid_o       => wrs_rx_valid_o,
       wrs_rx_dreq_i        => wrs_rx_dreq_i,
       wrs_rx_cfg_i         => rx_streamer_cfg,
+      wb_slave_i           => wb_slave_i,
+      wb_slave_o           => wb_slave_o,
       aux_diag_i           => aux_diag_i,
       aux_diag_o           => aux_diag_o,
       tm_dac_value_o       => tm_dac_value_o,
