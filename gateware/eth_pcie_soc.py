@@ -32,23 +32,17 @@ class EthernetPCIeSoC(SoCMini):
         "pcie_phy":              9,
     }
 
-    def add_ethernet_pcie(self, name="ethmac", phy=None, pcie_phy=None, phy_cd="eth",
-        nrxslots                = 32,
-        ntxslots                = 32,
-        with_timing_constraints = True,
-        max_pending_requests    = 8,
-        with_msi                = True):
-
+    def add_ethernet_pcie(self, eth_phy=None, pcie_phy=None):
         data_width = 64
         
         # MAC.
         self.add_ethernet(
-            name                    = name,
-            phy                     = phy,
-            phy_cd                  = phy_cd,
+            name                    = "ethmac",
+            phy                     = eth_phy,
+            phy_cd                  = "eth",
             data_width              = data_width,
-            nrxslots                = nrxslots,
-            ntxslots                = ntxslots, 
+            nrxslots                = 32,
+            ntxslots                = 32,
         )
         self.add_constant("ETHMAC_RX_WAIT_OFFSET",  0) # CHECKME: See purpose in software.
         self.add_constant("ETHMAC_TX_READY_OFFSET", 1) # CHECKME: See purpose in software.
@@ -58,12 +52,12 @@ class EthernetPCIeSoC(SoCMini):
         # PCIe
         self.add_pcie(name="pcie", phy=pcie_phy,
             ndmas                = 1,
-            max_pending_requests = max_pending_requests,
+            max_pending_requests = 8,
             data_width           = data_width,
             with_dma_buffering   = False,
             with_dma_loopback    = False,
             with_dma_table       = False,
-            with_msi             = with_msi,
+            with_msi             = True,
             msis                 = {
                 "ETHRX" : self.ethmac.interface.sram.rx_pcie_irq,
                 "ETHTX" : self.ethmac.interface.sram.tx_pcie_irq,

@@ -149,7 +149,7 @@ class BaseSoC(EthernetPCIeSoC):
         #self.add_etherbone(phy=self.ethphy, ip_address="192.168.1.50")
 
         # PCIe + Ethernet --------------------------------------------------------------------------
-        self.add_ethernet_pcie(phy=self.ethphy, pcie_phy=self.pcie_phy)
+        self.add_ethernet_pcie(eth_phy=self.ethphy, pcie_phy=self.pcie_phy)
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
