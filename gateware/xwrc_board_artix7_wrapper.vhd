@@ -22,7 +22,7 @@ entity xwrc_board_artix7_wrapper is
     -- plain                    = expose WRC fabric interface
     -- streamers                = attach WRC streamers to fabric interface
     -- etherbone                = attach Etherbone slave to fabric interface
-    g_fabric_iface              : t_board_fabric_iface := streamers;
+    g_fabric_iface              : t_board_fabric_iface := PLAIN;
     -- memory initialization file for embedded CPU
     g_dpram_initf               : string := "default_xilinx";
     -- identification (id and ver) of the layout of words in the generic diag interface
@@ -82,6 +82,19 @@ entity xwrc_board_artix7_wrapper is
     spi_ncs_o                            : out std_logic;
     spi_mosi_o                           : out std_logic;
     spi_miso_i                           : in  std_logic := '0';
+
+    -- WRF
+    wrf_src_adr : out std_logic_vector(1 downto 0);
+    wrf_src_dat : out std_logic_vector(15 downto 0);
+    wrf_src_cyc : out std_logic;
+    wrf_src_stb : out std_logic;
+    wrf_src_we  : out std_logic;
+    wrf_src_sel : out std_logic_vector(1 downto 0);
+
+    wrf_src_ack   : in std_logic;
+    wrf_src_stall : in std_logic;
+    wrf_src_err   : in std_logic;
+    wrf_src_rty   : in std_logic;
 
     -- WB Slave
     wb_slave_cyc    : in  std_logic;
@@ -163,8 +176,30 @@ architecture wrapper of xwrc_board_artix7_wrapper is
   --signal tx_streamer_cfg : t_tx_streamer_cfg;
   --signal rx_streamer_cfg : t_rx_streamer_cfg;
 
+  signal wrf_src_o : t_wrf_source_out;
+  signal wrf_src_i : t_wrf_source_in := c_dummy_src_in;
+  signal wrf_snk_o : t_wrf_sink_out;
+  signal wrf_snk_i : t_wrf_sink_in := c_dummy_snk_in;
+
   signal wb_slave_i : t_wishbone_slave_in  := cc_dummy_slave_in;
   signal wb_slave_o : t_wishbone_slave_out;
+
+
+--  type t_wrf_source_out is record
+--    adr : std_logic_vector(1 downto 0);
+--    dat : std_logic_vector(15 downto 0);
+--    cyc : std_logic;
+--    stb : std_logic;
+--    we  : std_logic;
+--    sel : std_logic_vector(1 downto 0);
+--  end record;
+--
+--  type t_wrf_source_in is record
+--    ack   : std_logic;
+--    stall : std_logic;
+--    err   : std_logic;
+--    rty   : std_logic;
+--  end record;
 
 begin
 
@@ -186,6 +221,18 @@ begin
 --  rx_streamer_cfg.fixed_latency_timeout <= wrs_rx_cfg_fixed_latency_timeout;
 --  rx_streamer_cfg.sw_reset              <= wrs_rx_cfg_sw_reset;
 
+  wrf_src_adr <= wrf_src_o.adr;
+  wrf_src_dat <= wrf_src_o.dat;
+  wrf_src_cyc <= wrf_src_o.cyc;
+  wrf_src_stb <= wrf_src_o.stb;
+  wrf_src_we  <= wrf_src_o.we;
+  wrf_src_sel <= wrf_src_o.sel;
+
+  wrf_src_i.ack   <= wrf_src_ack;
+  wrf_src_i.stall <= wrf_src_stall;
+  wrf_src_i.err   <= wrf_src_err;
+  wrf_src_i.rty   <= wrf_src_rty;
+
   wb_slave_i.cyc  <= wb_slave_cyc;
   wb_slave_i.stb  <= wb_slave_stb;
   wb_slave_i.adr  <= std_logic_vector(wb_slave_adr);
@@ -203,7 +250,7 @@ begin
     generic map (
       g_with_external_clock_input => g_with_external_clock_input,
       g_aux_clks                  => g_aux_clks,
-      g_fabric_iface              => STREAMERS,
+      g_fabric_iface              => PLAIN,
       g_streamers_op_mode         => TX_AND_RX,
       g_tx_streamer_params        => c_tx_streamer_params_defaut,
       g_rx_streamer_params        => c_rx_streamer_params_defaut,
@@ -250,6 +297,12 @@ begin
       spi_ncs_o            => spi_ncs_o,
       spi_mosi_o           => spi_mosi_o,
       spi_miso_i           => spi_miso_i,
+
+      wrf_src_o            => wrf_src_o,
+      wrf_src_i            => wrf_src_i,
+      wrf_snk_o            => wrf_snk_o,
+      wrf_snk_i            => wrf_snk_i,
+
       wrs_tx_data_i        => wrs_tx_data_i,
       wrs_tx_valid_i       => wrs_tx_valid_i,
       wrs_tx_dreq_o        => wrs_tx_dreq_o,
@@ -262,6 +315,7 @@ begin
       wrs_rx_valid_o       => wrs_rx_valid_o,
       wrs_rx_dreq_i        => wrs_rx_dreq_i,
       --wrs_rx_cfg_i         => rx_streamer_cfg,
+
       wb_slave_i           => wb_slave_i,
       wb_slave_o           => wb_slave_o,
       aux_diag_i           => aux_diag_i,

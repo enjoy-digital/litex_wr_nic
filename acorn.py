@@ -5,6 +5,10 @@
 # ./acorn.py --csr-csv=csr.csv --build --load
 # litex_server --jtag --jtag-config=openocd_xc7_ft2232.cfg
 
+# socat - UDP-DATAGRAM:255.255.255.255:24000,broadcast
+# enter something
+# litescope_cli -r main_basesoc_basesoc_wrf_src_stb
+
 import argparse
 import sys
 import glob
@@ -392,6 +396,8 @@ class BaseSoC(SoCCore):
         wrs_rx_data.attr.add("keep")
         wrs_rx_valid.attr.add("keep")
 
+        wrf_src = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
+
         wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
         self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
              origin = 0x2000_0000,
@@ -483,6 +489,18 @@ class BaseSoC(SoCCore):
             o_wb_slave_rty    = Open(),
             o_wb_slave_stall  = Open(),
 
+            o_wrf_src_adr  = wrf_src.adr,
+            o_wrf_src_dat  = wrf_src.dat_w,
+            o_wrf_src_cyc  = wrf_src.cyc,
+            o_wrf_src_stb  = wrf_src.stb,
+            o_wrf_src_we   = wrf_src.we,
+            o_wrf_src_sel  = wrf_src.sel,
+
+            i_wrf_src_ack   = wrf_src.ack,
+            i_wrf_src_stall = 0,
+            i_wrf_src_err   = wrf_src.err,
+            i_wrf_src_rty   = 0,
+
             # Wishbone Streaming TX Interface
             i_wrs_tx_data_i                = 0,       # TX data input.
             i_wrs_tx_valid_i               = 0,       # TX data valid input.
@@ -513,12 +531,18 @@ class BaseSoC(SoCCore):
             #i_wrs_rx_cfg_sw_reset              = self.wrs_rx_config.sw_reset.storage,              # Software reset.
         )
 
+        self.comb += wrf_src.ack.eq(1)
+
         analyzer_signals = [
             wrs_rx_first,
             wrs_rx_last ,
             wrs_rx_data ,
             wrs_rx_valid,
         ]
+        analyzer_signals = [
+            wrf_src,
+        ]
+
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 512,
             clock_domain = "sys",

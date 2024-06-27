@@ -504,10 +504,12 @@ begin  -- architecture struct
       owr_pwren_o          => open,
       owr_en_o             => onewire_en,
       owr_i                => onewire_in,
+
       wrf_src_o            => wrf_src_o,
       wrf_src_i            => wrf_src_i,
       wrf_snk_o            => wrf_snk_o,
       wrf_snk_i            => wrf_snk_i,
+
       wrs_tx_data_i        => wrs_tx_data_i,
       wrs_tx_valid_i       => wrs_tx_valid_i,
       wrs_tx_dreq_o        => wrs_tx_dreq_o,
@@ -520,6 +522,7 @@ begin  -- architecture struct
       wrs_rx_valid_o       => wrs_rx_valid_o,
       wrs_rx_dreq_i        => wrs_rx_dreq_i,
       wrs_rx_cfg_i         => wrs_rx_cfg_i,
+
       wb_slave_i           => wb_slave_i,
       wb_slave_o           => wb_slave_o,
       aux_diag_i           => aux_diag_i,
