@@ -4,18 +4,18 @@ from litex import RemoteClient
 
 # Define the memory map regions
 memory_map = {
-    "Minic"                       : 0x000,
-    "Endpoint"                    : 0x100,
-    "Softpll"                     : 0x200,
-    "PPS gen"                     : 0x300,
-    "Syscon"                      : 0x400,
-    "UART"                        : 0x500,
-    "OneWire"                     : 0x600,
-    "WRPC diagnostics (user)"     : 0x800,
-    "WRPC diagnostics (firmware)" : 0x900,
-    "Freq monitor"                : 0xa00,
-    "CPU CSR"                     : 0xb00,
-    "Secbar SDB"                  : 0xc00,
+    "Minic"                       : 0x20000,
+    "Endpoint"                    : 0x20100,
+    "Softpll"                     : 0x20200,
+    "PPS gen"                     : 0x20300,
+    "Syscon"                      : 0x20400,
+    "UART"                        : 0x20500,
+    "OneWire"                     : 0x20600,
+    "WRPC diagnostics (user)"     : 0x20800,
+    "WRPC diagnostics (firmware)" : 0x20900,
+    "Freq monitor"                : 0x20a00,
+    "CPU CSR"                     : 0x20b00,
+    "Secbar SDB"                  : 0x20c00,
 }
 
 def main():

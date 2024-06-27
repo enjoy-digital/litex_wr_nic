@@ -102,27 +102,27 @@ entity xwrc_board_artix7_wrapper is
     wrs_tx_dreq_o                        : out std_logic;
     wrs_tx_last_i                        : in  std_logic;
     wrs_tx_flush_i                       : in  std_logic;
-    wrs_tx_cfg_mac_local                 : in std_logic_vector(47 downto 0);
-    wrs_tx_cfg_mac_target                : in std_logic_vector(47 downto 0);
-    wrs_tx_cfg_ethertype                 : in std_logic_vector(15 downto 0);
-    wrs_tx_cfg_qtag_ena                  : in std_logic;
-    wrs_tx_cfg_qtag_vid                  : in std_logic_vector(11 downto 0);
-    wrs_tx_cfg_qtag_prio                 : in std_logic_vector(2 downto 0);
-    wrs_tx_cfg_sw_reset                  : in std_logic;
+    --wrs_tx_cfg_mac_local                 : in std_logic_vector(47 downto 0);
+    --wrs_tx_cfg_mac_target                : in std_logic_vector(47 downto 0);
+    --wrs_tx_cfg_ethertype                 : in std_logic_vector(15 downto 0);
+    --wrs_tx_cfg_qtag_ena                  : in std_logic;
+    --wrs_tx_cfg_qtag_vid                  : in std_logic_vector(11 downto 0);
+    --wrs_tx_cfg_qtag_prio                 : in std_logic_vector(2 downto 0);
+    --wrs_tx_cfg_sw_reset                  : in std_logic;
 
     wrs_rx_first_o                       : out std_logic;
     wrs_rx_last_o                        : out std_logic;
     wrs_rx_data_o                        : out std_logic_vector(31 downto 0);
     wrs_rx_valid_o                       : out std_logic;
     wrs_rx_dreq_i                        : in  std_logic;
-    wrs_rx_cfg_mac_local                 : in std_logic_vector(47 downto 0);
-    wrs_rx_cfg_mac_remote                : in std_logic_vector(47 downto 0);
-    wrs_rx_cfg_ethertype                 : in std_logic_vector(15 downto 0);
-    wrs_rx_cfg_accept_broadcasts         : in std_logic;
-    wrs_rx_cfg_filter_remote             : in std_logic;
-    wrs_rx_cfg_fixed_latency             : in std_logic_vector(27 downto 0);
-    wrs_rx_cfg_fixed_latency_timeout     : in std_logic_vector(27 downto 0);
-    wrs_rx_cfg_sw_reset                  : in std_logic;
+    --wrs_rx_cfg_mac_local                 : in std_logic_vector(47 downto 0);
+    --wrs_rx_cfg_mac_remote                : in std_logic_vector(47 downto 0);
+    --wrs_rx_cfg_ethertype                 : in std_logic_vector(15 downto 0);
+    --wrs_rx_cfg_accept_broadcasts         : in std_logic;
+    --wrs_rx_cfg_filter_remote             : in std_logic;
+    --wrs_rx_cfg_fixed_latency             : in std_logic_vector(27 downto 0);
+    --wrs_rx_cfg_fixed_latency_timeout     : in std_logic_vector(27 downto 0);
+    --wrs_rx_cfg_sw_reset                  : in std_logic;
 
     -- Generic diagnostics interface
     aux_diag_i                           : in  t_generic_word_array(g_diag_ro_size-1 downto 0);
@@ -160,8 +160,8 @@ end xwrc_board_artix7_wrapper;
 
 architecture wrapper of xwrc_board_artix7_wrapper is
 
-  signal tx_streamer_cfg : t_tx_streamer_cfg;
-  signal rx_streamer_cfg : t_rx_streamer_cfg;
+  --signal tx_streamer_cfg : t_tx_streamer_cfg;
+  --signal rx_streamer_cfg : t_rx_streamer_cfg;
 
   signal wb_slave_i : t_wishbone_slave_in  := cc_dummy_slave_in;
   signal wb_slave_o : t_wishbone_slave_out;
@@ -169,22 +169,22 @@ architecture wrapper of xwrc_board_artix7_wrapper is
 begin
 
   -- Map the individual signals to the record fields
-  tx_streamer_cfg.mac_local             <= wrs_tx_cfg_mac_local;
-  tx_streamer_cfg.mac_target            <= wrs_tx_cfg_mac_target;
-  tx_streamer_cfg.ethertype             <= wrs_tx_cfg_ethertype;
-  tx_streamer_cfg.qtag_ena              <= wrs_tx_cfg_qtag_ena;
-  tx_streamer_cfg.qtag_vid              <= wrs_tx_cfg_qtag_vid;
-  tx_streamer_cfg.qtag_prio             <= wrs_tx_cfg_qtag_prio;
-  tx_streamer_cfg.sw_reset              <= wrs_tx_cfg_sw_reset;
-
-  rx_streamer_cfg.mac_local             <= wrs_rx_cfg_mac_local;
-  rx_streamer_cfg.mac_remote            <= wrs_rx_cfg_mac_remote;
-  rx_streamer_cfg.ethertype             <= wrs_rx_cfg_ethertype;
-  rx_streamer_cfg.accept_broadcasts     <= wrs_rx_cfg_accept_broadcasts;
-  rx_streamer_cfg.filter_remote         <= wrs_rx_cfg_filter_remote;
-  rx_streamer_cfg.fixed_latency         <= wrs_rx_cfg_fixed_latency;
-  rx_streamer_cfg.fixed_latency_timeout <= wrs_rx_cfg_fixed_latency_timeout;
-  rx_streamer_cfg.sw_reset              <= wrs_rx_cfg_sw_reset;
+--  tx_streamer_cfg.mac_local             <= wrs_tx_cfg_mac_local;
+--  tx_streamer_cfg.mac_target            <= wrs_tx_cfg_mac_target;
+--  tx_streamer_cfg.ethertype             <= wrs_tx_cfg_ethertype;
+--  tx_streamer_cfg.qtag_ena              <= wrs_tx_cfg_qtag_ena;
+--  tx_streamer_cfg.qtag_vid              <= wrs_tx_cfg_qtag_vid;
+--  tx_streamer_cfg.qtag_prio             <= wrs_tx_cfg_qtag_prio;
+--  tx_streamer_cfg.sw_reset              <= wrs_tx_cfg_sw_reset;
+--
+--  rx_streamer_cfg.mac_local             <= wrs_rx_cfg_mac_local;
+--  rx_streamer_cfg.mac_remote            <= wrs_rx_cfg_mac_remote;
+--  rx_streamer_cfg.ethertype             <= wrs_rx_cfg_ethertype;
+--  rx_streamer_cfg.accept_broadcasts     <= wrs_rx_cfg_accept_broadcasts;
+--  rx_streamer_cfg.filter_remote         <= wrs_rx_cfg_filter_remote;
+--  rx_streamer_cfg.fixed_latency         <= wrs_rx_cfg_fixed_latency;
+--  rx_streamer_cfg.fixed_latency_timeout <= wrs_rx_cfg_fixed_latency_timeout;
+--  rx_streamer_cfg.sw_reset              <= wrs_rx_cfg_sw_reset;
 
   wb_slave_i.cyc  <= wb_slave_cyc;
   wb_slave_i.stb  <= wb_slave_stb;
@@ -203,7 +203,7 @@ begin
     generic map (
       g_with_external_clock_input => g_with_external_clock_input,
       g_aux_clks                  => g_aux_clks,
-      g_fabric_iface              => g_fabric_iface,
+      g_fabric_iface              => STREAMERS,
       g_streamers_op_mode         => TX_AND_RX,
       g_tx_streamer_params        => c_tx_streamer_params_defaut,
       g_rx_streamer_params        => c_rx_streamer_params_defaut,
@@ -255,13 +255,13 @@ begin
       wrs_tx_dreq_o        => wrs_tx_dreq_o,
       wrs_tx_last_i        => wrs_tx_last_i,
       wrs_tx_flush_i       => wrs_tx_flush_i,
-      wrs_tx_cfg_i         => tx_streamer_cfg,
+      --wrs_tx_cfg_i         => tx_streamer_cfg,
       wrs_rx_first_o       => wrs_rx_first_o,
       wrs_rx_last_o        => wrs_rx_last_o,
       wrs_rx_data_o        => wrs_rx_data_o,
       wrs_rx_valid_o       => wrs_rx_valid_o,
       wrs_rx_dreq_i        => wrs_rx_dreq_i,
-      wrs_rx_cfg_i         => rx_streamer_cfg,
+      --wrs_rx_cfg_i         => rx_streamer_cfg,
       wb_slave_i           => wb_slave_i,
       wb_slave_o           => wb_slave_o,
       aux_diag_i           => aux_diag_i,
