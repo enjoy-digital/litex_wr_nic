@@ -12,33 +12,32 @@ from litex.soc.integration.soc_core import *
 
 from gateware import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
+from gateware.dma import LitePCIe2WishboneDMA
 
 class EthernetPCIeSoC(SoCMini):
     SoCMini.csr_map = {
-        "ethmac":                1,
-        "ethphy":                2,
-        "identifier_mem":        3,
-        "leds":                  4,
+        "ethmac"           : 1,
+        "ethphy"           : 2,
+        "identifier_mem"   : 3,
+        "leds"             : 4,
 
         # PCIe.
-        "pcie_endpoint":         5,
-        "pcie_host_pcie2wb_dma": 6,
-        "pcie_host_wb2pcie_dma": 7,
-        "pcie_msi":              8,
-        "pcie_phy":              9,
+        "pcie_endpoint"    : 5,
+        "pcie_pcie2wb_dma" : 6,
+        "pcie_wb2pcie_dma" : 7,
+        "pcie_msi"         : 8,
+        "pcie_phy"         : 9,
     }
 
     def add_ethernet_pcie(self, eth_phy=None, pcie_phy=None):
-        data_width = 64
-        
         # MAC.
         self.add_ethernet(
-            name                    = "ethmac",
-            phy                     = eth_phy,
-            phy_cd                  = "eth",
-            data_width              = data_width,
-            nrxslots                = 32,
-            ntxslots                = 32,
+            name       = "ethmac",
+            phy        = eth_phy,
+            phy_cd     = "eth",
+            data_width = 64,
+            nrxslots   = 32,
+            ntxslots   = 32,
         )
         self.add_constant("ETHMAC_RX_WAIT_OFFSET",  0) # CHECKME: See purpose in software.
         self.add_constant("ETHMAC_TX_READY_OFFSET", 1) # CHECKME: See purpose in software.
@@ -49,7 +48,7 @@ class EthernetPCIeSoC(SoCMini):
         self.add_pcie(name="pcie", phy=pcie_phy,
             ndmas                = 1,
             max_pending_requests = 8,
-            data_width           = data_width,
+            data_width           = 64,
             with_dma_buffering   = False,
             with_dma_loopback    = False,
             with_dma_table       = False,
@@ -60,8 +59,6 @@ class EthernetPCIeSoC(SoCMini):
             },
             with_ptm             = False,
         )
-        from gateware.dma import LitePCIe2WishboneDMA
-
 
         align_bits = log2_int(512)
 
@@ -70,7 +67,7 @@ class EthernetPCIeSoC(SoCMini):
         self.pcie_wb2pcie_dma = pcie_wb2pcie_dma = LitePCIe2WishboneDMA(
             endpoint   = self.pcie_endpoint,
             dma        = self.pcie_dma0.writer,
-            data_width = data_width,
+            data_width = 64,
             mode       = "wb2pcie",
         )
         self.comb += [
@@ -90,7 +87,7 @@ class EthernetPCIeSoC(SoCMini):
         self.pcie_pcie2wb_dma = pcie_pcie2wb_dma = LitePCIe2WishboneDMA(
             endpoint   = self.pcie_endpoint,
             dma        = self.pcie_dma0.reader,
-            data_width = data_width,
+            data_width = 64,
             mode       = "pcie2wb",
         )
         self.comb += [
