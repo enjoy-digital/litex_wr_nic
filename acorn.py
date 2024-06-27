@@ -18,10 +18,10 @@ from litex.build.io               import DifferentialInput
 from litex.build.xilinx           import Xilinx7SeriesPlatform
 from litex.build.openfpgaloader   import OpenFPGALoader
 
-from litepcie.frontend.ptm import PCIePTMSniffer
-from litepcie.frontend.ptm import PTMCapabilities, PTMRequester
+from litepcie.frontend.ptm  import PCIePTMSniffer
+from litepcie.frontend.ptm  import PTMCapabilities, PTMRequester
 from litepcie.phy.s7pciephy import S7PCIEPHY
-from litepcie.software import generate_litepcie_software, generate_litepcie_software_headers
+from litepcie.software      import generate_litepcie_software_headers
 
 from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
@@ -41,26 +41,6 @@ from litescope import LiteScopeAnalyzer
 
 import list_files
 
-# IOs ----------------------------------------------------------------------------------------------
-
-_ios = [
-    ("serial", 0,
-        Subsignal("tx", Pins("G1"),  IOStandard("LVCMOS33")), # CLK_REQ
-        Subsignal("rx", Pins("Y13"), IOStandard("LVCMOS18")), # SMB_ALERT_N
-    ),
-    ("sfp", 0,
-        Subsignal("txp", Pins("D5")),
-        Subsignal("txn", Pins("C5")),
-        Subsignal("rxp", Pins("D11")),
-        Subsignal("rxn", Pins("C11")),
-    ),
-    ("sfp_i2c", 0,
-        Subsignal("sda", Pins("Y12")),
-        Subsignal("scl", Pins("Y11")),
-        IOStandard("LVCMOS18"),
-    ),
-    ("debug", 0, Pins("H5 J5 K2 J2"), IOStandard("LVCMOS33")),
-]
 
 # Platform -----------------------------------------------------------------------------------------
 
@@ -112,7 +92,7 @@ class _CRG(LiteXModule):
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=125e6, with_wr=True, with_pcie=True):
         platform = Platform()
-        platform.add_extension(_ios, prepend=True)
+        platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
 
         self.file_basedir     = os.path.abspath(os.path.dirname(__file__))
         self.wr_cores_basedir = os.path.join(self.file_basedir, "wr-cores")
@@ -128,7 +108,7 @@ class BaseSoC(SoCCore):
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
             #self.comb += platform.request("pcie_clkreq_n").eq(0) # FIXME : Conflict with serial_tx?
-            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1_baseboard"),
+            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width = 64,
                 bar0_size  = 0x20000,
                 with_ptm   = True)
