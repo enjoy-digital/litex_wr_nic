@@ -13,7 +13,7 @@ from litex.soc.interconnect import wishbone
 class Stream2Wishbone(Module):
     def __init__(self, cd_to="wr"):
         self.sink = sink = stream.Endpoint([("data", 8)])
-        self.bus  = bus  = wishbbone.Interface(data_width=16, address_width=2)
+        self.bus  = bus  = wishbone.Interface(data_width=16, address_width=2)
 
         # # #
 
@@ -29,10 +29,10 @@ class Stream2Wishbone(Module):
         )
 
         # Sink -> Converter -> CDC.
-        self.submodules += Pipeline(sink, converter, cdc)
+        self.submodules += stream.Pipeline(sink, converter, cdc)
 
         # FSM.
-        self.fsm = fsm = ClockDomainsRenamer()(FSM(reset_state="IDLE"))
+        self.fsm = fsm = ClockDomainsRenamer(cd_to)(FSM(reset_state="IDLE"))
         fsm.act("IDLE",
             If(cdc.source.valid,
                 NextState("STATUS")

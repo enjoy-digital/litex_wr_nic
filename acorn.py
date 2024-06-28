@@ -33,6 +33,8 @@ from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
+from litex.soc.interconnect import stream
+
 from liteeth.phy.a7_gtp import QPLLSettings, QPLL
 
 from litex.soc.interconnect.csr import *
@@ -374,6 +376,10 @@ class BaseSoC(SoCCore):
 
         self.cd_wr = ClockDomain("wr")
 
+        from gateware.wrf_stream2wb import Stream2Wishbone
+
+        self.wrf_stream2wb = Stream2Wishbone(cd_to="wr")
+
         self.specials += Instance("xwrc_board_artix7_wrapper",
             p_g_simulation                 = 0,
             #p_g_with_external_clock_input  = 1,
@@ -474,47 +480,62 @@ class BaseSoC(SoCCore):
             i_wrf_src_rty   = 0,
 
             # Wishgone Fabric Interface Sink.
-            i_wrf_snk_adr  = wrf_snk.adr,
-            i_wrf_snk_dat  = wrf_snk.dat_w,
-            i_wrf_snk_cyc  = wrf_snk.cyc,
-            i_wrf_snk_stb  = wrf_snk.stb,
-            i_wrf_snk_we   = wrf_snk.we,
-            i_wrf_snk_sel  = wrf_snk.sel,
+            #i_wrf_snk_adr  = wrf_snk.adr,
+            #i_wrf_snk_dat  = wrf_snk.dat_w,
+            #i_wrf_snk_cyc  = wrf_snk.cyc,
+            #i_wrf_snk_stb  = wrf_snk.stb,
+            #i_wrf_snk_we   = wrf_snk.we,
+            #i_wrf_snk_sel  = wrf_snk.sel,
 
-            o_wrf_snk_ack   = wrf_snk.ack,
-            o_wrf_snk_stall = wrf_snk_stall,
-            o_wrf_snk_err   = wrf_snk.err,
+            #o_wrf_snk_ack   = wrf_snk.ack,
+            #o_wrf_snk_stall = wrf_snk_stall,
+            #o_wrf_snk_err   = wrf_snk.err,
+            #o_wrf_snk_rty   = Open(),
+
+            i_wrf_snk_adr  = self.wrf_stream2wb.bus.adr,
+            i_wrf_snk_dat  = self.wrf_stream2wb.bus.dat_w,
+            i_wrf_snk_cyc  = self.wrf_stream2wb.bus.cyc,
+            i_wrf_snk_stb  = self.wrf_stream2wb.bus.stb,
+            i_wrf_snk_we   = self.wrf_stream2wb.bus.we,
+            i_wrf_snk_sel  = self.wrf_stream2wb.bus.sel,
+
+            o_wrf_snk_ack   = self.wrf_stream2wb.bus.ack,
+            o_wrf_snk_stall = Open(), # FIXME?
+            o_wrf_snk_err   = self.wrf_stream2wb.bus.err,
             o_wrf_snk_rty   = Open(),
         )
 
         self.comb += wrf_src.ack.eq(1)
 
-        wrf_snk_timer = ClockDomainsRenamer("wr")(WaitTimer(int(62.5e6)))
+        wrf_snk_timer = WaitTimer(int(125e6))
         self.submodules += wrf_snk_timer
         self.comb += wrf_snk_timer.wait.eq(~wrf_snk_timer.done)
 
+        self.wrf_conv = stream.Converter(16, 8)
+
         self.specials += Instance("wrf_snk_test",
-            i_wr_sys_clk    = ClockSignal("wr"),
-            i_u_senddata    = wrf_snk_timer.done,
-            o_wrf_snk_adr   = wrf_snk.adr,
-            o_wrf_snk_dat   = wrf_snk.dat_w,
-            o_wrf_snk_cyc   = wrf_snk.cyc,
-            o_wrf_snk_stb   = wrf_snk.stb,
-            i_wrf_snk_ack   = wrf_snk.ack,
-            i_wrf_snk_stall = wrf_snk_stall,
-            o_wrf_snk_we    = wrf_snk.we,
-            o_wrf_snk_sel   = wrf_snk.sel,
+            i_wrf_clk   = ClockSignal("sys"),
+            i_wrf_send  = wrf_snk_timer.done,
+            o_wrf_valid = self.wrf_conv.sink.valid,
+            i_wrf_ready = self.wrf_conv.sink.ready,
+            o_wrf_data  = self.wrf_conv.sink.data,
         )
         self.platform.add_source("gateware/wrf_snk_test.v")
 
+
+
+        self.comb += self.wrf_conv.source.connect(self.wrf_stream2wb.sink)
+
         analyzer_signals = [
-            wrf_src,
-            wrf_snk,
+            self.wrf_conv.source,
+            self.wrf_stream2wb.bus,
+            #wrf_src,
+            #wrf_snk,
         ]
 
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 512,
-            clock_domain = "wr",
+            clock_domain = "sys",
             samplerate   = int(62.5e6),
             csr_csv      = "analyzer.csv"
         )
