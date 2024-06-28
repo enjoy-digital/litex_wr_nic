@@ -523,11 +523,11 @@ class BaseSoC(SoCCore):
         # fill converter with all path / files required
         custom_files = [
             "gateware/xwrc_platform_vivado.vhd",
-            "gateware/whiterabbit_gtpe2_channel_wrapper.vhd",
-            "gateware/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
-            "gateware/wr_gtp_phy_family7.vhd",
             "gateware/xwrc_board_artix7.vhd",
             "gateware/xwrc_board_artix7_wrapper.vhd",
+            "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper.vhd",
+            "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
+            "gateware/wr_phy/wr_gtp_phy_family7.vhd",
         ]
 
         for cf in custom_files:
