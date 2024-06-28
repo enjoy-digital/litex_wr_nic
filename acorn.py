@@ -361,44 +361,8 @@ class BaseSoC(SoCCore):
         )
 
     def gen_xwrc_board_acorn(self, bram):
-
-#        class WRStreamersTXConfig(LiteXModule):
-#            def __init__(self):
-#                self.mac_local             = CSRStorage(48, reset=0, description="Local MAC address for TX streamer.")
-#                self.mac_target            = CSRStorage(48, reset=0, description="Target MAC address for TX streamer.")
-#                self.ethertype             = CSRStorage(16, reset=0, description="Ethertype for TX streamer frames.")
-#                self.qtag_ena              = CSRStorage(1,  reset=0, description="Enable VLAN tagging for TX streamer.")
-#                self.qtag_vid              = CSRStorage(12, reset=0, description="VLAN tag ID for TX streamer.")
-#                self.qtag_prio             = CSRStorage(3,  reset=0, description="VLAN tag priority for TX streamer.")
-#                self.sw_reset              = CSRStorage(1,  reset=0, description="Software reset for TX streamer configuration.")
-#
-#        self.wrs_tx_config = WRStreamersTXConfig()
-#
-#        class WRStreamersRXConfig(LiteXModule):
-#            def __init__(self):
-#                self.mac_local             = CSRStorage(48, reset=0, description="Local MAC address for RX streamer.")
-#                self.mac_remote            = CSRStorage(48, reset=0, description="Remote MAC address for RX streamer.")
-#                self.ethertype             = CSRStorage(16, reset=0, description="Ethertype for RX streamer frames.")
-#                self.accept_broadcasts     = CSRStorage(1,  reset=0, description="Accept broadcasts for RX streamer.")
-#                self.filter_remote         = CSRStorage(1,  reset=0, description="Filter by remote MAC address for RX streamer.")
-#                self.fixed_latency         = CSRStorage(28, reset=0, description="Fixed latency for RX streamer.")
-#                self.fixed_latency_timeout = CSRStorage(28, reset=0, description="Fixed latency timeout for RX streamer.")
-#                self.sw_reset              = CSRStorage(1,  reset=0, description="Software reset for RX streamer configuration.")
-#
-#        self.wrs_rx_config = WRStreamersRXConfig()
-
-        wrs_rx_first = Signal()
-        wrs_rx_last  = Signal()
-        wrs_rx_data  = Signal(32)
-        wrs_rx_valid = Signal()
-        wrs_rx_first.attr.add("keep")
-        wrs_rx_last.attr.add("keep")
-        wrs_rx_data.attr.add("keep")
-        wrs_rx_valid.attr.add("keep")
-
         wrf_src = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
         wrf_snk = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
-
 
         wrf_snk_stall = Signal()
 
@@ -521,35 +485,6 @@ class BaseSoC(SoCCore):
             o_wrf_snk_stall = wrf_snk_stall,
             o_wrf_snk_err   = wrf_snk.err,
             o_wrf_snk_rty   = Open(),
-
-            # Wishbone Streaming TX Interface
-            i_wrs_tx_data_i                = 0,       # TX data input.
-            i_wrs_tx_valid_i               = 0,       # TX data valid input.
-            o_wrs_tx_dreq_o                = Open(),  # TX data request output.
-            i_wrs_tx_last_i                = 0,       # TX last data input.
-            i_wrs_tx_flush_i               = 0,       # TX flush input.
-            #i_wrs_tx_cfg_mac_local         = self.wrs_tx_config.mac_local.storage,  # Local MAC address.
-            #i_wrs_tx_cfg_mac_target        = self.wrs_tx_config.mac_target.storage, # Target MAC address.
-            #i_wrs_tx_cfg_ethertype         = self.wrs_tx_config.ethertype.storage,  # Ethertype.
-            #i_wrs_tx_cfg_qtag_ena          = self.wrs_tx_config.qtag_ena.storage,   # VLAN tag enable.
-            #i_wrs_tx_cfg_qtag_vid          = self.wrs_tx_config.qtag_vid.storage,   # VLAN tag ID.
-            #i_wrs_tx_cfg_qtag_prio         = self.wrs_tx_config.qtag_prio.storage,  # VLAN tag priority.
-            #i_wrs_tx_cfg_sw_reset          = self.wrs_tx_config.sw_reset.storage,   # Software reset.
-
-            # Wishbone Streaming RX Interface
-            o_wrs_rx_first_o                   = wrs_rx_first, # RX first data output.
-            o_wrs_rx_last_o                    = wrs_rx_last,  # RX last data output.
-            o_wrs_rx_data_o                    = wrs_rx_data,  # RX data output.
-            o_wrs_rx_valid_o                   = wrs_rx_valid, # RX data valid output.
-            i_wrs_rx_dreq_i                    = 1,            # RX data request input.
-            #i_wrs_rx_cfg_mac_local             = self.wrs_rx_config.mac_local.storage,             # Local MAC address.
-            #i_wrs_rx_cfg_mac_remote            = self.wrs_rx_config.mac_remote.storage,            # Remote MAC address.
-            #i_wrs_rx_cfg_ethertype             = self.wrs_rx_config.ethertype.storage,             # Ethertype.
-            #i_wrs_rx_cfg_accept_broadcasts     = self.wrs_rx_config.accept_broadcasts.storage,     # Accept broadcasts.
-            #i_wrs_rx_cfg_filter_remote         = self.wrs_rx_config.filter_remote.storage,         # Filter by remote MAC address.
-            #i_wrs_rx_cfg_fixed_latency         = self.wrs_rx_config.fixed_latency.storage,         # Fixed latency.
-            #i_wrs_rx_cfg_fixed_latency_timeout = self.wrs_rx_config.fixed_latency_timeout.storage, # Fixed latency timeout.
-            #i_wrs_rx_cfg_sw_reset              = self.wrs_rx_config.sw_reset.storage,              # Software reset.
         )
 
         self.comb += wrf_src.ack.eq(1)
@@ -573,17 +508,12 @@ class BaseSoC(SoCCore):
         self.platform.add_source("gateware/wrf_snk_test.v")
 
         analyzer_signals = [
-            wrs_rx_first,
-            wrs_rx_last ,
-            wrs_rx_data ,
-            wrs_rx_valid,
-        ]
-        analyzer_signals = [
+            wrf_src,
             wrf_snk,
         ]
 
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-            depth        = 1024,
+            depth        = 512,
             clock_domain = "wr",
             samplerate   = int(62.5e6),
             csr_csv      = "analyzer.csv"
