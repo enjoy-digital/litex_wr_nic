@@ -45,6 +45,7 @@ entity xwrc_board_artix7_wrapper is
     clk_10m_ext_i                        : in  std_logic := '0';
     pps_ext_i                            : in  std_logic := '0';
     clk_ref_62m5_o                       : out std_logic;
+    clk_62m5_sys_o                       : out std_logic;
     clk_ref_locked_o                     : out std_logic;
     dbg_rdy_o                            : out std_logic;
     ext_ref_rst_o                        : out std_logic;
@@ -235,10 +236,10 @@ begin
   wrf_snk_i.we  <= wrf_snk_we;
   wrf_snk_i.sel <= wrf_snk_sel;
 
-  wrf_src_ack     <= wrf_snk_o.ack; 
-  wrf_src_stall   <= wrf_snk_o.stall;
-  wrf_src_err     <= wrf_snk_o.err;
-  wrf_src_rty     <= wrf_snk_o.rty;
+  wrf_snk_ack     <= wrf_snk_o.ack;
+  wrf_snk_stall   <= wrf_snk_o.stall;
+  wrf_snk_err     <= wrf_snk_o.err;
+  wrf_snk_rty     <= wrf_snk_o.rty;
 
   wb_slave_i.cyc  <= wb_slave_cyc;
   wb_slave_i.stb  <= wb_slave_stb;
@@ -277,6 +278,7 @@ begin
       clk_10m_ext_i        => clk_10m_ext_i,
       pps_ext_i            => pps_ext_i,
       clk_ref_62m5_o       => clk_ref_62m5_o,
+      clk_62m5_sys_o       => clk_62m5_sys_o,
       clk_ref_locked_o     => clk_ref_locked_o,
       dbg_rdy_o            => dbg_rdy_o,
       ext_ref_rst_o        => ext_ref_rst_o,

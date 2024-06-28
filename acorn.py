@@ -399,11 +399,16 @@ class BaseSoC(SoCCore):
         wrf_src = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
         wrf_snk = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
 
+
+        wrf_snk_stall = Signal()
+
         wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
         self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
              origin = 0x2000_0000,
              size   = 0x0100_0000,
          ))
+
+        self.cd_wr = ClockDomain("wr")
 
         self.specials += Instance("xwrc_board_artix7_wrapper",
             p_g_simulation                 = 0,
@@ -415,6 +420,7 @@ class BaseSoC(SoCCore):
             o_dbg_rdy_o           = self.dbg_rdy,
             o_ext_ref_rst_o       = self.ext_ref_rst,
             o_clk_ref_62m5_o      = self.clk_ref_62m5,
+            o_clk_62m5_sys_o      = ClockSignal("wr"),
 
             o_ready_for_reset_o   = self.ready_for_reset,
 
@@ -511,10 +517,10 @@ class BaseSoC(SoCCore):
             i_wrf_snk_we   = wrf_snk.we,
             i_wrf_snk_sel  = wrf_snk.sel,
 
-            i_wrf_snk_ack   = wrf_snk.ack,
-            i_wrf_snk_stall = 0,
-            i_wrf_snk_err   = wrf_snk.err,
-            i_wrf_snk_rty   = 0,
+            o_wrf_snk_ack   = wrf_snk.ack,
+            o_wrf_snk_stall = wrf_snk_stall,
+            o_wrf_snk_err   = wrf_snk.err,
+            o_wrf_snk_rty   = Open(),
 
             # Wishbone Streaming TX Interface
             i_wrs_tx_data_i                = 0,       # TX data input.
@@ -548,6 +554,24 @@ class BaseSoC(SoCCore):
 
         self.comb += wrf_src.ack.eq(1)
 
+        wrf_snk_timer = ClockDomainsRenamer("wr")(WaitTimer(int(62.5e6)))
+        self.submodules += wrf_snk_timer
+        self.comb += wrf_snk_timer.wait.eq(~wrf_snk_timer.done)
+
+        self.specials += Instance("wrf_snk_test",
+            i_wr_sys_clk    = ClockSignal("wr"),
+            i_u_senddata    = wrf_snk_timer.done,
+            o_wrf_snk_adr   = wrf_snk.adr,
+            o_wrf_snk_dat   = wrf_snk.dat_w,
+            o_wrf_snk_cyc   = wrf_snk.cyc,
+            o_wrf_snk_stb   = wrf_snk.stb,
+            i_wrf_snk_ack   = wrf_snk.ack,
+            i_wrf_snk_stall = wrf_snk_stall,
+            o_wrf_snk_we    = wrf_snk.we,
+            o_wrf_snk_sel   = wrf_snk.sel,
+        )
+        self.platform.add_source("gateware/wrf_snk_test.v")
+
         analyzer_signals = [
             wrs_rx_first,
             wrs_rx_last ,
@@ -555,13 +579,13 @@ class BaseSoC(SoCCore):
             wrs_rx_valid,
         ]
         analyzer_signals = [
-            wrf_src,
+            wrf_snk,
         ]
 
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-            depth        = 512,
-            clock_domain = "sys",
-            samplerate   = self.sys_clk_freq,
+            depth        = 1024,
+            clock_domain = "wr",
+            samplerate   = int(62.5e6),
             csr_csv      = "analyzer.csv"
         )
 

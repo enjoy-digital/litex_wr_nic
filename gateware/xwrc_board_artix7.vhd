@@ -98,6 +98,7 @@ entity xwrc_board_artix7 is
 
     -- debug/test ggm 20240402
     clk_ref_62m5_o      : out std_logic;
+    clk_62m5_sys_o      : out std_logic;
     clk_ref_locked_o    : out std_logic;
     dbg_rdy_o           : out std_logic;
     ext_ref_rst_o       : out std_logic;
@@ -358,6 +359,8 @@ begin  -- architecture struct
     );
 
   clk_ref_62m5_o <= clk_ref_62m5;
+
+  clk_62m5_sys_o <= clk_pll_62m5;
 
   -- test/debug
   ext_ref_rst_o <= ext_ref_rst;
