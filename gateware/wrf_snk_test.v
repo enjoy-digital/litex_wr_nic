@@ -11,6 +11,10 @@ module wrc_snk_test (
     output reg [1:0] wrf_sink_sel_o
 );
 
+wire [47:0] MAC_ADDR = 48'h74563c4f4c6d; // Updated MAC address: 74:56:3c:4f:4c:6d
+wire [15:0] ipv4_w8 = 16'hc0a8; // Destination IP 192.168
+wire [15:0] ipv4_w9 = 16'h0179; // Destination IP .1.121
+
 // constants for headers
 wire[15:0] wrf_snk_status = 16'h0200; // last 4 bits 0 - isHP (high priority)
 // 1 - err (contains error)
@@ -29,8 +33,8 @@ wire [15:0] ipv4_w4 = 16'h3F11; // time to live (63), protocol (11-UDP):
 wire [15:0] ipv4_w5 = 16'hF79A; // checksum per http://www.n-cg.net/hec.htm
 wire [15:0] ipv4_w6 = 16'hc0a8; // source IP 192.168
 wire [15:0] ipv4_w7 = 16'h0105; // source IP .1.5
-wire [15:0] ipv4_w8 = 16'hc0a8; // dest IP 192.168
-wire [15:0] ipv4_w9 = 16'h0111; // dest IP .1.17
+//wire [15:0] ipv4_w8 = 16'hc0a8; // dest IP 192.168
+//wire [15:0] ipv4_w9 = 16'h0111; // dest IP .1.17
 wire [15:0] udp_w0 = 16'h0000; // UDP header source port
 wire [15:0] udp_w1 = 16'h0000; // dest port
 wire [15:0] udp_w2 = 16'd216; // length (header+data) = 216
