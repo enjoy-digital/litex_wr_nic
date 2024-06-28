@@ -156,7 +156,7 @@ wr_core_list = [
     "modules/wrc_core/xwr_core.vhd",
     #"platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd",
     #"platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
-    #"platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
+    "platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
     #"platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd",
     "platform/xilinx/wr_gtp_phy/gtp_bitslide.vhd",
     "platform/xilinx/wr_xilinx_pkg.vhd",

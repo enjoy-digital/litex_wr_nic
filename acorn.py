@@ -534,7 +534,6 @@ class BaseSoC(SoCCore):
             "gateware/xwrc_platform_vivado.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper.vhd",
             "gateware/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
-            "gateware/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
             "gateware/wr_gtp_phy_family7.vhd",
             "gateware/xwrc_board_artix7.vhd",
             "gateware/xwrc_board_artix7_wrapper.vhd",
