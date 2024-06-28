@@ -1,8 +1,8 @@
 wr_core_list = [
-    #"board/clbv3/wr_clbv3_pkg.vhd",
-    #"board/clbv3/xwrc_board_clbv3.vhd",
-    #"board/common/wr_board_pkg.vhd",
-    #"board/common/xwrc_board_common.vhd",
+    "board/clbv3/wr_clbv3_pkg.vhd",
+    "board/clbv3/xwrc_board_clbv3.vhd",
+    "board/common/wr_board_pkg.vhd",
+    "board/common/xwrc_board_common.vhd",
     "ip_cores/general-cores/modules/common/gc_async_counter_diff.vhd",
     "ip_cores/general-cores/modules/common/gc_crc_gen.vhd",
     "ip_cores/general-cores/modules/common/gc_edge_detect.vhd",

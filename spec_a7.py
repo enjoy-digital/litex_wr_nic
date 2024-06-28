@@ -326,14 +326,6 @@ class BaseSoC(SoCCore):
     def add_sources(self):
         # fill converter with all path / files required
         # board specifics
-        board_files = [
-            "board/clbv3/wr_clbv3_pkg.vhd",
-            "board/common/wr_board_pkg.vhd",
-            "board/common/xwrc_board_common.vhd",
-            "top/clbv3_ref_design/clbv3_wr_ref_top.bmm",
-            "top/clbv3_ref_design/clbv3_wr_ref_top.vhd",
-        ]
-
         custom_files = [
             "gateware/xwrc_platform_vivado.vhd",
             "gateware/xwrc_board_artix7.vhd",
@@ -344,9 +336,6 @@ class BaseSoC(SoCCore):
 
         for cf in custom_files:
             self.platform.add_source(os.path.join(self.file_basedir, cf))
-
-        for bf in board_files:
-            self.platform.add_source(os.path.join(self.wr_cores_basedir, bf))
 
         for f in list_files.wr_core_list:
             self.platform.add_source(os.path.join(os.path.abspath(os.path.dirname(__file__)), "wr-cores", f))
