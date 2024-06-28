@@ -97,10 +97,10 @@ closed using jumpers.
 git clone https://ohwr.org/project/wrpc-sw.git
 cd wrpc-sw
 git checkout 5ac04dd53a16f3931c3cb8361dc0d6bdbbf82dc6
-cp ../config_wrpc/acorn_defconfig configs/
-make acorn_defconfig
+cp ../firmware/speca7_defconfig configs/
+make speca7_defconfig
 make
-cp wrc.bram ../
+cp wrc.bram ../firmware/speca7_wrc.bram
 ```
 
 ### Gateware

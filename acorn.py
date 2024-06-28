@@ -336,7 +336,7 @@ class BaseSoC(SoCCore):
         self.sync.clk_125m_gtp += self.cnt_125_gtp.eq(self.cnt_125_gtp + 1)
 
         # WR core ----------------------------------------------------------------------------------
-        self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "wrc_acorn.bram"))
+        self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "firmware/speca7_wrc.bram"))
         self.add_sources()
 
         self.comb += self.leds.eq(Cat(~self.led_link, ~self.led_act, ~self.led_pps, ~self.led_fake_pps))
