@@ -45,7 +45,7 @@ from gateware.time import TimeGenerator
 
 from litescope import LiteScopeAnalyzer
 
-import list_files
+from gateware import list_files
 
 # Platform -----------------------------------------------------------------------------------------
 

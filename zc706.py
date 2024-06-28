@@ -26,7 +26,7 @@ from litex.soc.integration.builder  import *
 
 from litescope import LiteScopeAnalyzer
 
-import list_files
+from gateware import list_files
 
 # IOs ----------------------------------------------------------------------------------------------
 
