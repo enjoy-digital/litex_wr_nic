@@ -1,26 +1,15 @@
-//---------------------------------------------------------------------------
-//test code for plain fabric (wishbone)
-//---------------------------------------------------------------------------
-wire [1:0] wrf_src_adr_o ;
-wire [15:0] wrf_src_dat_o ;
-wire wrf_src_cyc_o ;
-wire wrf_src_stb_o ;
-wire wrf_src_we_o ;
-wire [1:0] wrf_src_sel_o ;
-wire wrf_src_ack_i ;
-wire wrf_src_stall_i ;
-wire wrf_src_err_i ;
-wire wrf_src_rty_i ;
-reg [1:0] wrf_snk_adr_i ;
-reg [15:0] wrf_snk_dat_i ;
-reg wrf_snk_cyc_i ;
-reg wrf_snk_stb_i ;
-wire wrf_snk_we_i ;
-reg [1:0] wrf_snk_sel_i ;
-wire wrf_snk_ack_o ;
-wire wrf_snk_stall_o ;
-wire wrf_snk_err_o ;
-wire wrf_snk_rty_o ;
+module wrc_snk_test (
+    input wire wr_sys_clk,
+    input wire u_senddata,
+    output reg [1:0] wrf_sink_adr_o,
+    output reg [15:0] wrf_sink_dat_o,
+    output reg wrf_sink_cyc_o,
+    output reg wrf_sink_stb_o,
+    input wire wrf_sink_ack_i,
+    input wire wrf_sink_stall_i,
+    output wire wrf_sink_we_o,
+    output reg [1:0] wrf_sink_sel_o
+);
 
 // constants for headers
 wire[15:0] wrf_snk_status = 16'h0200; // last 4 bits 0 - isHP (high priority)
@@ -106,3 +95,4 @@ wrf_snk_cyc_i <=1'b1;
 else if (wrf_snk_ack_o==0)
 wrf_snk_cyc_i <=1'b0;
 
+endmodule
