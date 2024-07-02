@@ -2,6 +2,7 @@ module wrf_snk_test (
     input  wire       wrf_clk,
     input  wire       wrf_send,
     output reg        wrf_valid,
+    output wire       wrf_last,
     input  wire       wrf_ready,
     output reg [15:0] wrf_data
 );
@@ -73,7 +74,9 @@ endcase
 always @(posedge wrf_clk)
 if(blkcntr>7'd0)
     wrf_valid <=1'b1;
-else if (wrf_ready==0)
+else if (wrf_ready==1)
     wrf_valid <=1'b0;
+
+assign wrf_last = (blkcntr == 0);
 
 endmodule

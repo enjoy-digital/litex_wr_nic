@@ -66,6 +66,7 @@ class SimSoC(SoCCore):
             i_wrf_clk   = ClockSignal("sys"),
             i_wrf_send  = wrf_snk_timer.done,
             o_wrf_valid = self.wrf_conv.sink.valid,
+            o_wrf_last  = self.wrf_conv.sink.last,
             i_wrf_ready = self.wrf_conv.sink.ready,
             o_wrf_data  = self.wrf_conv.sink.data,
         )
