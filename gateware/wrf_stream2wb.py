@@ -2,6 +2,8 @@
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.interconnect import stream
 
 from litex.soc.interconnect import wishbone
@@ -10,10 +12,10 @@ from litex.soc.interconnect import wishbone
 
 # FIXME: Check Latency for Wishbone Streaming.
 
-class Stream2Wishbone(Module):
+class Stream2Wishbone(LiteXModule):
     def __init__(self, cd_to="wr"):
         self.sink = sink = stream.Endpoint([("data", 8)])
-        self.bus  = bus  = wishbone.Interface(data_width=16, address_width=2)
+        self.bus  = bus  = wishbone.Interface(data_width=16, address_width=2, addressing="byte")
 
         # # #
 
@@ -48,7 +50,7 @@ class Stream2Wishbone(Module):
                 NextState("DATA")
             )
         )
-        fsm.act("WRITE",
+        fsm.act("DATA",
             bus.cyc.eq(1),
             bus.stb.eq(cdc.source.valid),
             bus.we.eq(1),

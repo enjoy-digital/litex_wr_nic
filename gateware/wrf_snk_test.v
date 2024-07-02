@@ -41,11 +41,11 @@ always @(posedge wrf_clk)
 if(wrf_send)
     blkcntr <= 126;
 
-else if(cntron & !wrf_ready) // count down unless stalled
+else if(cntron & wrf_ready) // count down unless stalled
 blkcntr <= blkcntr - 1;
 assign cntron = |blkcntr;
 // data assembly
-always @(posedge wrf_clk)
+always @(*)
 case (blkcntr)
 7'd126 : wrf_data <= MAC_ADDR[47:32];
 7'd125 : wrf_data <= MAC_ADDR[31:16];
