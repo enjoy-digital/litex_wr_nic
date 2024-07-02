@@ -58,7 +58,7 @@ class Platform(sqrl_acorn.Platform):
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq, with_wr=True, with_pcie=True):
+    def __init__(self, platform, sys_clk_freq, with_wr=True, with_pcie=False):
         self.rst              = Signal()
         self.cd_sys           = ClockDomain()
         if with_wr:
@@ -97,7 +97,7 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=125e6, with_wr=True, with_pcie=True):
+    def __init__(self, sys_clk_freq=125e6, with_wr=True, with_pcie=False):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
@@ -130,31 +130,6 @@ class BaseSoC(SoCCore):
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
             platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
             platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
-
-            # PCIe QPLL Settings.
-            qpll_pcie_settings = QPLLSettings(
-                refclksel  = 0b001,
-                fbdiv      = 5,
-                fbdiv_45   = 5,
-                refclk_div = 1,
-            )
-            # White Rabbit QPLL Settings.
-            qpll_wr_settings = QPLLSettings(
-                refclksel  = 0b111,
-                fbdiv      = 4,
-                fbdiv_45   = 5,
-                refclk_div = 1,
-            )
-            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-
-            # Shared QPLL.
-            self.qpll = qpll = QPLL(
-                gtrefclk0     = self.pcie_phy.pcie_refclk,
-                qpllsettings0 = qpll_pcie_settings,
-                gtgrefclk1    = self.crg.cd_clk_125m_gtp.clk,
-                qpllsettings1 = qpll_wr_settings,
-            )
-            self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
 
             # PCIe <-> Sys-Clk false paths.
             false_paths = [
@@ -251,6 +226,35 @@ class BaseSoC(SoCCore):
                 self.ptm_requester.time_rst.eq(ResetSignal("sys")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
+
+
+        # QPLL -------------------------------------------------------------------------------------
+
+        # PCIe QPLL Settings.
+        qpll_pcie_settings = QPLLSettings(
+            refclksel  = 0b001,
+            fbdiv      = 5,
+            fbdiv_45   = 5,
+            refclk_div = 1,
+        )
+        # White Rabbit QPLL Settings.
+        qpll_wr_settings = QPLLSettings(
+            refclksel  = 0b111,
+            fbdiv      = 4,
+            fbdiv_45   = 5,
+            refclk_div = 1,
+        )
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+
+        # Shared QPLL.
+        self.qpll = qpll = QPLL(
+            gtrefclk0     = 0 if not with_pcie else self.pcie_phy.pcie_refclk,
+            qpllsettings0 = qpll_pcie_settings,
+            gtgrefclk1    = self.crg.cd_clk_125m_gtp.clk,
+            qpllsettings1 = qpll_wr_settings,
+        )
+        if with_pcie:
+            self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
 
 
         # White Rabbit -----------------------------------------------------------------------------
@@ -527,7 +531,7 @@ class BaseSoC(SoCCore):
         self.comb += self.wrf_conv.source.connect(self.wrf_stream2wb.sink)
 
         analyzer_signals = [
-            self.wrf_conv.source,
+            #self.wrf_conv.source,
             self.wrf_stream2wb.bus,
             #wrf_src,
             #wrf_snk,
@@ -536,7 +540,7 @@ class BaseSoC(SoCCore):
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 512,
             clock_domain = "sys",
-            samplerate   = int(62.5e6),
+            samplerate   = int(125e6),
             csr_csv      = "analyzer.csv"
         )
 
