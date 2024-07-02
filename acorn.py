@@ -255,6 +255,8 @@ class BaseSoC(SoCCore):
         )
         if with_pcie:
             self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
+        else:
+            self.comb += self.qpll.channels[0].reset.eq(0)
 
 
         # White Rabbit -----------------------------------------------------------------------------
@@ -483,30 +485,30 @@ class BaseSoC(SoCCore):
             i_wrf_src_err   = wrf_src.err,
             i_wrf_src_rty   = 0,
 
-            # Wishgone Fabric Interface Sink.
-            #i_wrf_snk_adr  = wrf_snk.adr,
-            #i_wrf_snk_dat  = wrf_snk.dat_w,
-            #i_wrf_snk_cyc  = wrf_snk.cyc,
-            #i_wrf_snk_stb  = wrf_snk.stb,
-            #i_wrf_snk_we   = wrf_snk.we,
-            #i_wrf_snk_sel  = wrf_snk.sel,
+            # Wishbone Fabric Interface Sink.
+            #i_wrf_snk_adr  = wrf_snk_orig.adr,
+            #i_wrf_snk_dat  = wrf_snk_orig.dat_w,
+            #i_wrf_snk_cyc  = wrf_snk_orig.cyc,
+            #i_wrf_snk_stb  = wrf_snk_orig.stb,
+            #i_wrf_snk_we   = wrf_snk_orig.we,
+            #i_wrf_snk_sel  = wrf_snk_orig.sel,
 
-            #o_wrf_snk_ack   = wrf_snk.ack,
-            #o_wrf_snk_stall = wrf_snk_stall,
-            #o_wrf_snk_err   = wrf_snk.err,
+            #o_wrf_snk_ack   = wrf_snk_orig.ack,
+            #o_wrf_snk_stall = wrf_snk_orig_stall,
+            #o_wrf_snk_err   = wrf_snk_orig.err,
             #o_wrf_snk_rty   = Open(),
 
-            i_wrf_snk_adr  = self.wrf_stream2wb.bus.adr,
-            i_wrf_snk_dat  = self.wrf_stream2wb.bus.dat_w,
-            i_wrf_snk_cyc  = self.wrf_stream2wb.bus.cyc,
-            i_wrf_snk_stb  = self.wrf_stream2wb.bus.stb,
-            i_wrf_snk_we   = self.wrf_stream2wb.bus.we,
-            i_wrf_snk_sel  = self.wrf_stream2wb.bus.sel,
-
-            o_wrf_snk_ack   = self.wrf_stream2wb.bus.ack,
-            o_wrf_snk_stall = Open(), # FIXME?
-            o_wrf_snk_err   = self.wrf_stream2wb.bus.err,
-            o_wrf_snk_rty   = Open(),
+#            i_wrf_snk_adr  = self.wrf_stream2wb.bus.adr,
+#            i_wrf_snk_dat  = self.wrf_stream2wb.bus.dat_w,
+#            i_wrf_snk_cyc  = self.wrf_stream2wb.bus.cyc,
+#            i_wrf_snk_stb  = self.wrf_stream2wb.bus.stb,
+#            i_wrf_snk_we   = self.wrf_stream2wb.bus.we,
+#            i_wrf_snk_sel  = self.wrf_stream2wb.bus.sel,
+#
+#            o_wrf_snk_ack   = self.wrf_stream2wb.bus.ack,
+#            o_wrf_snk_stall = Open(), # FIXME?
+#            o_wrf_snk_err   = self.wrf_stream2wb.bus.err,
+#            o_wrf_snk_rty   = Open(),
         )
 
         self.comb += wrf_src.ack.eq(1)
@@ -526,8 +528,6 @@ class BaseSoC(SoCCore):
         )
         self.platform.add_source("gateware/wrf_snk_test.v")
 
-
-
         self.comb += self.wrf_conv.source.connect(self.wrf_stream2wb.sink)
 
         analyzer_signals = [
@@ -539,8 +539,8 @@ class BaseSoC(SoCCore):
 
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 512,
-            clock_domain = "sys",
-            samplerate   = int(125e6),
+            clock_domain = "wr",
+            samplerate   = int(62.5),
             csr_csv      = "analyzer.csv"
         )
 
