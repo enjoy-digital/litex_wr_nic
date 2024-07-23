@@ -382,6 +382,8 @@ class BaseSoC(SoCCore):
 
         self.cd_wr = ClockDomain("wr")
 
+        wrf_snk_stall = Signal()
+
         from gateware.wrf_stream2wb import Stream2Wishbone
 
         self.wrf_stream2wb = Stream2Wishbone(cd_to="wr")
@@ -498,17 +500,17 @@ class BaseSoC(SoCCore):
             #o_wrf_snk_err   = wrf_snk_orig.err,
             #o_wrf_snk_rty   = Open(),
 
-#            i_wrf_snk_adr  = self.wrf_stream2wb.bus.adr,
-#            i_wrf_snk_dat  = self.wrf_stream2wb.bus.dat_w,
-#            i_wrf_snk_cyc  = self.wrf_stream2wb.bus.cyc,
-#            i_wrf_snk_stb  = self.wrf_stream2wb.bus.stb,
-#            i_wrf_snk_we   = self.wrf_stream2wb.bus.we,
-#            i_wrf_snk_sel  = self.wrf_stream2wb.bus.sel,
-#
-#            o_wrf_snk_ack   = self.wrf_stream2wb.bus.ack,
-#            o_wrf_snk_stall = Open(), # FIXME?
-#            o_wrf_snk_err   = self.wrf_stream2wb.bus.err,
-#            o_wrf_snk_rty   = Open(),
+            i_wrf_snk_adr  = self.wrf_stream2wb.bus.adr,
+            i_wrf_snk_dat  = self.wrf_stream2wb.bus.dat_w,
+            i_wrf_snk_cyc  = self.wrf_stream2wb.bus.cyc,
+            i_wrf_snk_stb  = self.wrf_stream2wb.bus.stb,
+            i_wrf_snk_we   = self.wrf_stream2wb.bus.we,
+            i_wrf_snk_sel  = self.wrf_stream2wb.bus.sel,
+
+            o_wrf_snk_ack   = self.wrf_stream2wb.bus.ack,
+            o_wrf_snk_stall = wrf_snk_stall, # FIXME.
+            o_wrf_snk_err   = self.wrf_stream2wb.bus.err,
+            o_wrf_snk_rty   = Open(),
         )
 
         self.comb += wrf_src.ack.eq(1)
@@ -524,6 +526,7 @@ class BaseSoC(SoCCore):
             i_wrf_send  = wrf_snk_timer.done,
             o_wrf_valid = self.wrf_conv.sink.valid,
             i_wrf_ready = self.wrf_conv.sink.ready,
+            o_wrf_last  = self.wrf_conv.sink.last,
             o_wrf_data  = self.wrf_conv.sink.data,
         )
         self.platform.add_source("gateware/wrf_snk_test.v")
@@ -532,15 +535,17 @@ class BaseSoC(SoCCore):
 
         analyzer_signals = [
             #self.wrf_conv.source,
+            wrf_snk_stall,
             self.wrf_stream2wb.bus,
+            self.wrf_stream2wb.fsm,
             #wrf_src,
             #wrf_snk,
         ]
 
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-            depth        = 512,
+            depth        = 2048,
             clock_domain = "wr",
-            samplerate   = int(62.5),
+            samplerate   = int(62.5e6),
             csr_csv      = "analyzer.csv"
         )
 
