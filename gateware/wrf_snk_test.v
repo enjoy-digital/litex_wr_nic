@@ -9,7 +9,7 @@ module wrf_snk_test (
 
 wire [47:0] MAC_ADDR = 48'h74563c4f4c6d; // Updated MAC address: 74:56:3c:4f:4c:6d
 wire [15:0] ipv4_w8 = 16'hc0a8; // Destination IP 192.168
-wire [15:0] ipv4_w9 = 16'h0179; // Destination IP .1.121
+wire [15:0] ipv4_w9 = 16'h017A; // Destination IP .1.122
 
 // constants for headers
 wire[15:0] wrf_snk_status = 16'h0200; // last 4 bits 0 - isHP (high priority)
