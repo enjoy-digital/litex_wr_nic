@@ -97,7 +97,7 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=125e6, with_wr=True, with_pcie=False):
+    def __init__(self, sys_clk_freq=125e6, with_wr=True, with_pcie=True):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
@@ -106,7 +106,7 @@ class BaseSoC(SoCCore):
         self.wr_cores_basedir = os.path.join(self.file_basedir, "wr-cores")
 
         # CRG --------------------------------------------------------------------------------------
-        self.crg = _CRG(platform, sys_clk_freq)
+        self.crg = _CRG(platform, sys_clk_freq, with_wr, with_pcie)
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform,
