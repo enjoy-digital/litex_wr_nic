@@ -45,6 +45,7 @@ class Stream2Wishbone(LiteXModule):
             bus.stb.eq(1),
             bus.we.eq(1),
             bus.adr.eq(0b10), # Status Word.
+            bus.sel.eq(0b11),
             bus.dat_w.eq(0x0200),
             If(bus.ack,
                 NextState("DATA")
@@ -55,6 +56,7 @@ class Stream2Wishbone(LiteXModule):
             bus.stb.eq(cdc.source.valid),
             bus.we.eq(1),
             bus.adr.eq(0b00), # Regular Data.
+            bus.sel.eq(0b11),
             bus.dat_w.eq(cdc.source.data),
             If(bus.ack,
                 cdc.source.ready.eq(1),
