@@ -49,8 +49,9 @@ from litescope import LiteScopeAnalyzer
 
 from gateware import list_files
 
-from gateware.udp import UDPPacketGenerator
+from gateware.udp           import UDPPacketGenerator
 from gateware.wrf_stream2wb import Stream2Wishbone
+from gateware.wrf_wb2stream import Wishbone2Stream
 
 # Platform -----------------------------------------------------------------------------------------
 
@@ -264,185 +265,185 @@ class BaseSoC(SoCCore):
 
         # White Rabbit -----------------------------------------------------------------------------
         if with_wr:
-            self._add_white_rabbit_core(cpu_firmware=os.path.join(self.file_basedir, "firmware/speca7_wrc.bram"))
+            # Pads.
+            # -----
+            sfp_pads          = self.platform.request("sfp")
+            sfp_i2c_pads      = self.platform.request("sfp_i2c")
+            serial_pads       = self.platform.request("serial")
 
-    def _add_white_rabbit_core(self, cpu_firmware):
-        # Pads.
-        # -----
-        sfp_pads          = self.platform.request("sfp")
-        sfp_i2c_pads      = self.platform.request("sfp_i2c")
-        serial_pads       = self.platform.request("serial")
+            # Signals.
+            # --------
+            led_fake_pps = Signal()
+            led_pps      = Signal()
+            led_link     = Signal()
+            led_act      = Signal()
+            self.comb += [
+                self.platform.request("user_led", 0).eq(~led_link),
+                self.platform.request("user_led", 1).eq(~led_act),
+                self.platform.request("user_led", 2).eq(~led_pps),
+                self.platform.request("user_led", 3).eq(~led_fake_pps),
+            ]
 
-        # Signals.
-        # --------
-        led_fake_pps = Signal()
-        led_pps      = Signal()
-        led_link     = Signal()
-        led_act      = Signal()
-        self.comb += [
-            self.platform.request("user_led", 0).eq(~led_link),
-            self.platform.request("user_led", 1).eq(~led_act),
-            self.platform.request("user_led", 2).eq(~led_pps),
-            self.platform.request("user_led", 3).eq(~led_fake_pps),
-        ]
+            # Clks.
+            # -----
+            self.cd_wr = ClockDomain("wr")
 
-        # Clks.
-        # -----
-        self.cd_wr      = ClockDomain("wr")
-        self.cd_clk62m5 = ClockDomain("clk62m5")
-        self.comb += [
-            self.cd_clk62m5.rst.eq(self.crg.cd_clk_10m_ext.rst),
-        ]
+            # PPS Timer.
+            # ----------
+            self.pps_timer = pps_timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
+            self.comb += pps_timer.wait.eq(~pps_timer.done)
+            self.sync.clk_10m_ext += If(pps_timer.done, led_fake_pps.eq(~led_fake_pps))
 
-        # PPS Timer.
-        # ----------
-        self.pps_timer = pps_timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
-        self.comb += pps_timer.wait.eq(~pps_timer.done)
-        self.sync.clk_10m_ext += If(pps_timer.done, led_fake_pps.eq(~led_fake_pps))
+            # White Rabbit Fabric Interface.
+            # ------------------------------
+            wrf_src = wishbone.Interface(data_width=16, address_width=2, adressing="byte")
+            wrf_snk = wishbone.Interface(data_width=16, address_width=2, adressing="byte")
 
-        # White Rabbit Fabric Interface.
-        # ------------------------------
-        wrf_src = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
-        wrf_snk = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
-        wrf_snk_stall = Signal()
+            self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(  cd_to="wr")
+            self.wrf_wb2stream = wrf_wb2stream = Wishbone2Stream(cd_from="wr")
 
-        # White Rabbit Slave Interface.
-        # -----------------------------
-        wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
-        self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
-             origin = 0x2000_0000,
-             size   = 0x0100_0000,
-         ))
+            # White Rabbit Slave Interface.
+            # -----------------------------
+            wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
+            self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
+                 origin = 0x2000_0000,
+                 size   = 0x0100_0000,
+             ))
 
-        self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(cd_to="wr")
+            # White Rabbit Core Instance.
+            # ---------------------------
+            cpu_firmware = os.path.join(self.file_basedir, "firmware/speca7_wrc.bram")
+            self.specials += Instance("xwrc_board_artix7_wrapper",
+                # Parameters.
+                p_g_dpram_initf       = cpu_firmware,
 
-        self.specials += Instance("xwrc_board_artix7_wrapper",
-            # Parameters.
-            p_g_dpram_initf       = cpu_firmware,
+                # Clocks/resets.
+                i_areset_n_i          = ~ResetSignal("sys"),
+                i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
+                i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
+                i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
 
-            # Clocks/resets.
-            i_areset_n_i          = ~ResetSignal("sys"),
-            i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
-            i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
-            i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
+                o_clk_ref_locked_o    = Open(),
+                o_dbg_rdy_o           = Open(),
+                o_ext_ref_rst_o       = Open(),
+                o_clk_ref_62m5_o      = Open(),
+                o_clk_62m5_sys_o      = ClockSignal("wr"),
+                o_ready_for_reset_o   = Open(),
 
-            o_clk_ref_locked_o    = Open(),
-            o_dbg_rdy_o           = Open(),
-            o_ext_ref_rst_o       = Open(),
-            o_clk_ref_62m5_o      = ClockSignal("clk62m5"),
-            o_clk_62m5_sys_o      = ClockSignal("wr"),
-            o_ready_for_reset_o   = Open(),
+                # DAC RefClk Interface.
+                o_dac_refclk_cs_n_o   = Open(),
+                o_dac_refclk_sclk_o   = Open(),
+                o_dac_refclk_din_o    = Open(),
 
-            # DAC RefClk Interface.
-            o_dac_refclk_cs_n_o   = Open(),
-            o_dac_refclk_sclk_o   = Open(),
-            o_dac_refclk_din_o    = Open(),
+                # DAC DMTD Interface.
+                o_dac_dmtd_cs_n_o     = Open(),
+                o_dac_dmtd_sclk_o     = Open(),
+                o_dac_dmtd_din_o      = Open(),
 
-            # DAC DMTD Interface.
-            o_dac_dmtd_cs_n_o     = Open(),
-            o_dac_dmtd_sclk_o     = Open(),
-            o_dac_dmtd_din_o      = Open(),
+                # SFP Interface.
+                o_sfp_txp_o           = sfp_pads.txp,
+                o_sfp_txn_o           = sfp_pads.txn,
+                i_sfp_rxp_i           = sfp_pads.rxp,
+                i_sfp_rxn_i           = sfp_pads.rxn,
+                i_sfp_det_i           = 0b1,
+                io_sfp_sda            = sfp_i2c_pads.sda,
+                io_sfp_scl            = sfp_i2c_pads.scl,
+                i_sfp_tx_fault_i      = 0b0,
+                i_sfp_tx_los_i        = 0b0,
 
-            # SFP Interface.
-            o_sfp_txp_o           = sfp_pads.txp,
-            o_sfp_txn_o           = sfp_pads.txn,
-            i_sfp_rxp_i           = sfp_pads.rxp,
-            i_sfp_rxn_i           = sfp_pads.rxn,
-            i_sfp_det_i           = 0b1,
-            io_sfp_sda            = sfp_i2c_pads.sda,
-            io_sfp_scl            = sfp_i2c_pads.scl,
-            i_sfp_tx_fault_i      = 0b0,
-            i_sfp_tx_los_i        = 0b0,
+                # One-Wire Interface.
+                i_onewire_i           = 0,
+                o_onewire_oen_o       = Open(),
 
-            # One-Wire Interface.
-            i_onewire_i           = 0,
-            o_onewire_oen_o       = Open(),
+                # UART Interface.
+                i_uart_rxd_i          = serial_pads.rx,
+                o_uart_txd_o          = serial_pads.tx,
 
-            # UART Interface.
-            i_uart_rxd_i          = serial_pads.rx,
-            o_uart_txd_o          = serial_pads.tx,
+                # SPI Flash Interface.
+                o_spi_sclk_o          = Open(),
+                o_spi_ncs_o           = Open(),
+                o_spi_mosi_o          = Open(),
+                i_spi_miso_i          = 0,
 
-            # SPI Flash Interface.
-            o_spi_sclk_o          = Open(),
-            o_spi_ncs_o           = Open(),
-            o_spi_mosi_o          = Open(),
-            i_spi_miso_i          = 0,
+                # PPS / Leds.
+                i_pps_ext_i           = 0,
+                o_pps_p_o             = Open(),
+                o_pps_led_o           = led_pps,
+                o_led_link_o          = led_link,
+                o_led_act_o           = led_act,
 
-            # PPS / Leds.
-            i_pps_ext_i           = 0,
-            o_pps_p_o             = Open(),
-            o_pps_led_o           = led_pps,
-            o_led_link_o          = led_link,
-            o_led_act_o           = led_act,
+                # QPLL Interface (for GTPE2_Common Sharing).
+                o_gt0_ext_qpll_reset  = self.qpll.channels[1].reset,
+                i_gt0_ext_qpll_clk    = self.qpll.channels[1].clk,
+                i_gt0_ext_qpll_refclk = self.qpll.channels[1].refclk,
+                i_gt0_ext_qpll_lock   = self.qpll.channels[1].lock,
 
-            # QPLL Interface (for GTPE2_Common Sharing).
-            o_gt0_ext_qpll_reset  = self.qpll.channels[1].reset,
-            i_gt0_ext_qpll_clk    = self.qpll.channels[1].clk,
-            i_gt0_ext_qpll_refclk = self.qpll.channels[1].refclk,
-            i_gt0_ext_qpll_lock   = self.qpll.channels[1].lock,
+                # Wishbone Slave Interface (MMAP).
+                i_wb_slave_cyc        = wb_slave.cyc,
+                i_wb_slave_stb        = wb_slave.stb,
+                i_wb_slave_we         = wb_slave.we,
+                i_wb_slave_adr        = (wb_slave.adr & 0x0fff_ffff),
+                i_wb_slave_sel        = wb_slave.sel,
+                i_wb_slave_dat_i      = wb_slave.dat_w,
+                o_wb_slave_dat_o      = wb_slave.dat_r,
+                o_wb_slave_ack        = wb_slave.ack,
+                o_wb_slave_err        = wb_slave.err,
+                o_wb_slave_rty        = Open(),
+                o_wb_slave_stall      = Open(),
 
-            # Wishbone Slave Interface (MMAP).
-            i_wb_slave_cyc        = wb_slave.cyc,
-            i_wb_slave_stb        = wb_slave.stb,
-            i_wb_slave_we         = wb_slave.we,
-            i_wb_slave_adr        = (wb_slave.adr & 0x0fff_ffff),
-            i_wb_slave_sel        = wb_slave.sel,
-            i_wb_slave_dat_i      = wb_slave.dat_w,
-            o_wb_slave_dat_o      = wb_slave.dat_r,
-            o_wb_slave_ack        = wb_slave.ack,
-            o_wb_slave_err        = wb_slave.err,
-            o_wb_slave_rty        = Open(),
-            o_wb_slave_stall      = Open(),
+                # Wishbone Fabric Source Interface.
+                o_wrf_src_adr         = wrf_wb2stream.bus.adr,
+                o_wrf_src_dat         = wrf_wb2stream.bus.dat_w,
+                o_wrf_src_cyc         = wrf_wb2stream.bus.cyc,
+                o_wrf_src_stb         = wrf_wb2stream.bus.stb,
+                o_wrf_src_we          = wrf_wb2stream.bus.we,
+                o_wrf_src_sel         = wrf_wb2stream.bus.sel,
 
-            # Wishbone Fabric Source Interface.
-            o_wrf_src_adr         = wrf_src.adr,
-            o_wrf_src_dat         = wrf_src.dat_w,
-            o_wrf_src_cyc         = wrf_src.cyc,
-            o_wrf_src_stb         = wrf_src.stb,
-            o_wrf_src_we          = wrf_src.we,
-            o_wrf_src_sel         = wrf_src.sel,
+                i_wrf_src_ack         = wrf_wb2stream.bus.ack,
+                i_wrf_src_stall       = 0, # CHECKME.
+                i_wrf_src_err         = wrf_wb2stream.bus.err,
+                i_wrf_src_rty         = 0, # CHECKME.
 
-            i_wrf_src_ack         = wrf_src.ack,
-            i_wrf_src_stall       = 0,
-            i_wrf_src_err         = wrf_src.err,
-            i_wrf_src_rty         = 0,
+                # Wishbone Fabric Sink Interface.
+                i_wrf_snk_adr         = wrf_stream2wb.bus.adr,
+                i_wrf_snk_dat         = wrf_stream2wb.bus.dat_w,
+                i_wrf_snk_cyc         = wrf_stream2wb.bus.cyc,
+                i_wrf_snk_stb         = wrf_stream2wb.bus.stb,
+                i_wrf_snk_we          = wrf_stream2wb.bus.we,
+                i_wrf_snk_sel         = wrf_stream2wb.bus.sel,
 
-            # Wishbone Fabric Sink Interface.
-            i_wrf_snk_adr         = self.wrf_stream2wb.bus.adr,
-            i_wrf_snk_dat         = self.wrf_stream2wb.bus.dat_w,
-            i_wrf_snk_cyc         = self.wrf_stream2wb.bus.cyc,
-            i_wrf_snk_stb         = self.wrf_stream2wb.bus.stb,
-            i_wrf_snk_we          = self.wrf_stream2wb.bus.we,
-            i_wrf_snk_sel         = self.wrf_stream2wb.bus.sel,
+                o_wrf_snk_ack         = wrf_stream2wb.bus.ack,
+                o_wrf_snk_stall       = Open(), # CHECKME.
+                o_wrf_snk_err         = wrf_stream2wb.bus.err,
+                o_wrf_snk_rty         = Open(), # CHECKME.
+            )
+            self.comb += self.wrf_wb2stream.source.ready.eq(1)
 
-            o_wrf_snk_ack         = self.wrf_stream2wb.bus.ack,
-            o_wrf_snk_stall       = wrf_snk_stall, # FIXME.
-            o_wrf_snk_err         = self.wrf_stream2wb.bus.err,
-            o_wrf_snk_rty         = Open(),
-        )
+            # UDP Gen ------------------------------------------------------------------------------
+            self.udp_gen = UDPPacketGenerator()
+            self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
 
-        # UDP Gen ----------------------------------------------------------------------------------
-        self.udp_gen = UDPPacketGenerator()
-        self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
+            # UDP Timer (1s) -----------------------------------------------------------------------
+            self.udp_timer = udp_timer = WaitTimer(int(125e6))
+            self.comb += udp_timer.wait.eq(~udp_timer.done)
+            self.comb += self.udp_gen.send.eq(udp_timer.done)
 
-        # UDP Timer (1s) ---------------------------------------------------------------------------
-        self.udp_timer = udp_timer = WaitTimer(int(125e6))
-        self.comb += udp_timer.wait.eq(~udp_timer.done)
-        self.comb += self.udp_gen.send.eq(udp_timer.done)
-
-        # Analyzer ---------------------------------------------------------------------------------
-        analyzer_signals = [
-            wrf_src,
-            #wrf_snk,
-        ]
-        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-            depth        = 2048,
-            clock_domain = "wr",
-            samplerate   = int(62.5e6),
-            csr_csv      = "analyzer.csv"
-        )
-        self.add_sources()
-
+            # Analyzer -----------------------------------------------------------------------------
+            analyzer_signals = [
+                #wrf_stream2wb.bus,
+                wrf_wb2stream.bus,
+                wrf_wb2stream.fsm,
+                wrf_wb2stream.source,
+                #wrf_stream2wb.sink,
+            ]
+            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                depth        = 256,
+                clock_domain = "sys",
+                samplerate   = int(62.5e6),
+                register     = True,
+                csr_csv      = "analyzer.csv"
+            )
+            self.add_sources()
 
     def add_sources(self):
         # fill converter with all path / files required
