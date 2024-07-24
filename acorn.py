@@ -429,6 +429,17 @@ class BaseSoC(SoCCore):
             self.comb += udp_timer.wait.eq(~udp_timer.done)
             self.comb += self.udp_gen.send.eq(udp_timer.done)
 
+            # UDP/IP Etherbone ---------------------------------------------------------------------
+
+            class LiteEthPHYWRGMII(LiteXModule):
+                dw = 8
+                def __init__(self):
+                    self.sink   = wrf_stream2wb.sink
+                    self.source = wrf_wb2stream.source
+
+            self.ethphy = LiteEthPHYWRGMII()
+            self.add_etherbone(phy=self.ethphy, with_timing_constraints=False)
+
             # Analyzer -----------------------------------------------------------------------------
             analyzer_signals = [
                 #wrf_stream2wb.bus,
