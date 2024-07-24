@@ -11,7 +11,6 @@ from litex.soc.interconnect import wishbone
 # White Rabbit Fabric Stream 2 Wishbone ------------------------------------------------------------
 
 # FIXME: Check Latency for Wishbone Streaming.
-# FIXME: Check when non-multiple of 16-bit (last word).
 
 class Stream2Wishbone(LiteXModule):
     def __init__(self, cd_to="wr"):
@@ -21,11 +20,11 @@ class Stream2Wishbone(LiteXModule):
         # # #
 
         # 8-bit to 16-bit Converter.
-        self.converter = converter = stream.Converter(8, 16, reverse=True)
+        self.converter = converter = stream.Converter(8, 16, reverse=True, report_valid_token_count=True)
 
         # Clock Domain Crossing.
         self.cdc = cdc = stream.ClockDomainCrossing(
-            layout  = [("data", 16)],
+            layout  = [("data", 16), ("valid_token_count", 2)],
             depth   = 16,
             cd_from = "sys",
             cd_to   = cd_to,
@@ -57,7 +56,11 @@ class Stream2Wishbone(LiteXModule):
             bus.stb.eq(cdc.source.valid),
             bus.we.eq(1),
             bus.adr.eq(0b00), # Regular Data.
-            bus.sel.eq(0b11),
+            If(cdc.source.valid_token_count == 1,
+                bus.sel.eq(0b10)
+            ).Else(
+                bus.sel.eq(0b11),
+            ),
             bus.dat_w.eq(cdc.source.data),
             If(bus.ack,
                 cdc.source.ready.eq(1),
