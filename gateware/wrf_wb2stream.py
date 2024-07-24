@@ -74,7 +74,7 @@ class Wishbone2Stream(LiteXModule):
         self.converter = converter = stream.StrideConverter(
             description_from = [("data", 16), ("sel", 2)],
             description_to   = [("data",  8), ("sel", 1)],
-            reverse = True,
+            reverse          = True,
         )
 
         # CDC -> Converter -> Source.

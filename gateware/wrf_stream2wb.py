@@ -20,18 +20,26 @@ class Stream2Wishbone(LiteXModule):
         # # #
 
         # 8-bit to 16-bit Converter.
-        self.converter = converter = stream.Converter(8, 16, reverse=True, report_valid_token_count=True)
+        self.converter = converter = stream.StrideConverter(
+            description_from = [("data",  8), ("sel", 1)],
+            description_to   = [("data", 16), ("sel", 2)],
+            reverse          = True,
+        )
 
         # Clock Domain Crossing.
         self.cdc = cdc = stream.ClockDomainCrossing(
-            layout  = [("data", 16), ("valid_token_count", 2)],
+            layout  = [("data", 16), ("sel", 2)],
             depth   = 16,
             cd_from = "sys",
             cd_to   = cd_to,
         )
 
         # Sink -> Converter -> CDC.
-        self.submodules += stream.Pipeline(sink, converter, cdc)
+        self.comb += [
+            sink.connect(converter.sink),
+            converter.sink.sel.eq(1),
+            converter.source.connect(cdc.sink),
+        ]
 
         # FSM.
         self.fsm = fsm = ClockDomainsRenamer(cd_to)(FSM(reset_state="IDLE"))
@@ -56,11 +64,7 @@ class Stream2Wishbone(LiteXModule):
             bus.stb.eq(cdc.source.valid),
             bus.we.eq(1),
             bus.adr.eq(0b00), # Regular Data.
-            If(cdc.source.valid_token_count == 1,
-                bus.sel.eq(0b10)
-            ).Else(
-                bus.sel.eq(0b11),
-            ),
+            bus.sel.eq(cdc.source.sel),
             bus.dat_w.eq(cdc.source.data),
             If(bus.ack,
                 cdc.source.ready.eq(1),
