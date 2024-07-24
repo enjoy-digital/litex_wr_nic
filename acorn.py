@@ -519,19 +519,26 @@ class BaseSoC(SoCCore):
         self.submodules += wrf_snk_timer
         self.comb += wrf_snk_timer.wait.eq(~wrf_snk_timer.done)
 
-        self.wrf_conv = stream.Converter(16, 8)
 
-        self.specials += Instance("wrf_snk_test",
-            i_wrf_clk   = ClockSignal("sys"),
-            i_wrf_send  = wrf_snk_timer.done,
-            o_wrf_valid = self.wrf_conv.sink.valid,
-            i_wrf_ready = self.wrf_conv.sink.ready,
-            o_wrf_last  = self.wrf_conv.sink.last,
-            o_wrf_data  = self.wrf_conv.sink.data,
-        )
-        self.platform.add_source("gateware/wrf_snk_test.v")
+        from gateware.wrf_stream2wb import UDPDummyGenerator
 
-        self.comb += self.wrf_conv.source.connect(self.wrf_stream2wb.sink)
+        self.udp_dummy_gen = UDPDummyGenerator()
+        self.comb += self.udp_dummy_gen.source.connect(self.wrf_stream2wb.sink)
+        self.comb += self.udp_dummy_gen.send.eq(wrf_snk_timer.done)
+
+#        self.wrf_conv = stream.Converter(16, 8)
+#
+#        self.specials += Instance("wrf_snk_test",
+#            i_wrf_clk   = ClockSignal("sys"),
+#            i_wrf_send  = wrf_snk_timer.done,
+#            o_wrf_valid = self.wrf_conv.sink.valid,
+#            i_wrf_ready = self.wrf_conv.sink.ready,
+#            o_wrf_last  = self.wrf_conv.sink.last,
+#            o_wrf_data  = self.wrf_conv.sink.data,
+#        )
+#        self.platform.add_source("gateware/wrf_snk_test.v")
+#
+#        self.comb += self.wrf_conv.source.connect(self.wrf_stream2wb.sink)
 
         analyzer_signals = [
             #self.wrf_conv.source,
