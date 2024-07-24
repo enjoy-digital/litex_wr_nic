@@ -488,18 +488,6 @@ class BaseSoC(SoCCore):
             i_wrf_src_rty   = 0,
 
             # Wishbone Fabric Interface Sink.
-            #i_wrf_snk_adr  = wrf_snk_orig.adr,
-            #i_wrf_snk_dat  = wrf_snk_orig.dat_w,
-            #i_wrf_snk_cyc  = wrf_snk_orig.cyc,
-            #i_wrf_snk_stb  = wrf_snk_orig.stb,
-            #i_wrf_snk_we   = wrf_snk_orig.we,
-            #i_wrf_snk_sel  = wrf_snk_orig.sel,
-
-            #o_wrf_snk_ack   = wrf_snk_orig.ack,
-            #o_wrf_snk_stall = wrf_snk_orig_stall,
-            #o_wrf_snk_err   = wrf_snk_orig.err,
-            #o_wrf_snk_rty   = Open(),
-
             i_wrf_snk_adr  = self.wrf_stream2wb.bus.adr,
             i_wrf_snk_dat  = self.wrf_stream2wb.bus.dat_w,
             i_wrf_snk_cyc  = self.wrf_stream2wb.bus.cyc,
@@ -519,26 +507,12 @@ class BaseSoC(SoCCore):
         self.submodules += wrf_snk_timer
         self.comb += wrf_snk_timer.wait.eq(~wrf_snk_timer.done)
 
-
         from gateware.wrf_stream2wb import UDPDummyGenerator
 
         self.udp_dummy_gen = UDPDummyGenerator()
         self.comb += self.udp_dummy_gen.source.connect(self.wrf_stream2wb.sink)
         self.comb += self.udp_dummy_gen.send.eq(wrf_snk_timer.done)
 
-#        self.wrf_conv = stream.Converter(16, 8)
-#
-#        self.specials += Instance("wrf_snk_test",
-#            i_wrf_clk   = ClockSignal("sys"),
-#            i_wrf_send  = wrf_snk_timer.done,
-#            o_wrf_valid = self.wrf_conv.sink.valid,
-#            i_wrf_ready = self.wrf_conv.sink.ready,
-#            o_wrf_last  = self.wrf_conv.sink.last,
-#            o_wrf_data  = self.wrf_conv.sink.data,
-#        )
-#        self.platform.add_source("gateware/wrf_snk_test.v")
-#
-#        self.comb += self.wrf_conv.source.connect(self.wrf_stream2wb.sink)
 
         analyzer_signals = [
             #self.wrf_conv.source,
@@ -548,13 +522,13 @@ class BaseSoC(SoCCore):
             #wrf_src,
             #wrf_snk,
         ]
-
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 2048,
             clock_domain = "wr",
             samplerate   = int(62.5e6),
             csr_csv      = "analyzer.csv"
         )
+
 
     def add_sources(self):
         # fill converter with all path / files required
