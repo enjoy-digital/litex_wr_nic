@@ -48,6 +48,8 @@ from gateware.time import TimeGenerator
 from litescope import LiteScopeAnalyzer
 
 from gateware import list_files
+
+from gateware.udp import UDPPacketGenerator
 from gateware.wrf_stream2wb import Stream2Wishbone
 
 # Platform -----------------------------------------------------------------------------------------
@@ -419,18 +421,16 @@ class BaseSoC(SoCCore):
             o_wrf_snk_rty         = Open(),
         )
 
-        self.comb += wrf_src.ack.eq(1)
+        # UDP Gen ----------------------------------------------------------------------------------
+        self.udp_gen = UDPPacketGenerator()
+        self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
 
-        wrf_snk_timer = WaitTimer(int(125e6))
-        self.submodules += wrf_snk_timer
-        self.comb += wrf_snk_timer.wait.eq(~wrf_snk_timer.done)
+        # UDP Timer (1s) ---------------------------------------------------------------------------
+        self.udp_timer = udp_timer = WaitTimer(int(125e6))
+        self.comb += udp_timer.wait.eq(~udp_timer.done)
+        self.comb += self.udp_gen.send.eq(udp_timer.done)
 
-        from gateware.wrf_stream2wb import UDPDummyGenerator
-
-        self.udp_dummy_gen = UDPDummyGenerator()
-        self.comb += self.udp_dummy_gen.source.connect(self.wrf_stream2wb.sink)
-        self.comb += self.udp_dummy_gen.send.eq(wrf_snk_timer.done)
-
+        # Analyzer ---------------------------------------------------------------------------------
         analyzer_signals = [
             wrf_src,
             #wrf_snk,
