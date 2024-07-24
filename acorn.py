@@ -264,37 +264,9 @@ class BaseSoC(SoCCore):
             self._add_white_rabbit_core()
 
     def _add_white_rabbit_core(self):
-        # Config/Control/Status registers ----------------------------------------------------------
-        self.control = CSRStorage(fields=[
-            CSRField("sfp_los", size=1, offset=0, values=[
-                ("``0b0``", "Set Low."),
-                ("``0b1``", "Set High.")
-            ], reset=0),
-            CSRField("sfp_fault", size=1, offset=1, values=[
-                ("``0b0``", "Set Low."),
-                ("``0b1``", "Set High.")
-            ], reset=0),
-            CSRField("sfp_detect", size=1, offset=2, values=[
-                ("``0b0``", "Set Low."),
-                ("``0b1``", "Set High.")
-            ], reset=1),
-        ])
-
-        self.rst_ctrl = CSRStorage(fields=[
-            CSRField("reset", size=1, offset=0, values=[
-                ("``0b0``", "Normal Mode."),
-                ("``0b1``", "Reset Mode.")
-            ], reset=0),
-        ])
-
-        # # #
-
         # Signals ----------------------------------------------------------------------------------
         self.sfp          = self.platform.request("sfp")
         self.sfp_i2c      = self.platform.request("sfp_i2c")
-        self.sfp_tx_los   = Signal()
-        self.sfp_tx_fault = Signal()
-        self.sfp_det      = Signal()
 
         self.serial       = self.platform.request("serial")
         self.flash        = self.platform.request("flash")
@@ -327,15 +299,8 @@ class BaseSoC(SoCCore):
         self.cnt_125_gtp      = Signal(4)
 
         self.comb += [
-            self.sfp_tx_los.eq(self.control.fields.sfp_los),
-            self.sfp_tx_fault.eq(self.control.fields.sfp_fault),
-            self.sfp_det.eq(self.control.fields.sfp_detect),
-            self.wr_rstn.eq(~self.rst_ctrl.fields.reset),
-        ]
-
-        self.comb += [
             self.debug_pins.eq(Cat(self.clk_ref_62m5, self.crg.cd_clk_125m_gtp.clk,
-                self.crg.cd_clk_10m_ext.clk, self.crg.cd_clk_125m_dmtd.clk)),
+            self.crg.cd_clk_10m_ext.clk, self.crg.cd_clk_125m_dmtd.clk)),
             self.cd_clk62m5.clk.eq(self.clk_ref_62m5),
             self.cd_clk62m5.rst.eq(self.crg.cd_clk_10m_ext.rst),
         ]
@@ -344,7 +309,7 @@ class BaseSoC(SoCCore):
         self.sync.clk_125m_gtp += self.cnt_125_gtp.eq(self.cnt_125_gtp + 1)
 
         # WR core ----------------------------------------------------------------------------------
-        self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "firmware/speca7_wrc.bram"))
+        self.gen_xwrc_board_acorn(cpu_firmware=os.path.join(self.file_basedir, "firmware/speca7_wrc.bram"))
         self.add_sources()
 
         self.comb += self.leds.eq(Cat(~self.led_link, ~self.led_act, ~self.led_pps, ~self.led_fake_pps))
@@ -355,20 +320,7 @@ class BaseSoC(SoCCore):
             self.led_fake_pps.eq(~self.led_fake_pps)
         )
 
-        # SPI Flash.
-        self.specials += Instance("STARTUPE2",
-            i_CLK       = 0,
-            i_GSR       = 0,
-            i_GTS       = 0,
-            i_KEYCLEARB = 0,
-            i_PACK      = 0,
-            i_USRCCLKO  = self.flash_clk,
-            i_USRCCLKTS = 0,
-            i_USRDONEO  = 1,
-            i_USRDONETS = 1,
-        )
-
-    def gen_xwrc_board_acorn(self, bram):
+    def gen_xwrc_board_acorn(self, cpu_firmware):
         wrf_src = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
         wrf_snk = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
 
@@ -388,28 +340,20 @@ class BaseSoC(SoCCore):
 
         self.specials += Instance("xwrc_board_artix7_wrapper",
             # Parameters.
-            p_g_simulation        = 0,
-            #p_g_dpram_initf      = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16_direct_dmtd.bram",
-            p_g_DPRAM_INITF       = bram,
-            #p_g_fabric_iface     = "PLAIN",
+            p_g_dpram_initf       = cpu_firmware,
+
+            # Clocks/resets.
+            i_areset_n_i          = ~ResetSignal("sys"),
+            i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
+            i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
+            i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
 
             o_clk_ref_locked_o    = self.clk_ref_locked,
             o_dbg_rdy_o           = self.dbg_rdy,
             o_ext_ref_rst_o       = self.ext_ref_rst,
             o_clk_ref_62m5_o      = self.clk_ref_62m5,
             o_clk_62m5_sys_o      = ClockSignal("wr"),
-
             o_ready_for_reset_o   = self.ready_for_reset,
-
-            i_areset_n_i          = ~ResetSignal("sys") & self.wr_rstn,
-            i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
-            i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
-            i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
-            #clk_sys_62m5_o       => clk_sys_62m5,
-            #clk_ref_62m5_o       => clk_ref_62m5,
-            #clk_dmtd_62m5_o      => clk_dmtd_62m5,
-            #rst_sys_62m5_n_o     => rst_sys_62m5_n,
-            #rst_ref_62m5_n_o     => rst_ref_62m5_n,
 
             # DAC RefClk Interface.
             o_dac_refclk_cs_n_o   = self.dac_refclk.cs_n,
@@ -426,48 +370,38 @@ class BaseSoC(SoCCore):
             o_sfp_txn_o           = self.sfp.txn,
             i_sfp_rxp_i           = self.sfp.rxp,
             i_sfp_rxn_i           = self.sfp.rxn,
-            i_sfp_det_i           = self.sfp_det,
+            i_sfp_det_i           = 0b1,
             io_sfp_sda            = self.sfp_i2c.sda,
             io_sfp_scl            = self.sfp_i2c.scl,
-            #sfp_rate_select_o    => self.sfp_rate_select_o,
-            i_sfp_tx_fault_i      = self.sfp_tx_fault,
-            #sfp_tx_disable_o     => self.sfp_tx_disable_o,
-            i_sfp_tx_los_i        = self.sfp_tx_los,
-
-            # Eeeprom Interface.
-            #eeprom_sda_i         => eeprom_sda_in,
-            #eeprom_sda_o         => eeprom_sda_out,
-            #eeprom_scl_i         => eeprom_scl_in,
-            #eeprom_scl_o         => eeprom_scl_out,
+            i_sfp_tx_fault_i      = 0b0,
+            i_sfp_tx_los_i        = 0b0,
 
             # One-Wire Interface.
-            #onewire_i            => onewire_data,
-            #onewire_oen_o        => onewire_oe,
+            i_onewire_i           = 0,
+            o_onewire_oen_o       = Open(),
 
             # UART Interface.
             i_uart_rxd_i          = self.serial.rx,
             o_uart_txd_o          = self.serial.tx,
 
             # SPI Flash Interface.
-            o_spi_sclk_o          = self.flash_clk,
-            o_spi_ncs_o           = self.flash_cs_n,
-            o_spi_mosi_o          = self.flash.mosi,
-            i_spi_miso_i          = self.flash.miso,
+            o_spi_sclk_o          = Open(),
+            o_spi_ncs_o           = Open(),
+            o_spi_mosi_o          = Open(),
+            i_spi_miso_i          = 0,
 
-            #abscal_txts_o        => wrc_abscal_txts_out,
-            #abscal_rxts_o        => wrc_abscal_rxts_out,
-
-            o_pps_ext_i           = 0,#wrc_pps_in,
-            #o_pps_p_o            = wrc_pps_out,
+            # PPS / Leds.
+            i_pps_ext_i           = 0,
+            o_pps_p_o             = Open(),
             o_pps_led_o           = self.led_pps,
             o_led_link_o          = self.led_link,
             o_led_act_o           = self.led_act,
 
             # QPLL Interface (for GTPE2_Common Sharing).
-            o_GT0_EXT_QPLL_RESET  = self.qpll.channels[1].reset,
-            i_GT0_EXT_QPLL_CLK    = self.qpll.channels[1].clk,
-            i_GT0_EXT_QPLL_REFCLK = self.qpll.channels[1].refclk,
-            i_GT0_EXT_QPLL_LOCK   = self.qpll.channels[1].lock,
+            o_gt0_ext_qpll_reset  = self.qpll.channels[1].reset,
+            i_gt0_ext_qpll_clk    = self.qpll.channels[1].clk,
+            i_gt0_ext_qpll_refclk = self.qpll.channels[1].refclk,
+            i_gt0_ext_qpll_lock   = self.qpll.channels[1].lock,
 
             # Wishbone Slave Interface (MMAP).
             i_wb_slave_cyc        = wb_slave.cyc,

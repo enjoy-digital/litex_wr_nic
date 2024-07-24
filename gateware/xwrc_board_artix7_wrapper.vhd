@@ -149,10 +149,10 @@ entity xwrc_board_artix7_wrapper is
     pps_led_o                            : out std_logic;
     link_ok_o                            : out std_logic;
 
-    GT0_EXT_QPLL_RESET                   : out std_logic;
-    GT0_EXT_QPLL_CLK                     : in  std_logic;
-    GT0_EXT_QPLL_REFCLK                  : in  std_logic;
-    GT0_EXT_QPLL_LOCK                    : in  std_logic
+    gt0_ext_qpll_reset                   : out std_logic;
+    gt0_ext_qpll_clk                     : in  std_logic;
+    gt0_ext_qpll_refclk                  : in  std_logic;
+    gt0_ext_qpll_lock                    : in  std_logic
   );
 end xwrc_board_artix7_wrapper;
 
@@ -283,10 +283,10 @@ begin
       pps_p_o              => pps_p_o,
       pps_led_o            => pps_led_o,
       link_ok_o            => link_ok_o,
-      GT0_EXT_QPLL_RESET   => GT0_EXT_QPLL_RESET,
-      GT0_EXT_QPLL_CLK     => GT0_EXT_QPLL_CLK,
-      GT0_EXT_QPLL_REFCLK  => GT0_EXT_QPLL_REFCLK,
-      GT0_EXT_QPLL_LOCK    => GT0_EXT_QPLL_LOCK
+      GT0_EXT_QPLL_RESET   => gt0_ext_qpll_reset,
+      GT0_EXT_QPLL_CLK     => gt0_ext_qpll_clk,
+      GT0_EXT_QPLL_REFCLK  => gt0_ext_qpll_refclk,
+      GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock
     );
 
 end architecture;
