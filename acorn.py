@@ -48,6 +48,7 @@ from gateware.time import TimeGenerator
 from litescope import LiteScopeAnalyzer
 
 from gateware import list_files
+from gateware.wrf_stream2wb import Stream2Wishbone
 
 # Platform -----------------------------------------------------------------------------------------
 
@@ -261,59 +262,57 @@ class BaseSoC(SoCCore):
 
         # White Rabbit -----------------------------------------------------------------------------
         if with_wr:
-            self._add_white_rabbit_core()
+            self._add_white_rabbit_core(cpu_firmware=os.path.join(self.file_basedir, "firmware/speca7_wrc.bram"))
 
-    def _add_white_rabbit_core(self):
-        # Signals ----------------------------------------------------------------------------------
-        self.sfp          = self.platform.request("sfp")
-        self.sfp_i2c      = self.platform.request("sfp_i2c")
+    def _add_white_rabbit_core(self, cpu_firmware):
+        # Pads.
+        # -----
+        sfp_pads          = self.platform.request("sfp")
+        sfp_i2c_pads      = self.platform.request("sfp_i2c")
+        serial_pads       = self.platform.request("serial")
 
-        self.serial       = self.platform.request("serial")
-
-        self.led_fake_pps = Signal()
-        self.led_pps      = Signal()
-        self.led_link     = Signal()
-        self.led_act      = Signal()
-
-        self.clk_ref_62m5     = Signal()
-
-        self.cd_clk62m5       = ClockDomain()
+        # Signals.
+        # --------
+        led_fake_pps = Signal()
+        led_pps      = Signal()
+        led_link     = Signal()
+        led_act      = Signal()
         self.comb += [
-            self.cd_clk62m5.clk.eq(self.clk_ref_62m5),
+            self.platform.request("user_led", 0).eq(~led_link),
+            self.platform.request("user_led", 1).eq(~led_act),
+            self.platform.request("user_led", 2).eq(~led_pps),
+            self.platform.request("user_led", 3).eq(~led_fake_pps),
+        ]
+
+        # Clks.
+        # -----
+        self.cd_wr      = ClockDomain("wr")
+        self.cd_clk62m5 = ClockDomain("clk62m5")
+        self.comb += [
             self.cd_clk62m5.rst.eq(self.crg.cd_clk_10m_ext.rst),
         ]
 
-        # WR core ----------------------------------------------------------------------------------
-        self.gen_xwrc_board_acorn(cpu_firmware=os.path.join(self.file_basedir, "firmware/speca7_wrc.bram"))
-        self.add_sources()
-
-        self.comb += [
-            self.platform.request("user_led", 0).eq(~self.led_link),
-            self.platform.request("user_led", 1).eq(~self.led_act),
-            self.platform.request("user_led", 2).eq(~self.led_pps),
-            self.platform.request("user_led", 3).eq(~self.led_fake_pps),
-        ]
-
+        # PPS Timer.
+        # ----------
         self.pps_timer = pps_timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
         self.comb += pps_timer.wait.eq(~pps_timer.done)
-        self.sync.clk_10m_ext += If(pps_timer.done, self.led_fake_pps.eq(~self.led_fake_pps))
+        self.sync.clk_10m_ext += If(pps_timer.done, led_fake_pps.eq(~led_fake_pps))
 
-    def gen_xwrc_board_acorn(self, cpu_firmware):
+        # White Rabbit Fabric Interface.
+        # ------------------------------
         wrf_src = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
         wrf_snk = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
         wrf_snk_stall = Signal()
 
+        # White Rabbit Slave Interface.
+        # -----------------------------
         wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
         self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
              origin = 0x2000_0000,
              size   = 0x0100_0000,
          ))
 
-        self.cd_wr = ClockDomain("wr")
-
-        from gateware.wrf_stream2wb import Stream2Wishbone
-
-        self.wrf_stream2wb = Stream2Wishbone(cd_to="wr")
+        self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(cd_to="wr")
 
         self.specials += Instance("xwrc_board_artix7_wrapper",
             # Parameters.
@@ -328,7 +327,7 @@ class BaseSoC(SoCCore):
             o_clk_ref_locked_o    = Open(),
             o_dbg_rdy_o           = Open(),
             o_ext_ref_rst_o       = Open(),
-            o_clk_ref_62m5_o      = self.clk_ref_62m5,
+            o_clk_ref_62m5_o      = ClockSignal("clk62m5"),
             o_clk_62m5_sys_o      = ClockSignal("wr"),
             o_ready_for_reset_o   = Open(),
 
@@ -343,13 +342,13 @@ class BaseSoC(SoCCore):
             o_dac_dmtd_din_o      = Open(),
 
             # SFP Interface.
-            o_sfp_txp_o           = self.sfp.txp,
-            o_sfp_txn_o           = self.sfp.txn,
-            i_sfp_rxp_i           = self.sfp.rxp,
-            i_sfp_rxn_i           = self.sfp.rxn,
+            o_sfp_txp_o           = sfp_pads.txp,
+            o_sfp_txn_o           = sfp_pads.txn,
+            i_sfp_rxp_i           = sfp_pads.rxp,
+            i_sfp_rxn_i           = sfp_pads.rxn,
             i_sfp_det_i           = 0b1,
-            io_sfp_sda            = self.sfp_i2c.sda,
-            io_sfp_scl            = self.sfp_i2c.scl,
+            io_sfp_sda            = sfp_i2c_pads.sda,
+            io_sfp_scl            = sfp_i2c_pads.scl,
             i_sfp_tx_fault_i      = 0b0,
             i_sfp_tx_los_i        = 0b0,
 
@@ -358,8 +357,8 @@ class BaseSoC(SoCCore):
             o_onewire_oen_o       = Open(),
 
             # UART Interface.
-            i_uart_rxd_i          = self.serial.rx,
-            o_uart_txd_o          = self.serial.tx,
+            i_uart_rxd_i          = serial_pads.rx,
+            o_uart_txd_o          = serial_pads.tx,
 
             # SPI Flash Interface.
             o_spi_sclk_o          = Open(),
@@ -370,9 +369,9 @@ class BaseSoC(SoCCore):
             # PPS / Leds.
             i_pps_ext_i           = 0,
             o_pps_p_o             = Open(),
-            o_pps_led_o           = self.led_pps,
-            o_led_link_o          = self.led_link,
-            o_led_act_o           = self.led_act,
+            o_pps_led_o           = led_pps,
+            o_led_link_o          = led_link,
+            o_led_act_o           = led_act,
 
             # QPLL Interface (for GTPE2_Common Sharing).
             o_gt0_ext_qpll_reset  = self.qpll.channels[1].reset,
@@ -442,6 +441,7 @@ class BaseSoC(SoCCore):
             samplerate   = int(62.5e6),
             csr_csv      = "analyzer.csv"
         )
+        self.add_sources()
 
 
     def add_sources(self):
