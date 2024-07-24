@@ -269,61 +269,38 @@ class BaseSoC(SoCCore):
         self.sfp_i2c      = self.platform.request("sfp_i2c")
 
         self.serial       = self.platform.request("serial")
-        self.flash        = self.platform.request("flash")
-        self.flash_cs_n   = self.platform.request("flash_cs_n")
-        self.flash_clk    = Signal()
 
-        self.leds         = self.platform.request_all("user_led")
         self.led_fake_pps = Signal()
         self.led_pps      = Signal()
         self.led_link     = Signal()
         self.led_act      = Signal()
 
-        self.wr_rstn      = Signal()
-
-        # Debug
-        self.debug  = debug   = Signal(32)
-        self.clk_ref_locked   = Signal()
-        self.ext_ref_rst      = Signal()
-        self.dbg_rdy          = Signal()
         self.clk_ref_62m5     = Signal()
-        self.ready_for_reset  = Signal()
-        self.debug_pins       = self.platform.request("debug")
-        # dac validation / analyze
-        dac_layout            = [("sclk", 1), ("cs_n", 1), ("din", 1)]
-        self.dac_dmtd         = Record(dac_layout)
-        self.dac_refclk       = Record(dac_layout)
 
         self.cd_clk62m5       = ClockDomain()
-        self.cnt_62m5         = Signal(4)
-        self.cnt_125_gtp      = Signal(4)
-
         self.comb += [
-            self.debug_pins.eq(Cat(self.clk_ref_62m5, self.crg.cd_clk_125m_gtp.clk,
-            self.crg.cd_clk_10m_ext.clk, self.crg.cd_clk_125m_dmtd.clk)),
             self.cd_clk62m5.clk.eq(self.clk_ref_62m5),
             self.cd_clk62m5.rst.eq(self.crg.cd_clk_10m_ext.rst),
         ]
-
-        self.sync.clk62m5 += self.cnt_62m5.eq(self.cnt_62m5 + 1)
-        self.sync.clk_125m_gtp += self.cnt_125_gtp.eq(self.cnt_125_gtp + 1)
 
         # WR core ----------------------------------------------------------------------------------
         self.gen_xwrc_board_acorn(cpu_firmware=os.path.join(self.file_basedir, "firmware/speca7_wrc.bram"))
         self.add_sources()
 
-        self.comb += self.leds.eq(Cat(~self.led_link, ~self.led_act, ~self.led_pps, ~self.led_fake_pps))
+        self.comb += [
+            self.platform.request("user_led", 0).eq(~self.led_link),
+            self.platform.request("user_led", 1).eq(~self.led_act),
+            self.platform.request("user_led", 2).eq(~self.led_pps),
+            self.platform.request("user_led", 3).eq(~self.led_fake_pps),
+        ]
 
-        self.timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
-        self.comb += self.timer.wait.eq(~self.timer.done)
-        self.sync.clk_10m_ext += If(self.timer.done,
-            self.led_fake_pps.eq(~self.led_fake_pps)
-        )
+        self.pps_timer = pps_timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
+        self.comb += pps_timer.wait.eq(~pps_timer.done)
+        self.sync.clk_10m_ext += If(pps_timer.done, self.led_fake_pps.eq(~self.led_fake_pps))
 
     def gen_xwrc_board_acorn(self, cpu_firmware):
         wrf_src = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
         wrf_snk = wishbone.Interface(data_width=16, address_width=3, adressing="byte")
-
         wrf_snk_stall = Signal()
 
         wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
@@ -348,22 +325,22 @@ class BaseSoC(SoCCore):
             i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
             i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
 
-            o_clk_ref_locked_o    = self.clk_ref_locked,
-            o_dbg_rdy_o           = self.dbg_rdy,
-            o_ext_ref_rst_o       = self.ext_ref_rst,
+            o_clk_ref_locked_o    = Open(),
+            o_dbg_rdy_o           = Open(),
+            o_ext_ref_rst_o       = Open(),
             o_clk_ref_62m5_o      = self.clk_ref_62m5,
             o_clk_62m5_sys_o      = ClockSignal("wr"),
-            o_ready_for_reset_o   = self.ready_for_reset,
+            o_ready_for_reset_o   = Open(),
 
             # DAC RefClk Interface.
-            o_dac_refclk_cs_n_o   = self.dac_refclk.cs_n,
-            o_dac_refclk_sclk_o   = self.dac_refclk.sclk,
-            o_dac_refclk_din_o    = self.dac_refclk.din,
+            o_dac_refclk_cs_n_o   = Open(),
+            o_dac_refclk_sclk_o   = Open(),
+            o_dac_refclk_din_o    = Open(),
 
             # DAC DMTD Interface.
-            o_dac_dmtd_cs_n_o     = self.dac_dmtd.cs_n,
-            o_dac_dmtd_sclk_o     = self.dac_dmtd.sclk,
-            o_dac_dmtd_din_o      = self.dac_dmtd.din,
+            o_dac_dmtd_cs_n_o     = Open(),
+            o_dac_dmtd_sclk_o     = Open(),
+            o_dac_dmtd_din_o      = Open(),
 
             # SFP Interface.
             o_sfp_txp_o           = self.sfp.txp,
