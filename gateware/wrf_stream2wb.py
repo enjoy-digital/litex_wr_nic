@@ -73,7 +73,7 @@ class Stream2Wishbone(LiteXModule):
         # # #
 
         # 8-bit to 16-bit Converter.
-        self.converter = converter = stream.Converter(8, 16)
+        self.converter = converter = stream.Converter(8, 16, reverse=True)
 
         # Clock Domain Crossing.
         self.cdc = cdc = stream.ClockDomainCrossing(
