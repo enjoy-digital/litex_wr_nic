@@ -11,7 +11,6 @@ from litex.soc.interconnect import wishbone
 # White Rabbit Fabric Stream 2 Wishbone ------------------------------------------------------------
 
 # FIXME: Check Latency for Wishbone Streaming.
-# FIXME: Check when non-multiple of 16-bit (last word).
 
 class Wishbone2Stream(LiteXModule):
     def __init__(self, cd_from="wr"):
@@ -23,6 +22,7 @@ class Wishbone2Stream(LiteXModule):
         # Signals.
         valid = Signal()
         last  = Signal()
+        sel   = Signal(2)
         data  = Signal(16)
 
         # Always accept incoming accesses.
@@ -30,7 +30,7 @@ class Wishbone2Stream(LiteXModule):
 
         # Clock Domain Crossing.
         self.cdc = cdc = stream.ClockDomainCrossing(
-            layout  = [("data", 16)],
+            layout  = [("data", 16), ("sel", 2)],
             depth   = 16,
             cd_from = cd_from,
             cd_to   = "sys",
@@ -53,6 +53,7 @@ class Wishbone2Stream(LiteXModule):
             If(bus.stb & bus.cyc,
                 If(bus.adr == 0b00,
                     NextValue(valid, 1),
+                    NextValue(sel, bus.sel),
                     NextValue(data, bus.dat_w),
                 )
             ),
@@ -65,12 +66,23 @@ class Wishbone2Stream(LiteXModule):
         self.comb += cdc.sink.last.eq(last)
         self.sync += [
             cdc.sink.valid.eq(valid),
+            cdc.sink.sel.eq(sel),
             cdc.sink.data.eq(data),
         ]
 
         # 16-bit to 8-bit Converter.
-        self.converter = converter = stream.Converter(16, 8, reverse=True)
+        self.converter = converter = stream.StrideConverter(
+            description_from = [("data", 16), ("sel", 2)],
+            description_to   = [("data",  8), ("sel", 1)],
+            reverse = True,
+        )
 
         # CDC -> Converter -> Source.
-        self.submodules += stream.Pipeline(cdc, converter, source)
-
+        self.comb += [
+            cdc.source.connect(converter.sink),
+            converter.source.connect(source, omit={"sel"}),
+            If(converter.source.valid & ~converter.source.sel,
+                source.valid.eq(0),
+                converter.source.ready.eq(1),
+            )
+        ]
