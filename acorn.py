@@ -9,9 +9,10 @@
 # enter something
 # litescope_cli -r main_basesoc_basesoc_wrf_src_stb
 
-import argparse
 import sys
 import glob
+import argparse
+import subprocess
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -56,8 +57,18 @@ from gateware.wrf_wb2stream import Wishbone2Stream
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(sqrl_acorn.Platform):
-    def create_programmer(self, name="openfpgaloader"):
-        return OpenFPGALoader("litex-acorn-baseboard-mini")
+    def detect_ftdi_chip(self):
+        lsusb_log = subprocess.run(['lsusb'], capture_output=True, text=True)
+        for ftdi_chip in ["ft232", "ft2232", "ft4232"]:
+            if f"Future Technology Devices International, Ltd {ftdi_chip.upper()}" in lsusb_log.stdout:
+                return ftdi_chip
+        return None
+
+    def create_programmer(self):
+        ftdi_chip = self.detect_ftdi_chip()
+        if ftdi_chip is None:
+            raise RuntimeError("No compatible FTDI device found.")
+        return OpenFPGALoader(cable=ftdi_chip, fpga_part="xc7a200tfbg484", freq=10e6)
 
 # CRG ----------------------------------------------------------------------------------------------
 
