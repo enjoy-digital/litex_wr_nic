@@ -101,7 +101,7 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=125e6, with_white_rabbit=True, with_pcie=True):
+    def __init__(self, sys_clk_freq=125e6, with_white_rabbit=True, with_pcie=True, with_white_rabbit_fabric=False):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
@@ -418,44 +418,45 @@ class BaseSoC(SoCCore):
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
                 o_wrf_snk_rty         = Open(), # CHECKME.
             )
+            self.add_sources()
             self.comb += self.wrf_wb2stream.source.ready.eq(1)
 
-            # UDP Gen ------------------------------------------------------------------------------
-            self.udp_gen = UDPPacketGenerator()
-            self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
+            if with_white_rabbit_fabric:
+                # UDP Gen --------------------------------------------------------------------------
+                self.udp_gen = UDPPacketGenerator()
+                self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
 
-            # UDP Timer (1s) -----------------------------------------------------------------------
-            self.udp_timer = udp_timer = WaitTimer(int(125e6))
-            self.comb += udp_timer.wait.eq(~udp_timer.done)
-            self.comb += self.udp_gen.send.eq(udp_timer.done)
+                # UDP Timer (1s) -------------------------------------------------------------------
+                self.udp_timer = udp_timer = WaitTimer(int(125e6))
+                self.comb += udp_timer.wait.eq(~udp_timer.done)
+                self.comb += self.udp_gen.send.eq(udp_timer.done)
 
-            # UDP/IP Etherbone ---------------------------------------------------------------------
+                # UDP/IP Etherbone -----------------------------------------------------------------
 
-            class LiteEthPHYWRGMII(LiteXModule):
-                dw = 8
-                def __init__(self):
-                    self.sink   = wrf_stream2wb.sink
-                    self.source = wrf_wb2stream.source
+                class LiteEthPHYWRGMII(LiteXModule):
+                    dw = 8
+                    def __init__(self):
+                        self.sink   = wrf_stream2wb.sink
+                        self.source = wrf_wb2stream.source
 
-            self.ethphy = LiteEthPHYWRGMII()
-            self.add_etherbone(phy=self.ethphy, with_timing_constraints=False)
+                self.ethphy = LiteEthPHYWRGMII()
+                self.add_etherbone(phy=self.ethphy, with_timing_constraints=False)
 
-            # Analyzer -----------------------------------------------------------------------------
-            analyzer_signals = [
-                #wrf_stream2wb.bus,
-                wrf_wb2stream.bus,
-                wrf_wb2stream.fsm,
-                wrf_wb2stream.source,
-                #wrf_stream2wb.sink,
-            ]
-            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                depth        = 256,
-                clock_domain = "sys",
-                samplerate   = int(62.5e6),
-                register     = True,
-                csr_csv      = "analyzer.csv"
-            )
-            self.add_sources()
+                # Analyzer -------------------------------------------------------------------------
+                analyzer_signals = [
+                    #wrf_stream2wb.bus,
+                    wrf_wb2stream.bus,
+                    wrf_wb2stream.fsm,
+                    wrf_wb2stream.source,
+                    #wrf_stream2wb.sink,
+                ]
+                self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                    depth        = 256,
+                    clock_domain = "sys",
+                    samplerate   = int(62.5e6),
+                    register     = True,
+                    csr_csv      = "analyzer.csv"
+                )
 
     def add_sources(self):
         # fill converter with all path / files required
