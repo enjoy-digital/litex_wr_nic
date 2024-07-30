@@ -36,7 +36,7 @@ from litepcie.software      import generate_litepcie_software_headers
 
 from litescope import LiteScopeAnalyzer
 
-from gateware               import list_files
+from gateware.wr_files      import wr_core_list
 from gateware.time          import TimeGenerator
 from gateware.qpll          import SharedQPLL
 from gateware.udp           import UDPPacketGenerator
@@ -444,7 +444,7 @@ class BaseSoC(SoCCore):
         for cf in custom_files:
             self.platform.add_source(os.path.join(self.file_basedir, cf))
 
-        for f in list_files.wr_core_list:
+        for f in wr_core_list:
             self.platform.add_source(os.path.join(os.path.abspath(os.path.dirname(__file__)), "wr-cores", f))
 
 
