@@ -59,7 +59,7 @@ wr_core_list = [
     "ip_cores/urv-core/rtl/urv_exceptions.v",
     "ip_cores/urv-core/rtl/urv_exec.v",
     "ip_cores/urv-core/rtl/urv_fetch.v",
-	"ip_cores/urv-core/rtl/urv_multiply.v",
+    "ip_cores/urv-core/rtl/urv_multiply.v",
     "ip_cores/urv-core/rtl/urv_pkg.vhd",
     "ip_cores/urv-core/rtl/urv_regfile.v",
     "ip_cores/urv-core/rtl/urv_shifter.v",
@@ -154,12 +154,15 @@ wr_core_list = [
     "modules/wrc_core/wrc_urv_wrapper.vhd",
     "modules/wrc_core/wrcore_pkg.vhd",
     "modules/wrc_core/xwr_core.vhd",
-    #"platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd",
-    #"platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
     "platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
-    #"platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd",
     "platform/xilinx/wr_gtp_phy/gtp_bitslide.vhd",
     "platform/xilinx/wr_xilinx_pkg.vhd",
+
+    # The following files are customized in LiteX-WR-NIC project.
+    # -----------------------------------------------------------
+    #"platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd",
+    #"platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
+    #"platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd",
     #"platform/xilinx/xwrc_platform_vivado.vhd",
     #"top/clbv3_ref_design/clbv3_wr_ref_top.bmm",
     #"top/clbv3_ref_design/clbv3_wr_ref_top.vhd",
