@@ -1,3 +1,15 @@
+```
+                           __   _ __      _  __   _      _____      _  ___________
+                          / /  (_) /____ | |/_/__| | /| / / _ \____/ |/ /  _/ ___/
+                         / /__/ / __/ -_)>  </___/ |/ |/ / , _/___/    // // /__
+                        /____/_/\__/\__/_/|_|    |__/|__/_/|_|   /_/|_/___/\___/
+                        LiteX based White Rabbit PCIe NIC with PTM support.
+                        Copyright (c) 2024 Warsaw University of Technology
+                              Copyright (c) 2012-2024 Enjoy-Digital
+```
+
+![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
+
 ## Prerequisites
 
 ### Gateware
