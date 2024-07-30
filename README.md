@@ -183,3 +183,34 @@ socat - UDP-DATAGRAM:255.255.255.255:24000,broadcast
 enter something
 litescope_cli -r main_basesoc_basesoc_wrf_src_stb
 ```
+
+## LiteEth NIC Notes
+
+[> Build
+--------
+
+```
+./acorn.py --build --flash
+cd software/driver
+make clean all
+sudo ./init
+```
+[> Test
+--------
+
+Ping:
+```
+ping -I enp5s0 192.168.1.1
+```
+
+Iperf3 on Server:
+```
+iperf3 -s -B 192.168.1.121
+
+```
+
+Iperf3 on Client:
+```
+iperf3 -c 192.168.1.121 -B 192.168.1.92
+
+```
