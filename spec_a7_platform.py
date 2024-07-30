@@ -44,6 +44,17 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # PCIe.
+    ("pcie_x1", 0,
+        Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),
+        Subsignal("clk_p", Pins("")), # FIXME: Asynchronous Clocking? -> Add LitePCIe support.
+        Subsignal("clk_n", Pins("")), # FIXME: Asynchronous Clocking? -> Add LitePCIe support.
+        Subsignal("rx_p",  Pins("E4 C4")),
+        Subsignal("rx_n",  Pins("E3 C3")),
+        Subsignal("tx_p",  Pins("H2 D2")),
+        Subsignal("tx_n",  Pins("H1 D1")),
+    ),
+
     # VCXO Clk Control.
     ("dac_ptp", 0,
         Subsignal("ldac", Pins("U12")),
