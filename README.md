@@ -10,6 +10,20 @@
 
 ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
 
+## Project Overview
+
+This project aims to create a White Rabbit NIC based on LiteX, LitePCIe, and LiteEth with PCIe PTM support. The project currently has two designs:
+
+1. **PCIe NIC with LiteEth 1000BaseX:**
+   - Acts as a Linux NIC.
+   - Tested with Iperf3.
+
+2. **White Rabbit Core NIC:**
+   - Includes a White Rabbit console on the UART interface.
+   - Uses White Rabbit Fabric interface for network capabilities.
+
+The final goal is to merge these designs, removing the LiteEth 1000BaseX PHY, and connect directly to the White Rabbit fabric interface.
+
 ## Prerequisites
 
 ### Software
