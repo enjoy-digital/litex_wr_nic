@@ -55,6 +55,7 @@ from litescope import LiteScopeAnalyzer
 
 from gateware import list_files
 
+from gateware.qpll          import SharedQPLL
 from gateware.udp           import UDPPacketGenerator
 from gateware.wrf_stream2wb import Stream2Wishbone
 from gateware.wrf_wb2stream import Wishbone2Stream
@@ -79,12 +80,14 @@ class Platform(sqrl_acorn.Platform):
 
 class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=False):
-        self.rst              = Signal()
-        self.cd_sys           = ClockDomain()
+        self.rst            = Signal()
+        self.cd_sys         = ClockDomain()
+        self.cd_refclk_pcie = ClockDomain()
+        self.cd_refclk_eth  = ClockDomain()
         if with_white_rabbit:
-            self.cd_clk_125m_dmtd = ClockDomain()
-            self.cd_clk_125m_gtp  = ClockDomain()
-            self.cd_clk_10m_ext   = ClockDomain()
+            self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
+            self.cd_clk_125m_gtp  = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
+            self.cd_clk_10m_ext   = ClockDomain( )# CHECKME/FIXME: Replace with appropriate clk.
         if with_pcie:
             self.cd_clk50 = ClockDomain()
 
@@ -104,10 +107,13 @@ class _CRG(LiteXModule):
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
             pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
             pll.create_clkout(self.cd_clk_10m_ext,   10e6,  margin=0)
-
-            platform.add_false_path_constraints(self.cd_clk_125m_dmtd.clk, pll.clkin)
-            platform.add_false_path_constraints(self.cd_clk_125m_gtp.clk,  pll.clkin)
-            platform.add_false_path_constraints(self.cd_clk_10m_ext.clk,   pll.clkin)
+            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+            platform.add_false_path_constraints(
+                pll.clkin,
+                self.cd_clk_125m_dmtd.clk,
+                self.cd_clk_125m_gtp.clk,
+                self.cd_clk_10m_ext.clk,
+            )
 
         if with_pcie:
             pll.create_clkout(self.cd_clk50,  50e6, margin=0)
@@ -125,8 +131,20 @@ class BaseSoC(SoCCore):
         self.file_basedir     = os.path.abspath(os.path.dirname(__file__))
         self.wr_cores_basedir = os.path.join(self.file_basedir, "wr-cores")
 
-        # CRG --------------------------------------------------------------------------------------
-        self.crg = _CRG(platform, sys_clk_freq, with_white_rabbit, with_pcie)
+        # Clocking ---------------------------------------------------------------------------------
+
+        # General.
+        self.crg = _CRG(platform,
+            sys_clk_freq      = sys_clk_freq,
+            with_white_rabbit = with_white_rabbit,
+            with_pcie         = with_pcie,
+        )
+
+        # Shared QPLL.
+        self.qpll = SharedQPLL(platform,
+            with_pcie = with_pcie,
+            with_eth  = with_white_rabbit,
+        )
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform,
@@ -142,11 +160,13 @@ class BaseSoC(SoCCore):
                 bar0_size  = 0x20000,
                 with_ptm   = True,
             )
+            self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
             self.add_pcie(phy=self.pcie_phy,
                 ndmas         = 1,
                 address_width = 64,
                 with_ptm      = True,
             )
+            self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
             platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
             platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
@@ -246,38 +266,6 @@ class BaseSoC(SoCCore):
                 self.ptm_requester.time_rst.eq(ResetSignal("sys")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
-
-
-        # QPLL -------------------------------------------------------------------------------------
-
-        # PCIe QPLL Settings.
-        qpll_pcie_settings = QPLLSettings(
-            refclksel  = 0b001,
-            fbdiv      = 5,
-            fbdiv_45   = 5,
-            refclk_div = 1,
-        )
-        # White Rabbit QPLL Settings.
-        qpll_wr_settings = QPLLSettings(
-            refclksel  = 0b111,
-            fbdiv      = 4,
-            fbdiv_45   = 5,
-            refclk_div = 1,
-        )
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-
-        # Shared QPLL.
-        self.qpll = qpll = QPLL(
-            gtrefclk0     = 0 if not with_pcie else self.pcie_phy.pcie_refclk,
-            qpllsettings0 = qpll_pcie_settings,
-            gtgrefclk1    = self.crg.cd_clk_125m_gtp.clk,
-            qpllsettings1 = qpll_wr_settings,
-        )
-        if with_pcie:
-            self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
-        else:
-            self.comb += self.qpll.channels[0].reset.eq(0)
-
 
         # White Rabbit -----------------------------------------------------------------------------
 
@@ -390,10 +378,10 @@ class BaseSoC(SoCCore):
                 o_led_act_o           = led_act,
 
                 # QPLL Interface (for GTPE2_Common Sharing).
-                o_gt0_ext_qpll_reset  = self.qpll.channels[1].reset,
-                i_gt0_ext_qpll_clk    = self.qpll.channels[1].clk,
-                i_gt0_ext_qpll_refclk = self.qpll.channels[1].refclk,
-                i_gt0_ext_qpll_lock   = self.qpll.channels[1].lock,
+                o_gt0_ext_qpll_reset  = self.qpll.get_channel("eth").reset,
+                i_gt0_ext_qpll_clk    = self.qpll.get_channel("eth").clk,
+                i_gt0_ext_qpll_refclk = self.qpll.get_channel("eth").refclk,
+                i_gt0_ext_qpll_lock   = self.qpll.get_channel("eth").lock,
 
                 # Wishbone Slave Interface (MMAP).
                 i_wb_slave_cyc        = wb_slave.cyc,

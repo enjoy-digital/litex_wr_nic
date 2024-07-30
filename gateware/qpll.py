@@ -14,7 +14,7 @@ from liteeth.phy.a7_gtp import QPLLSettings, QPLL
 # Shared QPLL --------------------------------------------------------------------------------------
 
 class SharedQPLL(LiteXModule):
-    def __init__(self, platform, with_pcie=False, with_eth=False, eth_phy="1000basex"):
+    def __init__(self, platform, with_pcie=False, with_eth=False):
         # PCIe QPLL Settings.
         qpll_pcie_settings = QPLLSettings(
             refclksel  = 0b001,
@@ -26,8 +26,8 @@ class SharedQPLL(LiteXModule):
         # Ethernet QPLL Settings.
         qpll_eth_settings = QPLLSettings(
             refclksel  = 0b111,
-            fbdiv      = {"1000basex": 4, "2500basex": 5}[eth_phy],
-            fbdiv_45   = 4,
+            fbdiv      = 4,
+            fbdiv_45   = 5,
             refclk_div = 1,
         )
 
