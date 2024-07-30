@@ -171,3 +171,15 @@ wrc# sfp erase
 wrc# sfp add AXGE-1254-0531 180750 148326 1235332 333756144
 wrc# sfp add AXGE-3454-0531 180750 148326 -1235332 333756144
 ```
+
+
+## Test Notes
+
+```
+./acorn.py --csr-csv=csr.csv --build --load
+litex_server --jtag --jtag-config=openocd_xc7_ft2232.cfg
+
+socat - UDP-DATAGRAM:255.255.255.255:24000,broadcast
+enter something
+litescope_cli -r main_basesoc_basesoc_wrf_src_stb
+```

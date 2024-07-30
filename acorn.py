@@ -7,15 +7,6 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-# ./acorn.py --csr-csv=csr.csv --build --load
-# litex_server --jtag --jtag-config=openocd_xc7_ft2232.cfg
-
-# socat - UDP-DATAGRAM:255.255.255.255:24000,broadcast
-# enter something
-# litescope_cli -r main_basesoc_basesoc_wrf_src_stb
-
-import sys
-import glob
 import argparse
 import subprocess
 
@@ -26,35 +17,27 @@ from litex_boards.platforms import sqrl_acorn
 
 from litex.build.generic_platform import *
 from litex.build.io               import DifferentialInput
-from litex.build.xilinx           import Xilinx7SeriesPlatform
 from litex.build.openfpgaloader   import OpenFPGALoader
 
-from litepcie.frontend.ptm  import PCIePTMSniffer
-from litepcie.frontend.ptm  import PTMCapabilities, PTMRequester
-from litepcie.phy.s7pciephy import S7PCIEPHY
-from litepcie.software      import generate_litepcie_software_headers
-
+from litex.soc.interconnect.csr     import *
+from litex.soc.interconnect         import stream
 from litex.soc.interconnect         import wishbone
+
 from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
-from litex.soc.interconnect import stream
-
-from liteeth.phy.a7_gtp import QPLLSettings, QPLL
-
-from litex.soc.interconnect.csr import *
-
 from litex.soc.cores.clock import *
 
+from litepcie.phy.s7pciephy import S7PCIEPHY
+from litepcie.frontend.ptm  import PCIePTMSniffer
+from litepcie.frontend.ptm  import PTMCapabilities, PTMRequester
+from litepcie.software      import generate_litepcie_software_headers
+
 from litescope import LiteScopeAnalyzer
 
-from gateware.time import TimeGenerator
-
-from litescope import LiteScopeAnalyzer
-
-from gateware import list_files
-
+from gateware               import list_files
+from gateware.time          import TimeGenerator
 from gateware.qpll          import SharedQPLL
 from gateware.udp           import UDPPacketGenerator
 from gateware.wrf_stream2wb import Stream2Wishbone
@@ -94,14 +77,12 @@ class _CRG(LiteXModule):
         # # #
 
         # Clk/Rst.
-        clk200    = platform.request("clk200")
-        clk200_se = Signal()
-        self.specials += DifferentialInput(clk200.p, clk200.n, clk200_se)
+        clk200 = platform.request("clk200")
 
         # PLL.
         self. pll = pll = S7PLL()
         self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(clk200_se, 200e6)
+        pll.register_clkin(clk200, 200e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
         if with_white_rabbit:
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
@@ -128,8 +109,7 @@ class BaseSoC(SoCCore):
         platform = Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
 
-        self.file_basedir     = os.path.abspath(os.path.dirname(__file__))
-        self.wr_cores_basedir = os.path.join(self.file_basedir, "wr-cores")
+        self.file_basedir = os.path.abspath(os.path.dirname(__file__))
 
         # Clocking ---------------------------------------------------------------------------------
 
