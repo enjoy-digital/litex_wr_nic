@@ -430,6 +430,8 @@ class BaseSoC(SoCCore):
                 )
 
     def add_sources(self):
+        if not os.path.exists("wr-cores"):
+            os.system("./init.py --wr-cores")
         custom_files = [
             # 7-Series GTP PHY.
             "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper.vhd",
