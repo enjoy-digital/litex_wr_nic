@@ -150,25 +150,34 @@ class BaseSoC(PCIeNICSoC):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=sqrl_acorn.Platform, description="LiteX SoC on Acorn CLE-101/215(+).")
-    parser.add_target_argument("--sys-clk-freq", default=125e6, type=float, help="System clock frequency.")
+    parser = argparse.ArgumentParser(description="LiteX-LiteEth-NIC on Acorn Baseboard Mini.")
+
+    # Build/Load/Flash Arguments.
+    # ---------------------------
+    parser.add_argument("--build", action="store_true", help="Build bitstream.")
+    parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
+
     args = parser.parse_args()
 
-    soc = BaseSoC(
-        sys_clk_freq = args.sys_clk_freq,
-        **parser.soc_argdict
-    )
-    builder = Builder(soc, **parser.builder_argdict)
-    if args.build:
-        builder.build(**parser.toolchain_argdict)
-        generate_litepcie_software_headers(soc, "driver")
+    # Build SoC.
+    # ----------
+    soc = BaseSoC()
+    builder = Builder(soc, csr_csv="csr.csv")
+    builder.build(run=args.build)
 
+    # Generate PCIe C Headers.
+    # ------------------------
+    generate_litepcie_software_headers(soc, "sofware/driver")
+
+    # Load FPGA.
+    # ----------
     if args.load:
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
+    # Flash FPGA.
+    # -----------
     if args.flash:
         prog = soc.platform.create_programmer()
         prog.flash(0, builder.get_bitstream_filename(mode="flash"))

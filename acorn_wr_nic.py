@@ -483,8 +483,7 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
-    generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
+    generate_litepcie_software_headers(soc, "sofware/kernel")
 
     # Load FPGA.
     # ----------
