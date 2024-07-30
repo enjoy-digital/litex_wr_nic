@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 #
 # This file is part of LiteX-WR-NIC.
 #
@@ -6,12 +7,8 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-# ./acorn.py --csr-csv=csr.csv --build --load
-# litex_server --jtag --jtag-config=openocd_xc7_ft2232.cfg
-
 import argparse
-import sys
-import glob
+import subprocess
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -22,314 +19,417 @@ from litex.build.generic_platform import *
 from litex.build.io               import DifferentialInput
 from litex.build.openfpgaloader   import OpenFPGALoader
 
+from litex.soc.interconnect.csr     import *
+from litex.soc.interconnect         import stream
+from litex.soc.interconnect         import wishbone
+
 from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
-from liteeth.phy.a7_gtp import QPLLSettings, QPLL
+from litex.soc.cores.clock import *
 
-from litex.soc.interconnect.csr import *
-
-from litex.soc.cores.clock      import *
+from litepcie.phy.s7pciephy import S7PCIEPHY
+from litepcie.frontend.ptm  import PCIePTMSniffer
+from litepcie.frontend.ptm  import PTMCapabilities, PTMRequester
+from litepcie.software      import generate_litepcie_software_headers
 
 from litescope import LiteScopeAnalyzer
 
-from gateware import list_files
+from gateware               import list_files
+from gateware.time          import TimeGenerator
+from gateware.qpll          import SharedQPLL
+from gateware.udp           import UDPPacketGenerator
+from gateware.wrf_stream2wb import Stream2Wishbone
+from gateware.wrf_wb2stream import Wishbone2Stream
 
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq):
-        self.rst             = Signal()
-        self.cd_sys          = ClockDomain()
-        self.cd_clk_25m_dmtd = ClockDomain()
-        self.cd_clk_10m_ext  = ClockDomain()
-        self.cd_clk_62_5     = ClockDomain()
+    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=False):
+        self.rst            = Signal()
+        self.cd_sys         = ClockDomain()
+        self.cd_refclk_pcie = ClockDomain()
+        self.cd_refclk_eth  = ClockDomain()
+        if with_white_rabbit:
+            self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
+            self.cd_clk_125m_gtp  = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
+            self.cd_clk_10m_ext   = ClockDomain( )# CHECKME/FIXME: Replace with appropriate clk.
+        if with_pcie:
+            self.cd_clk50 = ClockDomain()
 
         # # #
 
         # Clk/Rst.
-        clk25   = platform.request("clk_25m_dmtd")
-        clk62_5 = platform.request("clk62_5")
-
-        clk62_5_se = Signal()
-        self.specials += DifferentialInput(clk62_5.p, clk62_5.n, clk62_5_se)
+        clk62p5 = platform.request("clk62p5")
 
         # PLL.
         self. pll = pll = S7PLL()
         self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(clk25, 25e6)
-        pll.create_clkout(self.cd_sys,          sys_clk_freq)
-        pll.create_clkout(self.cd_clk_25m_dmtd, 25e6, margin=0)
-        pll.create_clkout(self.cd_clk_10m_ext,  10e6, margin=0)
+        pll.register_clkin(clk62p5, 62.5e6)
+        pll.create_clkout(self.cd_sys, sys_clk_freq)
+        if with_white_rabbit:
+            pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+            pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
+            pll.create_clkout(self.cd_clk_10m_ext,   10e6,  margin=0)
+            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+            platform.add_false_path_constraints(
+                pll.clkin,
+                self.cd_clk_125m_dmtd.clk,
+                self.cd_clk_125m_gtp.clk,
+                self.cd_clk_10m_ext.clk,
+            )
 
-        platform.add_false_path_constraints(self.cd_sys.clk,          pll.clkin)
-        platform.add_false_path_constraints(self.cd_clk_25m_dmtd.clk, pll.clkin)
-        platform.add_false_path_constraints(self.cd_clk_10m_ext.clk,  pll.clkin)
+        if with_pcie:
+            pll.create_clkout(self.cd_clk50,  50e6, margin=0)
 
-        self.comb += [
-            self.cd_clk_62_5.clk.eq(clk62_5_se),
-            self.cd_clk_62_5.rst.eq(self.cd_sys.rst),
-        ]
- 
+        platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
+
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=125e6):
+    def __init__(self, sys_clk_freq=125e6, with_white_rabbit=True, with_pcie=False, with_white_rabbit_fabric=False):
+        # Platform ---------------------------------------------------------------------------------
         platform = Platform()
 
-        platform.add_extension([
-            ("debug", 0, Pins("ext_misc:2 ext_misc:3 ext_misc:4 ext_misc:5"))
-        ])
 
-        self.file_basedir     = os.path.abspath(os.path.dirname(__file__))
-        self.wr_cores_basedir = os.path.join(self.file_basedir, "wr-cores")
+        self.file_basedir = os.path.abspath(os.path.dirname(__file__))
 
-        self.crg = _CRG(platform, sys_clk_freq)
+        # Clocking ---------------------------------------------------------------------------------
 
-        SoCMini.__init__(self, platform,
-            clk_freq      = sys_clk_freq,
-            with_jtagbone = True
+        # General.
+        self.crg = _CRG(platform,
+            sys_clk_freq      = sys_clk_freq,
+            with_white_rabbit = with_white_rabbit,
+            with_pcie         = with_pcie,
         )
-
-        # GTP Clock.
-        gtp_refclk      = Signal()
-        gtp_refclk_pads = platform.request("mgtrefclk", 1)
-
-        self.specials += Instance("IBUFDS_GTE2",
-            i_CEB = 0,
-            i_I   = gtp_refclk_pads.p,
-            i_IB  = gtp_refclk_pads.n,
-            o_O   = gtp_refclk
-        )
-
-        # PCIe QPLL Settings.
-        qpll_pcie_settings = QPLLSettings(
-            refclksel  = 0b001,
-            fbdiv      = 5,
-            fbdiv_45   = 5,
-            refclk_div = 1,
-        )
-        # White Rabbit QPLL Settings.
-        qpll_wr_settings = QPLLSettings(
-            refclksel  = 0b111,
-            fbdiv      = 4,
-            fbdiv_45   = 5,
-            refclk_div = 1,
-        )
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
         # Shared QPLL.
-        self.qpll = qpll = QPLL(
-            gtrefclk0     = 0,
-            qpllsettings0 = qpll_pcie_settings,
-            gtgrefclk1    = gtp_refclk,
-            qpllsettings1 = qpll_wr_settings,
+        self.qpll = SharedQPLL(platform,
+            with_pcie = with_pcie,
+            with_eth  = with_white_rabbit,
         )
 
-        # SFP.
-        self.sfp           = platform.request("sfp", 0)
-        self.sfp_i2c       = platform.request("sfp_i2c", 0)
-        self.sfp_rs        = platform.request("sfp_rs", 0)
-        self.sfp_disable_n = platform.request("sfp_disable_n", 0)
-
-        # Flash.
-        self.flash      = platform.request("flash")
-        self.flash_cs_n = platform.request("flash_cs_n")
-        self.flash_clk  = Signal()
-
-        self.serial     = platform.request("serial")
-        self.leds       = platform.request_all("user_led")
-
-        self.led_fake_pps = Signal()
-        self.led_pps      = Signal()
-        self.led_link     = Signal()
-        self.led_act      = Signal()
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-
-        self.control = CSRStorage(fields=[
-            CSRField("sfp_detect", size=1, offset=2, values=[
-                ("``0b0``", "Set Low."),
-                ("``0b1``", "Set High.")
-            ], reset=1),
-        ])
-
-        self.rst_ctrl = CSRStorage(fields=[
-            CSRField("reset", size=1, offset=0, values=[
-                ("``0b0``", "Normal Mode."),
-                ("``0b1``", "Reset Mode.")
-            ], reset=0),
-        ])
-
-        self.sfp_tx_los   = platform.request("sfp_lose", 0)
-        self.sfp_tx_fault = platform.request("sfp_fault", 0)
-        self.sfp_det      = Signal()
-        self.wr_rstn      = Signal()
-
-        self.comb += [
-            self.sfp_det.eq(self.control.fields.sfp_detect),
-            self.wr_rstn.eq(~self.rst_ctrl.fields.reset),
-        ]
-
-        # Debug
-        self.clk_ref_locked   = Signal()
-        self.ext_ref_rst      = Signal()
-        self.dbg_rdy          = Signal()
-        self.clk_ref_62m5     = Signal()
-        self.ready_for_reset  = Signal()
-        self.debug_pins       = platform.request("debug")
-        # dac validation / analyze
-        dac_layout            = [("sclk", 1), ("cs_n", 1), ("din", 1)]
-        self.dac_dmtd         = Record(dac_layout)
-        self.dac_refclk       = Record(dac_layout)
-
-        self.cnt_62m5         = Signal(4)
-        self.cnt_125_gtp      = Signal(4)
-
-        #self.comb += [
-        #    self.debug_pins.eq(Cat(self.clk_ref_62m5, self.crg.cd_clk_25m_gtp.clk,
-        #        self.crg.cd_clk_10m_ext.clk, self.crg.cd_clk_25m_dmtd.clk)),
-        #]
-
-        self.sync.clk_62_5 += self.cnt_62m5.eq(self.cnt_62m5 + 1)
-        #self.sync.clk_125m_gtp += self.cnt_125_gtp.eq(self.cnt_125_gtp + 1)
-
-
-        self.debug  = debug = Signal(32)
-
-        # GTPE2_CHANNEL.
-        GTPE2_CHANNEL_GT0_PLL1RESET_IN    = Signal()
-        GTPE2_CHANNEL_GT0_DRP_BUSY_OUT    = Signal()
-        GTPE2_CHANNEL_GT0_GTRXRESET_IN    = Signal()
-        GTPE2_CHANNEL_GT0_GTTXRESET_IN    = Signal()
-        GTPE2_CHANNEL_GT0_RXRESETDONE_OUT = Signal()
-        GTPE2_CHANNEL_GT0_TXRESETDONE_OUT = Signal()
-        self.comb += [
-            GTPE2_CHANNEL_GT0_PLL1RESET_IN.eq(   debug[0]),
-            GTPE2_CHANNEL_GT0_DRP_BUSY_OUT.eq(   debug[1]),
-            GTPE2_CHANNEL_GT0_GTRXRESET_IN.eq(   debug[2]),
-            GTPE2_CHANNEL_GT0_GTTXRESET_IN.eq(   debug[3]),
-            GTPE2_CHANNEL_GT0_RXRESETDONE_OUT.eq(debug[4]),
-            GTPE2_CHANNEL_GT0_TXRESETDONE_OUT.eq(debug[5]),
-        ]
-
-        # GTPE2_COMMON.
-        GTPE2_COMMON_GT0_PLL1RESET_IN       = Signal()
-        GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN  = Signal()
-        GTPE2_COMMON_GT0_PLL1LOCK_OUT       = Signal()
-        GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT = Signal()
-        self.comb += [
-            GTPE2_COMMON_GT0_PLL1RESET_IN.eq(      debug[16]),
-            GTPE2_COMMON_GT0_PLL1LOCKDETCLK_IN.eq( debug[17]),
-            GTPE2_COMMON_GT0_PLL1LOCK_OUT.eq(      debug[18]),
-            GTPE2_COMMON_GT0_PLL1REFCLKLOST_OUT.eq(debug[19]),
-        ]
-
-        # WR core
-        self.gen_xwrc_board_acorn(os.path.join(self.file_basedir, "firmware/speca7_wrc.bram"))
-
-        self.comb += self.leds.eq(Cat(~self.led_link, ~self.led_act, ~self.led_pps, ~self.led_fake_pps))
-
-        self.timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
-        self.comb += self.timer.wait.eq(~self.timer.done)
-        self.sync.clk_10m_ext += If(self.timer.done,
-            self.led_fake_pps.eq(~self.led_fake_pps)
+        # SoCMini ----------------------------------------------------------------------------------
+        SoCMini.__init__(self, platform,
+            clk_freq      = sys_clk_freq,
+            ident         = "LiteX-WR-NIC on SPEC-A7.",
+            ident_version = True,
         )
 
-        # SPI Flash.
-        self.specials += Instance("STARTUPE2",
-            i_CLK       = 0,
-            i_GSR       = 0,
-            i_GTS       = 0,
-            i_KEYCLEARB = 0,
-            i_PACK      = 0,
-            i_USRCCLKO  = self.flash_clk,
-            i_USRCCLKTS = 0,
-            i_USRDONEO  = 1,
-            i_USRDONETS = 1,
-        )
+        # JTAGBone ---------------------------------------------------------------------------------
+        self.add_jtagbone()
 
-        self.add_sources()
+        # PCIe -------------------------------------------------------------------------------------
+        if with_pcie:
+            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
+                data_width = 64,
+                bar0_size  = 0x20000,
+                with_ptm   = True,
+            )
+            self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
+            self.add_pcie(phy=self.pcie_phy,
+                ndmas         = 1,
+                address_width = 64,
+                with_ptm      = True,
+            )
+            self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
+            platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
+            platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
+            platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
-    def gen_xwrc_board_acorn(self, bram):
+            # PCIe <-> Sys-Clk false paths.
+            false_paths = [
+                ("{{*s7pciephy_clkout0}}", "sys_clk"),
+                ("{{*s7pciephy_clkout1}}", "sys_clk"),
+                ("{{*s7pciephy_clkout3}}", "sys_clk"),
+                ("{{*s7pciephy_clkout0}}", "{{*s7pciephy_clkout1}}")
+            ]
+            for clk0, clk1 in false_paths:
+                platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk0}] -to [get_clocks {clk1}]")
+                platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk1}] -to [get_clocks {clk0}]")
 
-        self.specials += Instance("xwrc_board_artix7",
-            p_g_simulation                 = 0,
-            #p_g_with_external_clock_input  = 1,
-            #p_g_dpram_initf               = f"{self.wr_cores_basedir}/bin/wrpc/wrc_phy16_direct_dmtd.bram",
-            p_g_DPRAM_INITF                = bram,
-            #p_g_fabric_iface              = "PLAIN",
-            o_clk_ref_locked_o    = self.clk_ref_locked,
-            o_dbg_rdy_o           = self.dbg_rdy,
-            o_ext_ref_rst_o       = self.ext_ref_rst,
-            o_clk_ref_62m5_o      = self.clk_ref_62m5,
+            # PCIe PTM Sniffer ---------------------------------------------------------------------
 
-            o_ready_for_reset_o   = self.ready_for_reset,
+            # Since Xilinx PHY does not allow redirecting PTM TLP Messages to the AXI inferface, we have
+            # to sniff the GTPE2 -> PCIE2 RX Data to re-generate PTM TLP Messages.
 
-            i_areset_n_i          = ~ResetSignal("sys") & self.wr_rstn,
-            i_clk_125m_dmtd_i     = ClockSignal("clk_25m_dmtd"),
-            #i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
-            i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
-            #clk_sys_62m5_o      => clk_sys_62m5,
-            #clk_ref_62m5_o      => clk_ref_62m5,
-            #clk_dmtd_62m5_o     => clk_dmtd_62m5,
-            #rst_sys_62m5_n_o    => rst_sys_62m5_n,
-            #rst_ref_62m5_n_o    => rst_ref_62m5_n,
+            # Sniffer Signals.
+            # ----------------
+            sniffer_rst_n   = Signal()
+            sniffer_clk     = Signal()
+            sniffer_rx_data = Signal(16)
+            sniffer_rx_ctl  = Signal(2)
 
-            o_dac_refclk_cs_n_o   = self.dac_refclk.cs_n,
-            o_dac_refclk_sclk_o   = self.dac_refclk.sclk,
-            o_dac_refclk_din_o    = self.dac_refclk.din,
-            o_dac_dmtd_cs_n_o     = self.dac_dmtd.cs_n,
-            o_dac_dmtd_sclk_o     = self.dac_dmtd.sclk,
-            o_dac_dmtd_din_o      = self.dac_dmtd.din,
+            # Sniffer Tap.
+            # ------------
+            rx_data = Signal(16)
+            rx_ctl  = Signal(2)
+            self.sync.pclk += rx_data.eq(rx_data + 1)
+            self.sync.pclk += rx_ctl.eq(rx_ctl + 1)
+            self.specials += Instance("sniffer_tap",
+                i_rst_n_in    = 1,
+                i_clk_in     = ClockSignal("pclk"),
+                i_rx_data_in = rx_data, # /!\ Fake, will be re-connected post-synthesis /!\.
+                i_rx_ctl_in  = rx_ctl,  # /!\ Fake, will be re-connected post-synthesis /!\.
 
-            o_sfp_txp_o           = self.sfp.txp,
-            o_sfp_txn_o           = self.sfp.txn,
-            i_sfp_rxp_i           = self.sfp.rxp,
-            i_sfp_rxn_i           = self.sfp.rxn,
-            i_sfp_det_i           = self.sfp_det,
-            io_sfp_sda            = self.sfp_i2c.sda,
-            io_sfp_scl            = self.sfp_i2c.scl,
-            #o_sfp_rate_select_o   = self.sfp_rs, # FIXME/CHECKME.
-            i_sfp_tx_fault_i      = self.sfp_tx_fault,
-            #o_sfp_tx_disable_o    = self.sfp_disable_n, # FIXME/CHECKME.
-            i_sfp_tx_los_i        = self.sfp_tx_los,
+                o_rst_n_out   = sniffer_rst_n,
+                o_clk_out     = sniffer_clk,
+                o_rx_data_out = sniffer_rx_data,
+                o_rx_ctl_out  = sniffer_rx_ctl,
+            )
 
-            #eeprom_sda_i        => eeprom_sda_in,
-            #eeprom_sda_o        => eeprom_sda_out,
-            #eeprom_scl_i        => eeprom_scl_in,
-            #eeprom_scl_o        => eeprom_scl_out,
+            # Sniffer.
+            # --------
+            self.pcie_ptm_sniffer = PCIePTMSniffer(
+                rx_rst_n = sniffer_rst_n,
+                rx_clk   = sniffer_clk,
+                rx_data  = sniffer_rx_data,
+                rx_ctrl  = sniffer_rx_ctl,
+            )
+            self.pcie_ptm_sniffer.add_sources(platform)
 
-            #onewire_i           => onewire_data,
-            #onewire_oen_o       => onewire_oe,
-            # Uart
-            i_uart_rxd_i          = self.serial.rx,
-            o_uart_txd_o          = self.serial.tx,
+            # Sniffer Post-Synthesis connections.
+            # -----------------------------------
+            pcie_ptm_sniffer_connections = []
+            for n in range(2):
+                pcie_ptm_sniffer_connections.append((
+                    f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_k_wire_filter[{n}]", # Src.
+                    f"sniffer_tap/rx_ctl_in[{n}]",                               # Dst.
+                ))
+            for n in range(16):
+                pcie_ptm_sniffer_connections.append((
+                    f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_wire_filter[{n}]", # Src.
+                    f"sniffer_tap/rx_data_in[{n}]",                            # Dst.
+                ))
+            for _from, _to in pcie_ptm_sniffer_connections:
+                platform.toolchain.pre_optimize_commands.append(f"set pin_driver [get_nets -of [get_pins {_to}]]")
+                platform.toolchain.pre_optimize_commands.append(f"disconnect_net -net $pin_driver -objects {_to}")
+                platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net {_from} -objects {_to}")
 
-            # SPI Flash
-	        o_spi_sclk_o          = self.flash_clk,
-            o_spi_ncs_o           = self.flash_cs_n,
-            o_spi_mosi_o          = self.flash.mosi,
-            i_spi_miso_i          = self.flash.miso,
+            # Time ---------------------------------------------------------------------------------
 
-            #abscal_txts_o       => wrc_abscal_txts_out,
-            #abscal_rxts_o       => wrc_abscal_rxts_out,
+            self.time_generator = TimeGenerator(
+                clk_domain = "clk50",
+                clk_freq   = 50e6,
+            )
 
-            o_pps_ext_i           = 0,#wrc_pps_in,
-            #o_pps_p_o             = wrc_pps_out,
-            o_pps_led_o           = self.led_pps,
-            o_led_link_o          = self.led_link,
-            o_led_act_o           = self.led_act,
+            # PTM ----------------------------------------------------------------------------------
 
-            o_GT0_EXT_QPLL_RESET  = self.qpll.channels[1].reset,
-            i_GT0_EXT_QPLL_CLK    = self.qpll.channels[1].clk,
-            i_GT0_EXT_QPLL_REFCLK = self.qpll.channels[1].refclk,
-            i_GT0_EXT_QPLL_LOCK   = self.qpll.channels[1].lock,
-        )
+            # PTM Capabilities.
+            self.ptm_capabilities = PTMCapabilities(
+                pcie_endpoint     = self.pcie_endpoint,
+                requester_capable = True,
+            )
+
+            # PTM Requester.
+            self.ptm_requester = PTMRequester(
+                pcie_endpoint    = self.pcie_endpoint,
+                pcie_ptm_sniffer = self.pcie_ptm_sniffer,
+                sys_clk_freq     = sys_clk_freq,
+            )
+            self.comb += [
+                self.ptm_requester.time_clk.eq(ClockSignal("sys")),
+                self.ptm_requester.time_rst.eq(ResetSignal("sys")),
+                self.ptm_requester.time.eq(self.time_generator.time)
+            ]
+
+        # White Rabbit -----------------------------------------------------------------------------
+
+        if with_white_rabbit:
+            # Pads.
+            # -----
+            sfp_pads          = self.platform.request("sfp")
+            sfp_i2c_pads      = self.platform.request("sfp_i2c")
+            serial_pads       = self.platform.request("serial")
+
+            # Signals.
+            # --------
+            led_fake_pps = Signal()
+            led_pps      = Signal()
+            led_link     = Signal()
+            led_act      = Signal()
+            self.comb += [
+                self.platform.request("user_led", 0).eq(~led_link),
+                self.platform.request("user_led", 1).eq(~led_act),
+                self.platform.request("user_led", 2).eq(~led_pps),
+                self.platform.request("user_led", 3).eq(~led_fake_pps),
+            ]
+
+            # Clks.
+            # -----
+            self.cd_wr = ClockDomain("wr")
+
+            # PPS Timer.
+            # ----------
+            self.pps_timer = pps_timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
+            self.comb += pps_timer.wait.eq(~pps_timer.done)
+            self.sync.clk_10m_ext += If(pps_timer.done, led_fake_pps.eq(~led_fake_pps))
+
+            # White Rabbit Fabric Interface.
+            # ------------------------------
+            wrf_src = wishbone.Interface(data_width=16, address_width=2, adressing="byte")
+            wrf_snk = wishbone.Interface(data_width=16, address_width=2, adressing="byte")
+
+            self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(  cd_to="wr")
+            self.wrf_wb2stream = wrf_wb2stream = Wishbone2Stream(cd_from="wr")
+
+            # White Rabbit Slave Interface.
+            # -----------------------------
+            wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
+            self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
+                 origin = 0x2000_0000,
+                 size   = 0x0100_0000,
+             ))
+
+            # White Rabbit Core Instance.
+            # ---------------------------
+            cpu_firmware = os.path.join(self.file_basedir, "firmware/speca7_wrc.bram")
+            self.specials += Instance("xwrc_board_artix7_wrapper",
+                # Parameters.
+                p_g_dpram_initf       = cpu_firmware,
+
+                # Clocks/resets.
+                i_areset_n_i          = ~ResetSignal("sys"),
+                i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
+                i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
+                i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
+
+                o_clk_ref_locked_o    = Open(),
+                o_dbg_rdy_o           = Open(),
+                o_ext_ref_rst_o       = Open(),
+                o_clk_ref_62m5_o      = Open(),
+                o_clk_62m5_sys_o      = ClockSignal("wr"),
+                o_ready_for_reset_o   = Open(),
+
+                # DAC RefClk Interface.
+                o_dac_refclk_cs_n_o   = Open(),
+                o_dac_refclk_sclk_o   = Open(),
+                o_dac_refclk_din_o    = Open(),
+
+                # DAC DMTD Interface.
+                o_dac_dmtd_cs_n_o     = Open(),
+                o_dac_dmtd_sclk_o     = Open(),
+                o_dac_dmtd_din_o      = Open(),
+
+                # SFP Interface.
+                o_sfp_txp_o           = sfp_pads.txp,
+                o_sfp_txn_o           = sfp_pads.txn,
+                i_sfp_rxp_i           = sfp_pads.rxp,
+                i_sfp_rxn_i           = sfp_pads.rxn,
+                i_sfp_det_i           = 0b1,
+                io_sfp_sda            = sfp_i2c_pads.sda,
+                io_sfp_scl            = sfp_i2c_pads.scl,
+                i_sfp_tx_fault_i      = 0b0,
+                i_sfp_tx_los_i        = 0b0,
+
+                # One-Wire Interface.
+                i_onewire_i           = 0,
+                o_onewire_oen_o       = Open(),
+
+                # UART Interface.
+                i_uart_rxd_i          = serial_pads.rx,
+                o_uart_txd_o          = serial_pads.tx,
+
+                # SPI Flash Interface.
+                o_spi_sclk_o          = Open(),
+                o_spi_ncs_o           = Open(),
+                o_spi_mosi_o          = Open(),
+                i_spi_miso_i          = 0,
+
+                # PPS / Leds.
+                i_pps_ext_i           = 0,
+                o_pps_p_o             = Open(),
+                o_pps_led_o           = led_pps,
+                o_led_link_o          = led_link,
+                o_led_act_o           = led_act,
+
+                # QPLL Interface (for GTPE2_Common Sharing).
+                o_gt0_ext_qpll_reset  = self.qpll.get_channel("eth").reset,
+                i_gt0_ext_qpll_clk    = self.qpll.get_channel("eth").clk,
+                i_gt0_ext_qpll_refclk = self.qpll.get_channel("eth").refclk,
+                i_gt0_ext_qpll_lock   = self.qpll.get_channel("eth").lock,
+
+                # Wishbone Slave Interface (MMAP).
+                i_wb_slave_cyc        = wb_slave.cyc,
+                i_wb_slave_stb        = wb_slave.stb,
+                i_wb_slave_we         = wb_slave.we,
+                i_wb_slave_adr        = (wb_slave.adr & 0x0fff_ffff),
+                i_wb_slave_sel        = wb_slave.sel,
+                i_wb_slave_dat_i      = wb_slave.dat_w,
+                o_wb_slave_dat_o      = wb_slave.dat_r,
+                o_wb_slave_ack        = wb_slave.ack,
+                o_wb_slave_err        = wb_slave.err,
+                o_wb_slave_rty        = Open(),
+                o_wb_slave_stall      = Open(),
+
+                # Wishbone Fabric Source Interface.
+                o_wrf_src_adr         = wrf_wb2stream.bus.adr,
+                o_wrf_src_dat         = wrf_wb2stream.bus.dat_w,
+                o_wrf_src_cyc         = wrf_wb2stream.bus.cyc,
+                o_wrf_src_stb         = wrf_wb2stream.bus.stb,
+                o_wrf_src_we          = wrf_wb2stream.bus.we,
+                o_wrf_src_sel         = wrf_wb2stream.bus.sel,
+
+                i_wrf_src_ack         = wrf_wb2stream.bus.ack,
+                i_wrf_src_stall       = 0, # CHECKME.
+                i_wrf_src_err         = wrf_wb2stream.bus.err,
+                i_wrf_src_rty         = 0, # CHECKME.
+
+                # Wishbone Fabric Sink Interface.
+                i_wrf_snk_adr         = wrf_stream2wb.bus.adr,
+                i_wrf_snk_dat         = wrf_stream2wb.bus.dat_w,
+                i_wrf_snk_cyc         = wrf_stream2wb.bus.cyc,
+                i_wrf_snk_stb         = wrf_stream2wb.bus.stb,
+                i_wrf_snk_we          = wrf_stream2wb.bus.we,
+                i_wrf_snk_sel         = wrf_stream2wb.bus.sel,
+
+                o_wrf_snk_ack         = wrf_stream2wb.bus.ack,
+                o_wrf_snk_stall       = Open(), # CHECKME.
+                o_wrf_snk_err         = wrf_stream2wb.bus.err,
+                o_wrf_snk_rty         = Open(), # CHECKME.
+            )
+            self.add_sources()
+            self.comb += self.wrf_wb2stream.source.ready.eq(1)
+
+            if with_white_rabbit_fabric:
+                # UDP Gen --------------------------------------------------------------------------
+                self.udp_gen = UDPPacketGenerator()
+                self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
+
+                # UDP Timer (1s) -------------------------------------------------------------------
+                self.udp_timer = udp_timer = WaitTimer(int(125e6))
+                self.comb += udp_timer.wait.eq(~udp_timer.done)
+                self.comb += self.udp_gen.send.eq(udp_timer.done)
+
+                # UDP/IP Etherbone -----------------------------------------------------------------
+
+                class LiteEthPHYWRGMII(LiteXModule):
+                    dw = 8
+                    def __init__(self):
+                        self.sink   = wrf_stream2wb.sink
+                        self.source = wrf_wb2stream.source
+
+                self.ethphy = LiteEthPHYWRGMII()
+                self.add_etherbone(phy=self.ethphy, with_timing_constraints=False)
+
+                # Analyzer -------------------------------------------------------------------------
+                analyzer_signals = [
+                    #wrf_stream2wb.bus,
+                    wrf_wb2stream.bus,
+                    wrf_wb2stream.fsm,
+                    wrf_wb2stream.source,
+                    #wrf_stream2wb.sink,
+                ]
+                self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                    depth        = 256,
+                    clock_domain = "sys",
+                    samplerate   = int(62.5e6),
+                    register     = True,
+                    csr_csv      = "analyzer.csv"
+                )
 
     def add_sources(self):
-        # fill converter with all path / files required
-        # board specifics
         custom_files = [
             "gateware/xwrc_platform_vivado.vhd",
             "gateware/xwrc_board_artix7.vhd",
@@ -349,23 +449,38 @@ class BaseSoC(SoCCore):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=Platform, description="SPECA7 WR.")
-    parser.add_target_argument("--flash",        action="store_true",       help="Flash bitstream to SPI Flash.")
+    parser = argparse.ArgumentParser(description="LiteX-WR-NIC on SPEC-A7.")
+
+    # Build/Load/Flash Arguments.
+    # ---------------------------
+    parser.add_argument("--build", action="store_true", help="Build bitstream.")
+    parser.add_argument("--load",  action="store_true", help="Load bitstream.")
+    parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
+
     args = parser.parse_args()
 
+    # Build SoC.
+    # ----------
     soc = BaseSoC()
-    builder = Builder(soc, **parser.builder_argdict)
-    if args.build:
-        builder.build(**parser.toolchain_argdict)
+    builder = Builder(soc, csr_csv="csr.csv")
+    builder.build(run=args.build)
 
+    # Generate PCIe C Headers.
+    # ------------------------
+    software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
+    generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
+
+    # Load FPGA.
+    # ----------
     if args.load:
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
+    # Flash FPGA.
+    # -----------
     if args.flash:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(builder.get_bitstream_filename(mode="flash"))
+        prog.flash(0, builder.get_bitstream_filename(mode="flash"))
 
 if __name__ == "__main__":
     main()

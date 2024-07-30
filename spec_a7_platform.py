@@ -14,8 +14,8 @@ from litex.build.xilinx import Xilinx7SeriesPlatform, VivadoProgrammer
 
 _io = [
     # Clk / Rst.
-    ("clk_25m_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")),
-    ("clk62_5", 0,
+    ("clk25m_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")),
+    ("clk62p5", 0,
         Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")),
         Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")),
     ),
