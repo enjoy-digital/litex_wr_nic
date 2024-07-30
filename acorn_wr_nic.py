@@ -91,6 +91,7 @@ class _CRG(LiteXModule):
             self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
             platform.add_false_path_constraints(
                 pll.clkin,
+                self.cd_sys.clk,
                 self.cd_clk_125m_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
                 self.cd_clk_10m_ext.clk,
@@ -485,7 +486,7 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "sofware/kernel")
+    generate_litepcie_software_headers(soc, "software/kernel")
 
     # Load FPGA.
     # ----------

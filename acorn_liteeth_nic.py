@@ -31,6 +31,7 @@ from liteeth.phy.a7_1000basex import A7_1000BASEX
 
 from litepcie.software import generate_litepcie_software
 
+from gateware.qpll         import SharedQPLL
 from gateware.nic.pcie_nic import PCIeNICSoC
 
 # Platform -----------------------------------------------------------------------------------------
@@ -43,8 +44,10 @@ class Platform(sqrl_acorn.Platform):
 
 class CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, with_eth=False):
-        self.rst    = Signal()
-        self.cd_sys = ClockDomain()
+        self.rst            = Signal()
+        self.cd_sys         = ClockDomain()
+        self.cd_refclk_pcie = ClockDomain()
+        self.cd_refclk_eth  = ClockDomain()
 
         # Clk/Rst.
         clk200    = platform.request("clk200")
@@ -56,28 +59,34 @@ class CRG(LiteXModule):
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200_se, 200e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
-        platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
+        platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
 
         # Eth PLL.
         if with_eth:
-            self.cd_eth_ref = ClockDomain()
             self.eth_pll = eth_pll = S7PLL()
             self.comb += eth_pll.reset.eq(self.rst)
             eth_pll.register_clkin(clk200_se, 200e6)
-            eth_pll.create_clkout(self.cd_eth_ref, 156.25e6, margin=0)
+            eth_pll.create_clkout(self.cd_refclk_eth, 156.25e6, margin=0)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(PCIeNICSoC):
-    def __init__(self, sys_clk_freq=125e6, with_led_chaser = True, **kwargs):
+    def __init__(self, sys_clk_freq=125e6, with_led_chaser=True, **kwargs):
         # Platform ---------------------------------------------------------------------------------
 
         platform = Platform(variant="cle-215+")
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
 
-        # CRG --------------------------------------------------------------------------------------
+        # Clocking ---------------------------------------------------------------------------------
 
         self.crg = CRG(platform, sys_clk_freq, with_eth=True)
+
+        # Shared QPLL.
+        self.qpll = SharedQPLL(platform,
+            with_pcie       = True,
+            with_eth        = True,
+            eth_refclk_freq = 156.25e6,
+        )
 
         # SoCCore ----------------------------------------------------------------------------------
 
@@ -87,48 +96,21 @@ class BaseSoC(PCIeNICSoC):
 
         self.add_jtagbone()
 
-        # PCIe / Ethernet Shared QPLL Settings -----------------------------------------------------
-
-        # PCIe QPLL Settings.
-        qpll_pcie_settings = QPLLSettings(
-            refclksel  = 0b001,
-            fbdiv      = 5,
-            fbdiv_45   = 5,
-            refclk_div = 1,
-        )
-
-        # Ethernet QPLL Settings.
-        qpll_eth_settings = QPLLSettings(
-            refclksel  = 0b111,
-            fbdiv      = 4,
-            fbdiv_45   = 4,
-            refclk_div = 1,
-        )
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-
         # PCIe -------------------------------------------------------------------------------------
 
         self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
-            data_width      = 64,
-            bar0_size       = 0x20000,
+            data_width = 64,
+            bar0_size  = 0x20000,
         )
+        self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
+        self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
         platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
         platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
-
-        # Shared QPLL ------------------------------------------------------------------------------
-
-        self.qpll = qpll = QPLL(
-            gtrefclk0     = self.pcie_phy.pcie_refclk,
-            qpllsettings0 = qpll_pcie_settings,
-            gtgrefclk1    = self.crg.cd_eth_ref.clk,
-            qpllsettings1 = qpll_eth_settings,
-        )
-        self.pcie_phy.use_external_qpll(qpll_channel=qpll.channels[0])
 
         # Ethernet ---------------------------------------------------------------------------------
 
         self.ethphy = A7_1000BASEX(
-            qpll_channel = qpll.channels[1],
+            qpll_channel = self.qpll.get_channel("eth"),
             data_pads    = self.platform.request("sfp"),
             sys_clk_freq = sys_clk_freq,
             rx_polarity  = 1,  # Inverted on Acorn.
@@ -168,7 +150,7 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "sofware/driver")
+    generate_litepcie_software_headers(soc, "software/driver")
 
     # Load FPGA.
     # ----------
