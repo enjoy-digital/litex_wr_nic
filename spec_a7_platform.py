@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2024 Enjoy-Digital
+#
+# This file is part of LiteX-WR-NIC.
+#
+# Copyright (c) 2024 Warsaw University of Technology
+# Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import Xilinx7SeriesPlatform, VivadoProgrammer

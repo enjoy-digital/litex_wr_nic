@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2024 Enjoy-Digital.
+#
+# This file is part of LiteX-WR-NIC.
+#
+# Copyright (c) 2024 Warsaw University of Technology
+# Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 # ./acorn.py --csr-csv=csr.csv --build --load
 # litex_server --jtag --jtag-config=openocd_xc7_ft2232.cfg
@@ -509,7 +514,7 @@ def main():
 
     if args.flash:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(builder.get_bitstream_filename(mode="flash"))
+        prog.flash(0, builder.get_bitstream_filename(mode="flash"))
 
 if __name__ == "__main__":
     main()
