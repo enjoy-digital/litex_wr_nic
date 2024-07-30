@@ -17,9 +17,9 @@ from litex.soc.interconnect import wishbone
 
 from litex.soc.integration.soc_core import *
 
-from gateware import sram
+from gateware.nic import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
-from gateware.dma import LitePCIe2WishboneDMA
+from gateware.nic.dma import LitePCIe2WishboneDMA
 
 class PCIeNICSoC(SoCMini):
     SoCMini.csr_map = {

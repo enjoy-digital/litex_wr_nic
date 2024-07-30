@@ -31,7 +31,7 @@ from liteeth.phy.a7_1000basex import A7_1000BASEX
 
 from litepcie.software import generate_litepcie_software
 
-from gateware.pcie_nic import PCIeNICSoC
+from gateware.nic.pcie_nic import PCIeNICSoC
 
 # Platform -----------------------------------------------------------------------------------------
 
