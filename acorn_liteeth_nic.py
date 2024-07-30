@@ -37,8 +37,18 @@ from gateware.nic.pcie_nic import PCIeNICSoC
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(sqrl_acorn.Platform):
+    def detect_ftdi_chip(self):
+        lsusb_log = subprocess.run(['lsusb'], capture_output=True, text=True)
+        for ftdi_chip in ["ft232", "ft2232", "ft4232"]:
+            if f"Future Technology Devices International, Ltd {ftdi_chip.upper()}" in lsusb_log.stdout:
+                return ftdi_chip
+        return None
+
     def create_programmer(self):
-        return OpenFPGALoader(cable="ft2232", fpga_part=f"xc7a200tfbg484", freq=10e6)
+        ftdi_chip = self.detect_ftdi_chip()
+        if ftdi_chip is None:
+            raise RuntimeError("No compatible FTDI device found.")
+        return OpenFPGALoader(cable=ftdi_chip, fpga_part="xc7a200tfbg484", freq=10e6)
 
 # CRG ----------------------------------------------------------------------------------------------
 
