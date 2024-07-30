@@ -129,9 +129,12 @@ class BaseSoC(SoCCore):
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform,
             clk_freq      = sys_clk_freq,
-            ident         = "PCIe NIC on LiteX Acorn BaseBoard Mini with WR/PTM support.",
-            with_jtagbone = True
+            ident         = "LiteX-WR-NIC on Acorn Baseboard Mini.",
+            ident_version = True,
         )
+
+        # JTAGBone ---------------------------------------------------------------------------------
+        self.add_jtagbone()
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
@@ -443,7 +446,6 @@ class BaseSoC(SoCCore):
                 )
 
     def add_sources(self):
-        # fill converter with all path / files required
         custom_files = [
             "gateware/xwrc_platform_vivado.vhd",
             "gateware/xwrc_board_artix7.vhd",
@@ -463,23 +465,35 @@ class BaseSoC(SoCCore):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=Platform, description="Acorn WR.")
-    parser.add_target_argument("--flash", action="store_true", help="Flash bitstream to SPI Flash.")
+    parser = argparse.ArgumentParser(description="LiteX-WR-NIC on Acorn Baseboard Mini.")
+
+    # Build/Load/Flash Arguments.
+    # ---------------------------
+    parser.add_argument("--build", action="store_true", help="Build bitstream.")
+    parser.add_argument("--load",  action="store_true", help="Load bitstream.")
+    parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
+
     args = parser.parse_args()
 
+    # Build SoC.
+    # ----------
     soc = BaseSoC()
+    builder = Builder(soc, csr_csv="csr.csv")
+    builder.build(run=args.build)
 
-    builder = Builder(soc, **parser.builder_argdict)
-    if args.build:
-        builder.build(**parser.toolchain_argdict)
-        software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
-        generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
+    # Generate PCIe C Headers.
+    # ------------------------
+    software_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "software")
+    generate_litepcie_software_headers(soc, os.path.join(software_dir, "kernel"))
 
+    # Load FPGA.
+    # ----------
     if args.load:
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
+    # Flash FPGA.
+    # -----------
     if args.flash:
         prog = soc.platform.create_programmer()
         prog.flash(0, builder.get_bitstream_filename(mode="flash"))
