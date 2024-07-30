@@ -431,12 +431,14 @@ class BaseSoC(SoCCore):
 
     def add_sources(self):
         custom_files = [
-            "gateware/xwrc_platform_vivado.vhd",
-            "gateware/xwrc_board_artix7.vhd",
-            "gateware/xwrc_board_artix7_wrapper.vhd",
+            # 7-Series GTP PHY.
             "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper.vhd",
             "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
             "gateware/wr_phy/wr_gtp_phy_family7.vhd",
+            # 7-Series Core.
+            "gateware/wr_core/xwrc_platform_vivado.vhd",
+            "gateware/wr_core/xwrc_board_artix7.vhd",
+            "gateware/wr_core/xwrc_board_artix7_wrapper.vhd",
         ]
 
         for cf in custom_files:
