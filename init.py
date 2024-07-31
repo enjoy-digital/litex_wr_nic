@@ -14,17 +14,9 @@ def init_wr_cores():
     subprocess.run(["git", "submodule", "update", "--init"])
     print("wr-cores initialization complete.")
 
-def init_riscv_toolchain():
-    print("Downloading the RISC-V toolchain...")
-    subprocess.run(["wget", "https://ohwr.org/project/wrpc-sw/wikis/uploads/9f9224d2249848ed3e854636de9c08dc/riscv-11.2-small.tgz"])
-    print("Extracting the toolchain...")
-    subprocess.run(["tar", "xJf", "riscv-11.2-small.tgz"])
-    print("RISC-V toolchain initialization complete.")
-
 def main():
     parser = argparse.ArgumentParser(description="Initialize wr-cores or RISC-V toolchain")
     parser.add_argument("--wr-cores", action="store_true", help="Initialize the wr-cores repository")
-    parser.add_argument("--riscv", action="store_true", help="Initialize the RISC-V toolchain")
 
     args = parser.parse_args()
 
