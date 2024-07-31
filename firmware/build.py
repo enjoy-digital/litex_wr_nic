@@ -15,10 +15,10 @@ REPO_URL          = "https://ohwr.org/project/wrpc-sw.git"
 CLONE_DIR         = "wrpc-sw"
 
 COMMIT_HASH       = "5ac04dd53a16f3931c3cb8361dc0d6bdbbf82dc6"
-CONFIG_SRC        = "speca7_defconfig"
+CONFIG_SRC        = "litex_wr_nic_defconfig"
 
 FIRMWARE_SRC      = os.path.join(CLONE_DIR, "wrc.bram")
-FIRMWARE_DEST     = "speca7_wrc.bram"
+FIRMWARE_DEST     = "litex_wr_nic_wrc.bram"
 
 # Build Helpers/Functions --------------------------------------------------------------------------
 
