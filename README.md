@@ -25,7 +25,9 @@ support. The project currently has two designs:
    - Tested with Iperf3.
 
 The final goal is to merge these designs, removing the LiteEth 1000BaseX PHY, and connect directly
-to the White Rabbit fabric interface.
+to the White Rabbit fabric interface:
+
+![](doc/architecture.png)
 
 [> Prerequisites / System setup
 -------------------------------
@@ -145,8 +147,10 @@ provide status/diagnostics through the WRC console.
 The project includes a pre-generated firmware integrated into the FPGA design at build-time. To
 rebuild the firmware:
 
-```sh cd firmware
-./build.py ```
+```sh
+cd firmware
+./build.py
+```
 
 This rebuilt firmware will then be used for the FPGA builds.
 
