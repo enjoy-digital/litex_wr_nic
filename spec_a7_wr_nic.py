@@ -389,7 +389,6 @@ class BaseSoC(SoCCore):
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
                 o_wrf_snk_rty         = Open(), # CHECKME.
             )
-            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-1962]") # CHECKME: Issue with Vivado 2024.1, not yet worth investigating since CPU RAM will be replaced.
             self.add_sources()
             self.comb += self.wrf_wb2stream.source.ready.eq(1)
 
