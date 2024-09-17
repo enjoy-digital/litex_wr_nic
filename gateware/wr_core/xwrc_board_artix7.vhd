@@ -454,7 +454,7 @@ begin  -- architecture struct
       g_ep_rxbuf_size             => 1024,
       g_tx_runt_padding           => TRUE,
       g_dpram_initf               => g_dpram_initf,
-      g_dpram_size                => 147456/4, -- 131072/4,
+      g_dpram_size                => 131072/4,
       g_interface_mode            => PIPELINED,
       g_address_granularity       => BYTE,
       g_aux_sdb                   => c_wrc_periph3_sdb,
