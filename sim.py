@@ -6,11 +6,24 @@ from migen import *
 
 from litex.tools.litex_sim import *
 
-# WRCSim --------------------------------------------------------------------------------------------
+from litex.build.vhd2v_converter import *
+
+from gateware.wr_common     import wr_core_init, wr_core_files
+
+# WRCSim -------------------------------------------------------------------------------------------
 
 class WRCSim(SimSoC):
     def __init__(self):
         SimSoC.__init__(self, cpu_type="None", with_uart=False)
+
+        # VHDL to Verilog Converter.
+        self.vhd2v_converter = VHD2VConverter(self.platform,
+            top_entity    = "xwrc_board_common",
+            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+            force_convert = True,
+        )
+        cdir = os.path.dirname(__file__)
+        self.vhd2v_converter.add_sources(cdir, *wr_core_files)
 
 # Build --------------------------------------------------------------------------------------------
 
