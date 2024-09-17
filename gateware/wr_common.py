@@ -31,10 +31,6 @@ wr_core_files = [
     # Unmodified files.
     # ----------------------------------------------------------------------------------------------
 
-    # CLBV3 Packages.
-    "wr-cores/board/clbv3/wr_clbv3_pkg.vhd",
-    "wr-cores/board/clbv3/xwrc_board_clbv3.vhd",
-
     # Common Packages.
     "wr-cores/board/common/wr_board_pkg.vhd",
     "wr-cores/board/common/xwrc_board_common.vhd",

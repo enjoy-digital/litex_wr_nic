@@ -47,7 +47,6 @@ use work.endpoint_pkg.all;
 use work.streamers_pkg.all;
 use work.wr_xilinx_pkg.all;
 use work.wr_board_pkg.all;
-use work.wr_clbv3_pkg.all;
 
 library unisim;
 use unisim.vcomponents.all;

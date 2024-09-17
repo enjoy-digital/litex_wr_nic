@@ -21,7 +21,6 @@ use work.endpoint_pkg.all;
 use work.streamers_pkg.all;
 use work.wr_xilinx_pkg.all;
 use work.wr_board_pkg.all;
-use work.wr_clbv3_pkg.all;
 
 entity xwrc_board_artix7_wrapper is
   generic(
