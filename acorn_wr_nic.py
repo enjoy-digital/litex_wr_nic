@@ -62,7 +62,7 @@ class Platform(sqrl_acorn.Platform):
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=False):
+    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=True):
         self.rst            = Signal()
         self.cd_sys         = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
@@ -98,7 +98,7 @@ class _CRG(LiteXModule):
             )
 
         if with_pcie:
-            pll.create_clkout(self.cd_clk50,  50e6, margin=0)
+            pll.create_clkout(self.cd_clk50, 50e6, margin=0)
 
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
 

@@ -46,7 +46,7 @@ from gateware.wrf_wb2stream import Wishbone2Stream
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=False):
+    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=True):
         self.rst            = Signal()
         self.cd_sys         = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
@@ -75,20 +75,21 @@ class _CRG(LiteXModule):
             self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
             platform.add_false_path_constraints(
                 pll.clkin,
+                self.cd_sys.clk,
                 self.cd_clk_125m_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
                 self.cd_clk_10m_ext.clk,
             )
 
         if with_pcie:
-            pll.create_clkout(self.cd_clk50,  50e6, margin=0)
+            pll.create_clkout(self.cd_clk50, 50e6, margin=0)
 
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=125e6, with_white_rabbit=True, with_pcie=False, with_white_rabbit_fabric=False):
+    def __init__(self, sys_clk_freq=125e6, with_white_rabbit=False, with_pcie=True, with_white_rabbit_fabric=False):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
 
@@ -122,11 +123,13 @@ class BaseSoC(SoCCore):
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
+            self.comb += platform.request("mgt_refclk_125m_oe").eq(1)
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width = 64,
                 bar0_size  = 0x20000,
                 with_ptm   = True,
             )
+            self.pcie_phy.update_config({"Ref_Clk_Freq" : "125_MHz"})
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
             self.add_pcie(phy=self.pcie_phy,
                 ndmas         = 1,
@@ -135,8 +138,8 @@ class BaseSoC(SoCCore):
             )
             self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
-            platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
-            platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
+            #platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
+            #platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
             # PCIe <-> Sys-Clk false paths.
             false_paths = [

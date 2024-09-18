@@ -22,7 +22,8 @@ _io = [
     ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")),
 
     # MGT RefClk.
-    ("mgtrefclk", 0,
+    ("mgt_refclk_125m_oe", 0, Pins("F14"), IOStandard("LVCMOS33")),
+    ("mgt_refclk_125m", 0,
         Subsignal("p", Pins("D6")),
         Subsignal("n", Pins("D5")),
     ),
@@ -47,8 +48,8 @@ _io = [
     # PCIe.
     ("pcie_x1", 0,
         Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),
-        Subsignal("clk_p", Pins("")), # FIXME: Asynchronous Clocking? -> Add LitePCIe support.
-        Subsignal("clk_n", Pins("")), # FIXME: Asynchronous Clocking? -> Add LitePCIe support.
+        Subsignal("clk_p", Pins("D6")), # 125MHz / Free-Running -> Add/Test LitePCIe support.
+        Subsignal("clk_n", Pins("D5")), # 125MHz / Free-Running -> Add/Test LitePCIe support.
         Subsignal("rx_p",  Pins("E4 C4")),
         Subsignal("rx_n",  Pins("E3 C3")),
         Subsignal("tx_p",  Pins("H2 D2")),
