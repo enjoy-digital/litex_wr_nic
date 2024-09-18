@@ -105,7 +105,16 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=125e6, with_white_rabbit=True, with_pcie=True, with_white_rabbit_fabric=False, with_white_rabbit_ext_ram=False):
+    def __init__(self, sys_clk_freq=125e6,
+        # PCIe Parameters.
+        with_pcie                 = True,
+        with_pcie_ptm             = False,
+
+        # White Rabbit Paramters.
+        with_white_rabbit         = True,
+        with_white_rabbit_fabric  = False,
+        with_white_rabbit_ext_ram = False,
+    ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
@@ -166,6 +175,10 @@ class BaseSoC(SoCCore):
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk0}] -to [get_clocks {clk1}]")
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk1}] -to [get_clocks {clk0}]")
 
+        # PCIe PTM ---------------------------------------------------------------------------------
+        if with_pcie_ptm:
+            assert with_pcie
+
             # PCIe PTM Sniffer ---------------------------------------------------------------------
 
             # Since Xilinx PHY does not allow redirecting PTM TLP Messages to the AXI inferface, we have
@@ -224,7 +237,7 @@ class BaseSoC(SoCCore):
                 platform.toolchain.pre_optimize_commands.append(f"disconnect_net -net $pin_driver -objects {_to}")
                 platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net {_from} -objects {_to}")
 
-            # Time ---------------------------------------------------------------------------------
+            # Time Generator -----------------------------------------------------------------------
 
             self.time_generator = TimeGenerator(
                 clk_domain = "clk50",
