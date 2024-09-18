@@ -28,6 +28,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
 from litex.soc.cores.clock import *
+from litex.soc.cores.led   import LedChaser
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
 from litepcie.frontend.ptm  import PCIePTMSniffer
@@ -95,7 +96,7 @@ class BaseSoC(SoCCore):
         with_pcie_ptm             = False,
 
         # White Rabbit Paramters.
-        with_white_rabbit         = True,
+        with_white_rabbit         = False,
         with_white_rabbit_fabric  = False,
         with_white_rabbit_ext_ram = False,
     ):
@@ -128,6 +129,14 @@ class BaseSoC(SoCCore):
 
         # JTAGBone ---------------------------------------------------------------------------------
         self.add_jtagbone()
+
+        # Leds -------------------------------------------------------------------------------------
+        with_led_chaser = True
+        if with_led_chaser:
+            self.leds = LedChaser(
+                pads         = platform.request_all("user_led"),
+                sys_clk_freq = sys_clk_freq,
+            )
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
