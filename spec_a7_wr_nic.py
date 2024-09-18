@@ -62,12 +62,30 @@ class _CRG(LiteXModule):
         # # #
 
         # Clk/Rst.
-        clk25 = platform.request("clk25")
+        #clk25 = platform.request("clk25")
+
+        # CFGM Clk ~65MHz.
+        cfgm_clk      = Signal()
+        cfgm_clk_freq = int(65e6)
+        self.specials += Instance("STARTUPE2",
+            i_CLK       = 0,
+            i_GSR       = 0,
+            i_GTS       = 0,
+            i_KEYCLEARB = 1,
+            i_PACK      = 0,
+            i_USRCCLKO  = cfgm_clk,
+            i_USRCCLKTS = 0,
+            i_USRDONEO  = 1,
+            i_USRDONETS = 1,
+            o_CFGMCLK   = cfgm_clk
+        )
+        platform.add_period_constraint(cfgm_clk, 1e9/65e6)
 
         # PLL.
         self. pll = pll = S7PLL()
         self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(clk25, 25e6)
+        #pll.register_clkin(clk25, 25e6)
+        pll.register_clkin(cfgm_clk, 65e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
         if with_white_rabbit:
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
