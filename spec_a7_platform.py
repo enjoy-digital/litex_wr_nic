@@ -169,8 +169,9 @@ class Platform(Xilinx7SeriesPlatform):
     default_clk_name   = "clk25"
     default_clk_period = 1e9/25e6
 
-    def __init__(self, toolchain="vivado"):
-        Xilinx7SeriesPlatform.__init__(self, "xc7a35tcsg325-2", _io,  _connectors, toolchain=toolchain)
+    def __init__(self, variant="xc7a35t", toolchain="vivado"):
+        assert variant in ["xc7a35t", "xc7a50t"]
+        Xilinx7SeriesPlatform.__init__(self, f"{variant}csg325-2", _io,  _connectors, toolchain=toolchain)
 
     def create_programmer(self, name="openocd"):
         if name == "openocd":
