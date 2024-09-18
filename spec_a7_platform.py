@@ -65,10 +65,10 @@ _io = [
         Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),
         Subsignal("clk_p", Pins("D6")), # 125MHz / Free-Running -> Add/Test LitePCIe support.
         Subsignal("clk_n", Pins("D5")), # 125MHz / Free-Running -> Add/Test LitePCIe support.
-        Subsignal("rx_p",  Pins("E4 C4")),
-        Subsignal("rx_n",  Pins("E3 C3")),
-        Subsignal("tx_p",  Pins("H2 D2")),
-        Subsignal("tx_n",  Pins("H1 D1")),
+        Subsignal("rx_p",  Pins("E4 A4")),
+        Subsignal("rx_n",  Pins("E3 A3")),
+        Subsignal("tx_p",  Pins("H2 F2")),
+        Subsignal("tx_n",  Pins("H1 F1")),
     ),
 
     # VCXO Clk Control.
@@ -94,10 +94,10 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
     ("sfp", 0,
-        Subsignal("txp", Pins("F2")),
-        Subsignal("txn", Pins("F1")),
-        Subsignal("rxp", Pins("A4")),
-        Subsignal("rxn", Pins("A3")),
+        Subsignal("txp", Pins("D2")),
+        Subsignal("txn", Pins("D1")),
+        Subsignal("rxp", Pins("C4")),
+        Subsignal("rxn", Pins("C3")),
     ),
     ("sfp_tx", 0,
         Subsignal("p", Pins("F2")),
