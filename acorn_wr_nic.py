@@ -83,7 +83,7 @@ class _CRG(LiteXModule):
         self. pll = pll = S7PLL()
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200, 200e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq)
+        pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
         if with_white_rabbit:
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
             pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
@@ -148,10 +148,12 @@ class BaseSoC(SoCCore):
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
+            self.comb += platform.request("mgt_refclk_125m_oe").eq(1)
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
-                data_width = 64,
-                bar0_size  = 0x20000,
-                with_ptm   = True,
+                data_width  = 64,
+                bar0_size   = 0x20000,
+                with_ptm    = True,
+                refclk_freq = 100e6,
             )
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
             self.add_pcie(phy=self.pcie_phy,
