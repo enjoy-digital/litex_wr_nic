@@ -9,6 +9,7 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import Xilinx7SeriesPlatform, VivadoProgrammer
+from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -170,6 +171,13 @@ class Platform(Xilinx7SeriesPlatform):
 
     def __init__(self, toolchain="vivado"):
         Xilinx7SeriesPlatform.__init__(self, "xc7a35tcsg325-2", _io,  _connectors, toolchain=toolchain)
+
+    def create_programmer(self, name="openocd"):
+        if name == "openocd":
+            return OpenOCD("openocd_xc7_ft232.cfg", "bscan_spi_xc7a35t.bit")
+        elif name == "vivado":
+            # TODO: some board versions may have s25fl128s
+            return VivadoProgrammer(flash_part='s25fl256sxxxxxx0-spi-x1_x2_x4')
 
     def do_finalize(self, fragment):
         Xilinx7SeriesPlatform.do_finalize(self, fragment)
