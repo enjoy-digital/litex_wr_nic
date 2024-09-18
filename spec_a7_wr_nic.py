@@ -515,7 +515,7 @@ def main():
     # ----------
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
+        prog.load_bitstream(builder.get_bitstream_filename(mode="flash"))
 
     # Flash FPGA.
     # -----------
