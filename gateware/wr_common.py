@@ -206,7 +206,7 @@ wr_core_files = [
     "wr-cores/modules/wrc_core/wrc_periph.vhd",
     "wr-cores/modules/wrc_core/wrc_syscon_pkg.vhd",
     "wr-cores/modules/wrc_core/wrc_syscon_wb.vhd",
-    "wr-cores/modules/wrc_core/wrc_urv_wrapper.vhd",
+    #"wr-cores/modules/wrc_core/wrc_urv_wrapper.vhd",
     "wr-cores/modules/wrc_core/wrcore_pkg.vhd",
     "wr-cores/modules/wrc_core/xwr_core.vhd",
 
@@ -219,6 +219,7 @@ wr_core_files = [
     # ----------------------------------------------------------------------------------------------
 
     # WR Core Modules.
+    "gateware/wrc_urv_wrapper.vhd",
     "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper.vhd",
     "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
     "gateware/wr_phy/wr_gtp_phy_family7.vhd",

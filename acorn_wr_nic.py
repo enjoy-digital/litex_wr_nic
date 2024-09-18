@@ -105,7 +105,7 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=125e6, with_white_rabbit=True, with_pcie=True, with_white_rabbit_fabric=False, with_white_rabbit_ext_ram=True):
+    def __init__(self, sys_clk_freq=125e6, with_white_rabbit=True, with_pcie=True, with_white_rabbit_fabric=False, with_white_rabbit_ext_ram=False):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
