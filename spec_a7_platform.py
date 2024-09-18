@@ -191,4 +191,4 @@ class Platform(Xilinx7SeriesPlatform):
 
     def do_finalize(self, fragment):
         Xilinx7SeriesPlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk62p5", loose=True), 1e9/25e6)
+        self.add_period_constraint(self.lookup_request("clk62p5", loose=True), 1e9/62.5e6)

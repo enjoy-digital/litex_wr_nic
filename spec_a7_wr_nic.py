@@ -417,8 +417,6 @@ class BaseSoC(SoCCore):
             )
             self.add_sources()
             self.comb += self.wrf_wb2stream.source.ready.eq(1)
-            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks PDRC-34]") # FIXME: Add proper timing constraints.
-            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks PDRC-43]") # FIXME: Add proper timing constraints.
 
             if with_white_rabbit_fabric:
                 # UDP Gen --------------------------------------------------------------------------
