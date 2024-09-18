@@ -154,7 +154,7 @@ class BaseSoC(SoCCore):
         # Leds -------------------------------------------------------------------------------------
         if not with_white_rabbit:
             self.leds = LedChaser(
-                pads         = platform.request_all("user_led"),
+                pads         = platform.request_all("frontpanel_led"),
                 sys_clk_freq = sys_clk_freq,
             )
 

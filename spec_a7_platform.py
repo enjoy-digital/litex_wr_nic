@@ -39,6 +39,11 @@ _io = [
     ("user_led", 2, Pins("H17"), IOStandard("LVCMOS25")),
     ("user_led", 3, Pins("E18"), IOStandard("LVCMOS25")),
 
+    ("frontpanel_led", 0, Pins("B11"), IOStandard("LVCMOS25")),
+    ("frontpanel_led", 1, Pins("B10"), IOStandard("LVCMOS25")),
+    ("frontpanel_led", 2, Pins("A10"), IOStandard("LVCMOS25")),
+    ("frontpanel_led", 3, Pins("A12"), IOStandard("LVCMOS25")),
+
     # Serial.
     ("serial", 0,
         Subsignal("tx", Pins("R17")),
