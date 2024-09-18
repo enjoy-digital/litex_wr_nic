@@ -65,10 +65,10 @@ class _CRG(LiteXModule):
         clk62p5 = platform.request("clk62p5")
 
         # PLL.
-        self. pll = pll = S7PLL(speedgrade=-3)
+        self. pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk62p5, 62.5e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq)
+        pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
         if with_white_rabbit:
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
             pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
@@ -92,11 +92,11 @@ class _CRG(LiteXModule):
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
-        with_pcie                 = False,
+        with_pcie                 = True,
         with_pcie_ptm             = False,
 
         # White Rabbit Paramters.
-        with_white_rabbit         = False,
+        with_white_rabbit         = True,
         with_white_rabbit_fabric  = False,
         with_white_rabbit_ext_ram = False,
     ):
@@ -130,12 +130,11 @@ class BaseSoC(SoCCore):
         # JTAGBone ---------------------------------------------------------------------------------
         self.add_jtagbone()
 
-        # Leds -------------------------------------------------------------------------------------
-        if not with_white_rabbit:
-            self.leds = LedChaser(
-                pads         = platform.request_all("frontpanel_led"),
-                sys_clk_freq = sys_clk_freq,
-            )
+        # Frontpanel Leds --------------------------------------------------------------------------
+        self.leds = LedChaser(
+            pads         = platform.request_all("frontpanel_led"),
+            sys_clk_freq = sys_clk_freq,
+        )
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
@@ -415,6 +414,8 @@ class BaseSoC(SoCCore):
             )
             self.add_sources()
             self.comb += self.wrf_wb2stream.source.ready.eq(1)
+            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks PDRC-34]") # FIXME: Add proper timing constraints.
+            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks PDRC-43]") # FIXME: Add proper timing constraints.
 
             if with_white_rabbit_fabric:
                 # UDP Gen --------------------------------------------------------------------------
