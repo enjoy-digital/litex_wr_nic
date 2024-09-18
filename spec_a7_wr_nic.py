@@ -47,7 +47,7 @@ from gateware.wrf_wb2stream import Wishbone2Stream
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=True, use_cfgm_clk=True):
+    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=True, use_cfgm_clk=False):
         self.rst            = Signal()
         self.cd_sys         = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
@@ -113,11 +113,11 @@ class _CRG(LiteXModule):
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
-        with_pcie                 = False,
+        with_pcie                 = True,
         with_pcie_ptm             = False,
 
         # White Rabbit Paramters.
-        with_white_rabbit         = False,
+        with_white_rabbit         = True,
         with_white_rabbit_fabric  = False,
         with_white_rabbit_ext_ram = False,
     ):
@@ -152,8 +152,7 @@ class BaseSoC(SoCCore):
         self.add_jtagbone()
 
         # Leds -------------------------------------------------------------------------------------
-        with_led_chaser = True
-        if with_led_chaser:
+        if not with_white_rabbit:
             self.leds = LedChaser(
                 pads         = platform.request_all("user_led"),
                 sys_clk_freq = sys_clk_freq,
@@ -170,9 +169,10 @@ class BaseSoC(SoCCore):
             )
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
             self.add_pcie(phy=self.pcie_phy,
-                ndmas         = 1,
-                address_width = 64,
-                with_ptm      = True,
+                ndmas                = 1,
+                address_width        = 64,
+                with_ptm             = with_pcie_ptm,
+                max_pending_requests = 4,
             )
             self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
