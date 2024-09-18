@@ -262,6 +262,7 @@ class BaseSoC(SoCCore):
         if with_white_rabbit:
             # Pads.
             # -----
+            sfp_disable_pads  = self.platform.request("sfp_disable")
             sfp_pads          = self.platform.request("sfp")
             sfp_i2c_pads      = self.platform.request("sfp_i2c")
             serial_pads       = self.platform.request("serial")
@@ -308,6 +309,8 @@ class BaseSoC(SoCCore):
             # White Rabbit Core Instance.
             # ---------------------------
             cpu_firmware = os.path.join(self.file_basedir, "firmware/litex_wr_nic_wrc.bram")
+
+            self.comb += sfp_disable_pads.eq(0)
             self.specials += Instance("xwrc_board_artix7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = cpu_firmware,

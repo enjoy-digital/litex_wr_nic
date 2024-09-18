@@ -82,7 +82,7 @@ _io = [
     ),
 
     # SFP0.
-    ("sfp_disable_n", 0, Pins("U17"),         IOStandard("LVCMOS33")),
+    ("sfp_disable",   0, Pins("U17"),         IOStandard("LVCMOS33")),
     ("sfp_fault",     0, Pins("V17"),         IOStandard("LVCMOS33")),
     ("sfp_led",       0, Pins("G16"),         IOStandard("LVCMOS25")),
     ("sfp_lose",      0, Pins("P18"),         IOStandard("LVCMOS33")),
@@ -109,7 +109,7 @@ _io = [
     ),
 
     # SFP1.
-    ("sfp_disable_n", 1, Pins("M15"),         IOStandard("LVCMOS33")),
+    ("sfp_disable",   1, Pins("M15"),         IOStandard("LVCMOS33")),
     ("sfp_fault",     1, Pins("L14"),         IOStandard("LVCMOS33")),
     ("sfp_led",       1, Pins("G15"),         IOStandard("LVCMOS25")),
     ("sfp_lose",      1, Pins("P15"),         IOStandard("LVCMOS33")),
