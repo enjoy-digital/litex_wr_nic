@@ -23,7 +23,7 @@ _io = [
     ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")),
 
     # MGT RefClk.
-    ("mgt_refclk_125m_oe", 0, Pins("F14"), IOStandard("LVCMOS33")),
+    ("mgt_refclk_125m_oe", 0, Pins("F14"), IOStandard("LVCMOS25")),
     ("mgt_refclk_125m", 0,
         Subsignal("p", Pins("D6")),
         Subsignal("n", Pins("D5")),
@@ -166,7 +166,7 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(Xilinx7SeriesPlatform):
-    default_clk_name   = "clk_25m_dmtd"
+    default_clk_name   = "clk62p5"
     default_clk_period = 1e9/62.5e6
 
     def __init__(self, toolchain="vivado"):
