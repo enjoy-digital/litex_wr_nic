@@ -62,12 +62,12 @@ class _CRG(LiteXModule):
         # # #
 
         # Clk/Rst.
-        clk62p5 = platform.request("clk62p5")
+        clk25 = platform.request("clk25")
 
         # PLL.
         self. pll = pll = S7PLL()
         self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(clk62p5, 62.5e6)
+        pll.register_clkin(clk25, 25e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
         if with_white_rabbit:
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
@@ -92,7 +92,7 @@ class _CRG(LiteXModule):
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
-        with_pcie                 = True,
+        with_pcie                 = False,
         with_pcie_ptm             = False,
 
         # White Rabbit Paramters.

@@ -15,12 +15,12 @@ from litex.build.openocd import OpenOCD
 
 _io = [
     # Clk / Rst.
-    ("clk25m_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")),
+    ("clk25",   0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.
     ("clk62p5", 0,
-        Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")),
-        Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")),
+        Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_P.
+        Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_N.
     ),
-    ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")),
+    ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")), # RESET.
 
     # MGT RefClk.
     ("mgt_refclk_125m_oe", 0, Pins("F14"), IOStandard("LVCMOS25")),
@@ -166,8 +166,8 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(Xilinx7SeriesPlatform):
-    default_clk_name   = "clk62p5"
-    default_clk_period = 1e9/62.5e6
+    default_clk_name   = "clk25"
+    default_clk_period = 1e9/25e6
 
     def __init__(self, toolchain="vivado"):
         Xilinx7SeriesPlatform.__init__(self, "xc7a35tcsg325-2", _io,  _connectors, toolchain=toolchain)
