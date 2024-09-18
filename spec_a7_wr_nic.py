@@ -47,7 +47,7 @@ from gateware.wrf_wb2stream import Wishbone2Stream
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=True, use_cfgm_clk=False):
+    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=True, use_cfgm_clk=True):
         self.rst            = Signal()
         self.cd_sys         = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
@@ -113,16 +113,16 @@ class _CRG(LiteXModule):
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
-        with_pcie                 = True,
+        with_pcie                 = False,
         with_pcie_ptm             = False,
 
         # White Rabbit Paramters.
-        with_white_rabbit         = True,
+        with_white_rabbit         = False,
         with_white_rabbit_fabric  = False,
         with_white_rabbit_ext_ram = False,
     ):
         # Platform ---------------------------------------------------------------------------------
-        platform = Platform(variant="xc7a50t")
+        platform = Platform(variant="xc7a35t")
 
         self.file_basedir = os.path.abspath(os.path.dirname(__file__))
 

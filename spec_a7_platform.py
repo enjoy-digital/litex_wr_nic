@@ -173,6 +173,30 @@ class Platform(Xilinx7SeriesPlatform):
         assert variant in ["xc7a35t", "xc7a50t"]
         Xilinx7SeriesPlatform.__init__(self, f"{variant}csg325-2", _io,  _connectors, toolchain=toolchain)
 
+        self.toolchain.bitstream_commands = [
+            "set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]",
+            "set_property BITSTREAM.CONFIG.CONFIGRATE 16 [current_design]",
+            "set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]",
+            "set_property CFGBVS VCCO [current_design]",
+            "set_property CONFIG_VOLTAGE 3.3 [current_design]",
+        ]
+
+        self.toolchain.additional_commands = [
+            # Non-Multiboot SPI-Flash bitstream generation.
+            "write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin",
+
+            # Multiboot SPI-Flash Operational bitstream generation.
+            "set_property BITSTREAM.CONFIG.TIMER_CFG 0x0001fbd0 [current_design]",
+            "set_property BITSTREAM.CONFIG.CONFIGFALLBACK Enable [current_design]",
+            "write_bitstream -force {build_name}_operational.bit ",
+            "write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}_operational.bit\" -file {build_name}_operational.bin",
+
+            # Multiboot SPI-Flash Fallback bitstream generation.
+            "set_property BITSTREAM.CONFIG.NEXT_CONFIG_ADDR 0x00400000 [current_design]",
+            "write_bitstream -force {build_name}_fallback.bit ",
+            "write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}_fallback.bit\" -file {build_name}_fallback.bin"
+        ]
+
     def create_programmer(self, name="openocd"):
         if name == "openocd":
             return OpenOCD("openocd_xc7_ft232.cfg", "bscan_spi_xc7a35t.bit")
@@ -182,4 +206,4 @@ class Platform(Xilinx7SeriesPlatform):
 
     def do_finalize(self, fragment):
         Xilinx7SeriesPlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk_25m_dmtd", loose=True), 1e9/25e6)
+        self.add_period_constraint(self.lookup_request("clk25", loose=True), 1e9/25e6)
