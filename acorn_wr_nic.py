@@ -155,9 +155,10 @@ class BaseSoC(SoCCore):
             )
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
             self.add_pcie(phy=self.pcie_phy,
-                ndmas         = 1,
-                address_width = 64,
-                with_ptm      = True,
+                ndmas                = 1,
+                address_width        = 64,
+                with_ptm             = with_pcie_ptm,
+                max_pending_requests = 4,
             )
             self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
