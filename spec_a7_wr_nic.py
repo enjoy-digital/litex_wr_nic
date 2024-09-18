@@ -122,7 +122,7 @@ class BaseSoC(SoCCore):
         with_white_rabbit_ext_ram = False,
     ):
         # Platform ---------------------------------------------------------------------------------
-        platform = Platform(variant="xc7a35t")
+        platform = Platform(variant="xc7a50t")
 
         self.file_basedir = os.path.abspath(os.path.dirname(__file__))
 
