@@ -15,8 +15,8 @@ from litex.build.openfpgaloader   import OpenFPGALoader
 
 _io = [
     # Clk / Rst.
-    ("clk25",   0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.
-    ("clk62p5", 0,
+    ("clk62p5", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD??
+    ("clk62p5", 1,
         Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_P.
         Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_N.
     ),
@@ -171,8 +171,8 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(Xilinx7SeriesPlatform):
-    default_clk_name   = "clk25"
-    default_clk_period = 1e9/25e6
+    default_clk_name   = "clk62p5"
+    default_clk_period = 1e9/62.5e6
 
     def __init__(self, variant="xc7a35t", toolchain="vivado"):
         assert variant in ["xc7a35t", "xc7a50t"]
@@ -191,4 +191,4 @@ class Platform(Xilinx7SeriesPlatform):
 
     def do_finalize(self, fragment):
         Xilinx7SeriesPlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk25", loose=True), 1e9/25e6)
+        self.add_period_constraint(self.lookup_request("clk62p5", loose=True), 1e9/25e6)
