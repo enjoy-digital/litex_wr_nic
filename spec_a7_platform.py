@@ -181,22 +181,6 @@ class Platform(Xilinx7SeriesPlatform):
             "set_property CONFIG_VOLTAGE 3.3 [current_design]",
         ]
 
-        self.toolchain.additional_commands = [
-            # Non-Multiboot SPI-Flash bitstream generation.
-            "write_cfgmem -force -format bin -interface spix1 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin",
-
-            # Multiboot SPI-Flash Operational bitstream generation.
-            "set_property BITSTREAM.CONFIG.TIMER_CFG 0x0001fbd0 [current_design]",
-            "set_property BITSTREAM.CONFIG.CONFIGFALLBACK Enable [current_design]",
-            "write_bitstream -force {build_name}_operational.bit ",
-            "write_cfgmem -force -format bin -interface spix1 -size 16 -loadbit \"up 0x0 {build_name}_operational.bit\" -file {build_name}_operational.bin",
-
-            # Multiboot SPI-Flash Fallback bitstream generation.
-            "set_property BITSTREAM.CONFIG.NEXT_CONFIG_ADDR 0x00400000 [current_design]",
-            "write_bitstream -force {build_name}_fallback.bit ",
-            "write_cfgmem -force -format bin -interface spix1 -size 16 -loadbit \"up 0x0 {build_name}_fallback.bit\" -file {build_name}_fallback.bin"
-        ]
-
     def create_programmer(self, name="openocd"):
         return OpenFPGALoader(cable="digilent_hs2", fpga_part="xc7a35tcsg324", freq=20e6)
 

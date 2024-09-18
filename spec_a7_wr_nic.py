@@ -503,6 +503,14 @@ def main():
     # ------------------------
     generate_litepcie_software_headers(soc, "software/kernel")
 
+    # Generate Bitstream.
+    # -------------------
+    if args.load or args.flash:
+        os.system("python3 gateware/xilinx-bitstream.py {bit_file} {bin_file}".format(
+            bit_file = builder.get_bitstream_filename(mode="sram"),
+            bin_file = builder.get_bitstream_filename(mode="flash"),
+        ))
+
     # Load FPGA.
     # ----------
     if args.load:
