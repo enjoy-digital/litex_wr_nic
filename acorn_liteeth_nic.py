@@ -54,10 +54,12 @@ class Platform(sqrl_acorn.Platform):
 
 class CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, with_eth=False):
-        self.rst            = Signal()
-        self.cd_sys         = ClockDomain()
+        self.rst      = Signal()
+        self.cd_sys   = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
+
+        # # #
 
         # Clk/Rst.
         clk200    = platform.request("clk200")
@@ -124,7 +126,7 @@ class BaseSoC(PCIeNICSoC):
             data_pads    = self.platform.request("sfp"),
             sys_clk_freq = sys_clk_freq,
             rx_polarity  = 1,  # Inverted on Acorn.
-            tx_polarity  = 0   # Inverted on Acorn and on baseboard.
+            tx_polarity  = 0,  # Inverted on Acorn and on baseboard.
         )
 
         # PCIe NIC ---------------------------------------------------------------------------------
