@@ -81,9 +81,9 @@ class PCIeNICSoC(SoCMini):
             mode       = "wb2pcie",
         )
         self.comb += [
-            pcie_wb2pcie_dma.bus_addr.eq(ethmac.interface.sram.writer.stat_fifo.source.slot * ethmac.slot_size.constant),
-            pcie_wb2pcie_dma.host_addr.eq(ethmac.interface.sram.writer.pcie_host_addr),
-            pcie_wb2pcie_dma.length[align_bits:].eq(ethmac.interface.sram.writer.stat_fifo.source.length[align_bits:] + 1),
+            pcie_wb2pcie_dma.desc.bus_addr.eq(ethmac.interface.sram.writer.stat_fifo.source.slot * ethmac.slot_size.constant),
+            pcie_wb2pcie_dma.desc.host_addr.eq(ethmac.interface.sram.writer.pcie_host_addr),
+            pcie_wb2pcie_dma.desc.length[align_bits:].eq(ethmac.interface.sram.writer.stat_fifo.source.length[align_bits:] + 1),
             pcie_wb2pcie_dma.start.eq(ethmac.interface.sram.writer.start),
             ethmac.interface.sram.writer.ready.eq(pcie_wb2pcie_dma.ready),
         ]
@@ -101,9 +101,9 @@ class PCIeNICSoC(SoCMini):
             mode       = "pcie2wb",
         )
         self.comb += [
-            pcie_pcie2wb_dma.bus_addr.eq(ethmac.interface.sram.reader.cmd_fifo.source.slot * ethmac.slot_size.constant),
-            pcie_pcie2wb_dma.host_addr.eq(ethmac.interface.sram.reader.pcie_host_addr),
-            pcie_pcie2wb_dma.length[align_bits:].eq(ethmac.interface.sram.reader.cmd_fifo.source.length[align_bits:] + 1),
+            pcie_pcie2wb_dma.desc.bus_addr.eq(ethmac.interface.sram.reader.cmd_fifo.source.slot * ethmac.slot_size.constant),
+            pcie_pcie2wb_dma.desc.host_addr.eq(ethmac.interface.sram.reader.pcie_host_addr),
+            pcie_pcie2wb_dma.desc.length[align_bits:].eq(ethmac.interface.sram.reader.cmd_fifo.source.length[align_bits:] + 1),
             pcie_pcie2wb_dma.start.eq(ethmac.interface.sram.reader.start),
             ethmac.interface.sram.reader.ready.eq(pcie_pcie2wb_dma.ready),
         ]

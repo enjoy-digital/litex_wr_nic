@@ -30,21 +30,20 @@ def dma_descriptor_layout():
 class LitePCIe2WishboneDMA(LiteXModule):
     def __init__(self, endpoint, dma, data_width=32, mode="pcie2wb"):
         assert mode in ["pcie2wb", "wb2pcie"]
+        self.bus  =  bus = wishbone.Interface(data_width=data_width)
+        self.desc = desc = stream.Endpoint(dma_descriptor_layout())
 
-        self.bus = wishbone.Interface(data_width=data_width)
+        # # #
 
         dma_desc = stream.Endpoint(descriptor_layout())
-        desc     = stream.Endpoint(dma_descriptor_layout())
         dma_fifo = stream.SyncFIFO(descriptor_layout(), 1)
         fifo = stream.SyncFIFO(dma_descriptor_layout(), 16)
         self.submodules += dma_fifo, fifo
 
-        self.host_addr   = host_addr   = Signal(32)
-        self.length      = length      = Signal(32)
-        self.bus_addr    = bus_addr    = Signal(32)
-        self.irq_disable = irq_disable = CSRStorage(1, description="Disable PCIe2Wishbone IRQ", reset=0)
-        self.start       = start       = Signal(1)
-        self.ready       = Signal(reset=0)
+        self.irq_disable = CSRStorage(1, description="Disable PCIe2Wishbone IRQ")
+        self.start       = Signal()
+        self.ready       = Signal()
+        self.irq         = Signal()
 
         if mode == "pcie2wb":
             self.wb_dma = wb_dma = WishboneDMAWriter(self.bus, endianness="big")
@@ -71,10 +70,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
             dma_fifo.source.connect(dma.desc_sink),
             desc.connect(fifo.sink),
 
-            desc.host_addr.eq(host_addr),
-            desc.length.eq(length),
-            desc.bus_addr.eq(bus_addr),
-            desc.valid.eq(start),
+            desc.valid.eq(self.start),
 
             wb_dma.base.eq(fifo.source.bus_addr),
             wb_dma.length.eq(fifo.source.length),
@@ -94,7 +90,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
             wb_dma.enable.eq(1),
             If(wb_dma.done,
                 fifo.source.ready.eq(1),
-                self.irq.eq(~irq_disable.storage),
+                self.irq.eq(~self.irq_disable.storage),
                 self.ready.eq(1),
                 NextState("IDLE"),
             )
