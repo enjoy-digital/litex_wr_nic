@@ -64,8 +64,8 @@ _io = [
     # PCIe.
     ("pcie_x1", 0,
         Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),
-        Subsignal("clk_p", Pins("D6")), # 125MHz / Free-Running -> Add/Test LitePCIe support.
-        Subsignal("clk_n", Pins("D5")), # 125MHz / Free-Running -> Add/Test LitePCIe support.
+        Subsignal("clk_p", Pins("D6")),
+        Subsignal("clk_n", Pins("D5")),
         Subsignal("rx_p",  Pins("E4")),
         Subsignal("rx_n",  Pins("E3")),
         Subsignal("tx_p",  Pins("H2")),
@@ -73,8 +73,8 @@ _io = [
     ),
     ("pcie_x2", 0,
         Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),
-        Subsignal("clk_p", Pins("D6")), # 125MHz / Free-Running -> Add/Test LitePCIe support.
-        Subsignal("clk_n", Pins("D5")), # 125MHz / Free-Running -> Add/Test LitePCIe support.
+        Subsignal("clk_p", Pins("D6")),
+        Subsignal("clk_n", Pins("D5")),
         Subsignal("rx_p",  Pins("E4 A4")),
         Subsignal("rx_n",  Pins("E3 A3")),
         Subsignal("tx_p",  Pins("H2 F2")),

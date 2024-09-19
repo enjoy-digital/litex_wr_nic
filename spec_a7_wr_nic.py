@@ -142,8 +142,8 @@ class BaseSoC(SoCCore):
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width  = 64,
                 bar0_size   = 0x20000,
-                with_ptm    = True,
-                refclk_freq = 125e6,
+                with_ptm    = with_pcie_ptm,
+                refclk_freq = 100e6,
             )
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
             self.add_pcie(phy=self.pcie_phy,
