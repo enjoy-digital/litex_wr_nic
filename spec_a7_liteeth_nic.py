@@ -57,8 +57,7 @@ class CRG(LiteXModule):
 
         # Eth PLL.
         if with_eth:
-            self.cd_eth_ref = ClockDomain()
-            pll.create_clkout(self.cd_eth_ref, 156.25e6, margin=0)
+            pll.create_clkout(self.cd_refclk_eth, 156.25e6, margin=0)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
