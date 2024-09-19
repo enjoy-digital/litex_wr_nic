@@ -314,6 +314,8 @@ class BaseSoC(SoCCore):
             self.specials += Instance("xwrc_board_artix7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = cpu_firmware,
+                p_txpolarity          = 0,
+                p_rxpolarity          = 0,
 
                 # Clocks/resets.
                 i_areset_n_i          = ~ResetSignal("sys"),
