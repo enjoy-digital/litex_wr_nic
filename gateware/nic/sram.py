@@ -36,8 +36,8 @@ class LiteEthMACSRAMWriter(LiteXModule):
         self._discard = CSRStatus(32,reset=0)
         if with_eth_pcie:
             self._enable          = CSRStorage(reset=0)
-            self.start_transfer   = Signal(reset=0)
-            self.transfer_ready   = Signal(reset=0)
+            self.start            = Signal(reset=0)
+            self.ready            = Signal(reset=0)
             self._pending_slots   = CSRStatus(nslots,reset=0)
             self._clear_pending   = CSRStorage(nslots,reset=0)
             self._pending_length  = CSRStatus(32*nslots,reset=0)
@@ -187,7 +187,7 @@ class LiteEthMACSRAMWriter(LiteXModule):
                 ]
 
             self.comb += [If(self._clear_pending.re, clear_pending.eq(self._clear_pending.storage)),
-                          If(self.start_transfer,
+                          If(self.start,
                              new_pending_slots.eq(1 << self.pcie_slot))]
 
             self.sync += self._pending_slots.status.eq((self._pending_slots.status & ~clear_pending) | new_pending_slots)
@@ -199,10 +199,10 @@ class LiteEthMACSRAMWriter(LiteXModule):
                        NextState("TRANSFER")),
             )
             irq_fsm.act("TRANSFER",
-                    self.start_transfer.eq(1), NextState("WAIT_TRANSFER"),
+                    self.start.eq(1), NextState("WAIT_TRANSFER"),
             )
             irq_fsm.act("WAIT_TRANSFER",
-                    If(self.transfer_ready,
+                    If(self.ready,
                        self.pcie_irq.eq(1),
                        stat_fifo.source.ready.eq(1),
                        NextState("IDLE")),
@@ -256,11 +256,11 @@ class LiteEthMACSRAMReader(LiteXModule):
         self._slot   = CSRStorage(slotbits,   reset_less=True)
         self._length = CSRStorage(lengthbits, reset_less=True)
         if with_eth_pcie:
-            self.start_transfer   = Signal(reset=0)
-            self.transfer_ready   = Signal(reset=0)
+            self.start            = Signal(reset=0)
+            self.ready            = Signal(reset=0)
             self._pcie_host_addrs = CSRStorage(32*nslots,reset=0)
-            self._pending_slots = CSRStatus(nslots,reset=0)
-            self._clear_pending = CSRStorage(nslots,reset=0)
+            self._pending_slots   = CSRStatus(nslots,reset=0)
+            self._clear_pending   = CSRStorage(nslots,reset=0)
 
         # Optional Timestamp of the outgoing packets and expose value to software.
         if timestamp is not None:
@@ -348,12 +348,12 @@ class LiteEthMACSRAMReader(LiteXModule):
         if with_eth_pcie:
             fsm.act("IDLE",
                 If(cmd_fifo.source.valid,
-                   self.start_transfer.eq(1),
+                   self.start.eq(1),
                    NextState("WAIT_PCIE"),
                 )
             )
             fsm.act("WAIT_PCIE",
-                If(self.transfer_ready,
+                If(self.ready,
                     read.eq(1),
                     NextValue(length, dw//8),
                     NextState("READ")
