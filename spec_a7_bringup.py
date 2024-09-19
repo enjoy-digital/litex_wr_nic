@@ -23,10 +23,13 @@ from litex.soc.cores.clock    import *
 from litex.soc.cores.led      import LedChaser
 from litex.soc.cores.hyperbus import HyperRAM
 
+from liteeth.phy.a7_gtp import QPLLSettings, QPLL
+from liteeth.phy.a7_1000basex import A7_1000BASEX
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq):
+    def __init__(self, platform, sys_clk_freq, with_eth=False):
         self.rst      = Signal()
         self.cd_sys   = ClockDomain()
         self.cd_sys2x = ClockDomain()
@@ -42,16 +45,20 @@ class _CRG(LiteXModule):
         pll.register_clkin(clk62p5, 62.5e6)
         pll.create_clkout(self.cd_sys,       sys_clk_freq, margin=0)
         pll.create_clkout(self.cd_sys2x, 2 * sys_clk_freq, margin=0)
+        if with_eth:
+            self.cd_eth_ref = ClockDomain()
+            pll.create_clkout(self.cd_eth_ref, 156.25e6, margin=0)
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
+
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=100e6,  with_hyperram=False, **kwargs):
+    def __init__(self, sys_clk_freq=125e6,  with_hyperram=False, with_ethernet=False, with_etherbone=False, eth_sfp=0, **kwargs):
         platform = Platform()
 
         # CRG --------------------------------------------------------------------------------------
-        self.crg = _CRG(platform, sys_clk_freq)
+        self.crg = _CRG(platform, sys_clk_freq, with_eth=with_ethernet or with_etherbone)
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on SPEC-A7", **kwargs)
@@ -87,6 +94,34 @@ class BaseSoC(SoCCore):
             )
             self.comb += self.hyperram_cache.slave.connect(self.hyperram.bus)
 
+        # Ethernet / Etherbone ---------------------------------------------------------------------
+        if with_ethernet or with_etherbone:
+            # Ethernet QPLL Settings.
+            qpll_eth_settings = QPLLSettings(
+                refclksel  = 0b111,
+                fbdiv      = 4,
+                fbdiv_45   = 4,
+                refclk_div = 1,
+            )
+            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+            # Shared QPLL.
+            self.qpll = qpll = QPLL(
+                gtrefclk0     = self.crg.cd_eth_ref.clk,
+                qpllsettings0 = qpll_eth_settings,
+            )
+            self.comb += platform.request("sfp_disable", eth_sfp).eq(0)
+            self.ethphy = A7_1000BASEX(
+                qpll_channel = qpll.channels[0],
+                data_pads    = self.platform.request("sfp", eth_sfp),
+                sys_clk_freq = sys_clk_freq,
+                rx_polarity  = 0,
+                tx_polarity  = 0,
+            )
+            if with_etherbone:
+                self.add_etherbone(phy=self.ethphy, ip_address="192.168.1.50")
+            elif with_ethernet:
+                self.add_ethernet(phy=self.ethphy, local_ip="192.168.1.50", remote_ip="192.168.1.100")
+
         # Frontpanel Leds --------------------------------------------------------------------------
         self.leds = LedChaser(
             pads         = platform.request_all("frontpanel_led"),
@@ -98,13 +133,19 @@ class BaseSoC(SoCCore):
 def main():
     from litex.build.parser import LiteXArgumentParser
     parser = LiteXArgumentParser(platform=Platform, description="LiteX SoC on SPEC-A7")
-    parser.add_target_argument("--sys-clk-freq",  default=100e6, type=float, help="System clock frequency.")
-    parser.add_target_argument("--with-hyperram", action="store_true",       help="Add HyperRAM.")
+    parser.add_target_argument("--sys-clk-freq",   default=125e6, type=float, help="System clock frequency.")
+    parser.add_target_argument("--with-hyperram",  action="store_true",       help="Add HyperRAM.")
+    parser.add_target_argument("--with-ethernet",  action="store_true",       help="Enable Ethernet support.")
+    parser.add_target_argument("--with-etherbone", action="store_true",       help="Enable Etherbone support.")
+    parser.add_target_argument("--eth-sfp",        default=0, type=int,       help="Ethernet/Etherbone SFP Connector", choices=[0, 1])
     args = parser.parse_args()
 
     soc = BaseSoC(
-        sys_clk_freq  = args.sys_clk_freq,
-        with_hyperram = args.with_hyperram,
+        sys_clk_freq   = args.sys_clk_freq,
+        with_hyperram  = args.with_hyperram,
+        with_ethernet  = args.with_ethernet,
+        with_etherbone = args.with_etherbone,
+        eth_sfp        = args.eth_sfp,
         **parser.soc_argdict
     )
     builder = Builder(soc, **parser.builder_argdict)
