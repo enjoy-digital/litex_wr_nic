@@ -38,7 +38,7 @@ class PCIeNICSoC(SoCMini):
         "pcie_phy"         : 9,
     }
 
-    def add_pcie_nic(self, pcie_phy=None, eth_phy=None, ntxslots=32, nrxslots=32):
+    def add_pcie_nic(self, pcie_phy=None, eth_phy=None, ntxslots=8, nrxslots=8):
         # MAC.
         self.add_ethernet(
             name       = "ethmac",
