@@ -33,17 +33,15 @@ class LitePCIe2WishboneDMA(LiteXModule):
         self.bus  =  bus = wishbone.Interface(data_width=data_width)
         self.desc = desc = stream.Endpoint(dma_descriptor_layout())
 
-        # # #
-
-        dma_desc = stream.Endpoint(descriptor_layout())
-        dma_fifo = stream.SyncFIFO(descriptor_layout(), 1)
-        fifo = stream.SyncFIFO(dma_descriptor_layout(), 16)
-        self.submodules += dma_fifo, fifo
-
         self.irq_disable = CSRStorage(1, description="Disable PCIe2Wishbone IRQ")
         self.start       = Signal()
         self.ready       = Signal()
         self.irq         = Signal()
+
+        # # #
+
+        self.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(),      1)
+        self.fifo     =     fifo = stream.SyncFIFO(dma_descriptor_layout(), 16)
 
         if mode == "pcie2wb":
             self.wb_dma = wb_dma = WishboneDMAWriter(self.bus, endianness="big")
@@ -66,7 +64,6 @@ class LitePCIe2WishboneDMA(LiteXModule):
             ]
 
         self.comb += [
-            dma_desc.connect(dma_fifo.sink),
             dma_fifo.source.connect(dma.desc_sink),
             desc.connect(fifo.sink),
 
@@ -74,16 +71,16 @@ class LitePCIe2WishboneDMA(LiteXModule):
 
             wb_dma.base.eq(fifo.source.bus_addr),
             wb_dma.length.eq(fifo.source.length),
-            dma_desc.address.eq(fifo.source.host_addr),
-            dma_desc.length.eq(fifo.source.length),
+            dma_fifo.sink.address.eq(fifo.source.host_addr),
+            dma_fifo.sink.length.eq(fifo.source.length),
         ]
 
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             wb_dma.enable.eq(0),
-            If(fifo.source.valid & dma_desc.ready,
+            If(fifo.source.valid & dma_fifo.sink.ready,
                 NextState("RUN"),
-                dma_desc.valid.eq(1),
+                dma_fifo.sink.valid.eq(1),
             )
         )
         fsm.act("RUN",
