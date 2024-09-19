@@ -84,7 +84,6 @@ class BaseSoC(SoCCore):
                 latency_mode = "variable",
                 sys_clk_freq = sys_clk_freq,
                 clk_ratio    = "2:1",
-                with_bursting = False,
             )
             self.comb += self.hyperram_cache.slave.connect(self.hyperram.bus)
 
