@@ -51,6 +51,16 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # HyperRAM
+    ("hyperram", 0,
+        Subsignal("clk",   Pins("B14")),
+        Subsignal("rst_n", Pins("G17")),
+        Subsignal("cs_n",  Pins("D18")),
+        Subsignal("dq",    Pins("C16 B16 F18 E17 F17 C17 A17 B15")),
+        Subsignal("rwds",  Pins("C18")),
+        IOStandard("LVCMOS25")
+    ),
+
     # PCIe.
     ("pcie_x1", 0,
         Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),
