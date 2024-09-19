@@ -49,6 +49,7 @@ class PCIeNICSoC(SoCMini):
             nrxslots   = ntxslots,
             ntxslots   = nrxslots,
         )
+        ethmac = self.ethmac
         del self.bus.slaves["ethmac_tx"] # Remove from SoC bus since directly connected to PCIe.
         del self.bus.slaves["ethmac_rx"] # Remove from SoC bus since directly connected to PCIe.
 
@@ -64,8 +65,8 @@ class PCIeNICSoC(SoCMini):
             with_ptm             = False,
             with_msi             = True,
             msis                 = {
-                "ETHRX" : self.ethmac.interface.sram.rx_pcie_irq,
-                "ETHTX" : self.ethmac.interface.sram.tx_pcie_irq,
+                "ETHRX" : ethmac.interface.sram.rx_pcie_irq,
+                "ETHTX" : ethmac.interface.sram.tx_pcie_irq,
             },
         )
 
@@ -80,15 +81,15 @@ class PCIeNICSoC(SoCMini):
             mode       = "wb2pcie",
         )
         self.comb += [
-            pcie_wb2pcie_dma.bus_addr.eq(self.ethmac.interface.sram.writer.stat_fifo.source.slot * self.ethmac.slot_size.constant),
-            pcie_wb2pcie_dma.host_addr.eq(self.ethmac.interface.sram.writer.pcie_host_addr),
-            pcie_wb2pcie_dma.length[align_bits:].eq(self.ethmac.interface.sram.writer.stat_fifo.source.length[align_bits:] + 1),
-            pcie_wb2pcie_dma.start.eq(self.ethmac.interface.sram.writer.start),
-            self.ethmac.interface.sram.writer.ready.eq(pcie_wb2pcie_dma.ready),
+            pcie_wb2pcie_dma.bus_addr.eq(ethmac.interface.sram.writer.stat_fifo.source.slot * ethmac.slot_size.constant),
+            pcie_wb2pcie_dma.host_addr.eq(ethmac.interface.sram.writer.pcie_host_addr),
+            pcie_wb2pcie_dma.length[align_bits:].eq(ethmac.interface.sram.writer.stat_fifo.source.length[align_bits:] + 1),
+            pcie_wb2pcie_dma.start.eq(ethmac.interface.sram.writer.start),
+            ethmac.interface.sram.writer.ready.eq(pcie_wb2pcie_dma.ready),
         ]
         self.bus_interconnect_rx = wishbone.InterconnectPointToPoint(
             master = pcie_wb2pcie_dma.bus,
-            slave  = self.ethmac.bus_rx,
+            slave  = ethmac.bus_rx,
         )
 
         # TX Datapath: Host -> PCIe -> Ethernet (TX).
@@ -100,13 +101,13 @@ class PCIeNICSoC(SoCMini):
             mode       = "pcie2wb",
         )
         self.comb += [
-            pcie_pcie2wb_dma.bus_addr.eq(self.ethmac.interface.sram.reader.cmd_fifo.source.slot * self.ethmac.slot_size.constant),
-            pcie_pcie2wb_dma.host_addr.eq(self.ethmac.interface.sram.reader.pcie_host_addr),
-            pcie_pcie2wb_dma.length[align_bits:].eq(self.ethmac.interface.sram.reader.cmd_fifo.source.length[align_bits:] + 1),
-            pcie_pcie2wb_dma.start.eq(self.ethmac.interface.sram.reader.start),
-            self.ethmac.interface.sram.reader.ready.eq(pcie_pcie2wb_dma.ready),
+            pcie_pcie2wb_dma.bus_addr.eq(ethmac.interface.sram.reader.cmd_fifo.source.slot * ethmac.slot_size.constant),
+            pcie_pcie2wb_dma.host_addr.eq(ethmac.interface.sram.reader.pcie_host_addr),
+            pcie_pcie2wb_dma.length[align_bits:].eq(ethmac.interface.sram.reader.cmd_fifo.source.length[align_bits:] + 1),
+            pcie_pcie2wb_dma.start.eq(ethmac.interface.sram.reader.start),
+            ethmac.interface.sram.reader.ready.eq(pcie_pcie2wb_dma.ready),
         ]
         self.bus_interconnect_tx = wishbone.InterconnectPointToPoint(
             master = pcie_pcie2wb_dma.bus,
-            slave  = self.ethmac.bus_tx,
+            slave  = ethmac.bus_tx,
         )
