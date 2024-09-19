@@ -21,6 +21,8 @@ from gateware.nic import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
 from gateware.nic.dma import LitePCIe2WishboneDMA
 
+# PCIe NIC SoC -------------------------------------------------------------------------------------
+
 class PCIeNICSoC(SoCMini):
     SoCMini.csr_map = {
         "ethmac"           : 1,
@@ -36,15 +38,15 @@ class PCIeNICSoC(SoCMini):
         "pcie_phy"         : 9,
     }
 
-    def add_pcie_nic(self, pcie_phy=None, eth_phy=None):
+    def add_pcie_nic(self, pcie_phy=None, eth_phy=None, ntxslots=32, nrxslots=32):
         # MAC.
         self.add_ethernet(
             name       = "ethmac",
             phy        = eth_phy,
             phy_cd     = "eth",
             data_width = 64,
-            nrxslots   = 32,
-            ntxslots   = 32,
+            nrxslots   = ntxslots,
+            ntxslots   = nrxslots,
         )
         self.add_constant("ETHMAC_RX_WAIT_OFFSET",  0) # CHECKME: See purpose in software.
         self.add_constant("ETHMAC_TX_READY_OFFSET", 1) # CHECKME: See purpose in software.
@@ -54,7 +56,7 @@ class PCIeNICSoC(SoCMini):
         # PCIe
         self.add_pcie(name="pcie", phy=pcie_phy,
             ndmas                = 1,
-            max_pending_requests = 8,
+            max_pending_requests = 4,
             data_width           = 64,
             with_dma_buffering   = False,
             with_dma_loopback    = False,
