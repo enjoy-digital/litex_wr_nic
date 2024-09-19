@@ -28,27 +28,14 @@ class _CRG(LiteXModule):
 
         # # #
 
-        # CFGM Clk ~65MHz.
-        cfgm_clk      = Signal()
-        cfgm_clk_freq = int(65e6)
-        self.specials += Instance("STARTUPE2",
-            i_CLK       = 0,
-            i_GSR       = 0,
-            i_GTS       = 0,
-            i_KEYCLEARB = 1,
-            i_PACK      = 0,
-            i_USRCCLKO  = cfgm_clk,
-            i_USRCCLKTS = 0,
-            i_USRDONEO  = 1,
-            i_USRDONETS = 1,
-            o_CFGMCLK   = cfgm_clk
-        )
+        # Clk/Rst.
+        clk62p5 = platform.request("clk62p5")
 
-        # PLL
-        self.pll = pll = S7PLL(speedgrade=-1)
+        # PLL.
+        self. pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(cfgm_clk, cfgm_clk_freq)
-        pll.create_clkout(self.cd_sys, sys_clk_freq)
+        pll.register_clkin(clk62p5, 62.5e6)
+        pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
 
 # BaseSoC ------------------------------------------------------------------------------------------
