@@ -33,8 +33,6 @@ class LitePCIe2WishboneDMA(LiteXModule):
         self.desc = desc = stream.Endpoint(dma_descriptor_layout())
 
         self.irq_disable = CSRStorage(1, description="Disable DMA IRQ")
-        self.start       = Signal()
-        self.ready       = Signal()
         self.irq         = Signal()
 
         # # #
@@ -62,9 +60,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
         # ---------
         self.comb += [
             dma_fifo.source.connect(dma.desc_sink),
-            desc.connect(fifo.sink),
-
-            desc.valid.eq(self.start),
+            desc.connect(fifo.sink, omit={"ready"}),
 
             wb_dma.base.eq(fifo.source.bus_addr),
             wb_dma.length.eq(fifo.source.length),
@@ -87,7 +83,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
             If(wb_dma.done,
                 fifo.source.ready.eq(1),
                 self.irq.eq(~self.irq_disable.storage),
-                self.ready.eq(1),
+                desc.ready.eq(1),
                 NextState("IDLE"),
             )
         )
