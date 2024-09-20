@@ -18,12 +18,11 @@ from litepcie.frontend.dma import *
 # DMA Layouts --------------------------------------------------------------------------------------
 
 def dma_descriptor_layout():
-    layout = [
+    return [
         ("host_addr", 32),
         ("bus_addr" , 32),
         ("length"   , 32),
     ]
-    return EndpointDescription(layout)
 
 # LitePCIe2WishboneDMA -----------------------------------------------------------------------------
 
@@ -33,7 +32,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
         self.bus  =  bus = wishbone.Interface(data_width=data_width)
         self.desc = desc = stream.Endpoint(dma_descriptor_layout())
 
-        self.irq_disable = CSRStorage(1, description="Disable PCIe2Wishbone IRQ")
+        self.irq_disable = CSRStorage(1, description="Disable DMA IRQ")
         self.start       = Signal()
         self.ready       = Signal()
         self.irq         = Signal()
@@ -43,26 +42,24 @@ class LitePCIe2WishboneDMA(LiteXModule):
         self.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(),      1)
         self.fifo     =     fifo = stream.SyncFIFO(dma_descriptor_layout(), 16)
 
+        # PCIe -> Wishbone.
+        # -----------------
         if mode == "pcie2wb":
             self.wb_dma = wb_dma = WishboneDMAWriter(self.bus, endianness="big")
+            self.wb_dma.add_ctrl()
             self.conv   = conv   = stream.Converter(nbits_from=endpoint.phy.data_width, nbits_to=data_width)
+            self.submodules += stream.Pipeline(dma, conv, wb_dma)
+
+        # Wishbone -> PCIe.
+        # -----------------
         if mode == "wb2pcie":
             self.wb_dma = wb_dma = WishboneDMAReader(self.bus, endianness="big")
+            self.wb_dma.add_ctrl()
             self.conv   = conv   = stream.Converter(nbits_from=data_width, nbits_to=endpoint.phy.data_width)
-        wb_dma.add_ctrl()
-        self.irq = Signal()
+            self.submodules += stream.Pipeline(wb_dma, conv, dma)
 
-        if mode == "pcie2wb":
-            self.comb += [
-                dma.source.connect(conv.sink),
-                conv.source.connect(wb_dma.sink),
-            ]
-        if mode == "wb2pcie":
-            self.comb += [
-                wb_dma.source.connect(conv.sink),
-                conv.source.connect(dma.sink),
-            ]
-
+        # Datapath.
+        # ---------
         self.comb += [
             dma_fifo.source.connect(dma.desc_sink),
             desc.connect(fifo.sink),
@@ -75,6 +72,8 @@ class LitePCIe2WishboneDMA(LiteXModule):
             dma_fifo.sink.length.eq(fifo.source.length),
         ]
 
+        # FSM.
+        # ----
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             wb_dma.enable.eq(0),
