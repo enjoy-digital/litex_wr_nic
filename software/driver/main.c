@@ -151,8 +151,8 @@ static int liteeth_open(struct net_device *netdev)
 	litepcie_writel(priv->lpdev, CSR_ETHMAC_SRAM_WRITER_ENABLE_ADDR, 1);
 
 	/* Enable the interrupts for TX and RX */
-	litepcie_enable_interrupt(priv->lpdev, ETHTX_INTERRUPT);
-	litepcie_enable_interrupt(priv->lpdev, ETHRX_INTERRUPT);
+	litepcie_enable_interrupt(priv->lpdev, ETHMAC_TX_INTERRUPT);
+	litepcie_enable_interrupt(priv->lpdev, ETHMAC_RX_INTERRUPT);
 
 	/* Enable NAPI */
 	napi_enable(&priv->napi);
@@ -183,8 +183,8 @@ static int liteeth_stop(struct net_device *netdev)
 	litepcie_writel(priv->lpdev, CSR_ETHMAC_SRAM_WRITER_ENABLE_ADDR, 0);
 
 	/* Disable the interrupts for TX and RX */
-	litepcie_disable_interrupt(priv->lpdev, ETHTX_INTERRUPT);
-	litepcie_disable_interrupt(priv->lpdev, ETHRX_INTERRUPT);
+	litepcie_disable_interrupt(priv->lpdev, ETHMAC_TX_INTERRUPT);
+	litepcie_disable_interrupt(priv->lpdev, ETHMAC_RX_INTERRUPT);
 
 	/* Unmap and free the RX slots */
 	for (i = 0; i < priv->num_rx_slots; i++) {
@@ -375,17 +375,17 @@ static irqreturn_t litepcie_interrupt(int irq, void *data)
 	irq_enable = litepcie_readl(lpdev, CSR_PCIE_MSI_ENABLE_ADDR);
 
 	/* Handle RX interrupt */
-	if (irq_enable & (1 << ETHRX_INTERRUPT)) {
+	if (irq_enable & (1 << ETHMAC_RX_INTERRUPT)) {
 		rx_pending = litepcie_readl(lpdev, CSR_ETHMAC_SRAM_WRITER_PENDING_SLOTS_ADDR);
 		if (rx_pending != 0) {
 			/* Disable RX interrupt and schedule NAPI */
-			litepcie_disable_interrupt(priv->lpdev, ETHRX_INTERRUPT);
+			litepcie_disable_interrupt(priv->lpdev, ETHMAC_RX_INTERRUPT);
 			napi_schedule(&priv->napi);
 		}
 	}
 
 	/* Handle TX interrupt */
-	if ((irq_enable & (1 << ETHTX_INTERRUPT)) && netif_queue_stopped(netdev) && litepcie_readl(lpdev, CSR_ETHMAC_SRAM_READER_READY_ADDR))
+	if ((irq_enable & (1 << ETHMAC_TX_INTERRUPT)) && netif_queue_stopped(netdev) && litepcie_readl(lpdev, CSR_ETHMAC_SRAM_READER_READY_ADDR))
 		netif_wake_queue(netdev);
 
 	return IRQ_HANDLED;
@@ -427,7 +427,7 @@ static int liteeth_napi_poll(struct napi_struct *napi, int budget)
 
 	/* If the work done is less than the budget, complete NAPI and re-enable the interrupt */
 	if (work_done < budget && napi_complete_done(napi, work_done))
-		litepcie_enable_interrupt(lpdev, ETHRX_INTERRUPT);
+		litepcie_enable_interrupt(lpdev, ETHMAC_RX_INTERRUPT);
 
 	return work_done;
 }

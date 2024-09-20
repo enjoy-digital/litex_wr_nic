@@ -65,8 +65,8 @@ class PCIeNICSoC(SoCMini):
             with_ptm             = False,
             with_msi             = True,
             msis                 = {
-                "ETHRX" : ethmac.interface.sram.rx_pcie_irq,
-                "ETHTX" : ethmac.interface.sram.tx_pcie_irq,
+                "ETHMAC_RX" : ethmac.interface.sram.rx_pcie_irq,
+                "ETHMAC_TX" : ethmac.interface.sram.tx_pcie_irq,
             },
         )
 
