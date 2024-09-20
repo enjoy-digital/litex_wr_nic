@@ -27,8 +27,9 @@ def dma_descriptor_layout():
 # LitePCIe2WishboneDMA -----------------------------------------------------------------------------
 
 class LitePCIe2WishboneDMA(LiteXModule):
-    def __init__(self, endpoint, dma, data_width=32, mode="pcie2wb"):
+    def __init__(self, endpoint, dma, data_width=64, mode="pcie2wb"):
         assert mode in ["pcie2wb", "wb2pcie"]
+        assert dma.data_width == data_width
         self.bus  =  bus = wishbone.Interface(data_width=data_width)
         self.desc = desc = stream.Endpoint(dma_descriptor_layout())
 
@@ -45,16 +46,14 @@ class LitePCIe2WishboneDMA(LiteXModule):
         if mode == "pcie2wb":
             self.wb_dma = wb_dma = WishboneDMAWriter(self.bus, endianness="big")
             self.wb_dma.add_ctrl()
-            self.conv   = conv   = stream.Converter(nbits_from=endpoint.phy.data_width, nbits_to=data_width)
-            self.submodules += stream.Pipeline(dma, conv, wb_dma)
+            self.comb += dma.source.connect(wb_dma.sink)
 
         # Wishbone -> PCIe.
         # -----------------
         if mode == "wb2pcie":
             self.wb_dma = wb_dma = WishboneDMAReader(self.bus, endianness="big")
             self.wb_dma.add_ctrl()
-            self.conv   = conv   = stream.Converter(nbits_from=data_width, nbits_to=endpoint.phy.data_width)
-            self.submodules += stream.Pipeline(wb_dma, conv, dma)
+            self.comb += wb_dma.source.connect(dma.sink)
 
         # Datapath.
         # ---------
