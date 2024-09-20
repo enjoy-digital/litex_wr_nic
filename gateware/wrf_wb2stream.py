@@ -20,7 +20,7 @@ from litex.soc.interconnect import wishbone
 class Wishbone2Stream(LiteXModule):
     def __init__(self, cd_from="wr"):
         self.bus    = bus    = wishbone.Interface(data_width=16, address_width=2, addressing="byte")
-        self.source = source = stream.Endpoint([("data", 8)])
+        self.source = source = stream.Endpoint([("data", 8), ("last_be", 1), ("error", 1)]) # CHECKME: last_be, error.
 
         # # #
 

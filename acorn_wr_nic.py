@@ -112,7 +112,7 @@ class BaseSoC(SoCCore):
 
         # White Rabbit Paramters.
         with_white_rabbit         = True,
-        with_white_rabbit_fabric  = False,
+        with_white_rabbit_fabric  = True,
         with_white_rabbit_ext_ram = False,
     ):
         # Platform ---------------------------------------------------------------------------------
@@ -148,7 +148,6 @@ class BaseSoC(SoCCore):
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
-            self.comb += platform.request("mgt_refclk_125m_oe").eq(1)
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width  = 64,
                 bar0_size   = 0x20000,
@@ -428,20 +427,24 @@ class BaseSoC(SoCCore):
             self.comb += self.wrf_wb2stream.source.ready.eq(1)
 
             if with_white_rabbit_fabric:
-                # UDP Gen --------------------------------------------------------------------------
-                self.udp_gen = UDPPacketGenerator()
-                self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
-
-                # UDP Timer (1s) -------------------------------------------------------------------
-                self.udp_timer = udp_timer = WaitTimer(int(125e6))
-                self.comb += udp_timer.wait.eq(~udp_timer.done)
-                self.comb += self.udp_gen.send.eq(udp_timer.done)
+#                # UDP Gen --------------------------------------------------------------------------
+#                self.udp_gen = UDPPacketGenerator()
+#                self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
+#
+#                # UDP Timer (1s) -------------------------------------------------------------------
+#                self.udp_timer = udp_timer = WaitTimer(int(125e6))
+#                self.comb += udp_timer.wait.eq(~udp_timer.done)
+#                self.comb += self.udp_gen.send.eq(udp_timer.done)
 
                 # UDP/IP Etherbone -----------------------------------------------------------------
 
                 class LiteEthPHYWRGMII(LiteXModule):
                     dw = 8
                     def __init__(self):
+                        self.cd_eth_rx = ClockDomain()
+                        self.cd_eth_tx = ClockDomain()
+                        self.comb += self.cd_eth_rx.clk.eq(ClockSignal("sys"))
+                        self.comb += self.cd_eth_tx.clk.eq(ClockSignal("sys"))
                         self.sink   = wrf_stream2wb.sink
                         self.source = wrf_wb2stream.source
 
@@ -450,16 +453,13 @@ class BaseSoC(SoCCore):
 
                 # Analyzer -------------------------------------------------------------------------
                 analyzer_signals = [
-                    #wrf_stream2wb.bus,
-                    wrf_wb2stream.bus,
-                    wrf_wb2stream.fsm,
+                    wrf_stream2wb.sink,
                     wrf_wb2stream.source,
-                    #wrf_stream2wb.sink,
                 ]
                 self.analyzer = LiteScopeAnalyzer(analyzer_signals,
                     depth        = 256,
                     clock_domain = "sys",
-                    samplerate   = int(62.5e6),
+                    samplerate   = int(125e6),
                     register     = True,
                     csr_csv      = "analyzer.csv"
                 )
