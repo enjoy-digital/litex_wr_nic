@@ -32,9 +32,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
         assert dma.data_width == data_width
         self.bus  =  bus = wishbone.Interface(data_width=data_width)
         self.desc = desc = stream.Endpoint(dma_descriptor_layout())
-
-        self.irq_disable = CSRStorage(1, description="Disable DMA IRQ")
-        self.irq         = Signal()
+        self.irq  = Signal()
 
         # # #
 
@@ -79,7 +77,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
             wb_dma.enable.eq(1),
             If(wb_dma.done,
                 fifo.source.ready.eq(1),
-                self.irq.eq(~self.irq_disable.storage),
+                self.irq.eq(1),
                 desc.ready.eq(1),
                 NextState("IDLE"),
             )
