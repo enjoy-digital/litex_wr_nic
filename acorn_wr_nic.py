@@ -451,6 +451,10 @@ class BaseSoC(SoCCore):
                 self.ethphy = LiteEthPHYWRGMII()
                 self.add_etherbone(phy=self.ethphy, with_timing_constraints=False)
 
+                # Test RX:
+                # litescope_cli -r basesoc_wrf_wb2stream_source_source_valid
+                # echo "Hello world" | nc -b -u -w1 192.168.1.255 5005
+
                 # Analyzer -------------------------------------------------------------------------
                 analyzer_signals = [
                     wrf_stream2wb.sink,
