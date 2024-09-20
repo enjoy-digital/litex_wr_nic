@@ -38,8 +38,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
 
         # # #
 
-        self.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(),      1)
-        self.fifo     =     fifo = stream.SyncFIFO(dma_descriptor_layout(), 16)
+        self.fifo = fifo = stream.SyncFIFO(dma_descriptor_layout(), 16)
 
         # PCIe -> Wishbone.
         # -----------------
@@ -58,13 +57,12 @@ class LitePCIe2WishboneDMA(LiteXModule):
         # Datapath.
         # ---------
         self.comb += [
-            dma_fifo.source.connect(dma.desc_sink),
             desc.connect(fifo.sink, omit={"ready"}),
 
             wb_dma.base.eq(fifo.source.bus_addr),
             wb_dma.length.eq(fifo.source.length),
-            dma_fifo.sink.address.eq(fifo.source.host_addr),
-            dma_fifo.sink.length.eq(fifo.source.length),
+            dma.desc_sink.address.eq(fifo.source.host_addr),
+            dma.desc_sink.length.eq(fifo.source.length),
         ]
 
         # FSM.
@@ -72,9 +70,9 @@ class LitePCIe2WishboneDMA(LiteXModule):
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             wb_dma.enable.eq(0),
-            If(fifo.source.valid & dma_fifo.sink.ready,
+            If(fifo.source.valid,
                 NextState("RUN"),
-                dma_fifo.sink.valid.eq(1),
+                dma.desc_sink.valid.eq(1),
             )
         )
         fsm.act("RUN",
