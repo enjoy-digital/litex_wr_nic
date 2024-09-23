@@ -433,7 +433,13 @@ class BaseSoC(SoCCore):
 
                 class LiteEthPHYWRGMII(LiteXModule):
                     dw = 8
+                    with_preamble_crc = False
+                    with_padding      = False
                     def __init__(self):
+                        self.cd_eth_rx = ClockDomain()
+                        self.cd_eth_tx = ClockDomain()
+                        self.comb += self.cd_eth_rx.clk.eq(ClockSignal("sys"))
+                        self.comb += self.cd_eth_tx.clk.eq(ClockSignal("sys"))
                         self.sink   = wrf_stream2wb.sink
                         self.source = wrf_wb2stream.source
 

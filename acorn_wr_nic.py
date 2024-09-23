@@ -151,7 +151,7 @@ class BaseSoC(SoCCore):
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width  = 64,
                 bar0_size   = 0x20000,
-                with_ptm    = True,
+                with_ptm    = with_pcie_ptm,
                 refclk_freq = 100e6,
             )
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
@@ -440,6 +440,8 @@ class BaseSoC(SoCCore):
 
                 class LiteEthPHYWRGMII(LiteXModule):
                     dw = 8
+                    with_preamble_crc = False
+                    with_padding      = False
                     def __init__(self):
                         self.cd_eth_rx = ClockDomain()
                         self.cd_eth_tx = ClockDomain()
@@ -452,6 +454,7 @@ class BaseSoC(SoCCore):
                 self.add_etherbone(phy=self.ethphy, with_timing_constraints=False)
 
                 # Test RX:
+                # litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
                 # litescope_cli -r basesoc_wrf_wb2stream_source_source_valid
                 # echo "Hello world" | nc -b -u -w1 192.168.1.255 5005
 
