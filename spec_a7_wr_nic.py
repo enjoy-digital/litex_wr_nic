@@ -40,7 +40,6 @@ from litescope import LiteScopeAnalyzer
 from gateware.wr_common     import wr_core_init, wr_core_files
 from gateware.time          import TimeGenerator
 from gateware.qpll          import SharedQPLL
-from gateware.udp           import UDPPacketGenerator
 from gateware.wrf_stream2wb import Stream2Wishbone
 from gateware.wrf_wb2stream import Wishbone2Stream
 
@@ -420,31 +419,36 @@ class BaseSoC(SoCCore):
             self.comb += self.wrf_wb2stream.source.ready.eq(1)
 
             if with_white_rabbit_fabric:
-                # UDP Gen --------------------------------------------------------------------------
-                self.udp_gen = UDPPacketGenerator()
-                self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
-
-                # UDP Timer (1s) -------------------------------------------------------------------
-                self.udp_timer = udp_timer = WaitTimer(int(125e6))
-                self.comb += udp_timer.wait.eq(~udp_timer.done)
-                self.comb += self.udp_gen.send.eq(udp_timer.done)
-
                 # UDP/IP Etherbone -----------------------------------------------------------------
+
+                from liteeth.common import eth_phy_description
 
                 class LiteEthPHYWRGMII(LiteXModule):
                     dw = 8
                     with_preamble_crc = False
                     with_padding      = False
                     def __init__(self):
+                        self.sink    = sink   = stream.Endpoint(eth_phy_description(8))
+                        self.source  = source = stream.Endpoint(eth_phy_description(8))
+
+                        # # #
+
                         self.cd_eth_rx = ClockDomain()
                         self.cd_eth_tx = ClockDomain()
-                        self.comb += self.cd_eth_rx.clk.eq(ClockSignal("sys"))
-                        self.comb += self.cd_eth_tx.clk.eq(ClockSignal("sys"))
-                        self.sink   = wrf_stream2wb.sink
-                        self.source = wrf_wb2stream.source
+                        self.comb += [
+                            self.cd_eth_rx.clk.eq(ClockSignal("sys")),
+                            self.cd_eth_rx.rst.eq(ResetSignal("sys")),
+                            self.cd_eth_tx.clk.eq(ClockSignal("sys")),
+                            self.cd_eth_tx.clk.eq(ClockSignal("sys")),
+                        ]
+
+                        self.comb += [
+                            sink.connect(wrf_stream2wb.sink,     omit={"last_be", "error"}),
+                            wrf_wb2stream.source.connect(source, omit={"last_be", "error"}),
+                        ]
 
                 self.ethphy = LiteEthPHYWRGMII()
-                self.add_etherbone(phy=self.ethphy, with_timing_constraints=False)
+                self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
 
                 # Analyzer -------------------------------------------------------------------------
                 analyzer_signals = [
