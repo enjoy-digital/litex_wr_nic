@@ -15,11 +15,9 @@ from litex.soc.interconnect import wishbone
 
 # White Rabbit Fabric Stream 2 Wishbone ------------------------------------------------------------
 
-# FIXME: Check Latency for Wishbone Streaming.
-
 class Stream2Wishbone(LiteXModule):
     def __init__(self, cd_to="wr"):
-        self.sink = sink = stream.Endpoint([("data", 8), ("last_be", 1), ("error", 1)])  # CHECKME: last_be, error.
+        self.sink = sink = stream.Endpoint([("data", 8)])
         self.bus  = bus  = wishbone.Interface(data_width=16, address_width=2, addressing="byte")
 
         # # #
@@ -41,7 +39,7 @@ class Stream2Wishbone(LiteXModule):
 
         # Sink -> Converter -> CDC.
         self.comb += [
-            sink.connect(converter.sink, omit={"last_be", "error"}), #  CHECKME: last_be, error.
+            sink.connect(converter.sink),
             converter.sink.sel.eq(1),
             converter.source.connect(cdc.sink),
         ]
