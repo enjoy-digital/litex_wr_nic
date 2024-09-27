@@ -457,31 +457,6 @@ class BaseSoC(SoCCore):
                 self.ethphy = LiteEthPHYWRGMII()
                 self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
 
-                # Test RX:
-                # litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
-                # litescope_cli -r basesoc_wrf_wb2stream_source_source_valid
-                # echo "Hello world" | nc -b -u -w1 192.168.1.255 5005
-
-                # Analyzer -------------------------------------------------------------------------
-                analyzer_signals = [
-                    #wrf_wb2stream.bus,
-                    wrf_stream2wb.sink,
-                    wrf_wb2stream.source,
-                    self.ethcore_etherbone.mac.core.source,
-                    self.ethcore_etherbone.mac.depacketizer.sink,
-                    self.ethcore_etherbone.mac.depacketizer.source,
-                    self.ethcore_etherbone.mac.depacketizer.fsm,
-                    self.ethcore_etherbone.arp.rx.sink,
-
-                ]
-                self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                    depth        = 256,
-                    clock_domain = "sys",
-                    samplerate   = int(125e6),
-                    register     = True,
-                    csr_csv      = "analyzer.csv"
-                )
-
             if with_white_rabbit_ext_ram:
                 # CHECKME: Check if the best approach, we could also completely replace uRV and provide
                 #          a similar instance?

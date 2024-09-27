@@ -450,22 +450,6 @@ class BaseSoC(SoCCore):
                 self.ethphy = LiteEthPHYWRGMII()
                 self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
 
-                # Analyzer -------------------------------------------------------------------------
-                analyzer_signals = [
-                    #wrf_stream2wb.bus,
-                    wrf_wb2stream.bus,
-                    wrf_wb2stream.fsm,
-                    wrf_wb2stream.source,
-                    #wrf_stream2wb.sink,
-                ]
-                self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                    depth        = 256,
-                    clock_domain = "sys",
-                    samplerate   = int(62.5e6),
-                    register     = True,
-                    csr_csv      = "analyzer.csv"
-                )
-
     def add_sources(self):
         if not os.path.exists("wr-cores"):
             wr_core_init()
