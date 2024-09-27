@@ -39,7 +39,6 @@ from litescope import LiteScopeAnalyzer
 from gateware.wr_common     import wr_core_init, wr_core_files
 from gateware.time          import TimeGenerator
 from gateware.qpll          import SharedQPLL
-from gateware.udp           import UDPPacketGenerator
 from gateware.wrf_stream2wb import Stream2Wishbone
 from gateware.wrf_wb2stream import Wishbone2Stream
 
@@ -427,15 +426,6 @@ class BaseSoC(SoCCore):
             self.comb += self.wrf_wb2stream.source.ready.eq(1)
 
             if with_white_rabbit_fabric:
-#                # UDP Gen --------------------------------------------------------------------------
-#                self.udp_gen = UDPPacketGenerator()
-#                self.comb += self.udp_gen.source.connect(self.wrf_stream2wb.sink)
-#
-#                # UDP Timer (1s) -------------------------------------------------------------------
-#                self.udp_timer = udp_timer = WaitTimer(int(125e6))
-#                self.comb += udp_timer.wait.eq(~udp_timer.done)
-#                self.comb += self.udp_gen.send.eq(udp_timer.done)
-
                 # UDP/IP Etherbone -----------------------------------------------------------------
 
                 from liteeth.common import eth_phy_description
