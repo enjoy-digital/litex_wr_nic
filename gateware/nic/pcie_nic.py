@@ -38,16 +38,17 @@ class PCIeNICSoC(SoCMini):
         "pcie_phy"         : 9,
     }
 
-    def add_pcie_nic(self, pcie_phy=None, eth_phy=None, ntxslots=4, nrxslots=4):
+    def add_pcie_nic(self, pcie_phy=None, eth_phy=None, ntxslots=4, nrxslots=4, with_timing_constraints=True):
         # Ethernet MAC.
         # -------------
         self.add_ethernet(
-            name       = "ethmac",
-            phy        = eth_phy,
-            phy_cd     = "eth",
-            data_width = 64,
-            nrxslots   = ntxslots,
-            ntxslots   = nrxslots,
+            name                    = "ethmac",
+            phy                     = eth_phy,
+            phy_cd                  = "eth",
+            data_width              = 64,
+            nrxslots                = ntxslots,
+            ntxslots                = nrxslots,
+            with_timing_constraints = with_timing_constraints,
         )
         ethmac = self.ethmac
         del self.bus.slaves["ethmac_tx"] # Remove from SoC bus since directly connected to PCIe.
