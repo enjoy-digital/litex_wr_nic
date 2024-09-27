@@ -199,7 +199,7 @@ wr_core_files = [
     "wr-cores/modules/wr_tbi_phy/disparity_gen_pkg.vhd",
 
     # WR Core Modules.
-    "wr-cores/modules/wrc_core/wr_core.vhd",
+    #"wr-cores/modules/wrc_core/wr_core.vhd",
     "wr-cores/modules/wrc_core/wrc_cpu_csr_wb.vhd",
     "wr-cores/modules/wrc_core/wrc_cpu_csr_wbgen2_pkg.vhd",
     "wr-cores/modules/wrc_core/wrc_diags_dpram.vhd",
@@ -218,13 +218,16 @@ wr_core_files = [
     # LiteX-WR NIC adapted files.
     # ----------------------------------------------------------------------------------------------
 
-    # WR Core Modules.
+    # WR uRV Modules.
     "gateware/wrc_urv_wrapper.vhd",
+
+    # WR PHY Modules.
     "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper.vhd",
     "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
     "gateware/wr_phy/wr_gtp_phy_family7.vhd",
 
-    # WR PHY Modules.
+    # WR Core Modules.
+    "gateware/wr_core/wr_core.vhd",
     "gateware/wr_core/xwrc_platform_vivado.vhd",
     "gateware/wr_core/xwrc_board_artix7.vhd",
     "gateware/wr_core/xwrc_board_artix7_wrapper.vhd",

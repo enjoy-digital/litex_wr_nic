@@ -460,6 +460,7 @@ class BaseSoC(SoCCore):
 
                 # Analyzer -------------------------------------------------------------------------
                 analyzer_signals = [
+                    wrf_wb2stream.bus,
                     wrf_stream2wb.sink,
                     wrf_wb2stream.source,
                 ]
