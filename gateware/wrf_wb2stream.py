@@ -44,8 +44,6 @@ class Wishbone2Stream(LiteXModule):
         # FSM.
         self.fsm = fsm = ClockDomainsRenamer(cd_from)(FSM(reset_state="IDLE"))
         fsm.act("IDLE",
-            NextValue(valid, 0),
-            NextValue(data,  0),
             If(bus.stb & bus.cyc,
                 # On Status Word, jump to DATA.
                 If(bus.adr == 0b10,
@@ -57,9 +55,9 @@ class Wishbone2Stream(LiteXModule):
             # Copy Regular Data.
             If(bus.stb & bus.cyc,
                 If(bus.adr == 0b00,
-                    NextValue(valid, 1),
-                    NextValue(sel, bus.sel),
-                    NextValue(data, bus.dat_w),
+                    valid.eq(1),
+                    sel.eq(bus.sel),
+                    data.eq(bus.dat_w),
                 )
             ),
             # Return to IDLE when Regular Data or Access is done.
@@ -69,7 +67,8 @@ class Wishbone2Stream(LiteXModule):
             )
         )
         self.comb += cdc.sink.last.eq(last)
-        self.sync += [
+        _sync = getattr(self.sync, cd_from)
+        _sync += [
             cdc.sink.valid.eq(valid),
             cdc.sink.sel.eq(sel),
             cdc.sink.data.eq(data),

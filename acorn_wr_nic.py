@@ -445,13 +445,17 @@ class BaseSoC(SoCCore):
                     def __init__(self):
                         self.cd_eth_rx = ClockDomain()
                         self.cd_eth_tx = ClockDomain()
-                        self.comb += self.cd_eth_rx.clk.eq(ClockSignal("sys"))
-                        self.comb += self.cd_eth_tx.clk.eq(ClockSignal("sys"))
+                        self.comb += [
+                            self.cd_eth_rx.clk.eq(ClockSignal("sys")),
+                            self.cd_eth_rx.rst.eq(ResetSignal("sys")),
+                            self.cd_eth_tx.clk.eq(ClockSignal("sys")),
+                            self.cd_eth_tx.clk.eq(ClockSignal("sys")),
+                        ]
                         self.sink   = wrf_stream2wb.sink
                         self.source = wrf_wb2stream.source
 
                 self.ethphy = LiteEthPHYWRGMII()
-                self.add_etherbone(phy=self.ethphy, with_timing_constraints=False)
+                self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
 
                 # Test RX:
                 # litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
@@ -460,9 +464,15 @@ class BaseSoC(SoCCore):
 
                 # Analyzer -------------------------------------------------------------------------
                 analyzer_signals = [
-                    wrf_wb2stream.bus,
+                    #wrf_wb2stream.bus,
                     wrf_stream2wb.sink,
                     wrf_wb2stream.source,
+                    self.ethcore_etherbone.mac.core.source,
+                    self.ethcore_etherbone.mac.depacketizer.sink,
+                    self.ethcore_etherbone.mac.depacketizer.source,
+                    self.ethcore_etherbone.mac.depacketizer.fsm,
+                    self.ethcore_etherbone.arp.rx.sink,
+
                 ]
                 self.analyzer = LiteScopeAnalyzer(analyzer_signals,
                     depth        = 256,
