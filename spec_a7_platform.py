@@ -61,6 +61,16 @@ _io = [
         IOStandard("LVCMOS25")
     ),
 
+    # SPIFlash.
+    ("flash", 0,
+        Subsignal("cs_n", Pins("L15")),
+        Subsignal("mosi", Pins("K16")),
+        Subsignal("miso", Pins("L17")),
+        Subsignal("wp",   Pins("J15")),
+        Subsignal("hold", Pins("J16")),
+        IOStandard("LVCMOS33"),
+    ),
+
     # PCIe.
     ("pcie_x1", 0,
         Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),
@@ -154,17 +164,6 @@ _io = [
         Subsignal("sload", Pins("M16")),
         IOStandard("LVCMOS33"),
     ),
-
-    # SPIFlash.
-    ("flash_cs_n", 0, Pins("L15"), IOStandard("LVCMOS33")),
-    ("flash", 0,
-        Subsignal("mosi", Pins("K16")),
-        Subsignal("miso", Pins("L17")),
-        Subsignal("wp",   Pins("J15")),
-        Subsignal("hold", Pins("J16")),
-        IOStandard("LVCMOS33"),
-    ),
-
 ]
 
 # Connectors ---------------------------------------------------------------------------------------

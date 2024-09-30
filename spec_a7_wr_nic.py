@@ -272,6 +272,20 @@ class BaseSoC(PCIeNICSoC):
             sfp_pads          = platform.request("sfp")
             sfp_i2c_pads      = platform.request("sfp_i2c")
             serial_pads       = platform.request("serial")
+            flash_pads        = platform.request("flash")
+            flash_clk         = Signal()
+
+            self.specials += Instance("STARTUPE2",
+                i_CLK       = 0,
+                i_GSR       = 0,
+                i_GTS       = 0,
+                i_KEYCLEARB = 0,
+                i_PACK      = 0,
+                i_USRCCLKO  = flash_clk,
+                i_USRCCLKTS = 0,
+                i_USRDONEO  = 1,
+                i_USRDONETS = 1,
+            )
 
             # Signals.
             # --------
@@ -367,10 +381,10 @@ class BaseSoC(PCIeNICSoC):
                 o_uart_txd_o          = serial_pads.tx,
 
                 # SPI Flash Interface.
-                o_spi_sclk_o          = Open(),
-                o_spi_ncs_o           = Open(),
-                o_spi_mosi_o          = Open(),
-                i_spi_miso_i          = 0,
+                o_spi_sclk_o          = flash_clk,
+                o_spi_ncs_o           = flash_pads.cs_n,
+                o_spi_mosi_o          = flash_pads.mosi,
+                i_spi_miso_i          = flash_pads.miso,
 
                 # PPS / Leds.
                 i_pps_ext_i           = 0,
