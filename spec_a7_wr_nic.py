@@ -266,10 +266,12 @@ class BaseSoC(PCIeNICSoC):
         if with_white_rabbit:
             # Pads.
             # -----
-            sfp_disable_pads  = self.platform.request("sfp_disable")
-            sfp_pads          = self.platform.request("sfp")
-            sfp_i2c_pads      = self.platform.request("sfp_i2c")
-            serial_pads       = self.platform.request("serial")
+            sfp_disable_pads  = platform.request("sfp_disable")
+            sfp_fault_pads    = platform.request("sfp_fault")
+            sfp_los_pads      = platform.request("sfp_los")
+            sfp_pads          = platform.request("sfp")
+            sfp_i2c_pads      = platform.request("sfp_i2c")
+            serial_pads       = platform.request("serial")
 
             # Signals.
             # --------
@@ -278,10 +280,10 @@ class BaseSoC(PCIeNICSoC):
             led_link     = Signal()
             led_act      = Signal()
             self.comb += [
-                self.platform.request("user_led", 0).eq(~led_link),
-                self.platform.request("user_led", 1).eq(~led_act),
-                self.platform.request("user_led", 2).eq(~led_pps),
-                self.platform.request("user_led", 3).eq(~led_fake_pps),
+                platform.request("user_led", 0).eq(~led_link),
+                platform.request("user_led", 1).eq(~led_act),
+                platform.request("user_led", 2).eq(~led_pps),
+                platform.request("user_led", 3).eq(~led_fake_pps),
             ]
 
             # Clks.
@@ -352,8 +354,9 @@ class BaseSoC(PCIeNICSoC):
                 i_sfp_det_i           = 0b1,
                 io_sfp_sda            = sfp_i2c_pads.sda,
                 io_sfp_scl            = sfp_i2c_pads.scl,
-                i_sfp_tx_fault_i      = 0b0,
-                i_sfp_tx_los_i        = 0b0,
+                i_sfp_tx_fault_i      = sfp_fault_pads,
+                i_sfp_tx_los_i        = sfp_los_pads,
+                o_sfp_tx_disable_o    = sfp_disable_pads,
 
                 # One-Wire Interface.
                 i_onewire_i           = 0,
@@ -422,7 +425,6 @@ class BaseSoC(PCIeNICSoC):
                 o_wrf_snk_rty         = Open(), # CHECKME.
             )
             self.add_sources()
-            self.comb += self.wrf_wb2stream.source.ready.eq(1)
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 

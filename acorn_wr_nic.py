@@ -430,7 +430,6 @@ class BaseSoC(PCIeNICSoC):
                 o_wrf_snk_rty         = Open(), # CHECKME.
             )
             self.add_sources()
-            self.comb += self.wrf_wb2stream.source.ready.eq(1)
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 
