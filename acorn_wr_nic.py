@@ -70,7 +70,6 @@ class _CRG(LiteXModule):
         if with_white_rabbit:
             self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
             self.cd_clk_125m_gtp  = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
-            self.cd_clk_10m_ext   = ClockDomain( )# CHECKME/FIXME: Replace with appropriate clk.
         if with_pcie:
             self.cd_clk50 = ClockDomain()
 
@@ -87,14 +86,12 @@ class _CRG(LiteXModule):
         if with_white_rabbit:
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
             pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
-            pll.create_clkout(self.cd_clk_10m_ext,   10e6,  margin=0)
             self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
             platform.add_false_path_constraints(
                 pll.clkin,
                 self.cd_sys.clk,
                 self.cd_clk_125m_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
-                self.cd_clk_10m_ext.clk,
             )
 
         if with_pcie:
@@ -299,9 +296,9 @@ class BaseSoC(PCIeNICSoC):
 
             # PPS Timer.
             # ----------
-            self.pps_timer = pps_timer = ClockDomainsRenamer("clk_10m_ext")(WaitTimer(10e6/2))
+            self.pps_timer = pps_timer = WaitTimer(sys_clk_freq/2)
             self.comb += pps_timer.wait.eq(~pps_timer.done)
-            self.sync.clk_10m_ext += If(pps_timer.done, led_fake_pps.eq(~led_fake_pps))
+            self.sync += If(pps_timer.done, led_fake_pps.eq(~led_fake_pps))
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -335,7 +332,7 @@ class BaseSoC(PCIeNICSoC):
                 i_areset_n_i          = ~ResetSignal("sys"),
                 i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
-                i_clk_10m_ext_i       = ClockSignal("clk_10m_ext"),
+                i_clk_10m_ext_i       = 0,
 
                 o_clk_ref_locked_o    = Open(),
                 o_dbg_rdy_o           = Open(),
