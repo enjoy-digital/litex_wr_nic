@@ -33,10 +33,9 @@ class Wishbone2Stream(LiteXModule):
 
         # Clock Domain Crossing.
         self.cdc = cdc = stream.ClockDomainCrossing(
-            layout  = [("data", 16), ("sel", 2), ("_last", 2)],
+            layout  = [("data", 16), ("sel", 2)],
             cd_from = cd_from,
             cd_to   = "sys",
-            #depth   = 256,
         )
 
         # FSM.
@@ -70,25 +69,22 @@ class Wishbone2Stream(LiteXModule):
             cdc.sink.valid.eq(valid),
             cdc.sink.sel.eq(sel),
             cdc.sink.data.eq(data),
-            If(sel == 0b10,
-                cdc.sink._last.eq(0b11)
-            ),
         ]
 
         # 16-bit to 8-bit Converter.
-        self.converter = converter = stream.StrideConverter(
-            description_from = [("data", 16), ("sel", 2), ("_last", 2)],
-            description_to   = [("data",  8), ("sel", 1), ("_last", 1)],
-            reverse          = True,
-        )
+        self.converter = converter = stream.Converter(16, 8, reverse=True)
 
         # CDC -> Converter -> Source.
         self.comb += [
-            cdc.source.connect(converter.sink),
-            converter.source.connect(source, omit={"sel", "last", "_last"}),
-            source.last.eq(converter.source.last | (converter.source._last != 0)),
-            If(converter.source.valid & ~converter.source.sel,
-                source.valid.eq(0),
-                converter.source.ready.eq(1),
+            If(cdc.source.valid,
+                If(cdc.source.sel == 0b11,
+                    cdc.source.connect(converter.sink, omit={"sel"}),
+                    converter.source.connect(source),
+                ).Elif(cdc.source.sel == 0b10,
+                    cdc.source.connect(source, omit={"sel", "data"}),
+                    source.data.eq(cdc.source.data[8:16])
+                ).Else(
+                    cdc.source.ready.eq(1)
+                )
             )
         ]
