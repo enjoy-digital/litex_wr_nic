@@ -326,8 +326,8 @@ class BaseSoC(PCIeNICSoC):
             self.specials += Instance("xwrc_board_artix7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = cpu_firmware,
-                p_txpolarity          = 0,
-                p_rxpolarity          = 1,
+                p_txpolarity          = 0, # Inverted on Acorn and on baseboard.
+                p_rxpolarity          = 1, # Inverted on Acorn.
 
                 # Clocks/resets.
                 i_areset_n_i          = ~ResetSignal("sys"),
