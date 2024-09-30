@@ -100,7 +100,7 @@ class BaseSoC(PCIeNICSoC):
         with_white_rabbit_ext_ram = False,
 
         # PCIe NIC.
-        with_pcie_nic = True,
+        with_pcie_nic = False,
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform(variant="xc7a50t")
