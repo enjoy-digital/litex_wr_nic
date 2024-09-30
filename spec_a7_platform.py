@@ -23,174 +23,173 @@ _io = [
     ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")), # RESET.
 
     # MGT RefClk.
-    ("mgt_refclk_125m_oe", 0, Pins("F14"), IOStandard("LVCMOS25")),
+    ("mgt_refclk_125m_oe", 0, Pins("F14"), IOStandard("LVCMOS25")), # OE_125M.
     ("mgt_refclk_125m", 0,
-        Subsignal("p", Pins("D6")),
-        Subsignal("n", Pins("D5")),
+        Subsignal("p", Pins("D6")), # MGTREFCLK0_P.
+        Subsignal("n", Pins("D5")), # MGTREFCLK0_N.
     ),
     ("mgtrefclk", 1,
-        Subsignal("p", Pins("B6")),
-        Subsignal("n", Pins("B5")),
+        Subsignal("p", Pins("B6")), # MGTREFCLK1_P.
+        Subsignal("n", Pins("B5")), # MGTREFCLK1_N.
     ),
 
     # Revision.
-    ("revision", 0, Pins("D10 A14 A13"), IOStandard("LVCMOS25")),
+    ("revision", 0, Pins("D10 A14 A13"), IOStandard("LVCMOS25")), # HW_REV0-2.
 
     # Leds.
-    ("user_led", 0, Pins("H14"), IOStandard("LVCMOS25")),
-    ("user_led", 1, Pins("G14"), IOStandard("LVCMOS25")),
-    ("user_led", 2, Pins("H17"), IOStandard("LVCMOS25")),
-    ("user_led", 3, Pins("E18"), IOStandard("LVCMOS25")),
+    ("user_led", 0, Pins("H14"), IOStandard("LVCMOS25")), # LED0.
+    ("user_led", 1, Pins("G14"), IOStandard("LVCMOS25")), # LED1.
+    ("user_led", 2, Pins("H17"), IOStandard("LVCMOS25")), # LED2.
+    ("user_led", 3, Pins("E18"), IOStandard("LVCMOS25")), # LED3.
 
-    ("frontpanel_led", 0, Pins("B11"), IOStandard("LVCMOS25")),
-    ("frontpanel_led", 1, Pins("B10"), IOStandard("LVCMOS25")),
-    ("frontpanel_led", 2, Pins("A10"), IOStandard("LVCMOS25")),
-    ("frontpanel_led", 3, Pins("A12"), IOStandard("LVCMOS25")),
+    ("frontpanel_led", 0, Pins("B11"), IOStandard("LVCMOS25")), # FP_LED0.
+    ("frontpanel_led", 1, Pins("B10"), IOStandard("LVCMOS25")), # FP_LED1.
+    ("frontpanel_led", 2, Pins("A10"), IOStandard("LVCMOS25")), # FP_LED2.
+    ("frontpanel_led", 3, Pins("A12"), IOStandard("LVCMOS25")), # FP_LED3.
 
     # Serial.
     ("serial", 0,
-        Subsignal("tx", Pins("R17")),
-        Subsignal("rx", Pins("R16")),
+        Subsignal("tx", Pins("R17")), # TX.
+        Subsignal("rx", Pins("R16")), # RX.
         IOStandard("LVCMOS33"),
     ),
 
     # HyperRAM
     ("hyperram", 0,
-        Subsignal("clk",   Pins("B14")),
-        Subsignal("rst_n", Pins("G17")),
-        Subsignal("cs_n",  Pins("D18")),
-        Subsignal("dq",    Pins("C16 B16 F18 E17 F17 C17 A17 B15")),
-        Subsignal("rwds",  Pins("C18")),
+        Subsignal("clk",   Pins("B14")), # HRAM_CK.
+        Subsignal("rst_n", Pins("G17")), # HRAM_RSTn.
+        Subsignal("cs_n",  Pins("D18")), # HRAM_CSn.
+        Subsignal("dq",    Pins("C16 B16 F18 E17 F17 C17 A17 B15")), # HRAM_DQ0-15.
+        Subsignal("rwds",  Pins("C18")), # HRAM_RWDS.
         IOStandard("LVCMOS25")
     ),
 
     # SPIFlash.
     ("flash", 0,
-        Subsignal("cs_n", Pins("L15")),
-        Subsignal("mosi", Pins("K16")),
-        Subsignal("miso", Pins("L17")),
-        Subsignal("wp",   Pins("J15")),
-        Subsignal("hold", Pins("J16")),
+        Subsignal("cs_n", Pins("L15")), # QSPI_CS.
+        Subsignal("mosi", Pins("K16")), # QSPI_DQ0.
+        Subsignal("miso", Pins("L17")), # QSPI_DQ1.
+        Subsignal("wp",   Pins("J15")), # QSPI_DQ2.
+        Subsignal("hold", Pins("J16")), # QSPI_DQ3.
         IOStandard("LVCMOS33"),
     ),
 
     # PCIe.
     ("pcie_x1", 0,
-        Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),
-        Subsignal("clk_p", Pins("D6")),
-        Subsignal("clk_n", Pins("D5")),
-        Subsignal("rx_p",  Pins("E4")),
-        Subsignal("rx_n",  Pins("E3")),
-        Subsignal("tx_p",  Pins("H2")),
-        Subsignal("tx_n",  Pins("H1")),
+        Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")), # PCIe_RST.
+        Subsignal("clk_p", Pins("D6")), # PCIe_REFCLK_P.
+        Subsignal("clk_n", Pins("D5")), # PCIe_REFCLK_N.
+        Subsignal("rx_p",  Pins("E4")), # PCIe_PER0_P.
+        Subsignal("rx_n",  Pins("E3")), # PCIe_PER0_N.
+        Subsignal("tx_p",  Pins("H2")), # PCIe_PET0_P.
+        Subsignal("tx_n",  Pins("H1")), # PCIe_PET0_N.
     ),
     ("pcie_x2", 0,
-        Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),
-        Subsignal("clk_p", Pins("D6")),
-        Subsignal("clk_n", Pins("D5")),
-        Subsignal("rx_p",  Pins("E4 A4")),
-        Subsignal("rx_n",  Pins("E3 A3")),
-        Subsignal("tx_p",  Pins("H2 F2")),
-        Subsignal("tx_n",  Pins("H1 F1")),
+        Subsignal("rst_n", Pins("R6"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")), # PCIe_RST.
+        Subsignal("clk_p", Pins("D6")),    # PCIe_REFCLK_P.
+        Subsignal("clk_n", Pins("D5")),    # PCIe_REFCLK_N.
+        Subsignal("rx_p",  Pins("E4 A4")), # PCIe_PER0-1_P.
+        Subsignal("rx_n",  Pins("E3 A3")), # PCIe_PER0-1_N.
+        Subsignal("tx_p",  Pins("H2 F2")), # PCIe_PET0-1_P.
+        Subsignal("tx_n",  Pins("H1 F1")), # PCIe_PET0-1_N.
     ),
 
     # DACs.
     ("dac_refclk", 0,
-        Subsignal("ldac_n", Pins("U12")),
-        Subsignal("sync_n", Pins("V13")),
-        Subsignal("sclk",   Pins("V14")),
-        Subsignal("sdi",    Pins("T13")),
-        Subsignal("sdo",    Pins("V12")),
+        Subsignal("ldac_n", Pins("U12")), # DAC_LDAC.
+        Subsignal("sync_n", Pins("V13")), # DAC_SYNC.
+        Subsignal("sclk",   Pins("V14")), # DAC_SCLK.
+        Subsignal("sdi",    Pins("T13")), # DAC_SDI.
+        Subsignal("sdo",    Pins("V12")), # DAC_SDO.
         IOStandard("LVCMOS33"),
     ),
 
     ("dac_dmtd", 0,
-        Subsignal("ldac_n", Pins("N17")),
-        Subsignal("sync_n", Pins("M17")),
-        Subsignal("sclk",   Pins("K17")),
-        Subsignal("sdi",    Pins("L18")),
-        Subsignal("sdo",    Pins("N18")),
+        Subsignal("ldac_n", Pins("N17")), # DDMTD_LDAC.
+        Subsignal("sync_n", Pins("M17")), # DDMTD_SYNC.
+        Subsignal("sclk",   Pins("K17")), # DDMTD_SCLK.
+        Subsignal("sdi",    Pins("L18")), # DDMTD_SDI.
+        Subsignal("sdo",    Pins("N18")), # DDMTD_SDO.
         IOStandard("LVCMOS33"),
     ),
 
     # PLL.
     ("pll", 0,
-        Subsignal("cs",     Pins("V9")),
-        Subsignal("refsel", Pins("U15")),
-        Subsignal("reset",  Pins("U11")),
-        Subsignal("sclk",   Pins("V11")),
-        Subsignal("sdo",    Pins("U10")),
-        Subsignal("sync",   Pins("P16")),
-        Subsignal("lock",   Pins("U16")),
-        Subsignal("sdi",    Pins("U9")),
-        Subsignal("stat",   Pins("V16")),
+        Subsignal("cs",     Pins(" V9")), # PLL_CS.
+        Subsignal("refsel", Pins("U15")), # PLL_REFSEL.
+        Subsignal("reset",  Pins("U11")), # PLL_RESET.
+        Subsignal("sclk",   Pins("V11")), # PLL_SCLK.
+        Subsignal("sdo",    Pins("U10")), # PLL_SDI.
+        Subsignal("sync",   Pins("P16")), # PLL_SYNC.
+        Subsignal("lock",   Pins("U16")), # PLL_LOCK.
+        Subsignal("sdi",    Pins(" U9")), # PLL_SDO.
+        Subsignal("stat",   Pins("V16")), # PLL_STAT.
         IOStandard("LVCMOS33"),
     ),
 
     # Temp.
-    ("temp_1wire", 0, Pins("U14"), IOStandard("LVCMOS33")),
+    ("temp_1wire", 0, Pins("U14"), IOStandard("LVCMOS33")), # ONE_WIRE.
 
     # SFP0.
-    ("sfp_disable",   0, Pins("U17"),         IOStandard("LVCMOS33")),
-    ("sfp_fault",     0, Pins("V17"),         IOStandard("LVCMOS33")),
-    ("sfp_led",       0, Pins("G16"),         IOStandard("LVCMOS25")),
-    ("sfp_los",       0, Pins("P18"),         IOStandard("LVCMOS33")),
-    ("sfp_mode",      0, Pins("R18 T18 T17"), IOStandard("LVCMOS33")),
-    ("sfp_rs",        0, Pins("N16"),         IOStandard("LVCMOS33")),
+    ("sfp_disable",   0, Pins("U17"),         IOStandard("LVCMOS33")), # SFP0_DISABLE.
+    ("sfp_fault",     0, Pins("V17"),         IOStandard("LVCMOS33")), # SFP0_FAULT.
+    ("sfp_led",       0, Pins("G16"),         IOStandard("LVCMOS25")), # SFP0.LED.
+    ("sfp_los",       0, Pins("P18"),         IOStandard("LVCMOS33")), # SFP0_LOSE.
+    ("sfp_mode",      0, Pins("R18 T18 T17"), IOStandard("LVCMOS33")), # SFP0_MODE0-2.
+    ("sfp_rs",        0, Pins("N16"),         IOStandard("LVCMOS33")), # SFP0_RS.
     ("sfp_i2c",       0,
-        Subsignal("sda", Pins("T17")),
-        Subsignal("scl", Pins("T18")),
+        Subsignal("sda", Pins("T17")), # SFP0_MODE2.
+        Subsignal("scl", Pins("T18")), # SFP0_MODE1.
         IOStandard("LVCMOS33"),
     ),
     ("sfp", 0,
-        Subsignal("txp", Pins("D2")),
-        Subsignal("txn", Pins("D1")),
-        Subsignal("rxp", Pins("C4")),
-        Subsignal("rxn", Pins("C3")),
+        Subsignal("txp", Pins("D2")), # SFP0_I_P.
+        Subsignal("txn", Pins("D1")), # SFP0_I_N.
+        Subsignal("rxp", Pins("C4")), # SFP0_O_P.
+        Subsignal("rxn", Pins("C3")), # SFP0_O_N.
     ),
     ("sfp_tx", 0,
-        Subsignal("p", Pins("D2")),
-        Subsignal("n", Pins("D1")),
+        Subsignal("p", Pins("D2")), # SFP0_I_P.
+        Subsignal("n", Pins("D1")), # SFP0_I_N.
     ),
     ("sfp_rx", 0,
-        Subsignal("p", Pins("C4")),
-        Subsignal("n", Pins("C3")),
+        Subsignal("p", Pins("C4")), # SFP0_O_P.
+        Subsignal("n", Pins("C3")), # SFP0_O_N.
     ),
 
     # SFP1.
-    ("sfp_disable",   1, Pins("M15"),         IOStandard("LVCMOS33")),
-    ("sfp_fault",     1, Pins("L14"),         IOStandard("LVCMOS33")),
-    ("sfp_led",       1, Pins("G15"),         IOStandard("LVCMOS25")),
-    ("sfp_los",       1, Pins("P15"),         IOStandard("LVCMOS33")),
-    ("sfp_mode",      1, Pins("T12 N14 M14"), IOStandard("LVCMOS33")),
-    ("sfp_rs",        1, Pins("R13"),         IOStandard("LVCMOS33")),
+    ("sfp_disable",   1, Pins("M15"),         IOStandard("LVCMOS33")), # SFP1_DISABLE.
+    ("sfp_fault",     1, Pins("L14"),         IOStandard("LVCMOS33")), # SFP1_FAULT.
+    ("sfp_led",       1, Pins("G15"),         IOStandard("LVCMOS25")), # SFP1.LED.
+    ("sfp_los",       1, Pins("P15"),         IOStandard("LVCMOS33")), # SFP1_LOSE.
+    ("sfp_mode",      1, Pins("T12 N14 M14"), IOStandard("LVCMOS33")), # SFP1_MODE0-2.
+    ("sfp_rs",        1, Pins("R13"),         IOStandard("LVCMOS33")), # SFP1_RS.
     ("sfp_i2c",       1,
-        Subsignal("sda", Pins("M14")),
-        Subsignal("scl", Pins("N14")),
+        Subsignal("sda", Pins("M14")), # SFP1_MODE2.
+        Subsignal("scl", Pins("N14")), # SFP1_MODE1.
         IOStandard("LVCMOS33"),
     ),
     ("sfp", 1,
-        Subsignal("txp", Pins("B2")),
-        Subsignal("txn", Pins("B1")),
-        Subsignal("rxp", Pins("G4")),
-        Subsignal("rxn", Pins("G3")),
+        Subsignal("txp", Pins("B2")), # SFP1_I_P.
+        Subsignal("txn", Pins("B1")), # SFP1_I_N.
+        Subsignal("rxp", Pins("G4")), # SFP1_O_P.
+        Subsignal("rxn", Pins("G3")), # SFP1_O_N.
     ),
     ("sfp_tx", 1,
-        Subsignal("p", Pins("B2")),
-        Subsignal("n", Pins("B1")),
+        Subsignal("p", Pins("B2")), # SFP1_I_P.
+        Subsignal("n", Pins("B1")), # SFP1_I_N.
     ),
     ("sfp_rx", 1,
-        Subsignal("p", Pins("G4")),
-        Subsignal("n", Pins("G3")),
+        Subsignal("p", Pins("G4")), # SFP1_O_P.
+        Subsignal("n", Pins("G3")), # SFP1_O_N.
     ),
 
-    # DELAY 0/1.
+    # DELAY.
     ("delay", 0,
-        Subsignal("en",    Pins("J18")),
-        Subsignal("sclk",  Pins("K18")),
-        Subsignal("sdin",  Pins("J14")),
-        Subsignal("sload", Pins("M16")),
-        Subsignal("sload", Pins("M16")),
+        Subsignal("en",    Pins("J18")), # DELAY_EN.
+        Subsignal("sclk",  Pins("K18")), # DELAY_SCLK.
+        Subsignal("sdin",  Pins("J14")), # DELAY_SDIN.
+        Subsignal("sload", Pins("M16")), # DELAY_SLOAD.
         IOStandard("LVCMOS33"),
     ),
 ]
