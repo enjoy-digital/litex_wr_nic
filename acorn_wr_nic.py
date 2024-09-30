@@ -8,7 +8,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
-import subprocess
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -16,7 +15,7 @@ from litex.gen.genlib.misc import WaitTimer
 from litex_boards.platforms import sqrl_acorn
 
 from litex.build.generic_platform import *
-from litex.build.io               import DifferentialInput
+from litex.build.io               import SDRTristate
 from litex.build.openfpgaloader   import OpenFPGALoader
 
 from litex.soc.interconnect.csr     import *
@@ -27,7 +26,7 @@ from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
-from litex.soc.cores.clock import *
+from litex.soc.cores.clock import S7PLL
 from litex.soc.cores.led   import LedChaser
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
