@@ -58,7 +58,7 @@ class Wishbone2Stream(LiteXModule):
                 )
             ),
             # Return to IDLE when Regular Data or Access is done.
-            If(~bus.cyc | (bus.adr != 0b00),
+            If(~bus.cyc | (bus.stb & bus.cyc & (bus.adr != 0b00)),
                 last.eq(1),
                 NextState("IDLE")
             )
