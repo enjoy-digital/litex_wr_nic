@@ -78,6 +78,7 @@ entity xwrc_board_artix7_wrapper is
     sfp_scl              : inout std_logic;
     sfp_tx_fault_i       : in  std_logic;
     sfp_tx_los_i         : in  std_logic;
+    sfp_tx_disable_o     : out std_logic;
 
     -- Onewire interface
     onewire_i            : in  std_logic;
@@ -265,6 +266,7 @@ begin
       sfp_scl              => sfp_scl,
       sfp_tx_fault_i       => sfp_tx_fault_i,
       sfp_tx_los_i         => sfp_tx_los_i,
+      sfp_tx_disable_o     => sfp_tx_disable_o,
       onewire_i            => onewire_i,
       onewire_oen_o        => onewire_oen_o,
       uart_rxd_i           => uart_rxd_i,

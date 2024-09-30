@@ -126,6 +126,7 @@ entity xwrc_board_artix7 is
     sfp_scl           : inout  std_logic;
     sfp_tx_fault_i    : in std_logic;
     sfp_tx_los_i      : in std_logic;
+    sfp_tx_disable_o  : out std_logic;
 
     ---------------------------------------------------------------------------
     -- I2C EEPROM
@@ -339,7 +340,7 @@ begin  -- architecture struct
       sfp_rxp_i             => sfp_rxp_i,
       sfp_tx_fault_i        => sfp_tx_fault_i,
       sfp_los_i             => sfp_tx_los_i,
-      sfp_tx_disable_o      => Open,
+      sfp_tx_disable_o      => sfp_tx_disable_o,
       clk_62m5_sys_o        => clk_pll_62m5,
       clk_125m_ref_o        => clk_ref_62m5,  -- Note: This is a 62m5 Clock for 16 bit PHYs!
       clk_62m5_dmtd_o       => clk_dmtd,
