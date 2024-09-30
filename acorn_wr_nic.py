@@ -464,9 +464,12 @@ class BaseSoC(PCIeNICSoC):
             # Analyzer -----------------------------------------------------------------------------
             analyzer_signals = [
                 wrf_stream2wb.bus,
-                wrf_snk_stall,
-                wrf_snk_rty,
                 wrf_stream2wb.sink,
+                wrf_stream2wb.fsm,
+
+                wrf_wb2stream.bus,
+                wrf_wb2stream.source,
+                wrf_wb2stream.fsm,
             ]
             self.analyzer = LiteScopeAnalyzer(analyzer_signals,
                 depth        = 256,

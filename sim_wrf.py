@@ -145,7 +145,7 @@ class WRCSim(SimSoC):
         # Sim Finish -------------------------------------------------------------------------------
         cycles = Signal(32)
         self.sync += cycles.eq(cycles + 1)
-        self.sync += If(cycles == 100, Finish())
+        self.sync += If(cycles == 1000, Finish())
 
 # Build --------------------------------------------------------------------------------------------
 

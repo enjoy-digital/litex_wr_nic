@@ -30,6 +30,7 @@ class Stream2Wishbone(LiteXModule):
             layout  = [("data", 16), ("valid_token_count", 4)],
             cd_from = "sys",
             cd_to   = cd_to,
+            #depth   = 256,
         )
 
         # Sink -> Converter -> CDC.
@@ -61,10 +62,11 @@ class Stream2Wishbone(LiteXModule):
             bus.stb.eq(cdc.source.valid),
             bus.we.eq(1),
             bus.adr.eq(0b00), # Regular Data.
-            Case(cdc.source.valid_token_count, {
-                1 : bus.sel.eq(0b10),
-                2 : bus.sel.eq(0b11),
-            }),
+            If(cdc.source.valid_token_count == 1,
+                bus.sel.eq(0b10)
+            ).Else(
+                bus.sel.eq(0b11)
+            ),
             bus.dat_w.eq(cdc.source.data),
             If(bus.ack,
                 cdc.source.ready.eq(1),
