@@ -91,13 +91,22 @@ _io = [
         Subsignal("tx_n",  Pins("H1 F1")),
     ),
 
-    # VCXO Clk Control.
-    ("dac_ptp", 0,
-        Subsignal("ldac", Pins("U12")),
-        Subsignal("sync", Pins("V13")),
-        Subsignal("sclk", Pins("V14")),
-        Subsignal("sdi",  Pins("T13")),
-        Subsignal("sdo",  Pins("V12")), # Unused
+    # DACs.
+    ("dac_refclk", 0,
+        Subsignal("ldac_n", Pins("U12")),
+        Subsignal("sync_n", Pins("V13")),
+        Subsignal("sclk",   Pins("V14")),
+        Subsignal("sdi",    Pins("T13")),
+        Subsignal("sdo",    Pins("V12")),
+        IOStandard("LVCMOS33"),
+    ),
+
+    ("dac_dmtd", 0,
+        Subsignal("ldac_n", Pins("N17")),
+        Subsignal("sync_n", Pins("M17")),
+        Subsignal("sclk",   Pins("K17")),
+        Subsignal("sdi",    Pins("L18")),
+        Subsignal("sdo",    Pins("N18")),
         IOStandard("LVCMOS33"),
     ),
 

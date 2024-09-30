@@ -266,6 +266,8 @@ class BaseSoC(PCIeNICSoC):
         if with_white_rabbit:
             # Pads.
             # -----
+            dac_refclk_pads   = platform.request("dac_refclk")
+            dac_dmtd_pads     = platform.request("dac_dmtd")
             sfp_disable_pads  = platform.request("sfp_disable")
             sfp_fault_pads    = platform.request("sfp_fault")
             sfp_los_pads      = platform.request("sfp_los")
@@ -275,6 +277,11 @@ class BaseSoC(PCIeNICSoC):
             flash_pads        = platform.request("flash")
             flash_clk         = Signal()
 
+            # DACs specific logic.
+            self.comb += dac_refclk_pads.ldac_n.eq(0) # Low = DAC automatically updated.
+            self.comb += dac_dmtd_pads.ldac_n.eq(0)   # Low = DAC automatically updated.
+
+            # Flash specific logic.
             self.specials += Instance("STARTUPE2",
                 i_CLK       = 0,
                 i_GSR       = 0,
@@ -351,14 +358,14 @@ class BaseSoC(PCIeNICSoC):
                 o_ready_for_reset_o   = Open(),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_cs_n_o   = Open(),
-                o_dac_refclk_sclk_o   = Open(),
-                o_dac_refclk_din_o    = Open(),
+                o_dac_refclk_cs_n_o   = dac_refclk_pads.sync_n,
+                o_dac_refclk_sclk_o   = dac_refclk_pads.sclk,
+                o_dac_refclk_din_o    = dac_refclk_pads.sdi,
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_cs_n_o     = Open(),
-                o_dac_dmtd_sclk_o     = Open(),
-                o_dac_dmtd_din_o      = Open(),
+                o_dac_dmtd_cs_n_o     = dac_dmtd_pads.sync_n,
+                o_dac_dmtd_sclk_o     = dac_dmtd_pads.sclk,
+                o_dac_dmtd_din_o      = dac_dmtd_pads.sdi,
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
