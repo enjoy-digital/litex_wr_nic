@@ -32,7 +32,6 @@ class Stream2Wishbone(LiteXModule):
         # Clock Domain Crossing.
         self.cdc = cdc = stream.ClockDomainCrossing(
             layout  = [("data", 16), ("sel", 2)],
-            depth   = 16,
             cd_from = "sys",
             cd_to   = cd_to,
         )
