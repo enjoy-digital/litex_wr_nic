@@ -110,6 +110,9 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # Temp.
+    ("temp_1wire", 0, Pins("U14"), IOStandard("LVCMOS33")),
+
     # SFP0.
     ("sfp_disable",   0, Pins("U17"),         IOStandard("LVCMOS33")),
     ("sfp_fault",     0, Pins("V17"),         IOStandard("LVCMOS33")),

@@ -16,7 +16,7 @@ from litex.gen.genlib.misc import WaitTimer
 from spec_a7_platform import *
 
 from litex.build.generic_platform import *
-from litex.build.io               import DifferentialInput
+from litex.build.io               import SDRTristate
 from litex.build.openfpgaloader   import OpenFPGALoader
 
 from litex.soc.interconnect.csr     import *
@@ -273,13 +273,26 @@ class BaseSoC(PCIeNICSoC):
             sfp_los_pads      = platform.request("sfp_los")
             sfp_pads          = platform.request("sfp")
             sfp_i2c_pads      = platform.request("sfp_i2c")
+            temp_1wire_pads   = platform.request("temp_1wire")
             serial_pads       = platform.request("serial")
             flash_pads        = platform.request("flash")
             flash_clk         = Signal()
 
             # DACs specific logic.
-            self.comb += dac_refclk_pads.ldac_n.eq(0) # Low = DAC automatically updated.
-            self.comb += dac_dmtd_pads.ldac_n.eq(0)   # Low = DAC automatically updated.
+            self.comb += [
+                dac_refclk_pads.ldac_n.eq(0), # Low = DAC automatically updated.
+                dac_dmtd_pads.ldac_n.eq(0),   # Low = DAC automatically updated.
+            ]
+
+            # Temp 1-Wire specific logic.
+            temp_1wire_oe_n = Signal()
+            temp_1wire_i    = Signal()
+            self.specials += SDRTristate(
+                io = temp_1wire_pads,
+                o  = Constant(0b0, 1),
+                oe = ~temp_1wire_oe_n,
+                i  = temp_1wire_i,
+            )
 
             # Flash specific logic.
             self.specials += Instance("STARTUPE2",
@@ -380,8 +393,8 @@ class BaseSoC(PCIeNICSoC):
                 o_sfp_tx_disable_o    = sfp_disable_pads,
 
                 # One-Wire Interface.
-                i_onewire_i           = 0,
-                o_onewire_oen_o       = Open(),
+                i_onewire_i           = temp_1wire_i,
+                o_onewire_oen_o       = temp_1wire_oe_n,
 
                 # UART Interface.
                 i_uart_rxd_i          = serial_pads.rx,
