@@ -37,6 +37,7 @@ from litepcie.software      import generate_litepcie_software_headers
 
 from litescope import LiteScopeAnalyzer
 
+from gateware.nic.pcie_nic  import PCIeNICSoC
 from gateware.wr_common     import wr_core_init, wr_core_files
 from gateware.time          import TimeGenerator
 from gateware.qpll          import SharedQPLL
@@ -88,7 +89,7 @@ class _CRG(LiteXModule):
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(SoCCore):
+class BaseSoC(PCIeNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
         with_pcie                 = True,
@@ -96,8 +97,10 @@ class BaseSoC(SoCCore):
 
         # White Rabbit Paramters.
         with_white_rabbit         = True,
-        with_white_rabbit_fabric  = False,
         with_white_rabbit_ext_ram = False,
+
+        # PCIe NIC.
+        with_pcie_nic = True,
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform(variant="xc7a50t")
@@ -144,12 +147,6 @@ class BaseSoC(SoCCore):
                 refclk_freq = 100e6,
             )
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
-            self.add_pcie(phy=self.pcie_phy,
-                ndmas                = 1,
-                address_width        = 64,
-                with_ptm             = with_pcie_ptm,
-                max_pending_requests = 4,
-            )
             self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
             platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
@@ -165,6 +162,15 @@ class BaseSoC(SoCCore):
             for clk0, clk1 in false_paths:
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk0}] -to [get_clocks {clk1}]")
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk1}] -to [get_clocks {clk0}]")
+
+
+            if not with_pcie_nic:
+                self.add_pcie(phy=self.pcie_phy,
+                    ndmas                = 1,
+                    address_width        = 64,
+                    with_ptm             = with_pcie_ptm,
+                    max_pending_requests = 4,
+                )
 
         # PCIe PTM ---------------------------------------------------------------------------------
         if with_pcie_ptm:
@@ -418,37 +424,41 @@ class BaseSoC(SoCCore):
             self.add_sources()
             self.comb += self.wrf_wb2stream.source.ready.eq(1)
 
-            if with_white_rabbit_fabric:
-                # UDP/IP Etherbone -----------------------------------------------------------------
+            # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 
-                from liteeth.common import eth_phy_description
+            from liteeth.common import eth_phy_description
 
-                class LiteEthPHYWRGMII(LiteXModule):
-                    dw = 8
-                    with_preamble_crc = False
-                    with_padding      = False
-                    def __init__(self):
-                        self.sink    = sink   = stream.Endpoint(eth_phy_description(8))
-                        self.source  = source = stream.Endpoint(eth_phy_description(8))
+            class LiteEthPHYWRGMII(LiteXModule):
+                dw = 8
+                with_preamble_crc = False
+                with_padding      = False
+                def __init__(self):
+                    self.sink    = sink   = stream.Endpoint(eth_phy_description(8))
+                    self.source  = source = stream.Endpoint(eth_phy_description(8))
 
-                        # # #
+                    # # #
 
-                        self.cd_eth_rx = ClockDomain()
-                        self.cd_eth_tx = ClockDomain()
-                        self.comb += [
-                            self.cd_eth_rx.clk.eq(ClockSignal("sys")),
-                            self.cd_eth_rx.rst.eq(ResetSignal("sys")),
-                            self.cd_eth_tx.clk.eq(ClockSignal("sys")),
-                            self.cd_eth_tx.clk.eq(ClockSignal("sys")),
-                        ]
+                    self.cd_eth_rx = ClockDomain()
+                    self.cd_eth_tx = ClockDomain()
+                    self.comb += [
+                        self.cd_eth_rx.clk.eq(ClockSignal("sys")),
+                        self.cd_eth_rx.rst.eq(ResetSignal("sys")),
+                        self.cd_eth_tx.clk.eq(ClockSignal("sys")),
+                        self.cd_eth_tx.clk.eq(ClockSignal("sys")),
+                    ]
 
-                        self.comb += [
-                            sink.connect(wrf_stream2wb.sink,     omit={"last_be", "error"}),
-                            wrf_wb2stream.source.connect(source, omit={"last_be", "error"}),
-                        ]
+                    self.comb += [
+                        sink.connect(wrf_stream2wb.sink,     omit={"last_be", "error"}),
+                        wrf_wb2stream.source.connect(source, omit={"last_be", "error"}),
+                    ]
 
-                self.ethphy = LiteEthPHYWRGMII()
+            self.ethphy = LiteEthPHYWRGMII()
+
+
+            if not with_pcie_nic:
                 self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
+            else:
+                self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phy=self.ethphy, with_timing_constraints=False)
 
     def add_sources(self):
         if not os.path.exists("wr-cores"):
@@ -478,6 +488,7 @@ def main():
     # Generate PCIe C Headers.
     # ------------------------
     generate_litepcie_software_headers(soc, "software/kernel")
+    generate_litepcie_software_headers(soc, "software/driver")
 
     # Generate Bitstream.
     # -------------------
