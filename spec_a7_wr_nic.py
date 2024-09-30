@@ -457,6 +457,7 @@ class BaseSoC(PCIeNICSoC):
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
                 o_wrf_snk_rty         = wrf_snk_rty,
             )
+            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
