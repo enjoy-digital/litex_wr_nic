@@ -33,6 +33,9 @@ _io = [
         Subsignal("n", Pins("B5")),
     ),
 
+    # Revision.
+    ("revision", 0, Pins("D10 A14 A13"), IOStandard("LVCMOS25")),
+
     # Leds.
     ("user_led", 0, Pins("H14"), IOStandard("LVCMOS25")),
     ("user_led", 1, Pins("G14"), IOStandard("LVCMOS25")),
@@ -107,6 +110,20 @@ _io = [
         Subsignal("sclk",   Pins("K17")),
         Subsignal("sdi",    Pins("L18")),
         Subsignal("sdo",    Pins("N18")),
+        IOStandard("LVCMOS33"),
+    ),
+
+    # PLL.
+    ("pll", 0,
+        Subsignal("cs",     Pins("V9")),
+        Subsignal("refsel", Pins("U15")),
+        Subsignal("reset",  Pins("U11")),
+        Subsignal("sclk",   Pins("V11")),
+        Subsignal("sdo",    Pins("U10")),
+        Subsignal("sync",   Pins("P16")),
+        Subsignal("lock",   Pins("U16")),
+        Subsignal("sdi",    Pins("U9")),
+        Subsignal("stat",   Pins("V16")),
         IOStandard("LVCMOS33"),
     ),
 
