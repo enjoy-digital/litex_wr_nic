@@ -14,6 +14,16 @@ from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
 
 # White Rabbit Fabric Stream 2 Wishbone ------------------------------------------------------------
+#
+# This module converts a 8-bit stream (sys_clk) into 16-bit Wishbone bus transactions (wr_clk):
+#                                                  │
+#                                   ◄──  sys_clk   │  wr_clk ──►
+#                                                  │
+#                        ┌─────────────────┐    ┌───────┐    ┌────────┐
+#                        │ 8-bit to 16-bit │    │       │    │        │
+#      8-bit Stream  ────►                 ┼────►  CDC  ┼────►  FSM   ┼───► 16-bit Wishbone
+#                        │    Converter    │    │       │    │        │
+#                        └─────────────────┘    └───────┘    └────────┘
 
 class Stream2Wishbone(LiteXModule):
     def __init__(self, cd_to="wr"):
@@ -27,7 +37,7 @@ class Stream2Wishbone(LiteXModule):
 
         # Clock Domain Crossing.
         self.cdc = cdc = stream.ClockDomainCrossing(
-            layout  = [("data", 16), ("valid_token_count", 4)],
+            layout  = [("data", 16), ("valid_token_count", 3)],
             cd_from = "sys",
             cd_to   = cd_to,
         )
@@ -61,11 +71,11 @@ class Stream2Wishbone(LiteXModule):
             bus.stb.eq(cdc.source.valid),
             bus.we.eq(1),
             bus.adr.eq(0b00), # Regular Data.
-            If(cdc.source.valid_token_count == 1,
-                bus.sel.eq(0b10)
-            ).Else(
-                bus.sel.eq(0b11)
-            ),
+            Case(cdc.source.valid_token_count, {
+                1         : bus.sel.eq(0b10),
+                2         : bus.sel.eq(0b11),
+                "default" : bus.sel.eq(0b11),
+            }),
             bus.dat_w.eq(cdc.source.data),
             If(bus.ack,
                 cdc.source.ready.eq(1),

@@ -14,6 +14,16 @@ from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
 
 # White Rabbit Fabric Wishbone 2 Stream ------------------------------------------------------------
+#
+# This module converts 16-bit Wishbone bus transactions (wr_clk) to a 8-bit stream (sys_clk):
+#                                          │
+#                           ◄──    wr_clk  │ sys_clk ──►
+#                                          │
+#                         ┌────────┐    ┌───────┐  ┌─────────────────┐
+#                         │        │    │       │  │ 16-bit to 8-bit │
+#     16-bit Wishbone ────►  FSM   ┼────►  CDC  ┼──►                 ┼───► 8-bit Stream
+#                         │        │    │       │  │    Converter    │
+#                         └────────┘    └───────┘  └─────────────────┘
 
 class Wishbone2Stream(LiteXModule):
     def __init__(self, cd_from="wr"):
@@ -77,14 +87,16 @@ class Wishbone2Stream(LiteXModule):
         # CDC -> Converter -> Source.
         self.comb += [
             If(cdc.source.valid,
+                # Even number of bytes.
                 If(cdc.source.sel == 0b11,
                     cdc.source.connect(converter.sink, omit={"sel"}),
                     converter.source.connect(source),
+                # Odd number of bytes.
                 ).Elif(cdc.source.sel == 0b10,
                     cdc.source.connect(source, omit={"sel", "data"}),
                     source.data.eq(cdc.source.data[8:16])
                 ).Else(
-                    cdc.source.ready.eq(1)
+                    cdc.source.ready.eq(1), # Ready by default.
                 )
             )
         ]
