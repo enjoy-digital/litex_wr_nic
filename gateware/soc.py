@@ -122,6 +122,62 @@ class LiteXWRNICSoC(SoCMini):
         for file in wr_core_files:
             self.platform.add_source(file)
 
+    def add_pcie_ptm(self):
+        # PCIe PTM Sniffer -------------------------------------------------------------------------
+
+        # Since Xilinx PHY does not allow redirecting PTM TLP Messages to the AXI inferface, we have
+        # to sniff the GTPE2 -> PCIE2 RX Data to re-generate PTM TLP Messages.
+
+        # Sniffer Signals.
+        # ----------------
+        sniffer_rst_n   = Signal()
+        sniffer_clk     = Signal()
+        sniffer_rx_data = Signal(16)
+        sniffer_rx_ctl  = Signal(2)
+
+        # Sniffer Tap.
+        # ------------
+        rx_data = Signal(16)
+        rx_ctl  = Signal(2)
+        self.sync.pclk += rx_data.eq(rx_data + 1)
+        self.sync.pclk += rx_ctl.eq(rx_ctl + 1)
+        self.specials += Instance("sniffer_tap",
+            i_rst_n_in    = 1,
+            i_clk_in     = ClockSignal("pclk"),
+            i_rx_data_in = rx_data, # /!\ Fake, will be re-connected post-synthesis /!\.
+            i_rx_ctl_in  = rx_ctl,  # /!\ Fake, will be re-connected post-synthesis /!\.
+            o_rst_n_out   = sniffer_rst_n,
+            o_clk_out     = sniffer_clk,
+            o_rx_data_out = sniffer_rx_data,
+            o_rx_ctl_out  = sniffer_rx_ctl,
+        )
+
+        # Sniffer.
+        # --------
+        self.pcie_ptm_sniffer = PCIePTMSniffer(
+            rx_rst_n = sniffer_rst_n,
+            rx_clk   = sniffer_clk,
+            rx_data  = sniffer_rx_data,
+            rx_ctrl  = sniffer_rx_ctl,
+        )
+        self.pcie_ptm_sniffer.add_sources(platform)
+
+
+        # PTM --------------------------------------------------------------------------------------
+
+        # PTM Capabilities.
+        self.ptm_capabilities = PTMCapabilities(
+            pcie_endpoint     = self.pcie_endpoint,
+            requester_capable = True,
+        )
+
+        # PTM Requester.
+        self.ptm_requester = PTMRequester(
+            pcie_endpoint    = self.pcie_endpoint,
+            pcie_ptm_sniffer = self.pcie_ptm_sniffer,
+            sys_clk_freq     = sys_clk_freq,
+        )
+
     def add_ext_ram(self, platform):
         # CHECKME: Check if the best approach, we could also completely replace uRV and provide
         #          a similar instance?
