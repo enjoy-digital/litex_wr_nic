@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import argparse
 
 from migen import *
@@ -7,6 +8,8 @@ from migen import *
 from litex.tools.litex_sim import *
 
 from litex.build.vhd2v_converter import *
+
+sys.path.append("..")
 
 from gateware.wr_common     import wr_core_init, wr_core_files
 

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
+import sys
 import argparse
 
 from migen import *
 from migen.genlib.misc import timeline
 
 from litex.tools.litex_sim import *
+
+sys.path.append("..")
 
 from gateware.wrf_wb2stream import Wishbone2Stream
 from gateware.wrf_stream2wb import Stream2Wishbone
