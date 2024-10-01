@@ -92,7 +92,6 @@ class BaseSoC(LiteXWRNICSoC):
 
         # White Rabbit Paramters.
         with_white_rabbit         = True,
-        with_white_rabbit_ext_ram = False,
 
         # PCIe NIC.
         with_pcie_nic = False,
