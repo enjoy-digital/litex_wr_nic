@@ -266,7 +266,7 @@ class LiteXWRNICSoC(SoCMini):
 
     # Add Probes -----------------------------------------------------------------------------------
 
-    def add_wrf_probe(self):
+    def add_wishbone_fabric_interface_probe(self):
        analyzer_signals = [
            self.wrf_stream2wb.bus,
            self.wrf_stream2wb.sink,
@@ -281,5 +281,17 @@ class LiteXWRNICSoC(SoCMini):
            clock_domain = "wr",
            samplerate   = int(62.5e6),
            register     = True,
-           csr_csv      = "analyzer.csv"
+           csr_csv      = "test/analyzer.csv"
+       )
+
+    def add_wishbone_slave_probe(self):
+        analyzer_signals = [
+            self.wb_slave,
+        ]
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+           depth        = 256,
+           clock_domain = "wr",
+           samplerate   = int(62.5e6),
+           register     = True,
+           csr_csv      = "test/analyzer.csv"
        )

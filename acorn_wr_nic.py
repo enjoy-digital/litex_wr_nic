@@ -69,8 +69,6 @@ class _CRG(LiteXModule):
         if with_white_rabbit:
             self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
             self.cd_clk_125m_gtp  = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
-        if with_pcie:
-            self.cd_clk50 = ClockDomain()
 
         # # #
 
@@ -92,9 +90,6 @@ class _CRG(LiteXModule):
                 self.cd_clk_125m_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
             )
-
-        if with_pcie:
-            pll.create_clkout(self.cd_clk50, 50e6, margin=0)
 
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
 
@@ -186,8 +181,8 @@ class BaseSoC(LiteXWRNICSoC):
             # Time Generator -----------------------------------------------------------------------
 
             self.time_generator = TimeGenerator(
-                clk_domain = "clk50",
-                clk_freq   = 50e6,
+                clk_domain = "sys",
+                clk_freq   = 125e6,
             )
             self.comb += [
                 self.ptm_requester.time_clk.eq(ClockSignal("sys")),
@@ -235,12 +230,9 @@ class BaseSoC(LiteXWRNICSoC):
             self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(  cd_to="wr")
             self.wrf_wb2stream = wrf_wb2stream = Wishbone2Stream(cd_from="wr")
 
-            wrf_snk_stall = Signal()
-            wrf_snk_rty   = Signal()
-
             # White Rabbit Slave Interface.
             # -----------------------------
-            wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
+            self.wb_slave = wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
             self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
                  origin = 0x2000_0000,
                  size   = 0x0100_0000,
@@ -288,6 +280,7 @@ class BaseSoC(LiteXWRNICSoC):
                 io_sfp_scl            = sfp_i2c_pads.scl,
                 i_sfp_tx_fault_i      = 0b0,
                 i_sfp_tx_los_i        = 0b0,
+                o_sfp_tx_disable_o    = Open(),
 
                 # One-Wire Interface.
                 i_onewire_i           = 0,
@@ -320,7 +313,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_wb_slave_cyc        = wb_slave.cyc,
                 i_wb_slave_stb        = wb_slave.stb,
                 i_wb_slave_we         = wb_slave.we,
-                i_wb_slave_adr        = (wb_slave.adr & 0x0fff_ffff),
+                i_wb_slave_adr        = Cat(Signal(2), (wb_slave.adr & 0x00ff_ffff)),
                 i_wb_slave_sel        = wb_slave.sel,
                 i_wb_slave_dat_i      = wb_slave.dat_w,
                 o_wb_slave_dat_o      = wb_slave.dat_r,
@@ -351,9 +344,9 @@ class BaseSoC(LiteXWRNICSoC):
                 i_wrf_snk_sel         = wrf_stream2wb.bus.sel,
 
                 o_wrf_snk_ack         = wrf_stream2wb.bus.ack,
-                o_wrf_snk_stall       = wrf_snk_stall,
+                o_wrf_snk_stall       = Open(), # CHECKME.
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
-                o_wrf_snk_rty         = wrf_snk_rty,
+                o_wrf_snk_rty         = Open(), # CHECKME.
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
@@ -393,7 +386,8 @@ class BaseSoC(LiteXWRNICSoC):
             else:
                 self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phy=self.ethphy, with_timing_constraints=False)
 
-            #self.add_wrf_probe()
+            #self.add_wishbone_fabric_interface_probe()
+            #self.add_wishbone_slave_probe()
 
 # Build --------------------------------------------------------------------------------------------
 
