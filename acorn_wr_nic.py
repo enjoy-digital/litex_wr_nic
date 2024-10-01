@@ -68,8 +68,8 @@ class _CRG(LiteXModule):
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
         if with_white_rabbit:
-            self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
             self.cd_clk_125m_gtp  = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
+            self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
 
         # # #
 
@@ -125,8 +125,10 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Shared QPLL.
         self.qpll = SharedQPLL(platform,
-            with_pcie = with_pcie,
-            with_eth  = with_white_rabbit,
+            with_pcie           = with_pcie,
+            with_eth            = with_white_rabbit,
+            eth_refclk_freq     = 125e6,
+            eth_refclk_from_pll = True,
         )
         self.qpll.enable_pll_refclk()
 

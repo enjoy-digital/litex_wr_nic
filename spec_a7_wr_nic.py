@@ -53,18 +53,20 @@ class _CRG(LiteXModule):
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
         if with_white_rabbit:
-            self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
             self.cd_clk_125m_gtp  = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
+            self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
 
         # # #
 
         # Clk/Rst.
-        clk62p5 = platform.request("clk62p5")
+        clk125_oe = platform.request("clk125_oe")
+        clk125    = platform.request("clk125")
+        self.comb += clk125_oe.eq(1)
 
         # PLL.
         self. pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(clk62p5, 62.5e6)
+        pll.register_clkin(clk125, 125e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
         if with_white_rabbit:
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
@@ -109,10 +111,12 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Shared QPLL.
         self.qpll = SharedQPLL(platform,
-            with_pcie = with_pcie,
-            with_eth  = with_white_rabbit,
+            with_pcie           = with_pcie,
+            with_eth            = with_white_rabbit,
+            eth_refclk_freq     = 125e6,
+            eth_refclk_from_pll = True,
         )
-        self.qpll.enable_pll_refclk()ls
+        self.qpll.enable_pll_refclk()
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform,

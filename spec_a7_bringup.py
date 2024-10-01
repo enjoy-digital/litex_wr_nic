@@ -37,8 +37,9 @@ class _CRG(LiteXModule):
         # # #
 
         # Clk/Rst.
-        self.comb += platform.request("clk125_oe").eq(1)
-        clk125 = platform.request("clk125")
+        clk125_oe = platform.request("clk125_oe")
+        clk125    = platform.request("clk125")
+        self.comb += clk125_oe.eq(1)
 
         # PLL.
         self. pll = pll = S7PLL(speedgrade=-2)
