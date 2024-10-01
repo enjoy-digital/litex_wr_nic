@@ -41,6 +41,8 @@ class LiteXWRNICSoC(SoCMini):
         "pcie_phy"         : 9,
     }
 
+    # Add PCIe NIC ---------------------------------------------------------------------------------
+
     def add_pcie_nic(self, pcie_phy=None, eth_phy=None, ntxslots=4, nrxslots=4, with_timing_constraints=True):
         # Ethernet MAC.
         # -------------
@@ -116,14 +118,12 @@ class LiteXWRNICSoC(SoCMini):
             slave  = ethmac.bus_tx,
         )
 
-    def add_sources(self):
-        if not os.path.exists("wr-cores"):
-            wr_core_init()
-        for file in wr_core_files:
-            self.platform.add_source(file)
+
+    # Add PCIe PTM ---------------------------------------------------------------------------------
 
     def add_pcie_ptm(self):
-        # PCIe PTM Sniffer -------------------------------------------------------------------------
+        # PCIe PTM Sniffer.
+        # -----------------
 
         # Since Xilinx PHY does not allow redirecting PTM TLP Messages to the AXI inferface, we have
         # to sniff the GTPE2 -> PCIE2 RX Data to re-generate PTM TLP Messages.
@@ -163,7 +163,8 @@ class LiteXWRNICSoC(SoCMini):
         self.pcie_ptm_sniffer.add_sources(platform)
 
 
-        # PTM --------------------------------------------------------------------------------------
+        # PTM
+        # ---
 
         # PTM Capabilities.
         self.ptm_capabilities = PTMCapabilities(
@@ -177,6 +178,16 @@ class LiteXWRNICSoC(SoCMini):
             pcie_ptm_sniffer = self.pcie_ptm_sniffer,
             sys_clk_freq     = sys_clk_freq,
         )
+
+    # Add Sources ----------------------------------------------------------------------------------
+
+    def add_sources(self):
+        if not os.path.exists("wr-cores"):
+            wr_core_init()
+        for file in wr_core_files:
+            self.platform.add_source(file)
+
+    # Add Ext RAM ----------------------------------------------------------------------------------
 
     def add_ext_ram(self, platform):
         # CHECKME: Check if the best approach, we could also completely replace uRV and provide
