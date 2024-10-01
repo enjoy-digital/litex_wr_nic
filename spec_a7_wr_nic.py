@@ -417,25 +417,12 @@ class BaseSoC(LiteXWRNICSoC):
 
             self.ethphy = LiteEthPHYWRGMII()
 
-            # Analyzer -----------------------------------------------------------------------------
-            analyzer_signals = [
-                wrf_stream2wb.bus,
-                wrf_snk_stall,
-                wrf_snk_rty,
-                wrf_stream2wb.sink,
-            ]
-            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                depth        = 256,
-                clock_domain = "wr",
-                samplerate   = int(62.5e6),
-                register     = True,
-                csr_csv      = "analyzer.csv"
-            )
-
             if not with_pcie_nic:
                 self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
             else:
                 self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phy=self.ethphy, with_timing_constraints=False)
+
+            #self.add_wrf_probe()
 
 # Build --------------------------------------------------------------------------------------------
 

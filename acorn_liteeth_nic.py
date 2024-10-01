@@ -31,8 +31,8 @@ from liteeth.phy.a7_1000basex import A7_1000BASEX
 
 from litepcie.software import generate_litepcie_software
 
-from gateware.qpll    import SharedQPLL
-from gateware.nic.soc import LiteXWRNICSoC
+from gateware.qpll import SharedQPLL
+from gateware.soc  import LiteXWRNICSoC
 
 # Platform -----------------------------------------------------------------------------------------
 

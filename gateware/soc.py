@@ -18,6 +18,8 @@ from litex.soc.interconnect import wishbone
 
 from litex.soc.integration.soc_core import *
 
+from litescope import LiteScopeAnalyzer
+
 from gateware.nic import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
 from gateware.nic.dma import LitePCIe2WishboneDMA
@@ -261,3 +263,23 @@ class LiteXWRNICSoC(SoCMini):
 
             # Connect Src to Dst.
             platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net $pin_driver_from -objects $pin_driver_to")
+
+    # Add Probes -----------------------------------------------------------------------------------
+
+    def add_wrf_probe(self):
+       analyzer_signals = [
+           self.wrf_stream2wb.bus,
+           self.wrf_stream2wb.sink,
+           self.wrf_stream2wb.fsm,
+
+           self.wrf_wb2stream.bus,
+           self.wrf_wb2stream.source,
+           self.wrf_wb2stream.fsm,
+       ]
+       self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+           depth        = 256,
+           clock_domain = "wr",
+           samplerate   = int(62.5e6),
+           register     = True,
+           csr_csv      = "analyzer.csv"
+       )
