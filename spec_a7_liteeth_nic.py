@@ -77,6 +77,7 @@ class BaseSoC(LiteXWRNICSoC):
             with_eth        = True,
             eth_refclk_freq = 156.25e6,
         )
+        self.qpll.enable_pll_refclk()
 
         # SoCCore ----------------------------------------------------------------------------------
 

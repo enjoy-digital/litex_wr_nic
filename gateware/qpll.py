@@ -15,6 +15,7 @@ from liteeth.phy.a7_gtp import QPLLSettings, QPLL
 
 class SharedQPLL(LiteXModule):
     def __init__(self, platform, with_pcie=False, with_eth=False, eth_refclk_freq=125e6):
+        self.platform = platform
         # PCIe QPLL Settings.
         qpll_pcie_settings = QPLLSettings(
             refclksel  = 0b001,
@@ -81,7 +82,8 @@ class SharedQPLL(LiteXModule):
             self.channel_map[config_items[0][0]] = 0
             self.channel_map[config_items[1][0]] = 1
 
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+    def enable_pll_refclk(self):
+        self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
     @staticmethod
     def get_gt_refclks(config):

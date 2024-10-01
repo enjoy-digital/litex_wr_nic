@@ -128,6 +128,7 @@ class BaseSoC(LiteXWRNICSoC):
             with_pcie = with_pcie,
             with_eth  = with_white_rabbit,
         )
+        self.qpll.enable_pll_refclk()
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform,

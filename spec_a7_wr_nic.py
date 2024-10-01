@@ -112,6 +112,7 @@ class BaseSoC(LiteXWRNICSoC):
             with_pcie = with_pcie,
             with_eth  = with_white_rabbit,
         )
+        self.qpll.enable_pll_refclk()ls
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform,
@@ -276,8 +277,6 @@ class BaseSoC(LiteXWRNICSoC):
             # White Rabbit Core Instance.
             # ---------------------------
             cpu_firmware = os.path.join(self.file_basedir, "firmware/litex_wr_nic_wrc.bram")
-
-            self.comb += sfp_disable_pads.eq(0)
             self.specials += Instance("xwrc_board_artix7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = cpu_firmware,
@@ -422,9 +421,6 @@ class BaseSoC(LiteXWRNICSoC):
                 self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
             else:
                 self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phy=self.ethphy, with_timing_constraints=False)
-
-            #self.add_wishbone_fabric_interface_probe()
-            #self.add_wishbone_slave_probe()
 
 # Build --------------------------------------------------------------------------------------------
 
