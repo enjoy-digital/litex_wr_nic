@@ -85,14 +85,17 @@ class _CRG(LiteXModule):
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
             pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
             self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+
+        # False Paths.
+        if with_white_rabbit:
             platform.add_false_path_constraints(
                 pll.clkin,
                 self.cd_sys.clk,
                 self.cd_clk_125m_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
             )
-
-        platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
+        else:
+            platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -106,7 +109,7 @@ class BaseSoC(LiteXWRNICSoC):
         with_white_rabbit         = True,
 
         # PCIe NIC.
-        with_pcie_nic = True,
+        with_pcie_nic = False,
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
