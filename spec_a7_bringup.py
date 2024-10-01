@@ -37,12 +37,13 @@ class _CRG(LiteXModule):
         # # #
 
         # Clk/Rst.
-        clk62p5 = platform.request("clk62p5")
+        self.comb += platform.request("clk125_oe").eq(1)
+        clk125 = platform.request("clk125")
 
         # PLL.
         self. pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(clk62p5, 62.5e6)
+        pll.register_clkin(clk125, 125e6)
         pll.create_clkout(self.cd_sys,       sys_clk_freq, margin=0)
         pll.create_clkout(self.cd_sys2x, 2 * sys_clk_freq, margin=0)
         if with_eth:
@@ -50,12 +51,11 @@ class _CRG(LiteXModule):
             pll.create_clkout(self.cd_eth_ref, 156.25e6, margin=0)
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
 
-
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=125e6,  with_hyperram=False, with_ethernet=False, with_etherbone=False, eth_sfp=0, **kwargs):
-        platform = Platform()
+        platform = Platform(variant="xc7a35t")
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq, with_eth=with_ethernet or with_etherbone)
