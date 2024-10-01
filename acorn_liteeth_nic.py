@@ -31,8 +31,8 @@ from liteeth.phy.a7_1000basex import A7_1000BASEX
 
 from litepcie.software import generate_litepcie_software
 
-from gateware.qpll         import SharedQPLL
-from gateware.nic.pcie_nic import PCIeNICSoC
+from gateware.qpll    import SharedQPLL
+from gateware.nic.soc import LiteXWRNICSoC
 
 # Platform -----------------------------------------------------------------------------------------
 
@@ -82,7 +82,7 @@ class CRG(LiteXModule):
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(PCIeNICSoC):
+class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6, with_led_chaser=True, **kwargs):
         # Platform ---------------------------------------------------------------------------------
 

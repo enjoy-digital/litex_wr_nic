@@ -21,9 +21,9 @@ from gateware.nic import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
 from gateware.nic.dma import LitePCIe2WishboneDMA
 
-# PCIe NIC SoC -------------------------------------------------------------------------------------
+# LiteX WR NIC SoC ---------------------------------------------------------------------------------
 
-class PCIeNICSoC(SoCMini):
+class LiteXWRNICSoC(SoCMini):
     SoCMini.csr_map = {
         "ethmac"           : 1,
         "ethphy"           : 2,

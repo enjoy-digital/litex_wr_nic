@@ -36,7 +36,7 @@ from litepcie.software      import generate_litepcie_software_headers
 
 from litescope import LiteScopeAnalyzer
 
-from gateware.nic.pcie_nic  import PCIeNICSoC
+from gateware.soc           import LiteXWRNICSoC
 from gateware.wr_common     import wr_core_init, wr_core_files
 from gateware.time          import TimeGenerator
 from gateware.qpll          import SharedQPLL
@@ -101,7 +101,7 @@ class _CRG(LiteXModule):
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(PCIeNICSoC):
+class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
         with_pcie                 = True,
