@@ -122,15 +122,13 @@ class PacketChecker(Module):
 # WRCSim -------------------------------------------------------------------------------------------
 
 class WRCSim(SimSoC):
-    def __init__(self):
+    def __init__(self, length=16):
         SimSoC.__init__(self, cpu_type="None", with_uart=False)
 
         self.cd_wr = ClockDomain()
         self.sync += self.cd_wr.clk.eq(~self.cd_wr.clk)
 
-
-        #data = [i for i in range(16)]
-        data = [i for i in range(15)]
+        data = [i%256 for i in range(length)]
 
         # Streamer -> Stream2Wishbone -> Whishbone2Stream -> Checker -------------------------------
 
@@ -154,6 +152,7 @@ class WRCSim(SimSoC):
 
 def main():
     parser = argparse.ArgumentParser(description="White Rabbit WRF Interface Simulation")
+    parser.add_argument("--length",      default=16, type=int,help="Packet Data Length.")
     parser.add_argument("--trace",       action="store_true", help="Enable Tracing")
     parser.add_argument("--trace-fst",   action="store_true", help="Enable FST tracing (default=VCD)")
     parser.add_argument("--trace-start", default=0,           help="Cycle to start tracing")
@@ -163,7 +162,7 @@ def main():
     sim_config = SimConfig(default_clk="sys_clk")
 
     # SoC ------------------------------------------------------------------------------------------
-    soc = WRCSim()
+    soc = WRCSim(length=args.length)
 
     # Build/Run ------------------------------------------------------------------------------------
     builder = Builder(soc, csr_csv="csr.csv")
