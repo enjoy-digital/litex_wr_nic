@@ -36,11 +36,13 @@ from litepcie.software      import generate_litepcie_software_headers
 
 from litescope import LiteScopeAnalyzer
 
-from gateware.soc           import LiteXWRNICSoC
-from gateware.time          import TimeGenerator
-from gateware.qpll          import SharedQPLL
-from gateware.wrf_stream2wb import Stream2Wishbone
-from gateware.wrf_wb2stream import Wishbone2Stream
+from gateware.soc               import LiteXWRNICSoC
+from gateware.time              import TimeGenerator
+from gateware.qpll              import SharedQPLL
+from gateware.wb_clock_crossing import WishboneClockCrossing
+from gateware.wrf_stream2wb     import Stream2Wishbone
+from gateware.wrf_wb2stream     import Wishbone2Stream
+
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -258,11 +260,18 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit Slave Interface.
             # -----------------------------
-            self.wb_slave = wb_slave = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
-            self.bus.add_slave(name="wr", slave=wb_slave, region=SoCRegion(
+            self.wb_slave_sys = wb_slave_sys = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
+            self.wb_slave_wr  = wb_slave_wr  = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
+            self.bus.add_slave(name="wr_wb_slave", slave=wb_slave_sys, region=SoCRegion(
                  origin = 0x2000_0000,
                  size   = 0x0100_0000,
              ))
+            self.submodules += WishboneClockCrossing(platform,
+                wb_from = wb_slave_sys,
+                cd_from = "sys",
+                wb_to   = wb_slave_wr,
+                cd_to   = "wr",
+            )
 
             # White Rabbit Core Instance.
             # ---------------------------
@@ -338,15 +347,15 @@ class BaseSoC(LiteXWRNICSoC):
                 i_gt0_ext_qpll_lock   = self.qpll.get_channel("eth").lock,
 
                 # Wishbone Slave Interface (MMAP).
-                i_wb_slave_cyc        = wb_slave.cyc,
-                i_wb_slave_stb        = wb_slave.stb,
-                i_wb_slave_we         = wb_slave.we,
-                i_wb_slave_adr        = Cat(Signal(2), (wb_slave.adr & 0x00ff_ffff)),
-                i_wb_slave_sel        = wb_slave.sel,
-                i_wb_slave_dat_i      = wb_slave.dat_w,
-                o_wb_slave_dat_o      = wb_slave.dat_r,
-                o_wb_slave_ack        = wb_slave.ack,
-                o_wb_slave_err        = wb_slave.err,
+                i_wb_slave_cyc        = wb_slave_wr.cyc,
+                i_wb_slave_stb        = wb_slave_wr.stb,
+                i_wb_slave_we         = wb_slave_wr.we,
+                i_wb_slave_adr        = Cat(Signal(2), (wb_slave_wr.adr & 0x00ff_ffff)),
+                i_wb_slave_sel        = wb_slave_wr.sel,
+                i_wb_slave_dat_i      = wb_slave_wr.dat_w,
+                o_wb_slave_dat_o      = wb_slave_wr.dat_r,
+                o_wb_slave_ack        = wb_slave_wr.ack,
+                o_wb_slave_err        = wb_slave_wr.err,
                 o_wb_slave_rty        = Open(),
                 o_wb_slave_stall      = Open(),
 
@@ -428,11 +437,20 @@ def main():
     parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
 
+    # Probes.
+    # -------
+    parser.add_argument("--with-wishbone-fabric-interface-probe",  action="store_true")
+    parser.add_argument("--with-wishbone-slave-probe",             action="store_true")
+
     args = parser.parse_args()
 
     # Build SoC.
     # ----------
     soc = BaseSoC()
+    if args.with_wishbone_fabric_interface_probe:
+        soc.add_wishbone_fabric_interface_probe()
+    if args.with_wishbone_slave_probe:
+        soc.add_wishbone_slave_probe()
     builder = Builder(soc, csr_csv="test/csr.csv")
     builder.build(run=args.build)
 

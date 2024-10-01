@@ -286,12 +286,13 @@ class LiteXWRNICSoC(SoCMini):
 
     def add_wishbone_slave_probe(self):
         analyzer_signals = [
-            self.wb_slave,
+            self.wb_slave_sys,
+            self.wb_slave_wr,
         ]
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
            depth        = 256,
-           clock_domain = "wr",
-           samplerate   = int(62.5e6),
+           clock_domain = "sys",
+           samplerate   = 125e6,
            register     = True,
            csr_csv      = "test/analyzer.csv"
        )
