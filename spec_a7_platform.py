@@ -15,20 +15,20 @@ from litex.build.openfpgaloader   import OpenFPGALoader
 
 _io = [
     # Clk / Rst.
+    ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")), # RESET.
     ("clk62p5", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD??
     ("clk62p5", 1,
         Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_P.
         Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_N.
     ),
-    ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")), # RESET.
-
-    # MGT RefClk.
-    ("mgt_refclk_125m_oe", 0, Pins("F14"), IOStandard("LVCMOS25")), # OE_125M.
-    ("mgt_refclk_125m", 0,
-        Subsignal("p", Pins("D6")), # MGTREFCLK0_P.
-        Subsignal("n", Pins("D5")), # MGTREFCLK0_N.
+    ("clk125_oe", 0, Pins("F14"), IOStandard("LVCMOS25")), # OE_125M.
+    ("clk125",    0,
+        Subsignal("p", Pins("E16"), IOStandard("DIFF_SSTL15")), # CLK_125MHZ_P.
+        Subsignal("n", Pins("D16"), IOStandard("DIFF_SSTL15")), # CLK_125MHZ_N.
     ),
-    ("mgtrefclk", 1,
+
+    # RefClk (GTP).
+    ("refclk125", 0,
         Subsignal("p", Pins("B6")), # MGTREFCLK1_P.
         Subsignal("n", Pins("B5")), # MGTREFCLK1_N.
     ),
