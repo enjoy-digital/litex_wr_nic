@@ -12,85 +12,93 @@ from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
 
-from litex.soc.interconnect import wishbone
-
-
 # Wishbone Clock Crossing --------------------------------------------------------------------------
 
-layout_from_to = [
-    ("we",     1),
-    ("adr",   32),
-    ("sel",    4),
-    ("dat_w", 32),
-]
-
-layout_to_from = [
-    ("err",     1),
-    ("dat_r",  32),
-]
+# This module is a simple/minimal clock crossing module for Wishbone transactions.
 
 class WishboneClockCrossing(LiteXModule):
     def __init__(self, platform, wb_from, cd_from, wb_to, cd_to):
-        self.cdc_from_to = cdc_from_to = stream.ClockDomainCrossing(
-            layout  = layout_from_to,
+        # S2M CDC (cd_from -> cd_to).
+        # ---------------------------
+        self.cdc_s2m = cdc_s2m = stream.ClockDomainCrossing(
+            layout  = [
+                ("we",     1),
+                ("adr",   32),
+                ("sel",    4),
+                ("dat_w", 32),
+            ],
             cd_from = cd_from,
             cd_to   = cd_to,
         )
-        self.cdc_to_from = cdc_to_from = stream.ClockDomainCrossing(
-            layout  = layout_to_from,
+        # M2S CDC (cd_to -> cd_from).
+        # ---------------------------
+        self.cdc_m2s = cdc_m2s = stream.ClockDomainCrossing(
+            layout  = [
+                ("err",     1),
+                ("dat_r",  32),
+            ],
             cd_from = cd_to,
             cd_to   = cd_from,
         )
 
-        self.fsm_from = fsm_from = ClockDomainsRenamer(cd_from)(FSM(reset_state="IDLE"))
-        fsm_from.act("IDLE",
+        # Cross FSM.
+        # ----------
+        self.cross_fsm = cross_fsm = ClockDomainsRenamer(cd_from)(FSM(reset_state="IDLE"))
+        cross_fsm.act("IDLE",
             If(wb_from.cyc & wb_from.stb,
                 NextState("SEND")
             )
         )
-        fsm_from.act("SEND",
-            cdc_from_to.sink.valid.eq(1),
-            cdc_from_to.sink.we.eq(wb_from.we),
-            cdc_from_to.sink.adr.eq(wb_from.adr),
-            cdc_from_to.sink.sel.eq(wb_from.sel),
-            cdc_from_to.sink.dat_w.eq(wb_from.dat_w),
-            If(cdc_from_to.sink.ready,
+        cross_fsm.act("SEND",
+            # Send request to CDC.
+            cdc_s2m.sink.valid.eq(1),
+            cdc_s2m.sink.we.eq(wb_from.we),
+            cdc_s2m.sink.adr.eq(wb_from.adr),
+            cdc_s2m.sink.sel.eq(wb_from.sel),
+            cdc_s2m.sink.dat_w.eq(wb_from.dat_w),
+            If(cdc_s2m.sink.ready,
                 NextState("RECEIVE")
             )
         )
-        fsm_from.act("RECEIVE",
-            cdc_to_from.source.ready.eq(1),
-            If(cdc_to_from.source.valid,
+        cross_fsm.act("RECEIVE",
+            # Get response from CDC.
+            cdc_m2s.source.ready.eq(1),
+            If(cdc_m2s.source.valid,
                 wb_from.ack.eq(1),
-                wb_from.err.eq(cdc_to_from.source.err),
-                wb_from.dat_r.eq(cdc_to_from.source.dat_r),
+                wb_from.err.eq(cdc_m2s.source.err),
+                wb_from.dat_r.eq(cdc_m2s.source.dat_r),
                 NextState("IDLE")
             )
         )
 
-        self.fsm_to = fsm_to = ClockDomainsRenamer(cd_to)(FSM(reset_state="IDLE"))
-        fsm_to.act("IDLE",
-            If(cdc_from_to.source.valid,
+        # Access FSM.
+        # -----------
+        self.access_fsm   = access_fsm = ClockDomainsRenamer(cd_to)(FSM(reset_state="IDLE"))
+        self.access_timer = access_timer = ClockDomainsRenamer(cd_to)(WaitTimer(64))
+        access_fsm.act("IDLE",
+            If(cdc_s2m.source.valid,
                 NextState("ACCESS")
             )
         )
-        self.timer_to = timer_to = ClockDomainsRenamer(cd_to)(WaitTimer(64))
-        fsm_to.act("ACCESS",
+        access_fsm.act("ACCESS",
+            access_timer.wait.eq(1),
+            # Perform Wishbone access.
             wb_to.cyc.eq(1),
             wb_to.stb.eq(1),
-            wb_to.we.eq(cdc_from_to.source.we),
-            wb_to.adr.eq(cdc_from_to.source.adr),
-            wb_to.sel.eq(cdc_from_to.source.sel),
-            wb_to.dat_w.eq(cdc_from_to.source.dat_w),
-            timer_to.wait.eq(1),
-            If(wb_to.ack | timer_to.done,
-                cdc_from_to.source.ready.eq(1),
-                cdc_to_from.sink.valid.eq(1),
-                cdc_to_from.sink.err.eq(wb_to.err),
-                cdc_to_from.sink.dat_r.eq(wb_to.dat_r),
-                If(timer_to.done,
-                    cdc_to_from.sink.err.eq(1),
-                    cdc_to_from.sink.dat_r.eq(0xffffffff)
+            wb_to.we.eq(cdc_s2m.source.we),
+            wb_to.adr.eq(cdc_s2m.source.adr),
+            wb_to.sel.eq(cdc_s2m.source.sel),
+            wb_to.dat_w.eq(cdc_s2m.source.dat_w),
+            If(wb_to.ack | access_timer.done,
+                # Send response back through CDC.
+                cdc_s2m.source.ready.eq(1),
+                cdc_m2s.sink.valid.eq(1),
+                cdc_m2s.sink.err.eq(wb_to.err),
+                cdc_m2s.sink.dat_r.eq(wb_to.dat_r),
+                # Err on Timeout.
+                If(access_timer.done,
+                    cdc_m2s.sink.err.eq(1),
+                    cdc_m2s.sink.dat_r.eq(0xffffffff)
                 ),
                 NextState("IDLE")
             )
