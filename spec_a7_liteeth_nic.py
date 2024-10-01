@@ -136,7 +136,7 @@ def main():
     # Build SoC.
     # ----------
     soc = BaseSoC()
-    builder = Builder(soc, csr_csv="csr.csv")
+    builder = Builder(soc, csr_csv="test/csr.csv")
     builder.build(run=args.build)
 
     # Generate PCIe C Headers.
