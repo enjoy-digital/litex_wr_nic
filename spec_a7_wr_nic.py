@@ -37,7 +37,6 @@ from litepcie.software      import generate_litepcie_software_headers
 from litescope import LiteScopeAnalyzer
 
 from gateware.soc           import LiteXWRNICSoC
-from gateware.wr_common     import wr_core_init, wr_core_files
 from gateware.time          import TimeGenerator
 from gateware.qpll          import SharedQPLL
 from gateware.wrf_stream2wb import Stream2Wishbone
@@ -509,12 +508,6 @@ class BaseSoC(LiteXWRNICSoC):
                 self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
             else:
                 self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phy=self.ethphy, with_timing_constraints=False)
-
-    def add_sources(self):
-        if not os.path.exists("wr-cores"):
-            wr_core_init()
-        for file in wr_core_files:
-            self.platform.add_source(file)
 
 # Build --------------------------------------------------------------------------------------------
 

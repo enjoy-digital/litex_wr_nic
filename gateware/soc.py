@@ -5,6 +5,7 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
 import sys
 
 from migen import *
@@ -20,6 +21,8 @@ from litex.soc.integration.soc_core import *
 from gateware.nic import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
 from gateware.nic.dma import LitePCIe2WishboneDMA
+
+from gateware.wr_common import wr_core_init, wr_core_files
 
 # LiteX WR NIC SoC ---------------------------------------------------------------------------------
 
@@ -112,3 +115,9 @@ class LiteXWRNICSoC(SoCMini):
             master = pcie_pcie2wb_dma.bus,
             slave  = ethmac.bus_tx,
         )
+
+    def add_sources(self):
+        if not os.path.exists("wr-cores"):
+            wr_core_init()
+        for file in wr_core_files:
+            self.platform.add_source(file)

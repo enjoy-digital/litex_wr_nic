@@ -37,7 +37,6 @@ from litepcie.software      import generate_litepcie_software_headers
 from litescope import LiteScopeAnalyzer
 
 from gateware.soc           import LiteXWRNICSoC
-from gateware.wr_common     import wr_core_init, wr_core_files
 from gateware.time          import TimeGenerator
 from gateware.qpll          import SharedQPLL
 from gateware.wrf_stream2wb import Stream2Wishbone
@@ -556,12 +555,6 @@ class BaseSoC(LiteXWRNICSoC):
 
                     # Connect Src to Dst.
                     platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net $pin_driver_from -objects $pin_driver_to")
-
-    def add_sources(self):
-        if not os.path.exists("wr-cores"):
-            wr_core_init()
-        for file in wr_core_files:
-            self.platform.add_source(file)
 
 # Build --------------------------------------------------------------------------------------------
 
