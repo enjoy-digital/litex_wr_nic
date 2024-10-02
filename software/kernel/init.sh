@@ -8,6 +8,12 @@ if [ "$FOUND" != "" ] ; then
     exit 0
 fi
 
+# Automatically remove liteuart module if installed.
+FOUND=$(lsmod | grep liteuart)
+if [ "$FOUND" != "" ] ; then
+    rmmod liteuart.ko
+fi
+
 # Install litepcie module.
 INS=$(insmod litepcie.ko 2>&1)
 if [ "$?" != "0" ] ; then
@@ -38,3 +44,12 @@ if [ "$?" != "0" ] ; then
         exit 1
     esac
 fi
+
+# Install liteuart module.
+insmod liteuart.ko
+
+# Change permissions on litepcie created devices.
+for i in `seq 0 16` ; do
+    chmod 666 /dev/litepcie$i > /dev/null 2>&1
+done
+
