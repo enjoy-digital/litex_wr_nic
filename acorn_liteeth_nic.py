@@ -115,6 +115,12 @@ class BaseSoC(LiteXWRNICSoC):
             data_width = 64,
             bar0_size  = 0x20000,
         )
+        self.pcie_phy.update_config({
+            "Base_Class_Menu"          : "Network_controller",
+            "Sub_Class_Interface_Menu" : "Ethernet_controller",
+            "Class_Code_Base"          : "02",
+            "Class_Code_Sub"           : "00",
+        })
         self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
         self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
         platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")

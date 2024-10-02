@@ -154,6 +154,12 @@ class BaseSoC(LiteXWRNICSoC):
                 with_ptm    = with_pcie_ptm,
                 refclk_freq = 100e6,
             )
+            self.pcie_phy.update_config({
+                "Base_Class_Menu"          : "Network_controller",
+                "Sub_Class_Interface_Menu" : "Ethernet_controller",
+                "Class_Code_Base"          : "02",
+                "Class_Code_Sub"           : "00",
+            })
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
             self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
