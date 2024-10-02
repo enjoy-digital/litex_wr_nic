@@ -478,7 +478,6 @@ def main():
     # Generate PCIe C Headers.
     # ------------------------
     generate_litepcie_software_headers(soc, "software/kernel")
-    generate_litepcie_software_headers(soc, "software/driver")
 
     # Generate Bitstream.
     # -------------------

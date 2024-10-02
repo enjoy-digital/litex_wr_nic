@@ -163,7 +163,7 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "software/driver")
+    generate_litepcie_software_headers(soc, "software/kernel")
 
     # Load FPGA.
     # ----------
