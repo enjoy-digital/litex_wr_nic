@@ -137,6 +137,40 @@ class BaseSoC(LiteXWRNICSoC):
             ident_version = True,
         )
 
+        # UART Crossover ---------------------------------------------------------------------------
+
+        from litex.soc.cores.uart import UARTPHY, UART
+
+        class UARTPads:
+            def __init__(self):
+                self.tx = Signal()
+                self.rx = Signal()
+
+        uart_xover_pads = UARTPads()
+        uart_phy_pads   = platform.request("serial")
+        uart_wr_pads    = UARTPads()
+
+        self.uart_xover_phy = UARTPHY(uart_xover_pads, clk_freq=sys_clk_freq, baudrate=115200)
+        self.uart_xover     = UART(self.uart_xover_phy, rx_fifo_rx_we=True)
+
+        self.uart_control = CSRStorage(fields=[
+            CSRField("sel", size=1, offset=0, values=[
+                ("``0b0``", "WR UART connected to FT4232 UART."),
+                ("``0b1``", "WR UART connected to Crossover UART.")
+            ], reset=0)
+        ])
+        self.comb += [
+            # Crossover.
+            If(self.uart_control.fields.sel == 0b0,
+                uart_phy_pads.tx.eq(uart_wr_pads.tx),
+                uart_wr_pads.rx.eq(uart_phy_pads.rx),
+            # FT4232.
+            ).Else(
+                uart_xover_pads.rx.eq(uart_wr_pads.tx),
+                uart_wr_pads.rx.eq(uart_xover_pads.tx),
+            )
+        ]
+
         # JTAGBone ---------------------------------------------------------------------------------
         self.add_jtagbone()
 
@@ -217,7 +251,6 @@ class BaseSoC(LiteXWRNICSoC):
             sfp_pads          = platform.request("sfp")
             sfp_i2c_pads      = platform.request("sfp_i2c")
             temp_1wire_pads   = platform.request("temp_1wire")
-            serial_pads       = platform.request("serial")
             flash_pads        = platform.request("flash")
             flash_clk         = Signal()
             clk10_ext_pads    = platform.request("clk10_ext")
@@ -354,8 +387,8 @@ class BaseSoC(LiteXWRNICSoC):
                 o_onewire_oen_o       = temp_1wire_oe_n,
 
                 # UART Interface.
-                i_uart_rxd_i          = serial_pads.rx,
-                o_uart_txd_o          = serial_pads.tx,
+                i_uart_rxd_i           = uart_wr_pads.rx,
+                o_uart_txd_o           = uart_wr_pads.tx,
 
                 # SPI Flash Interface.
                 o_spi_sclk_o          = flash_clk,
