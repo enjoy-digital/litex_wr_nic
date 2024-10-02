@@ -109,7 +109,7 @@ class BaseSoC(LiteXWRNICSoC):
         with_white_rabbit         = True,
 
         # PCIe NIC.
-        with_pcie_nic = False,
+        with_pcie_nic = True,
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
