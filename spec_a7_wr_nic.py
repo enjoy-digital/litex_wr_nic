@@ -108,6 +108,7 @@ class BaseSoC(LiteXWRNICSoC):
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform(variant="xc7a50t")
+        platform.name = "spec_a7_wr_nic"
 
         self.file_basedir = os.path.abspath(os.path.dirname(__file__))
 

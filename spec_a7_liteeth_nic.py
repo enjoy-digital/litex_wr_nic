@@ -64,8 +64,8 @@ class CRG(LiteXModule):
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6, with_led_chaser=True, **kwargs):
         # Platform ---------------------------------------------------------------------------------
-
         platform = Platform(variant="xc7a50t")
+        platform.name = "spec_a7_liteeth_nic"
 
         # Clocking ---------------------------------------------------------------------------------
 
