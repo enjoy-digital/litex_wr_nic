@@ -16,7 +16,7 @@ from litex.build.openfpgaloader   import OpenFPGALoader
 _io = [
     # Clk / Rst.
     ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")), # RESET.
-    ("clk62p5", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD??
+    ("clk62p5_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.
     ("clk62p5", 1,
         Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_P.
         Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_N.

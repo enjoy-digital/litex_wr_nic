@@ -64,15 +64,22 @@ class _CRG(LiteXModule):
         clk125    = platform.request("clk125")
         self.comb += clk125_oe.eq(1)
 
-        # PLL.
-        self. pll = pll = S7PLL(speedgrade=-2)
+        clk62p5_dmtd = platform.request("clk62p5_dmtd")
+
+        # Main PLL.
+        self.pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk125, 125e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
         if with_white_rabbit:
             pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
-            pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
             self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+
+        # DMTD PLL.
+        self.dmtd_pll = dmtd_pll = S7PLL(speedgrade=-2)
+        self.comb += dmtd_pll.reset.eq(self.rst)
+        dmtd_pll.register_clkin(clk62p5_dmtd, 62.5e6)
+        dmtd_pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
 
         # False Paths.
         if with_white_rabbit:
