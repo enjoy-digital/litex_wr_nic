@@ -4,7 +4,7 @@
  *
  * This file is part of LitePCIe.
  *
- * Copyright (C) 2018-2023 / EnjoyDigital  / florent@enjoy-digital.fr
+ * Copyright (C) 2018-2024 / EnjoyDigital  / florent@enjoy-digital.fr
  *
  */
 
@@ -33,6 +33,7 @@
 #include <linux/cdev.h>
 #include <linux/of_net.h>
 #include <linux/etherdevice.h>
+#include <linux/platform_device.h>
 #include <linux/version.h>
 
 #if defined(__arm__) || defined(__aarch64__)
@@ -53,37 +54,40 @@
 
 #define LITEPCIE_NAME "litepcie"
 #define LITEPCIE_MINOR_COUNT 32
-#define TX_BUF_SIZE (ETHMAC_TX_SLOTS * ETHMAC_SLOT_SIZE)
+
+#ifndef CSR_BASE
+#define CSR_BASE 0x00000000
+#endif
 
 /* Define the MAC address used for the device */
 static u8 mac_addr[] = {0x12, 0x2e, 0x60, 0xbe, 0xef, 0xbb};
 
 /* Structure to hold the buffer private information for SKB */
 struct skb_buffer_priv {
-	struct sk_buff *skb;  /* Socket buffer */
-	dma_addr_t dma_addr;  /* DMA address */
-	u32 tx_len;           /* Transmission length */
+	struct sk_buff *skb;    /* Socket buffer */
+	dma_addr_t dma_addr;    /* DMA address */
+	u32 tx_len;             /* Transmission length */
 	dma_addr_t tx_dma_addr; /* DMA address for transmission */
 	struct sk_buff *tx_skb; /* Socket buffer for transmission */
 };
 
 /* Structure to hold the LiteEth device information */
 struct liteeth {
-	void __iomem *base;        /* Base I/O memory address */
-	struct net_device *netdev; /* Network device */
-	u32 slot_size;             /* Slot size */
+	void __iomem *base;              /* Base I/O memory address */
+	struct net_device *netdev;       /* Network device */
+	u32 slot_size;                   /* Slot size */
 
 	/* Tx */
-	u32 tx_slot;               /* Transmission slot */
-	u32 num_tx_slots;          /* Number of transmission slots */
+	u32 tx_slot;                     /* Transmission slot */
+	u32 num_tx_slots;                /* Number of transmission slots */
 
 	/* Rx */
-	u32 num_rx_slots;          /* Number of reception slots */
+	u32 num_rx_slots;                /* Number of reception slots */
 
-	void *tx_buf;              /* Transmission buffer */
-	dma_addr_t tx_buf_dma;     /* DMA address for transmission buffer */
-	struct litepcie_device *lpdev; /* LitePCIe device */
-	struct napi_struct napi;   /* NAPI structure */
+	void *tx_buf;                    /* Transmission buffer */
+	dma_addr_t tx_buf_dma;           /* DMA address for transmission buffer */
+	struct litepcie_device *lpdev;   /* LitePCIe device */
+	struct napi_struct napi;         /* NAPI structure */
 	struct skb_buffer_priv buffer[]; /* Buffer array */
 };
 
@@ -94,9 +98,15 @@ struct litepcie_device {
 	resource_size_t bar0_size;    /* Size of BAR0 */
 	phys_addr_t bar0_phys_addr;   /* Physical address of BAR0 */
 	uint8_t *bar0_addr;           /* Virtual address of BAR0 */
+	int minor_base;               /* Base minor number for the device */
 	int irqs;                     /* Number of IRQs */
 	struct liteeth *ethdev;       /* LiteEth device */
 };
+
+static int litepcie_major;
+static int litepcie_minor_idx;
+static struct class *litepcie_class;
+static dev_t litepcie_dev_t;
 
 /* Function to read a 32-bit value from a LitePCIe device register */
 static inline uint32_t litepcie_readl(struct litepcie_device *s, uint32_t addr)
@@ -489,7 +499,7 @@ static int liteeth_init(struct litepcie_device *lpdev)
 	priv->tx_slot = 0;
 
 	/* Allocate coherent memory for the transmission buffer */
-	priv->tx_buf = dma_alloc_coherent(&pdev->dev, TX_BUF_SIZE, &priv->tx_buf_dma, GFP_ATOMIC);
+	priv->tx_buf = dma_alloc_coherent(&pdev->dev, ETHMAC_TX_SLOTS * ETHMAC_SLOT_SIZE, &priv->tx_buf_dma, GFP_ATOMIC);
 
 	/* Set the hardware address for the network device */
 	eth_hw_addr_set(netdev, mac_addr);
@@ -639,6 +649,21 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 	/* Initialize the LiteEth device */
 	liteeth_init(litepcie_dev);
 
+#ifdef CSR_UART_XOVER_RXTX_ADDR
+	tty_res = devm_kzalloc(&dev->dev, sizeof(struct resource), GFP_KERNEL);
+	if (!tty_res)
+		return -ENOMEM;
+	tty_res->start =
+		(resource_size_t) litepcie_dev->bar0_addr +
+		CSR_UART_XOVER_RXTX_ADDR - CSR_BASE;
+	tty_res->flags = IORESOURCE_REG;
+	litepcie_dev->uart = platform_device_register_simple("liteuart", litepcie_minor_idx, tty_res, 1);
+	if (IS_ERR(litepcie_dev->uart)) {
+		ret = PTR_ERR(litepcie_dev->uart);
+		goto fail2;
+	}
+#endif
+
 	return 0;
 
 fail2:
@@ -655,14 +680,15 @@ static void litepcie_pci_remove(struct pci_dev *dev)
 	struct liteeth *priv;
 
 	litepcie_dev = pci_get_drvdata(dev);
+
+	dev_info(&dev->dev, "\e[1m[Removing device]\e[0m\n");
+
 	priv = litepcie_dev->ethdev;
 
 	/* Disable all interrupts */
 	litepcie_writel(litepcie_dev, CSR_PCIE_MSI_ENABLE_ADDR, 0);
 
 	if (priv) {
-		dev_info(&dev->dev, "\e[1m[Removing device]\e[0m\n");
-
 		/* Stop the network device and unregister it */
 		unregister_netdev(priv->netdev);
 
@@ -670,7 +696,7 @@ static void litepcie_pci_remove(struct pci_dev *dev)
 		netif_napi_del(&priv->napi);
 
 		/* Free the DMA coherent memory */
-		dma_free_coherent(&dev->dev, TX_BUF_SIZE, priv->tx_buf, priv->tx_buf_dma);
+		dma_free_coherent(&dev->dev, ETHMAC_TX_SLOTS * ETHMAC_SLOT_SIZE, priv->tx_buf, priv->tx_buf_dma);
 	}
 
 	/* Free all IRQs */
@@ -678,9 +704,11 @@ static void litepcie_pci_remove(struct pci_dev *dev)
 		irq = pci_irq_vector(dev, i);
 		free_irq(irq, litepcie_dev);
 	}
+
+	platform_device_unregister(litepcie_dev->uart);
+
 	pci_free_irq_vectors(dev);
 }
-
 
 /* PCI device ID table */
 static const struct pci_device_id litepcie_pci_ids[] = {
@@ -729,20 +757,49 @@ MODULE_DEVICE_TABLE(pci, litepcie_pci_ids);
 
 /* PCI driver structure */
 static struct pci_driver litepcie_pci_driver = {
-	.name = LITEPCIE_NAME,
+	.name     = LITEPCIE_NAME,
 	.id_table = litepcie_pci_ids,
-	.probe = litepcie_pci_probe,
-	.remove = litepcie_pci_remove,
+	.probe    = litepcie_pci_probe,
+	.remove   = litepcie_pci_remove,
 };
 
 /* Module initialization function */
 static int __init litepcie_module_init(void)
 {
 	int ret;
+
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
+		litepcie_class = class_create(THIS_MODULE, LITEPCIE_NAME);
+	#else
+		litepcie_class = class_create(LITEPCIE_NAME);
+	#endif
+	if (!litepcie_class) {
+		ret = -EEXIST;
+		pr_err(" Failed to create class\n");
+		goto fail_create_class;
+	}
+
+	ret = alloc_chrdev_region(&litepcie_dev_t, 0, LITEPCIE_MINOR_COUNT, LITEPCIE_NAME);
+	if (ret < 0) {
+		pr_err(" Could not allocate char device\n");
+		goto fail_alloc_chrdev_region;
+	}
+	litepcie_major = MAJOR(litepcie_dev_t);
+	litepcie_minor_idx = MINOR(litepcie_dev_t);
+
 	ret = pci_register_driver(&litepcie_pci_driver);
 	if (ret < 0) {
-		pr_err("Error while registering PCI driver\n");
+		pr_err(" Error while registering PCI driver\n");
+		goto fail_register;
 	}
+
+	return 0;
+
+fail_register:
+	unregister_chrdev_region(litepcie_dev_t, LITEPCIE_MINOR_COUNT);
+fail_alloc_chrdev_region:
+	class_destroy(litepcie_class);
+fail_create_class:
 	return ret;
 }
 
@@ -750,6 +807,8 @@ static int __init litepcie_module_init(void)
 static void __exit litepcie_module_exit(void)
 {
 	pci_unregister_driver(&litepcie_pci_driver);
+	unregister_chrdev_region(litepcie_dev_t, LITEPCIE_MINOR_COUNT);
+	class_destroy(litepcie_class);
 }
 
 module_init(litepcie_module_init);
