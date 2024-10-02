@@ -30,8 +30,6 @@ from litex.soc.cores.clock import S7PLL
 from litex.soc.cores.led   import LedChaser
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
-from litepcie.frontend.ptm  import PCIePTMSniffer
-from litepcie.frontend.ptm  import PTMCapabilities, PTMRequester
 from litepcie.software      import generate_litepcie_software_headers
 
 from litescope import LiteScopeAnalyzer
@@ -102,14 +100,14 @@ class _CRG(LiteXModule):
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
-        with_pcie                 = True,
-        with_pcie_ptm             = False,
+        with_pcie         = True,
+        with_pcie_ptm     = True,
 
         # White Rabbit Paramters.
-        with_white_rabbit         = True,
+        with_white_rabbit = True,
 
         # PCIe NIC.
-        with_pcie_nic = True,
+        with_pcie_nic     = True,
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
@@ -215,27 +213,9 @@ class BaseSoC(LiteXWRNICSoC):
                 self.add_pcie(phy=self.pcie_phy,
                     ndmas                = 1,
                     address_width        = 64,
-                    with_ptm             = with_pcie_ptm,
+                    with_ptm             = True,
                     max_pending_requests = 4,
                 )
-
-        # PCIe PTM ---------------------------------------------------------------------------------
-
-        if with_pcie_ptm:
-            assert with_pcie
-            self.add_pcie_ptm()
-
-            # Time Generator -----------------------------------------------------------------------
-
-            self.time_generator = TimeGenerator(
-                clk_domain = "sys",
-                clk_freq   = 125e6,
-            )
-            self.comb += [
-                self.ptm_requester.time_clk.eq(ClockSignal("sys")),
-                self.ptm_requester.time_rst.eq(ResetSignal("sys")),
-                self.ptm_requester.time.eq(self.time_generator.time)
-            ]
 
         # White Rabbit -----------------------------------------------------------------------------
 
@@ -439,6 +419,24 @@ class BaseSoC(LiteXWRNICSoC):
                 self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
             else:
                 self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phy=self.ethphy, with_timing_constraints=False)
+
+        # PCIe PTM ---------------------------------------------------------------------------------
+
+        if with_pcie_ptm:
+            assert with_pcie
+            self.add_pcie_ptm()
+
+            # Time Generator -----------------------------------------------------------------------
+
+            self.time_generator = TimeGenerator(
+                clk_domain = "sys",
+                clk_freq   = 125e6,
+            )
+            self.comb += [
+                self.ptm_requester.time_clk.eq(ClockSignal("sys")),
+                self.ptm_requester.time_rst.eq(ResetSignal("sys")),
+                self.ptm_requester.time.eq(self.time_generator.time)
+            ]
 
 # Build --------------------------------------------------------------------------------------------
 

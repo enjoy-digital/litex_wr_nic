@@ -20,6 +20,9 @@ from litex.soc.integration.soc_core import *
 
 from litescope import LiteScopeAnalyzer
 
+from litepcie.frontend.ptm  import PCIePTMSniffer
+from litepcie.frontend.ptm  import PTMCapabilities, PTMRequester
+
 from gateware.nic import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
 from gateware.nic.dma import LitePCIe2WishboneDMA
@@ -70,7 +73,7 @@ class LiteXWRNICSoC(SoCMini):
             with_dma_buffering   = False,
             with_dma_loopback    = False,
             with_dma_table       = False,
-            with_ptm             = False,
+            with_ptm             = True,
             with_msi             = True,
             msis                 = {
                 "ETHMAC_RX" : ethmac.interface.sram.rx_pcie_irq,
@@ -162,7 +165,7 @@ class LiteXWRNICSoC(SoCMini):
             rx_data  = sniffer_rx_data,
             rx_ctrl  = sniffer_rx_ctl,
         )
-        self.pcie_ptm_sniffer.add_sources(platform)
+        self.pcie_ptm_sniffer.add_sources(self.platform)
 
 
         # PTM
@@ -178,7 +181,7 @@ class LiteXWRNICSoC(SoCMini):
         self.ptm_requester = PTMRequester(
             pcie_endpoint    = self.pcie_endpoint,
             pcie_ptm_sniffer = self.pcie_ptm_sniffer,
-            sys_clk_freq     = sys_clk_freq,
+            sys_clk_freq     = self.sys_clk_freq,
         )
 
     # Add Sources ----------------------------------------------------------------------------------
