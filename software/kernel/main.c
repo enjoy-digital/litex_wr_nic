@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: BSD-2-Clause
-
-/*
+/* SPDX-License-Identifier: BSD-2-Clause
+ *
  * LitePCIe driver
  *
  * This file is part of LitePCIe.
  *
- * Copyright (C) 2018-2020 / EnjoyDigital  / florent@enjoy-digital.fr
+ * Copyright (C) 2018-2023 / EnjoyDigital  / florent@enjoy-digital.fr
+ *
  */
 
 #include <linux/kernel.h>
@@ -35,11 +35,21 @@
 #include <linux/etherdevice.h>
 #include <linux/version.h>
 
+#if defined(__arm__) || defined(__aarch64__)
+#include <linux/dma-direct.h>
+#endif
+
 #include "litepcie.h"
 #include "csr.h"
 #include "config.h"
 #include "flags.h"
-#include "mem.h"
+#include "soc.h"
+
+//#define DEBUG_CSR
+//#define DEBUG_MSI
+//#define DEBUG_POLL
+//#define DEBUG_READ
+//#define DEBUG_WRITE
 
 #define LITEPCIE_NAME "litepcie"
 #define LITEPCIE_MINOR_COUNT 32
@@ -79,12 +89,13 @@ struct liteeth {
 
 /* Structure to hold the LitePCIe device information */
 struct litepcie_device {
-	struct pci_dev *dev;      /* PCI device */
-	resource_size_t bar0_size; /* Size of BAR0 */
-	phys_addr_t bar0_phys_addr; /* Physical address of BAR0 */
-	uint8_t *bar0_addr;       /* Virtual address of BAR0 */
-	int irqs;                 /* Number of IRQs */
-	struct liteeth *ethdev;   /* LiteEth device */
+	struct pci_dev *dev;          /* PCI device */
+	struct platform_device *uart; /* UART platform device */
+	resource_size_t bar0_size;    /* Size of BAR0 */
+	phys_addr_t bar0_phys_addr;   /* Physical address of BAR0 */
+	uint8_t *bar0_addr;           /* Virtual address of BAR0 */
+	int irqs;                     /* Number of IRQs */
+	struct liteeth *ethdev;       /* LiteEth device */
 };
 
 /* Function to read a 32-bit value from a LitePCIe device register */
@@ -93,13 +104,19 @@ static inline uint32_t litepcie_readl(struct litepcie_device *s, uint32_t addr)
 	uint32_t val;
 
 	val = readl(s->bar0_addr + addr - CSR_BASE);
-	return le32_to_cpu(val);
+#ifdef DEBUG_CSR
+	dev_dbg(&s->dev->dev, "csr_read: 0x%08x @ 0x%08x", val, addr);
+#endif
+	return val;
 }
 
 /* Function to write a 32-bit value to a LitePCIe device register */
 static inline void litepcie_writel(struct litepcie_device *s, uint32_t addr, uint32_t val)
 {
-	writel(cpu_to_le32(val), s->bar0_addr + addr - CSR_BASE);
+#ifdef DEBUG_CSR
+	dev_dbg(&s->dev->dev, "csr_write: 0x%08x @ 0x%08x", val, addr);
+#endif
+	return writel(val, s->bar0_addr + addr - CSR_BASE);
 }
 
 /* Function to enable a specific interrupt on a LitePCIe device */
@@ -509,6 +526,9 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 	int i;
 	char fpga_identifier[256];
 	struct litepcie_device *litepcie_dev = NULL;
+#ifdef CSR_UART_XOVER_RXTX_ADDR
+	struct resource *tty_res = NULL;
+#endif
 
 	dev_info(&dev->dev, "\e[1m[Probing device]\e[0m\n");
 
@@ -521,6 +541,7 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 
 	pci_set_drvdata(dev, litepcie_dev);
 	litepcie_dev->dev = dev;
+	//spin_lock_init(&litepcie_dev->lock);
 
 	/* Enable the PCI device */
 	ret = pcim_enable_device(dev);
@@ -556,6 +577,12 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 		goto fail1;
 	}
 
+	/* Reset LitePCIe core */
+#ifdef CSR_CTRL_RESET_ADDR
+	litepcie_writel(litepcie_dev, CSR_CTRL_RESET_ADDR, 1);
+	msleep(10);
+#endif
+
 	/* Read and display the FPGA identifier */
 	for (i = 0; i < 256; i++)
 		fpga_identifier[i] = litepcie_readl(litepcie_dev, CSR_IDENTIFIER_MEM_BASE + i * 4);
@@ -563,7 +590,7 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 
 	pci_set_master(dev);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)
-	ret = pci_set_dma_mask(dev, DMA_BIT_MASK(32));
+	ret = pci_set_dma_mask(dev, DMA_BIT_MASK(DMA_ADDR_WIDTH));
 #else
 	ret = dma_set_mask(&dev->dev, DMA_BIT_MASK(DMA_ADDR_WIDTH));
 #endif
@@ -572,23 +599,35 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 		goto fail1;
 	}
 
-	/* Allocate MSI IRQ vectors */
-	irqs = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_MSI);
+
+/* MSI-X */
+#ifdef CSR_PCIE_MSI_PBA_ADDR
+	irqs = pci_alloc_irq_vectors(dev, 1, 32, PCI_IRQ_MSIX);
+/* MSI Single / MultiVector */
+#else
+	irqs = pci_alloc_irq_vectors(dev, 1, 32, PCI_IRQ_MSI);
+#endif
 	if (irqs < 0) {
 		dev_err(&dev->dev, "Failed to enable MSI\n");
 		ret = irqs;
 		goto fail1;
 	}
+/* MSI-X */
+#ifdef CSR_PCIE_MSI_PBA_ADDR
+	dev_info(&dev->dev, "%d MSI-X IRQs allocated.\n", irqs);
+/* MSI Single / MultiVector */
+#else
 	dev_info(&dev->dev, "%d MSI IRQs allocated.\n", irqs);
+#endif
 
 	litepcie_dev->irqs = 0;
 	for (i = 0; i < irqs; i++) {
 		int irq = pci_irq_vector(dev, i);
 
 		/* Request IRQ */
-		ret = request_irq(irq, litepcie_interrupt, IRQF_SHARED, LITEPCIE_NAME, litepcie_dev);
+		ret = request_irq(irq, litepcie_interrupt, 0, LITEPCIE_NAME, litepcie_dev);
 		if (ret < 0) {
-			dev_err(&dev->dev, "Failed to allocate IRQ %d\n", dev->irq);
+			dev_err(&dev->dev, " Failed to allocate IRQ %d\n", dev->irq);
 			while (--i >= 0) {
 				irq = pci_irq_vector(dev, i);
 				free_irq(irq, dev);
