@@ -26,6 +26,10 @@ _io = [
         Subsignal("p", Pins("E16"), IOStandard("DIFF_SSTL15")), # CLK_125MHZ_P.
         Subsignal("n", Pins("D16"), IOStandard("DIFF_SSTL15")), # CLK_125MHZ_N.
     ),
+    ("clk10_ext", 0,
+        Subsignal("p", Pins("E13"), IOStandard("DIFF_SSTL15")), # EXT_CLK_P.
+        Subsignal("n", Pins("D14"), IOStandard("DIFF_SSTL15")), # EXT_CLK_N.
+    ),
 
     # RefClk (GTP).
     ("refclk125", 0,

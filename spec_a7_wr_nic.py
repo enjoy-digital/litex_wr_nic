@@ -16,6 +16,7 @@ from spec_a7_platform import *
 
 from litex.build.generic_platform import *
 from litex.build.io               import SDRTristate
+from litex.build.io               import DifferentialInput
 from litex.build.openfpgaloader   import OpenFPGALoader
 
 from litex.soc.interconnect.csr     import *
@@ -205,6 +206,8 @@ class BaseSoC(LiteXWRNICSoC):
             serial_pads       = platform.request("serial")
             flash_pads        = platform.request("flash")
             flash_clk         = Signal()
+            clk10_ext_pads    = platform.request("clk10_ext")
+            clk10_ext         = Signal()
 
             # DACs specific logic.
             self.comb += [
@@ -233,6 +236,13 @@ class BaseSoC(LiteXWRNICSoC):
                 i_USRCCLKTS = 0,
                 i_USRDONEO  = 1,
                 i_USRDONETS = 1,
+            )
+
+            # Clk10 Ext logic.
+            self.specials += DifferentialInput(
+                i_p = clk10_ext_pads.p,
+                i_n = clk10_ext_pads.n,
+                o   = clk10_ext,
             )
 
             # Signals.
@@ -294,7 +304,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_areset_n_i          = ~ResetSignal("sys"),
                 i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
-                i_clk_10m_ext_i       = 0,
+                i_clk_10m_ext_i       = clk10_ext,
 
                 o_clk_ref_locked_o    = Open(),
                 o_dbg_rdy_o           = Open(),
