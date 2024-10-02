@@ -541,7 +541,6 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 
 	pci_set_drvdata(dev, litepcie_dev);
 	litepcie_dev->dev = dev;
-	//spin_lock_init(&litepcie_dev->lock);
 
 	/* Enable the PCI device */
 	ret = pcim_enable_device(dev);
@@ -658,13 +657,21 @@ static void litepcie_pci_remove(struct pci_dev *dev)
 	litepcie_dev = pci_get_drvdata(dev);
 	priv = litepcie_dev->ethdev;
 
-	dev_info(&dev->dev, "\e[1m[Removing device]\e[0m\n");
-
 	/* Disable all interrupts */
 	litepcie_writel(litepcie_dev, CSR_PCIE_MSI_ENABLE_ADDR, 0);
 
-	/* Free the DMA coherent memory */
-	dma_free_coherent(&dev->dev, TX_BUF_SIZE, priv->tx_buf, priv->tx_buf_dma);
+	if (priv) {
+		dev_info(&dev->dev, "\e[1m[Removing device]\e[0m\n");
+
+		/* Stop the network device and unregister it */
+		unregister_netdev(priv->netdev);
+
+		/* Remove NAPI structure */
+		netif_napi_del(&priv->napi);
+
+		/* Free the DMA coherent memory */
+		dma_free_coherent(&dev->dev, TX_BUF_SIZE, priv->tx_buf, priv->tx_buf_dma);
+	}
 
 	/* Free all IRQs */
 	for (i = 0; i < litepcie_dev->irqs; i++) {
@@ -673,6 +680,7 @@ static void litepcie_pci_remove(struct pci_dev *dev)
 	}
 	pci_free_irq_vectors(dev);
 }
+
 
 /* PCI device ID table */
 static const struct pci_device_id litepcie_pci_ids[] = {
