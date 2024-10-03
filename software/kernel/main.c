@@ -61,16 +61,17 @@
 #define CSR_BASE 0x00000000
 #endif
 
-/* Define the MAC address used for the device */
-static u8 mac_addr[] = {0x12, 0x2e, 0x60, 0xbe, 0xef, 0xbb};
+/* FIXME: Move to FPGA/CSR */
+static uint8_t liteeth_mac_addr[] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
 /* Structure to hold the buffer private information for SKB */
 struct skb_buffer_priv {
-	struct sk_buff *skb;    /* Socket buffer */
-	dma_addr_t dma_addr;    /* DMA address */
-	uint32_t tx_len;             /* Transmission length */
-	dma_addr_t tx_dma_addr; /* DMA address for transmission */
-	struct sk_buff *tx_skb; /* Socket buffer for transmission */
+	uint32_t rx_len;        /* RX Length */
+	struct sk_buff *rx_skb; /* RX Socket buffer */
+	dma_addr_t rx_dma_addr; /* RX DMA address */
+	uint32_t tx_len;        /* TX Length */
+	struct sk_buff *tx_skb; /* TX Socket buffer */
+	dma_addr_t tx_dma_addr; /* TX DMA address */
 };
 
 /* Structure to hold the LiteEth device information */
@@ -172,13 +173,13 @@ static void liteeth_rx_fill(struct liteeth_device *liteeth_priv, uint32_t rx_slo
 
 	/* Ensure the SKB data is 4-byte aligned */
 	WARN_ON(!IS_ALIGNED((unsigned long)skb->data, 4));
-	liteeth_priv->buffer[rx_slot].skb = skb;
+	liteeth_priv->buffer[rx_slot].rx_skb = skb;
 
 	/* Map the SKB data for DMA */
-	liteeth_priv->buffer[rx_slot].dma_addr = dma_map_single(&liteeth_priv->litepcie_dev->dev->dev, skb->data, liteeth_priv->slot_size, DMA_FROM_DEVICE);
+	liteeth_priv->buffer[rx_slot].rx_dma_addr = dma_map_single(&liteeth_priv->litepcie_dev->dev->dev, skb->data, liteeth_priv->slot_size, DMA_FROM_DEVICE);
 
 	/* Write the DMA address to the corresponding register */
-	litepcie_writel(liteeth_priv->litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PCIE_HOST_ADDRS_ADDR + (rx_slot << 2), liteeth_priv->buffer[rx_slot].dma_addr);
+	litepcie_writel(liteeth_priv->litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PCIE_HOST_ADDRS_ADDR + (rx_slot << 2), liteeth_priv->buffer[rx_slot].rx_dma_addr);
 }
 
 /* Function to clear any pending TX DMA on a LiteEth device */
@@ -257,8 +258,8 @@ static int liteeth_stop(struct net_device *netdev)
 
 	/* Unmap and free the RX slots */
 	for (i = 0; i < liteeth_priv->num_rx_slots; i++) {
-		dma_unmap_single(&liteeth_priv->litepcie_dev->dev->dev, liteeth_priv->buffer[i].dma_addr, liteeth_priv->slot_size, DMA_FROM_DEVICE);
-		dev_kfree_skb_any(liteeth_priv->buffer[i].skb);
+		dma_unmap_single(&liteeth_priv->litepcie_dev->dev->dev, liteeth_priv->buffer[i].rx_dma_addr, liteeth_priv->slot_size, DMA_FROM_DEVICE);
+		dev_kfree_skb_any(liteeth_priv->buffer[i].rx_skb);
 	}
 
 	/* Clear any pending TX DMA */
@@ -364,10 +365,10 @@ static void handle_ethrx_interrupt(struct net_device *netdev, uint32_t rx_slot, 
 	unsigned char *data;
 
 	/* Unmap the DMA address */
-	dma_unmap_single(&liteeth_priv->litepcie_dev->dev->dev, liteeth_priv->buffer[rx_slot].dma_addr, liteeth_priv->slot_size, DMA_FROM_DEVICE);
+	dma_unmap_single(&liteeth_priv->litepcie_dev->dev->dev, liteeth_priv->buffer[rx_slot].rx_dma_addr, liteeth_priv->slot_size, DMA_FROM_DEVICE);
 
 	/* Get the SKB for the specified RX slot */
-	skb = liteeth_priv->buffer[rx_slot].skb;
+	skb = liteeth_priv->buffer[rx_slot].rx_skb;
 
 	/* Append data to the SKB and set its length */
 	data = skb_put(skb, len);
@@ -501,9 +502,9 @@ static int liteeth_init(struct litepcie_device *litepcie_dev)
 	liteeth_priv->tx_buf = dma_alloc_coherent(&pdev->dev, ETHMAC_TX_SLOTS * ETHMAC_SLOT_SIZE, &liteeth_priv->tx_buf_dma, GFP_ATOMIC);
 
 	/* Set the hardware address for the network device */
-	eth_hw_addr_set(netdev, mac_addr);
+	eth_hw_addr_set(netdev, liteeth_mac_addr);
 
-	netdev->netdev_ops = &liteeth_netdev_ops;
+	netdev->netdev_ops     = &liteeth_netdev_ops;
 	netdev->watchdog_timeo = 60 * HZ;
 
 	/* Add NAPI to the network device */
