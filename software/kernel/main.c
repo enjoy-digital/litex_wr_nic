@@ -4,9 +4,9 @@
  *
  * This file is part of LiteX-WR-NIC.
  *
- * Copyright (C) 2024 Warsaw University of Technology
+ * Copyright (C) 2024      / Warsaw University of Technology
  * Copyright (C) 2018-2024 / EnjoyDigital  / <enjoy-digital.fr>
- * Copyright (C) 2022 / tongchen126 / https://github.com/tongchen126
+ * Copyright (C) 2022      / Tongchen126   / https://github.com/tongchen126
  *
  */
 
@@ -64,6 +64,10 @@
 /* FIXME: Move to FPGA/CSR */
 static uint8_t liteeth_mac_addr[] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
+/* -----------------------------------------------------------------------------------------------*/
+/*                                     Structs                                                    */
+/* -----------------------------------------------------------------------------------------------*/
+
 /* Structure to hold the buffer private information for SKB */
 struct skb_buffer_priv {
 	uint32_t rx_len;        /* RX Length */
@@ -99,18 +103,21 @@ struct liteeth_device {
 struct litepcie_device {
 	struct pci_dev *dev;                /* PCI device */
 	struct platform_device *uart;       /* UART platform device */
+	struct liteeth_device *liteeth_dev; /* LiteEth device */
 	resource_size_t bar0_size;          /* Size of BAR0 */
 	phys_addr_t bar0_phys_addr;         /* Physical address of BAR0 */
 	uint8_t *bar0_addr;                 /* Virtual address of BAR0 */
-	int minor_base;                     /* Base minor number for the device */
 	int irqs;                           /* Number of IRQs */
-	struct liteeth_device *liteeth_dev; /* LiteEth device */
 };
 
 static int litepcie_major;
 static int litepcie_minor_idx;
 static struct class *litepcie_class;
 static dev_t litepcie_dev_t;
+
+/* -----------------------------------------------------------------------------------------------*/
+/*                                 LitePCIe MMAP                                                  */
+/* -----------------------------------------------------------------------------------------------*/
 
 /* Function to read a 32-bit value from a LitePCIe device register */
 static inline uint32_t litepcie_readl(struct litepcie_device *s, uint32_t addr)
@@ -132,6 +139,10 @@ static inline void litepcie_writel(struct litepcie_device *s, uint32_t addr, uin
 #endif
 	return writel(val, s->bar0_addr + addr - CSR_BASE);
 }
+
+/* -----------------------------------------------------------------------------------------------*/
+/*                               LitePCIe Interrupts                                              */
+/* -----------------------------------------------------------------------------------------------*/
 
 /* Function to enable a specific interrupt on a LitePCIe device */
 static void litepcie_enable_interrupt(struct litepcie_device *s, int irq_num)
@@ -163,6 +174,39 @@ static void litepcie_disable_interrupt(struct litepcie_device *s, int irq_num)
 	litepcie_writel(s, CSR_PCIE_MSI_ENABLE_ADDR, v);
 }
 
+/* Function to handle interrupts for LitePCIe device */
+static irqreturn_t litepcie_interrupt(int irq, void *data)
+{
+	struct litepcie_device *litepcie_dev = (struct litepcie_device *)data;
+	struct net_device *netdev = litepcie_dev->liteeth_dev->netdev;
+	struct liteeth_device *liteeth_priv = netdev_priv(netdev);
+	uint32_t rx_pending;
+	uint32_t irq_enable;
+
+	/* Read the interrupt enable register */
+	irq_enable = litepcie_readl(litepcie_dev, CSR_PCIE_MSI_ENABLE_ADDR);
+
+	/* Handle RX interrupt */
+	if (irq_enable & (1 << ETHMAC_RX_INTERRUPT)) {
+		rx_pending = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PENDING_SLOTS_ADDR);
+		if (rx_pending != 0) {
+			/* Disable RX interrupt and schedule NAPI */
+			litepcie_disable_interrupt(liteeth_priv->litepcie_dev, ETHMAC_RX_INTERRUPT);
+			napi_schedule(&liteeth_priv->napi);
+		}
+	}
+
+	/* Handle TX interrupt */
+	if ((irq_enable & (1 << ETHMAC_TX_INTERRUPT)) && netif_queue_stopped(netdev) && litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_READY_ADDR))
+		netif_wake_queue(netdev);
+
+	return IRQ_HANDLED;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+/*                                   LiteEth / NetDev                                             */
+/* -----------------------------------------------------------------------------------------------*/
+
 /* Function to fill the RX slots with SKBs */
 static void liteeth_rx_fill(struct liteeth_device *liteeth_priv, uint32_t rx_slot)
 {
@@ -176,10 +220,15 @@ static void liteeth_rx_fill(struct liteeth_device *liteeth_priv, uint32_t rx_slo
 	liteeth_priv->buffer[rx_slot].rx_skb = skb;
 
 	/* Map the SKB data for DMA */
-	liteeth_priv->buffer[rx_slot].rx_dma_addr = dma_map_single(&liteeth_priv->litepcie_dev->dev->dev, skb->data, liteeth_priv->slot_size, DMA_FROM_DEVICE);
+	liteeth_priv->buffer[rx_slot].rx_dma_addr = dma_map_single(
+		&liteeth_priv->litepcie_dev->dev->dev,
+		skb->data, liteeth_priv->slot_size,
+		DMA_FROM_DEVICE
+	);
 
 	/* Write the DMA address to the corresponding register */
-	litepcie_writel(liteeth_priv->litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PCIE_HOST_ADDRS_ADDR + (rx_slot << 2), liteeth_priv->buffer[rx_slot].rx_dma_addr);
+	litepcie_writel(liteeth_priv->litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PCIE_HOST_ADDRS_ADDR + (rx_slot << 2),
+		liteeth_priv->buffer[rx_slot].rx_dma_addr);
 }
 
 /* Function to clear any pending TX DMA on a LiteEth device */
@@ -197,7 +246,12 @@ static void liteeth_clear_pending_tx_dma(struct liteeth_device *liteeth_priv)
 		if (pending_tx & (1 << i)) {
 			if (liteeth_priv->buffer[i].tx_len) {
 				/* Unmap the DMA address and free the SKB */
-				dma_unmap_single(&liteeth_priv->litepcie_dev->dev->dev, liteeth_priv->buffer[i].tx_dma_addr, liteeth_priv->buffer[i].tx_len, DMA_TO_DEVICE);
+				dma_unmap_single(
+					&liteeth_priv->litepcie_dev->dev->dev,
+					liteeth_priv->buffer[i].tx_dma_addr,
+					liteeth_priv->buffer[i].tx_len,
+					DMA_TO_DEVICE
+				);
 				dev_kfree_skb_any(liteeth_priv->buffer[i].tx_skb);
 			}
 		}
@@ -214,7 +268,7 @@ static int liteeth_open(struct net_device *netdev)
 	netdev_info(netdev, "liteeth_open\n");
 
 	/* Fill the RX slots */
-	for (i = 0; i < liteeth_priv->num_rx_slots; i++)
+	for (i=0; i<liteeth_priv->num_rx_slots; i++)
 		liteeth_rx_fill(liteeth_priv, i);
 
 	/* Enable the SRAM writer */
@@ -258,7 +312,12 @@ static int liteeth_stop(struct net_device *netdev)
 
 	/* Unmap and free the RX slots */
 	for (i = 0; i < liteeth_priv->num_rx_slots; i++) {
-		dma_unmap_single(&liteeth_priv->litepcie_dev->dev->dev, liteeth_priv->buffer[i].rx_dma_addr, liteeth_priv->slot_size, DMA_FROM_DEVICE);
+		dma_unmap_single(
+			&liteeth_priv->litepcie_dev->dev->dev,
+			liteeth_priv->buffer[i].rx_dma_addr,
+			liteeth_priv->slot_size,
+			DMA_FROM_DEVICE
+		);
 		dev_kfree_skb_any(liteeth_priv->buffer[i].rx_skb);
 	}
 
@@ -294,13 +353,17 @@ static int liteeth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* Check if the packet data is 4-byte aligned */
 	if (IS_ALIGNED((unsigned long)skb->data, 4)) {
 		/* Map the SKB data for DMA */
-		liteeth_priv->buffer[liteeth_priv->tx_slot].tx_dma_addr = dma_map_single(&liteeth_priv->litepcie_dev->dev->dev, skb->data, skb->len, DMA_TO_DEVICE);
+		liteeth_priv->buffer[liteeth_priv->tx_slot].tx_dma_addr = dma_map_single(
+			&liteeth_priv->litepcie_dev->dev->dev,
+			skb->data, skb->len,
+			DMA_TO_DEVICE
+		);
 		liteeth_priv->buffer[liteeth_priv->tx_slot].tx_len = skb->len;
 		liteeth_priv->buffer[liteeth_priv->tx_slot].tx_skb = skb;
 	} else {
 		/* Copy the SKB data to the transmission buffer */
-		memcpy_toio(liteeth_priv->tx_buf + liteeth_priv->tx_slot * liteeth_priv->slot_size, skb->data, skb->len);
-		liteeth_priv->buffer[liteeth_priv->tx_slot].tx_dma_addr = liteeth_priv->tx_buf_dma + liteeth_priv->tx_slot * liteeth_priv->slot_size;
+		memcpy_toio(liteeth_priv->tx_buf + (liteeth_priv->tx_slot * liteeth_priv->slot_size), skb->data, skb->len);
+		liteeth_priv->buffer[liteeth_priv->tx_slot].tx_dma_addr = liteeth_priv->tx_buf_dma + (liteeth_priv->tx_slot * liteeth_priv->slot_size);
 		liteeth_priv->buffer[liteeth_priv->tx_slot].tx_len = 0;
 		liteeth_priv->buffer[liteeth_priv->tx_slot].tx_skb = NULL;
 		copy = true;
@@ -309,7 +372,7 @@ static int liteeth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* Write the necessary registers to start the transmission */
 	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_READER_SLOT_ADDR, liteeth_priv->tx_slot);
 	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_READER_LENGTH_ADDR, skb->len);
-	litepcie_writel(liteeth_priv->litepcie_dev, CSR_ETHMAC_SRAM_READER_PCIE_HOST_ADDRS_ADDR + (liteeth_priv->tx_slot << 2), liteeth_priv->buffer[liteeth_priv->tx_slot].tx_dma_addr);
+	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_READER_PCIE_HOST_ADDRS_ADDR + (liteeth_priv->tx_slot << 2), liteeth_priv->buffer[liteeth_priv->tx_slot].tx_dma_addr);
 	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_READER_START_ADDR, 1);
 
 	/* Update the TX slot */
@@ -334,14 +397,14 @@ busy:
 /* Function to handle TX timeout on the LiteEth network device */
 static void liteeth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
-	struct liteeth_device *liteeth_priv = netdev_priv(dev);
+	struct liteeth_device  *liteeth_priv = netdev_priv(dev);
 	struct litepcie_device *litepcie_dev = liteeth_priv->litepcie_dev;
 	struct netdev_queue *queue = netdev_get_tx_queue(dev, txqueue);
 	uint32_t reg, slots;
 
 	/* Read the number of slots and the ready register */
 	slots = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_LEVEL_ADDR);
-	reg = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_READY_ADDR);
+	reg   = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_READY_ADDR);
 	netdev_info(dev, "litepcie: liteeth_tx_timeout, reg %u, slots %u\n", reg, slots);
 
 	/* If the device is ready, wake the queue */
@@ -358,14 +421,18 @@ static const struct net_device_ops liteeth_netdev_ops = {
 };
 
 /* Function to handle RX interrupt */
-static void handle_ethrx_interrupt(struct net_device *netdev, uint32_t rx_slot, uint32_t len)
+static void liteeth_rx_interrupt(struct net_device *netdev, uint32_t rx_slot, uint32_t len)
 {
 	struct liteeth_device *liteeth_priv = netdev_priv(netdev);
 	struct sk_buff *skb;
 	unsigned char *data;
 
 	/* Unmap the DMA address */
-	dma_unmap_single(&liteeth_priv->litepcie_dev->dev->dev, liteeth_priv->buffer[rx_slot].rx_dma_addr, liteeth_priv->slot_size, DMA_FROM_DEVICE);
+	dma_unmap_single(
+		&liteeth_priv->litepcie_dev->dev->dev,
+		liteeth_priv->buffer[rx_slot].rx_dma_addr,
+		liteeth_priv->slot_size, DMA_FROM_DEVICE
+	);
 
 	/* Get the SKB for the specified RX slot */
 	skb = liteeth_priv->buffer[rx_slot].rx_skb;
@@ -389,35 +456,6 @@ static void handle_ethrx_interrupt(struct net_device *netdev, uint32_t rx_slot, 
 	return;
 }
 
-/* Function to handle interrupts for LitePCIe device */
-static irqreturn_t litepcie_interrupt(int irq, void *data)
-{
-	struct litepcie_device *litepcie_dev = (struct litepcie_device *)data;
-	struct net_device *netdev = litepcie_dev->liteeth_dev->netdev;
-	struct liteeth_device *liteeth_priv = netdev_priv(netdev);
-	uint32_t rx_pending;
-	uint32_t irq_enable;
-
-	/* Read the interrupt enable register */
-	irq_enable = litepcie_readl(litepcie_dev, CSR_PCIE_MSI_ENABLE_ADDR);
-
-	/* Handle RX interrupt */
-	if (irq_enable & (1 << ETHMAC_RX_INTERRUPT)) {
-		rx_pending = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PENDING_SLOTS_ADDR);
-		if (rx_pending != 0) {
-			/* Disable RX interrupt and schedule NAPI */
-			litepcie_disable_interrupt(liteeth_priv->litepcie_dev, ETHMAC_RX_INTERRUPT);
-			napi_schedule(&liteeth_priv->napi);
-		}
-	}
-
-	/* Handle TX interrupt */
-	if ((irq_enable & (1 << ETHMAC_TX_INTERRUPT)) && netif_queue_stopped(netdev) && litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_READY_ADDR))
-		netif_wake_queue(netdev);
-
-	return IRQ_HANDLED;
-}
-
 /* NAPI poll function */
 static int liteeth_napi_poll(struct napi_struct *napi, int budget)
 {
@@ -437,7 +475,7 @@ static int liteeth_napi_poll(struct napi_struct *napi, int budget)
 			length = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PENDING_LENGTH_ADDR + (i << 2));
 
 			/* Handle the RX interrupt for the slot */
-			handle_ethrx_interrupt(liteeth_priv->netdev, i, length);
+			liteeth_rx_interrupt(liteeth_priv->netdev, i, length);
 
 			/* Update the clear mask and work done count */
 			clear_mask |= 1 << i;
@@ -526,6 +564,10 @@ static int liteeth_init(struct litepcie_device *litepcie_dev)
 
 	return 0;
 }
+
+/* -----------------------------------------------------------------------------------------------*/
+/*                            LitePCIe Probe / Remove / Module                                    */
+/* -----------------------------------------------------------------------------------------------*/
 
 /* Function to probe the LitePCIe PCI device */
 static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
