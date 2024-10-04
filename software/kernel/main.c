@@ -236,7 +236,7 @@ static irqreturn_t litepcie_interrupt(int irq, void *data)
 /* -----------------------------------------------------------------------------------------------*/
 
 /* Function to fill the RX slots with SKBs */
-static void liteeth_rx_fill(struct liteeth_device *liteeth_priv, uint32_t rx_slot)
+static void liteeth_refill_rx_buffer(struct liteeth_device *liteeth_priv, uint32_t rx_slot)
 {
 	struct sk_buff *skb;
 
@@ -245,9 +245,9 @@ static void liteeth_rx_fill(struct liteeth_device *liteeth_priv, uint32_t rx_slo
 
 	/* Ensure the SKB data is 4-byte aligned */
 	WARN_ON(!IS_ALIGNED((unsigned long)skb->data, 4));
-	liteeth_priv->buffer[rx_slot].rx_skb = skb;
 
-	/* Map the SKB data for DMA */
+	/* Store the SKB in the buffer and map for DMA */
+	liteeth_priv->buffer[rx_slot].rx_skb = skb;
 	liteeth_priv->buffer[rx_slot].rx_dma_addr = dma_map_single(
 		&liteeth_priv->litepcie_dev->dev->dev,
 		skb->data, liteeth_priv->slot_size,
@@ -255,12 +255,13 @@ static void liteeth_rx_fill(struct liteeth_device *liteeth_priv, uint32_t rx_slo
 	);
 
 	/* Write the DMA address to the corresponding register */
-	litepcie_writel(liteeth_priv->litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PCIE_HOST_ADDRS_ADDR + (rx_slot << 2),
+	litepcie_writel(liteeth_priv->litepcie_dev,
+		CSR_ETHMAC_SRAM_WRITER_PCIE_HOST_ADDRS_ADDR + (rx_slot << 2),
 		liteeth_priv->buffer[rx_slot].rx_dma_addr);
 }
 
 /* Function to clear any pending TX DMA on a LiteEth device */
-static void liteeth_clear_pending_tx_dma(struct liteeth_device *liteeth_priv)
+static void liteeth_clear_tx_dma(struct liteeth_device *liteeth_priv)
 {
 	int i;
 	struct litepcie_device *litepcie_dev = liteeth_priv->litepcie_dev;
@@ -269,20 +270,17 @@ static void liteeth_clear_pending_tx_dma(struct liteeth_device *liteeth_priv)
 	/* Read the pending TX slots */
 	pending_tx = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_PENDING_SLOTS_ADDR);
 
-	/* Iterate through all TX slots */
-	for (i = 0; i < liteeth_priv->num_tx_slots; i++)
-		if (pending_tx & (1 << i)) {
-			if (liteeth_priv->buffer[i].tx_len) {
-				/* Unmap the DMA address and free the SKB */
-				dma_unmap_single(
-					&liteeth_priv->litepcie_dev->dev->dev,
-					liteeth_priv->buffer[i].tx_dma_addr,
-					liteeth_priv->buffer[i].tx_len,
-					DMA_TO_DEVICE
-				);
-				dev_kfree_skb_any(liteeth_priv->buffer[i].tx_skb);
-			}
+	/* Iterate through all TX slots and clear pending transactions */
+	for (i = 0; i < liteeth_priv->num_tx_slots; i++) {
+		if ((pending_tx & (1 << i)) && liteeth_priv->buffer[i].tx_len) {
+			/* Unmap the DMA address and free the SKB */
+			dma_unmap_single(&litepcie_dev->dev->dev,
+							 liteeth_priv->buffer[i].tx_dma_addr,
+							 liteeth_priv->buffer[i].tx_len,
+							 DMA_TO_DEVICE);
+			dev_kfree_skb_any(liteeth_priv->buffer[i].tx_skb);
 		}
+	}
 
 	/* Clear the pending TX slots */
 	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_READER_CLEAR_PENDING_ADDR, pending_tx);
@@ -297,7 +295,7 @@ static int liteeth_open(struct net_device *netdev)
 
 	/* Fill the RX slots */
 	for (i=0; i<liteeth_priv->num_rx_slots; i++)
-		liteeth_rx_fill(liteeth_priv, i);
+		liteeth_refill_rx_buffer(liteeth_priv, i);
 
 	/* Enable the SRAM writer */
 	litepcie_writel(liteeth_priv->litepcie_dev, CSR_ETHMAC_SRAM_WRITER_ENABLE_ADDR, 1);
@@ -350,7 +348,7 @@ static int liteeth_stop(struct net_device *netdev)
 	}
 
 	/* Clear any pending TX DMA */
-	liteeth_clear_pending_tx_dma(liteeth_priv);
+	liteeth_clear_tx_dma(liteeth_priv);
 
 	return 0;
 }
@@ -376,7 +374,7 @@ static int liteeth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	/* Clear pending TX DMA if necessary */
 	if (litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_PENDING_SLOTS_ADDR) & (1 << liteeth_priv->tx_slot))
-		liteeth_clear_pending_tx_dma(liteeth_priv);
+		liteeth_clear_tx_dma(liteeth_priv);
 
 	/* Check if the packet data is 4-byte aligned */
 	if (IS_ALIGNED((unsigned long)skb->data, 4)) {
@@ -475,7 +473,7 @@ static void liteeth_rx_interrupt(struct net_device *netdev, uint32_t rx_slot, ui
 	napi_gro_receive(&liteeth_priv->napi, skb);
 
 	/* Refill the RX slot */
-	liteeth_rx_fill(liteeth_priv, rx_slot);
+	liteeth_refill_rx_buffer(liteeth_priv, rx_slot);
 
 	/* Update statistics */
 	netdev->stats.rx_packets++;
