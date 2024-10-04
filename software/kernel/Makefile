@@ -3,6 +3,8 @@ KERNEL_VERSION:=$(shell uname -r)
 KERNEL_PATH?=/lib/modules/$(KERNEL_VERSION)/build
 ARCH?=$(shell uname -m)
 
+ccflags-y := -DDEBUG
+
 obj-m = litepcie.o liteuart.o
 litepcie-objs = main.o
 #liteuart-objs = liteuart.o

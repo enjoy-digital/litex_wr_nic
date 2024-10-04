@@ -178,16 +178,35 @@ static void litepcie_disable_interrupt(struct litepcie_device *s, int irq_num)
 static irqreturn_t litepcie_interrupt(int irq, void *data)
 {
 	struct litepcie_device *litepcie_dev = (struct litepcie_device *)data;
-	struct net_device *netdev = litepcie_dev->liteeth_dev->netdev;
-	struct liteeth_device *liteeth_priv = netdev_priv(netdev);
-	uint32_t rx_pending;
-	uint32_t irq_enable;
+    struct liteeth_device *liteeth_priv = netdev_priv(litepcie_dev->liteeth_dev->netdev);
+    uint32_t clear_mask, irq_vector, irq_enable;
+    uint32_t rx_pending, tx_ready;
 
-	/* Read the interrupt enable register */
+    /* Single MSI */
+#ifdef CSR_PCIE_MSI_CLEAR_ADDR
+	irq_vector = litepcie_readl(litepcie_dev, CSR_PCIE_MSI_VECTOR_ADDR);
 	irq_enable = litepcie_readl(litepcie_dev, CSR_PCIE_MSI_ENABLE_ADDR);
+/* MSI MultiVector / MSI-X */
+#else
+	irq_vector = 0;
+	for (i = 0; i < s->irqs; i++) {
+		if (irq == pci_irq_vector(litepcie_dev->dev, i)) {
+			irq_vector = (1 << i);
+			break;
+		}
+	}
+	irq_enable = litepcie_readl(litepcie_dev, CSR_PCIE_MSI_ENABLE_ADDR);
+#endif
 
-	/* Handle RX interrupt */
-	if (irq_enable & (1 << ETHMAC_RX_INTERRUPT)) {
+#ifdef DEBUG_MSI
+	dev_dbg(&litepcie_dev->dev->dev, "MSI: 0x%x 0x%x\n", irq_vector, irq_enable);
+#endif
+	irq_vector &= irq_enable;
+	clear_mask = 0;
+
+	/* Handle LiteEth RX interrupt */
+	if (irq_vector & (1 << ETHMAC_RX_INTERRUPT)) {
+		clear_mask |= (1 << ETHMAC_RX_INTERRUPT);
 		rx_pending = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PENDING_SLOTS_ADDR);
 		if (rx_pending != 0) {
 			/* Disable RX interrupt and schedule NAPI */
@@ -196,9 +215,18 @@ static irqreturn_t litepcie_interrupt(int irq, void *data)
 		}
 	}
 
-	/* Handle TX interrupt */
-	if ((irq_enable & (1 << ETHMAC_TX_INTERRUPT)) && netif_queue_stopped(netdev) && litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_READY_ADDR))
-		netif_wake_queue(netdev);
+	/* Handle LiteEth TX interrupt */
+	if (irq_vector & (1 << ETHMAC_TX_INTERRUPT)) {
+		clear_mask |= (1 << ETHMAC_TX_INTERRUPT);
+		tx_ready = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_READY_ADDR);
+		if ((tx_ready != 0) && netif_queue_stopped(liteeth_priv->netdev)) {
+			netif_wake_queue(liteeth_priv->netdev);
+		}
+	}
+
+#ifdef CSR_PCIE_MSI_CLEAR_ADDR
+	litepcie_writel(litepcie_dev, CSR_PCIE_MSI_CLEAR_ADDR, clear_mask);
+#endif
 
 	return IRQ_HANDLED;
 }
