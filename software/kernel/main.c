@@ -491,7 +491,7 @@ static int liteeth_napi_poll(struct napi_struct *napi, int budget)
 	int work_done, i;
 
 	clear_mask = 0;
-	work_done = 0;
+	work_done  = 0;
 	rx_pending = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PENDING_SLOTS_ADDR);
 
 	/* Process pending RX slots */
@@ -541,55 +541,64 @@ static int liteeth_init(struct litepcie_device *litepcie_dev)
 
 	pdev = litepcie_dev->dev;
 
-	/* Allocate and initialize the network device */
+	/* Allocate and initialize the network device.
+	   We allocate enough memory for both the LiteEth private data
+	   and an array of skb_buffer_priv for RX slots. */
 	netdev = devm_alloc_etherdev(&pdev->dev, sizeof(*liteeth_priv) + sizeof(struct skb_buffer_priv) * ETHMAC_RX_SLOTS);
 	if (!netdev)
 		return -ENOMEM;
 
+	/* Set the device structure in the network device */
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
+	/* Get the private data associated with the network device */
 	liteeth_priv = netdev_priv(netdev);
 	liteeth_priv->netdev = netdev;
 
+	/* Link LiteEth and LitePCIe device structures */
 	litepcie_dev->liteeth_dev = liteeth_priv;
 	liteeth_priv->litepcie_dev = litepcie_dev;
 
 	/* Get the IRQ vector for the device */
 	netdev->irq = pci_irq_vector(litepcie_dev->dev, 0);
 
-	/* Setup the RX and TX slots */
+	/* Setup the RX and TX slots for the LiteEth device */
 	liteeth_setup_slots(liteeth_priv);
 
+	/* Initialize the transmission slot index */
 	liteeth_priv->tx_slot = 0;
 
 	/* Allocate coherent memory for the transmission buffer */
 	liteeth_priv->tx_buf = dma_alloc_coherent(&pdev->dev, ETHMAC_TX_SLOTS * ETHMAC_SLOT_SIZE, &liteeth_priv->tx_buf_dma, GFP_ATOMIC);
 
-	/* Set the hardware address for the network device */
+	/* Set the hardware (MAC) address for the network device */
 	eth_hw_addr_set(netdev, liteeth_mac_addr);
 
+	/* Set the network device operations and watchdog timeout */
 	netdev->netdev_ops     = &liteeth_netdev_ops;
 	netdev->watchdog_timeo = 60 * HZ;
 
-	/* Add NAPI to the network device */
+	/* Add NAPI to the network device for RX polling */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
 	netif_napi_add(netdev, &liteeth_priv->napi, liteeth_napi_poll, 64);
 #else
 	netif_napi_add(netdev, &liteeth_priv->napi, liteeth_napi_poll);
 #endif
 
-	/* Register the network device */
+	/* Register the network device with the kernel */
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to register netdev %d\n", err);
 		return err;
 	}
 
+	/* Log information about the network device */
 	netdev_info(netdev, "irq %d slots: tx %d rx %d size %d\n",
 		    netdev->irq, liteeth_priv->num_tx_slots, liteeth_priv->num_rx_slots, liteeth_priv->slot_size);
 
 	return 0;
 }
+
 
 /* -----------------------------------------------------------------------------------------------*/
 /*                            LitePCIe Probe / Remove / Module                                    */
