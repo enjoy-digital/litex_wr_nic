@@ -52,12 +52,12 @@ class LiteXWRNICSoC(SoCMini):
         # Ethernet MAC.
         # -------------
         self.add_ethernet(
-            name                    = "ethmac",
-            phy                     = eth_phy,
-            phy_cd                  = "eth",
-            data_width              = 64,
-            nrxslots                = ntxslots,
-            ntxslots                = nrxslots,
+            name       = "ethmac",
+            phy        = eth_phy,
+            phy_cd     = "eth",
+            data_width = 64,
+            nrxslots   = ntxslots,
+            ntxslots   = nrxslots,
             with_timing_constraints = with_timing_constraints,
         )
         ethmac = self.ethmac
