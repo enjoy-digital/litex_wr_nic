@@ -1,7 +1,8 @@
 #
 # This file is part of LiteEth.
 #
-# Copyright (c) 2015-2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2024 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Tongchen126 <https://github.com/tongchen126>
 # Copyright (c) 2015-2018 Sebastien Bourdeauducq <sb@m-labs.hk>
 # Copyright (c) 2021 Leon Schuermann <leon@is.currently.online>
 # Copyright (c) 2017 whitequark <whitequark@whitequark.org>

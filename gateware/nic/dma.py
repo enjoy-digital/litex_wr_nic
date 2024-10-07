@@ -3,6 +3,7 @@
 #
 # Copyright (c) 2024 Warsaw University of Technology
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
+# Copyright (c) 2022 Tongchen126 <https://github.com/tongchen126>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
