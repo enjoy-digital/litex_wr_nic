@@ -138,6 +138,9 @@ class BaseSoC(LiteXWRNICSoC):
             rx_polarity  = 1,  # Inverted on Acorn.
             tx_polarity  = 0,  # Inverted on Acorn and on baseboard.
         )
+        self.platform.add_period_constraint(self.ethphy.txoutclk, 1e9/62.5e6)
+        self.platform.add_period_constraint(self.ethphy.rxoutclk, 1e9/62.5e6)
+        platform.add_false_path_constraints(self.ethphy.txoutclk, self.ethphy.rxoutclk, self.crg.cd_sys.clk)
 
         # PCIe NIC ---------------------------------------------------------------------------------
 
