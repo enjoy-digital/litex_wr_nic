@@ -50,9 +50,6 @@
 
 //#define DEBUG_CSR
 //#define DEBUG_MSI
-//#define DEBUG_POLL
-//#define DEBUG_READ
-//#define DEBUG_WRITE
 
 #define LITEPCIE_NAME "litepcie"
 #define LITEPCIE_MINOR_COUNT 32
