@@ -33,11 +33,10 @@ class LiteEthMACSRAMWriter(LiteXModule):
         self._slot   = CSRStatus(slotbits)
         self._length = CSRStatus(lengthbits)
         self._errors = CSRStatus(32)
-        self._discard = CSRStatus(32)
         if with_eth_pcie:
-            self._enable          = CSRStorage()
             self.start            = Signal()
             self.ready            = Signal()
+            self._enable          = CSRStorage()
             self._pending_slots   = CSRStatus(nslots)
             self._clear_pending   = CSRStorage(nslots)
             self._pending_length  = CSRStatus(32*nslots)
@@ -115,7 +114,6 @@ class LiteEthMACSRAMWriter(LiteXModule):
         fsm.act("DISCARD-REMAINING",
             If(sink.valid & sink.last,
                 If((sink.error & sink.last_be) != 0,
-                    NextValue(self._discard.status,self._discard.status+1),
                     NextState("DISCARD")
                 ).Else(
                     NextState("TERMINATE")
@@ -145,13 +143,9 @@ class LiteEthMACSRAMWriter(LiteXModule):
             NextState("WRITE")
         )
 
-        if not with_eth_pcie:
-            self.comb += [
-                stat_fifo.source.ready.eq(self.ev.available.clear),
-                self.ev.available.trigger.eq(stat_fifo.source.valid),
-            ]
-
         self.comb += [
+            stat_fifo.source.ready.eq(self.ev.available.clear),
+            self.ev.available.trigger.eq(stat_fifo.source.valid),
             self._slot.status.eq(stat_fifo.source.slot),
             self._length.status.eq(stat_fifo.source.length),
         ]
