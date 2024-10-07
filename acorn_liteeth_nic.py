@@ -109,6 +109,8 @@ class BaseSoC(LiteXWRNICSoC):
         # JTAGBone ---------------------------------------------------------------------------------
 
         self.add_jtagbone()
+        platform.add_period_constraint(self.jtagbone_phy.cd_jtag.clk, 1e9/20e6)
+        platform.add_false_path_constraints(self.jtagbone_phy.cd_jtag.clk, self.crg.cd_sys.clk)
 
         # PCIe -------------------------------------------------------------------------------------
 
