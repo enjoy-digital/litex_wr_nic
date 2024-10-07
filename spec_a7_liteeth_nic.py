@@ -73,13 +73,14 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Shared QPLL.
         self.qpll = SharedQPLL(platform,
-            with_pcie       = True,
-            with_eth        = True,
-            eth_refclk_freq = 156.25e6,
+            with_pcie           = True,
+            with_eth            = True,
+            eth_refclk_freq     = 156.25e6,
+            eth_refclk_from_pll = True,
         )
         self.qpll.enable_pll_refclk()
 
-        # SoCCore ----------------------------------------------------------------------------------
+        # SoCMini ----------------------------------------------------------------------------------
 
         SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on SPEC-A7", ident_version=True)
 

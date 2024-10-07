@@ -127,12 +127,13 @@ The board can then be used as a Linux NIC and tested with tools like iperf3 ex:
 
 Server (without the board):
 ```
-iperf3 -s -B 192.168.1.122
+iperf3 -s
 ```
 
 Client (with the board):
 ```
 iperf3 -c 192.168.1.122 -B 192.168.1.92
+iperf3 -c 192.168.1.122 -B 192.168.1.92 -R
 ```
 
 Note: Adapt the IP addresses to your network configuration.
