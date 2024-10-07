@@ -15,15 +15,6 @@ from litex.soc.cores.dma import *
 
 from litepcie.frontend.dma import *
 
-# DMA Layouts --------------------------------------------------------------------------------------
-
-def dma_descriptor_layout():
-    return [
-        ("host_addr", 32),
-        ("bus_addr" , 32),
-        ("length"   , 32),
-    ]
-
 # LitePCIe2WishboneDMA -----------------------------------------------------------------------------
 
 class LitePCIe2WishboneDMA(LiteXModule):
@@ -31,15 +22,17 @@ class LitePCIe2WishboneDMA(LiteXModule):
         assert mode in ["pcie2wb", "wb2pcie"]
         assert dma.data_width == data_width
         self.bus  =  bus = wishbone.Interface(data_width=data_width)
-        self.desc = desc = stream.Endpoint(dma_descriptor_layout())
+        self.desc = desc = stream.Endpoint([("host_addr", 32), ("bus_addr", 32), ("length", 32)])
         self.irq  = Signal()
 
         # # #
 
-        # FIFOs.
-        # ------
-        self.desc_fifo = desc_fifo = stream.SyncFIFO(dma_descriptor_layout(), 8)
-        self.dma_fifo  = dma_fifo  = stream.SyncFIFO(descriptor_layout(),     8)
+        # Signals.
+        # --------
+        host_addr = Signal(32)
+        bus_addr  = Signal(32)
+        length    = Signal(32)
+        dma_done  = Signal()
 
         # PCIe -> Wishbone.
         # -----------------
@@ -55,33 +48,36 @@ class LitePCIe2WishboneDMA(LiteXModule):
             self.wb_dma.add_ctrl()
             self.comb += wb_dma.source.connect(dma.sink)
 
-        # Datapath.
-        # ---------
-        self.comb += [
-            desc.connect(desc_fifo.sink, omit={"ready"}),
-
-            dma_fifo.sink.address.eq(desc_fifo.source.host_addr),
-            dma_fifo.sink.length.eq(desc_fifo.source.length),
-            dma_fifo.source.connect(dma.desc_sink),
-
-            wb_dma.base.eq(desc_fifo.source.bus_addr),
-            wb_dma.length.eq(desc_fifo.source.length),
-        ]
-
         # FSM.
         # ----
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             wb_dma.enable.eq(0),
-            If(desc_fifo.source.valid & dma_fifo.sink.ready,
-                NextState("RUN"),
-                dma_fifo.sink.valid.eq(1),
+            # Wait for a Descriptor.
+            If(desc.valid,
+                NextValue(host_addr, desc.host_addr),
+                NextValue(bus_addr,  desc.bus_addr),
+                NextValue(length,    desc.length),
+                NextValue(dma_done,  0),
+                NextState("RUN")
             )
         )
         fsm.act("RUN",
+            # Initiate Wishbone DMA.
             wb_dma.enable.eq(1),
-            If(wb_dma.done,
-                desc_fifo.source.ready.eq(1),
+            wb_dma.base.eq(bus_addr),
+            wb_dma.length.eq(length),
+
+            # Initiate PCIe DMA.
+            dma.desc_sink.valid.eq(~dma_done),
+            dma.desc_sink.address.eq(host_addr),
+            dma.desc_sink.length.eq(length),
+            If(dma.desc_sink.ready,
+                NextValue(dma_done, 1)
+            ),
+
+            # Wait Wishbone DMA and PCIe DMA to be done.
+            If(wb_dma.done & dma_done,
                 self.irq.eq(1),
                 desc.ready.eq(1),
                 NextState("IDLE"),
