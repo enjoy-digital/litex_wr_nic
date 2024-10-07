@@ -38,7 +38,7 @@ class LiteEthMACSRAMWriter(LiteXModule):
             self.ready            = Signal()
             self._enable          = CSRStorage()
             self._pending_slots   = CSRStatus(nslots)
-            self._clear_pending   = CSRStorage(nslots)
+            self._pending_clear   = CSRStorage(nslots)
             self._pending_length  = CSRStatus(32*nslots)
             self._pcie_host_addrs = CSRStorage(32*nslots)
 
@@ -155,16 +155,14 @@ class LiteEthMACSRAMWriter(LiteXModule):
             self.comb += self._timestamp.status.eq(stat_fifo.source.timestamp)
 
         if with_eth_pcie:
-            self.irq_fsm = irq_fsm = FSM(reset_state="IDLE")
-
             self.comb += self.pcie_slot.eq(0xffffffff),
             for i in reversed(range(nslots)): # Priority given to lower indexes.
                 self.comb += If(self._pending_slots.status[i] == 0, self.pcie_slot.eq(i))
 
-            clear_pending     = Signal(32)
-            new_pending_slots = Signal(32)
-            pending_length    = Array(Signal(32) for i in range(nslots))
-            pcie_host_addrs   = Array(Signal(32) for i in range(nslots))
+            pending_clear   = Signal(32)
+            pending_set     = Signal(32)
+            pending_length  = Array(Signal(32) for i in range(nslots))
+            pcie_host_addrs = Array(Signal(32) for i in range(nslots))
 
             for i in range(nslots):
                 self.comb += self._pending_length.status[i*32:(i+1)*32].eq(pending_length[nslots-i-1])
@@ -173,16 +171,17 @@ class LiteEthMACSRAMWriter(LiteXModule):
                 self.comb += pcie_host_addrs[nslots-i-1].eq(self._pcie_host_addrs.storage[i*32:(i+1)*32])
 
             self.comb += [
-                If(self._clear_pending.re,
-                    clear_pending.eq(self._clear_pending.storage),
+                If(self._pending_clear.re,
+                    pending_clear.eq(self._pending_clear.storage),
                 ),
                 If(self.start,
-                    new_pending_slots.eq(1 << self.pcie_slot),
+                    pending_set.eq(1 << self.pcie_slot),
                 ),
             ]
 
-            self.sync += self._pending_slots.status.eq((self._pending_slots.status & ~clear_pending) | new_pending_slots)
+            self.sync += self._pending_slots.status.eq((self._pending_slots.status & ~pending_clear) | pending_set)
 
+            self.irq_fsm = irq_fsm = FSM(reset_state="IDLE")
             irq_fsm.act("IDLE",
                 If(stat_fifo.source.valid & (self.pcie_slot != 0xffffffff),
                    NextValue(pending_length[self.pcie_slot],stat_fifo.source.length),
@@ -254,7 +253,7 @@ class LiteEthMACSRAMReader(LiteXModule):
             self.ready            = Signal()
             self._pcie_host_addrs = CSRStorage(32*nslots)
             self._pending_slots   = CSRStatus(nslots)
-            self._clear_pending   = CSRStorage(nslots)
+            self._pending_clear   = CSRStorage(nslots)
 
         # Optional Timestamp of the outgoing packets and expose value to software.
         if timestamp is not None:
@@ -275,9 +274,9 @@ class LiteEthMACSRAMReader(LiteXModule):
             self.pcie_irq       = Signal()
             self.pcie_host_addr = Signal(32)
 
-            clear_pending     = Signal(32)
-            new_pending_slots = Signal(32)
-            pcie_host_addrs   = Array(Signal(32) for i in range(nslots))
+            pending_clear   = Signal(32)
+            pending_set     = Signal(32)
+            pcie_host_addrs = Array(Signal(32) for i in range(nslots))
 
             for i in range(nslots):
                 self.comb += pcie_host_addrs[nslots-i-1].eq(self._pcie_host_addrs.storage[i*32:(i+1)*32])
@@ -297,14 +296,14 @@ class LiteEthMACSRAMReader(LiteXModule):
         if with_eth_pcie:
             self.comb += [
                 self.pcie_host_addr.eq(pcie_host_addrs[cmd_fifo.source.slot]),
-                If(self._clear_pending.re,
-                    clear_pending.eq(self._clear_pending.storage),
+                If(self._pending_clear.re,
+                    pending_clear.eq(self._pending_clear.storage),
                 ),
                 If(cmd_fifo.source.ready,
-                    new_pending_slots.eq(1 << cmd_fifo.source.slot),
+                    pending_set.eq(1 << cmd_fifo.source.slot),
                 )
             ]
-            self.sync += self._pending_slots.status.eq((self._pending_slots.status & ~clear_pending) | new_pending_slots)
+            self.sync += self._pending_slots.status.eq((self._pending_slots.status & ~pending_clear) | pending_set)
 
         # Status FIFO (Only added when Timestamping).
         if timestamp is not None:

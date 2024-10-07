@@ -280,7 +280,7 @@ static void liteeth_clear_tx_dma(struct liteeth_device *liteeth_priv)
 	}
 
 	/* Clear the pending TX slots */
-	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_READER_CLEAR_PENDING_ADDR, pending_tx);
+	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_READER_PENDING_CLEAR_ADDR, pending_tx);
 }
 
 /* Function to open the LiteEth network device */
@@ -511,7 +511,7 @@ static int liteeth_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	/* Clear the pending RX slots */
-	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_CLEAR_PENDING_ADDR, clear_mask);
+	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PENDING_CLEAR_ADDR, clear_mask);
 
 	/* If the work done is less than the budget, complete NAPI and re-enable the interrupt */
 	if (work_done < budget && napi_complete_done(napi, work_done))
