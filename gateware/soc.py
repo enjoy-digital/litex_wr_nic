@@ -48,7 +48,7 @@ class LiteXWRNICSoC(SoCMini):
 
     # Add PCIe NIC ---------------------------------------------------------------------------------
 
-    def add_pcie_nic(self, pcie_phy=None, eth_phy=None, eth_ntxslots=8, eth_nrxslots=8, with_timing_constraints=True):
+    def add_pcie_nic(self, pcie_phy=None, eth_phy=None, eth_ntxslots=2, eth_nrxslots=2, with_timing_constraints=True):
         # Ethernet MAC.
         # -------------
         self.add_ethernet(
