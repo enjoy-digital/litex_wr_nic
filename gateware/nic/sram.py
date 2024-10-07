@@ -33,15 +33,15 @@ class LiteEthMACSRAMWriter(LiteXModule):
         self._slot   = CSRStatus(slotbits)
         self._length = CSRStatus(lengthbits)
         self._errors = CSRStatus(32)
-        self._discard = CSRStatus(32,reset=0)
+        self._discard = CSRStatus(32)
         if with_eth_pcie:
-            self._enable          = CSRStorage(reset=0)
-            self.start            = Signal(reset=0)
-            self.ready            = Signal(reset=0)
-            self._pending_slots   = CSRStatus(nslots,reset=0)
-            self._clear_pending   = CSRStorage(nslots,reset=0)
-            self._pending_length  = CSRStatus(32*nslots,reset=0)
-            self._pcie_host_addrs = CSRStorage(32*nslots,reset=0)
+            self._enable          = CSRStorage()
+            self.start            = Signal()
+            self.ready            = Signal()
+            self._pending_slots   = CSRStatus(nslots)
+            self._clear_pending   = CSRStorage(nslots)
+            self._pending_length  = CSRStatus(32*nslots)
+            self._pcie_host_addrs = CSRStorage(32*nslots)
 
         # Optional Timestamp of the incoming packets and expose value to software.
         if timestamp is not None:
@@ -58,8 +58,8 @@ class LiteEthMACSRAMWriter(LiteXModule):
         enable = Signal(reset=1)
         if with_eth_pcie:
             self.pcie_irq       = Signal()
-            self.pcie_slot      = Signal(32,reset=0)
-            self.pcie_host_addr = Signal(32,reset=0)
+            self.pcie_slot      = Signal(32)
+            self.pcie_host_addr = Signal(32)
             self.comb += enable.eq(self._enable.storage)
         write   = Signal()
         errors  = self._errors.status
@@ -167,10 +167,10 @@ class LiteEthMACSRAMWriter(LiteXModule):
             for i in reversed(range(nslots)): # Priority given to lower indexes.
                 self.comb += If(self._pending_slots.status[i] == 0, self.pcie_slot.eq(i))
 
-            clear_pending     = Signal(32, reset=0)
-            new_pending_slots = Signal(32, reset=0)
-            pending_length    = Array(Signal(32, reset=0) for i in range(nslots))
-            pcie_host_addrs   = Array(Signal(32, reset=0) for i in range(nslots))
+            clear_pending     = Signal(32)
+            new_pending_slots = Signal(32)
+            pending_length    = Array(Signal(32) for i in range(nslots))
+            pcie_host_addrs   = Array(Signal(32) for i in range(nslots))
 
             for i in range(nslots):
                 self.comb += self._pending_length.status[i*32:(i+1)*32].eq(pending_length[nslots-i-1])
@@ -256,11 +256,11 @@ class LiteEthMACSRAMReader(LiteXModule):
         self._slot   = CSRStorage(slotbits,   reset_less=True)
         self._length = CSRStorage(lengthbits, reset_less=True)
         if with_eth_pcie:
-            self.start            = Signal(reset=0)
-            self.ready            = Signal(reset=0)
-            self._pcie_host_addrs = CSRStorage(32*nslots,reset=0)
-            self._pending_slots   = CSRStatus(nslots,reset=0)
-            self._clear_pending   = CSRStorage(nslots,reset=0)
+            self.start            = Signal()
+            self.ready            = Signal()
+            self._pcie_host_addrs = CSRStorage(32*nslots)
+            self._pending_slots   = CSRStatus(nslots)
+            self._clear_pending   = CSRStorage(nslots)
 
         # Optional Timestamp of the outgoing packets and expose value to software.
         if timestamp is not None:
@@ -280,11 +280,11 @@ class LiteEthMACSRAMReader(LiteXModule):
         event_trigger = Signal()
         if with_eth_pcie:
             self.pcie_irq       = Signal()
-            self.pcie_host_addr = Signal(32,reset=0)
+            self.pcie_host_addr = Signal(32)
 
-            clear_pending     = Signal(32,reset=0)
-            new_pending_slots = Signal(32,reset=0)
-            pcie_host_addrs   = Array(Signal(32,reset=0) for i in range(nslots))
+            clear_pending     = Signal(32)
+            new_pending_slots = Signal(32)
+            pcie_host_addrs   = Array(Signal(32) for i in range(nslots))
 
             for i in range(nslots):
                 self.comb += pcie_host_addrs[nslots-i-1].eq(self._pcie_host_addrs.storage[i*32:(i+1)*32])
