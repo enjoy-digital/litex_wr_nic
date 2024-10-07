@@ -36,8 +36,10 @@ class LitePCIe2WishboneDMA(LiteXModule):
 
         # # #
 
-        self.dma_fifo = dma_fifo = stream.SyncFIFO(descriptor_layout(),      1)
-        self.fifo     =     fifo = stream.SyncFIFO(dma_descriptor_layout(), 16)
+        # FIFOs.
+        # ------
+        self.desc_fifo = desc_fifo = stream.SyncFIFO(dma_descriptor_layout(), 8)
+        self.dma_fifo  = dma_fifo  = stream.SyncFIFO(descriptor_layout(),     8)
 
         # PCIe -> Wishbone.
         # -----------------
@@ -56,13 +58,14 @@ class LitePCIe2WishboneDMA(LiteXModule):
         # Datapath.
         # ---------
         self.comb += [
-            dma_fifo.source.connect(dma.desc_sink),
-            desc.connect(fifo.sink, omit={"ready"}),
+            desc.connect(desc_fifo.sink, omit={"ready"}),
 
-            wb_dma.base.eq(fifo.source.bus_addr),
-            wb_dma.length.eq(fifo.source.length),
-            dma_fifo.sink.address.eq(fifo.source.host_addr),
-            dma_fifo.sink.length.eq(fifo.source.length),
+            dma_fifo.sink.address.eq(desc_fifo.source.host_addr),
+            dma_fifo.sink.length.eq(desc_fifo.source.length),
+            dma_fifo.source.connect(dma.desc_sink),
+
+            wb_dma.base.eq(desc_fifo.source.bus_addr),
+            wb_dma.length.eq(desc_fifo.source.length),
         ]
 
         # FSM.
@@ -70,7 +73,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             wb_dma.enable.eq(0),
-            If(fifo.source.valid & dma_fifo.sink.ready,
+            If(desc_fifo.source.valid & dma_fifo.sink.ready,
                 NextState("RUN"),
                 dma_fifo.sink.valid.eq(1),
             )
@@ -78,7 +81,7 @@ class LitePCIe2WishboneDMA(LiteXModule):
         fsm.act("RUN",
             wb_dma.enable.eq(1),
             If(wb_dma.done,
-                fifo.source.ready.eq(1),
+                desc_fifo.source.ready.eq(1),
                 self.irq.eq(1),
                 desc.ready.eq(1),
                 NextState("IDLE"),
