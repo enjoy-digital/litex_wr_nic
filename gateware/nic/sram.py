@@ -269,9 +269,8 @@ class LiteEthMACSRAMReader(LiteXModule):
 
         # # #
 
-        read          = Signal()
-        length        = Signal(lengthbits)
-        event_trigger = Signal()
+        read   = Signal()
+        length = Signal(lengthbits)
         if with_eth_pcie:
             self.pcie_irq       = Signal()
             self.pcie_host_addr = Signal(32)
@@ -282,9 +281,7 @@ class LiteEthMACSRAMReader(LiteXModule):
 
             for i in range(nslots):
                 self.comb += pcie_host_addrs[nslots-i-1].eq(self._pcie_host_addrs.storage[i*32:(i+1)*32])
-            self.comb += self.pcie_irq.eq(event_trigger)
-        else:
-            self.comb += self.ev.done.trigger.eq(event_trigger)
+            self.comb += self.pcie_irq.eq(self.ev.done.trigger)
 
         # Command FIFO.
         self.cmd_fifo = cmd_fifo = stream.SyncFIFO([("slot", slotbits), ("length", lengthbits)], nslots)
@@ -370,7 +367,7 @@ class LiteEthMACSRAMReader(LiteXModule):
         )
         fsm.act("TERMINATE",
             NextValue(length, 0),
-            event_trigger.eq(1),
+            self.ev.done.trigger.eq(1),
             cmd_fifo.source.ready.eq(1),
             NextState("IDLE")
         )
@@ -412,13 +409,8 @@ class LiteEthMACSRAMReader(LiteXModule):
 # MAC SRAM -----------------------------------------------------------------------------------------
 
 class LiteEthMACSRAM(LiteXModule):
-    def __init__(self, dw, depth, nrxslots, ntxslots, endianness, timestamp=None, with_eth_pcie=True):
+    def __init__(self, dw, depth, nrxslots, ntxslots, endianness, timestamp=None):
         self.writer = LiteEthMACSRAMWriter(dw, depth, nrxslots, endianness, timestamp)
         self.reader = LiteEthMACSRAMReader(dw, depth, ntxslots, endianness, timestamp)
-        if with_eth_pcie:
-            self.ev = Signal()
-            self.rx_pcie_irq = self.writer.pcie_irq
-            self.tx_pcie_irq = self.reader.pcie_irq
-        else:
-            self.ev = SharedIRQ(self.writer.ev, self.reader.ev)
+        self.ev     = SharedIRQ(self.writer.ev, self.reader.ev)
         self.sink, self.source = self.writer.sink, self.reader.source
