@@ -89,6 +89,8 @@ struct liteeth_device {
 	uint32_t rx_slot;                     /* Reception slot */
 	uint32_t num_rx_slots;                /* Number of reception slots */
 
+	spinlock_t lock;
+
 	void *tx_buf;                         /* Transmission buffer */
 	dma_addr_t tx_buf_dma;                /* DMA address for transmission buffer */
 	struct litepcie_device *litepcie_dev; /* LitePCIe device */
@@ -175,11 +177,15 @@ static void litepcie_disable_interrupt(struct litepcie_device *s, int irq_num)
 static irqreturn_t litepcie_interrupt(int irq, void *data)
 {
 	struct litepcie_device *litepcie_dev = (struct litepcie_device *)data;
-    struct liteeth_device *liteeth_priv = netdev_priv(litepcie_dev->liteeth_dev->netdev);
-    uint32_t clear_mask, irq_vector, irq_enable;
-    uint32_t rx_pending, tx_ready;
+	struct liteeth_device *liteeth_priv = netdev_priv(litepcie_dev->liteeth_dev->netdev);
+	uint32_t clear_mask, irq_vector, irq_enable;
+	uint32_t rx_pending, tx_ready;
+	unsigned long flags;
 
-    /* Single MSI */
+	/* Disable preemption and acquire spinlock */
+	spin_lock_irqsave(&liteeth_priv->lock, flags);
+
+	/* Single MSI */
 #ifdef CSR_PCIE_MSI_CLEAR_ADDR
 	irq_vector = litepcie_readl(litepcie_dev, CSR_PCIE_MSI_VECTOR_ADDR);
 	irq_enable = litepcie_readl(litepcie_dev, CSR_PCIE_MSI_ENABLE_ADDR);
@@ -206,8 +212,7 @@ static irqreturn_t litepcie_interrupt(int irq, void *data)
 		clear_mask |= (1 << ETHMAC_RX_INTERRUPT);
 		rx_pending = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PENDING_SLOTS_ADDR);
 		if (rx_pending != 0) {
-			/* Disable RX interrupt and schedule NAPI */
-			litepcie_disable_interrupt(liteeth_priv->litepcie_dev, ETHMAC_RX_INTERRUPT);
+			/* Schedule NAPI */
 			napi_schedule(&liteeth_priv->napi);
 		}
 	}
@@ -224,6 +229,9 @@ static irqreturn_t litepcie_interrupt(int irq, void *data)
 #ifdef CSR_PCIE_MSI_CLEAR_ADDR
 	litepcie_writel(litepcie_dev, CSR_PCIE_MSI_CLEAR_ADDR, clear_mask);
 #endif
+
+	/* Release spinlock and restore preemption */
+	spin_unlock_irqrestore(&liteeth_priv->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -513,9 +521,10 @@ static int liteeth_napi_poll(struct napi_struct *napi, int budget)
 	/* Clear the pending RX slots */
 	litepcie_writel(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PENDING_CLEAR_ADDR, clear_mask);
 
-	/* If the work done is less than the budget, complete NAPI and re-enable the interrupt */
-	if (work_done < budget && napi_complete_done(napi, work_done))
-		litepcie_enable_interrupt(litepcie_dev, ETHMAC_RX_INTERRUPT);
+	/* If the work done is less than the budget, complete NAPI */
+	if (work_done < budget) {
+		napi_complete_done(napi, work_done);
+	}
 
 	return work_done;
 }
@@ -589,9 +598,11 @@ static int liteeth_init(struct litepcie_device *litepcie_dev)
 		return err;
 	}
 
+	spin_lock_init(&liteeth_priv->lock);
+
 	/* Log information about the network device */
 	netdev_info(netdev, "irq %d slots: tx %d rx %d size %d\n",
-		    netdev->irq, liteeth_priv->num_tx_slots, liteeth_priv->num_rx_slots, liteeth_priv->slot_size);
+			netdev->irq, liteeth_priv->num_tx_slots, liteeth_priv->num_rx_slots, liteeth_priv->slot_size);
 
 	return 0;
 }
