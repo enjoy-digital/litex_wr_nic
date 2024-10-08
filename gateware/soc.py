@@ -92,13 +92,19 @@ class LiteXWRNICSoC(SoCMini):
         for n, eth_phy in enumerate(eth_phys):
             pcie_dma = self.get_module(f"pcie_dma{n}")
 
+            if n > 1:
+                continue # FIXME: Limit to 1 PHY for now.
+
             # Ethernet MAC.
             # -------------
             ethmac_name = f"ethmac{n}"
+            eth_phy_cd  = "eth"
+            if len(eth_phys) > 1:
+                eth_phy_cd = f"ethphy{n}_eth"
             self.add_ethernet(
                 name       = ethmac_name,
                 phy        = eth_phy,
-                phy_cd     = "eth", # FIXME.
+                phy_cd     = eth_phy_cd,
                 data_width = 64,
                 ntxslots   = eth_ntxslots,
                 nrxslots   = eth_nrxslots,

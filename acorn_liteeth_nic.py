@@ -133,7 +133,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         self.ethphy0 = A7_1000BASEX(
             qpll_channel = self.qpll.get_channel("eth"),
-            data_pads    = self.platform.request("sfp"),
+            data_pads    = self.platform.request("sfp", 0),
             sys_clk_freq = sys_clk_freq,
             rx_polarity  = 1,  # Inverted on Acorn.
             tx_polarity  = 0,  # Inverted on Acorn and on baseboard.
@@ -142,8 +142,20 @@ class BaseSoC(LiteXWRNICSoC):
         self.platform.add_period_constraint(self.ethphy0.rxoutclk, 1e9/62.5e6)
         platform.add_false_path_constraints(self.ethphy0.txoutclk, self.ethphy0.rxoutclk, self.crg.cd_sys.clk)
 
+        #self.ethphy1 = A7_1000BASEX(
+        #    qpll_channel = self.qpll.get_channel("eth"),
+        #    data_pads    = self.platform.request("sfp", 1),
+        #    sys_clk_freq = sys_clk_freq,
+        #    rx_polarity  = 1,  # Inverted on Acorn.
+        #    tx_polarity  = 0,  # Inverted on Acorn and on baseboard.
+        #)
+        #self.platform.add_period_constraint(self.ethphy1.txoutclk, 1e9/62.5e6)
+        #self.platform.add_period_constraint(self.ethphy1.rxoutclk, 1e9/62.5e6)
+        #platform.add_false_path_constraints(self.ethphy1.txoutclk, self.ethphy1.rxoutclk, self.crg.cd_sys.clk)
+
         # PCIe NIC ---------------------------------------------------------------------------------
 
+        #self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0, self.ethphy1])
         self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0])
 
         # Leds -------------------------------------------------------------------------------------
