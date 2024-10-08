@@ -99,6 +99,7 @@ class LiteXWRNICSoC(SoCMini):
             # -------------
             ethmac_name = f"ethmac{n}"
             eth_phy_cd  = "eth"
+            eth_phy_cd  = f"ethphy{n}_eth" # FIXME.
             if len(eth_phys) > 1:
                 eth_phy_cd = f"ethphy{n}_eth"
             self.add_ethernet(
