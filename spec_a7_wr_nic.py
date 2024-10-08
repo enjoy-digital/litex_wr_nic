@@ -462,12 +462,12 @@ class BaseSoC(LiteXWRNICSoC):
                         wrf_wb2stream.source.connect(source, omit={"last_be", "error"}),
                     ]
 
-            self.ethphy = LiteEthPHYWRGMII()
+            self.ethphy0 = LiteEthPHYWRGMII()
 
             if not with_pcie_nic:
-                self.add_etherbone(phy=self.ethphy, data_width=8, with_timing_constraints=False)
+                self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
             else:
-                self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phy=self.ethphy, with_timing_constraints=False)
+                self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
 
         # PCIe PTM ---------------------------------------------------------------------------------
 

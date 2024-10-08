@@ -34,41 +34,39 @@ from gateware.wr_common import wr_core_init, wr_core_files
 
 class LiteXWRNICSoC(SoCMini):
     SoCMini.csr_map = {
-        "ethmac"           : 1,
-        "ethphy"           : 2,
-        "identifier_mem"   : 3,
-        "leds"             : 4,
+        "ethmac0"           : 1,
+        "ethphy0"           : 2,
+        "identifier_mem"    : 3,
+        "leds"              : 4,
 
         # PCIe.
-        "pcie_endpoint"    : 5,
-        "pcie_pcie2wb_dma" : 6,
-        "pcie_wb2pcie_dma" : 7,
-        "pcie_msi"         : 8,
-        "pcie_phy"         : 9,
+        "pcie_endpoint"     : 5,
+        "pcie_pcie2wb_dma0" : 6,
+        "pcie_wb2pcie_dma0" : 7,
+        "pcie_msi"          : 8,
+        "pcie_phy"          : 9,
+    }
+    SoCMini.mem_map = {
+        "csr"      : 0x0000_0000,
+        "ethmac0"  : 0x0002_0000,
     }
 
     # Add PCIe NIC ---------------------------------------------------------------------------------
 
-    def add_pcie_nic(self, pcie_phy=None, eth_phy=None, eth_ntxslots=2, eth_nrxslots=2, with_timing_constraints=True):
-        # Ethernet MAC.
-        # -------------
-        self.add_ethernet(
-            name       = "ethmac",
-            phy        = eth_phy,
-            phy_cd     = "eth",
-            data_width = 64,
-            ntxslots   = eth_ntxslots,
-            nrxslots   = eth_nrxslots,
-            with_timing_constraints = with_timing_constraints,
-        )
-        ethmac = self.ethmac
-        del self.bus.slaves["ethmac_tx"] # Remove from SoC bus since directly connected to PCIe.
-        del self.bus.slaves["ethmac_rx"] # Remove from SoC bus since directly connected to PCIe.
+    def add_pcie_nic(self, pcie_phy=None, eth_phys=[], eth_ntxslots=2, eth_nrxslots=2, with_timing_constraints=True):
+        # PCIe MSIs.
+        # ----------
+        pcie_msis = {}
+        for n in range(len(eth_phys)):
+            pcie_msis.update({
+                f"ethmac{n}_rx" : Signal(),
+                f"ethmac{n}_tx" : Signal(),
+            })
 
         # PCIe Core.
         # ----------
         self.add_pcie(name="pcie", phy=pcie_phy,
-            ndmas                = 1,
+            ndmas                = len(eth_phys),
             max_pending_requests = 2,
             data_width           = 64,
             with_dma_buffering   = False,
@@ -76,54 +74,80 @@ class LiteXWRNICSoC(SoCMini):
             with_dma_table       = False,
             with_ptm             = True,
             with_msi             = True,
-            msis                 = {
-                "ETHMAC_RX" : ethmac.interface.sram.writer.pcie_irq,
-                "ETHMAC_TX" : ethmac.interface.sram.reader.pcie_irq,
-            },
+            msis                 = pcie_msis,
         )
 
-        # RX Datapath: Ethernet (RX) -> PCIe -> Host.
-        # -------------------------------------------
-        align_bits = log2_int(512)
-        self.pcie_wb2pcie_dma = pcie_wb2pcie_dma = LitePCIe2WishboneDMA(
-            endpoint   = self.pcie_endpoint,
-            dma        = self.pcie_dma0.writer,
-            data_width = 64,
-            mode       = "wb2pcie",
-        )
-        self.comb += [
-            pcie_wb2pcie_dma.desc.valid.eq(ethmac.interface.sram.writer.start),
-            ethmac.interface.sram.writer.ready.eq(pcie_wb2pcie_dma.desc.ready),
-            pcie_wb2pcie_dma.desc.bus_addr.eq(ethmac.interface.sram.writer.stat_fifo.source.slot * ethmac.slot_size.constant),
-            pcie_wb2pcie_dma.desc.host_addr.eq(ethmac.interface.sram.writer.pcie_host_addr),
-            pcie_wb2pcie_dma.desc.length[align_bits:].eq(ethmac.interface.sram.writer.stat_fifo.source.length[align_bits:] + 1),
-        ]
-        self.bus_interconnect_rx = wishbone.InterconnectPointToPoint(
-            master = pcie_wb2pcie_dma.bus,
-            slave  = ethmac.bus_rx,
-        )
+        # Ethernet PHYs/MACs.
+        # -------------------
+        for n, eth_phy in enumerate(eth_phys):
+            pcie_dma = self.get_module(f"pcie_dma{n}")
 
-        # TX Datapath: Host -> PCIe -> Ethernet (TX).
-        # -------------------------------------------
-        align_bits = log2_int(512)
-        self.pcie_pcie2wb_dma = pcie_pcie2wb_dma = LitePCIe2WishboneDMA(
-            endpoint   = self.pcie_endpoint,
-            dma        = self.pcie_dma0.reader,
-            data_width = 64,
-            mode       = "pcie2wb",
-        )
-        self.comb += [
-            pcie_pcie2wb_dma.desc.valid.eq(ethmac.interface.sram.reader.start),
-            ethmac.interface.sram.reader.ready.eq(pcie_pcie2wb_dma.desc.ready),
-            pcie_pcie2wb_dma.desc.bus_addr.eq(ethmac.interface.sram.reader.cmd_fifo.source.slot * ethmac.slot_size.constant),
-            pcie_pcie2wb_dma.desc.host_addr.eq(ethmac.interface.sram.reader.pcie_host_addr),
-            pcie_pcie2wb_dma.desc.length[align_bits:].eq(ethmac.interface.sram.reader.cmd_fifo.source.length[align_bits:] + 1),
-        ]
-        self.bus_interconnect_tx = wishbone.InterconnectPointToPoint(
-            master = pcie_pcie2wb_dma.bus,
-            slave  = ethmac.bus_tx,
-        )
+            # Ethernet MAC.
+            # -------------
+            ethmac_name = f"ethmac{n}"
+            self.add_ethernet(
+                name       = ethmac_name,
+                phy        = eth_phy,
+                phy_cd     = "eth", # FIXME.
+                data_width = 64,
+                ntxslots   = eth_ntxslots,
+                nrxslots   = eth_nrxslots,
+                with_timing_constraints = with_timing_constraints,
+            )
+            ethmac = self.get_module(ethmac_name)
+            del self.bus.slaves[f"{ethmac_name}_tx"] # Remove from SoC bus since directly connected to PCIe.
+            del self.bus.slaves[f"{ethmac_name}_rx"] # Remove from SoC bus since directly connected to PCIe.
 
+            # RX Datapath: Ethernet (RX) -> PCIe -> Host.
+            # -------------------------------------------
+            align_bits = log2_int(512)
+            pcie_wb2pcie_dma = LitePCIe2WishboneDMA(
+                endpoint   = self.pcie_endpoint,
+                dma        = self.pcie_dma0.writer,
+                data_width = 64,
+                mode       = "wb2pcie",
+            )
+            self.add_module(name=f"pcie_wb2pcie_dma{n}", module=pcie_wb2pcie_dma)
+            self.comb += [
+                pcie_wb2pcie_dma.desc.valid.eq(ethmac.interface.sram.writer.start),
+                ethmac.interface.sram.writer.ready.eq(pcie_wb2pcie_dma.desc.ready),
+                pcie_wb2pcie_dma.desc.bus_addr.eq(ethmac.interface.sram.writer.stat_fifo.source.slot * ethmac.slot_size.constant),
+                pcie_wb2pcie_dma.desc.host_addr.eq(ethmac.interface.sram.writer.pcie_host_addr),
+                pcie_wb2pcie_dma.desc.length[align_bits:].eq(ethmac.interface.sram.writer.stat_fifo.source.length[align_bits:] + 1),
+            ]
+            self.submodules += wishbone.InterconnectPointToPoint(
+                master = pcie_wb2pcie_dma.bus,
+                slave  = ethmac.bus_rx,
+            )
+
+            # TX Datapath: Host -> PCIe -> Ethernet (TX).
+            # -------------------------------------------
+            align_bits = log2_int(512)
+            pcie_pcie2wb_dma = LitePCIe2WishboneDMA(
+                endpoint   = self.pcie_endpoint,
+                dma        = self.pcie_dma0.reader,
+                data_width = 64,
+                mode       = "pcie2wb",
+            )
+            self.add_module(name=f"pcie_pcie2wb_dma{n}", module=pcie_pcie2wb_dma)
+            self.comb += [
+                pcie_pcie2wb_dma.desc.valid.eq(ethmac.interface.sram.reader.start),
+                ethmac.interface.sram.reader.ready.eq(pcie_pcie2wb_dma.desc.ready),
+                pcie_pcie2wb_dma.desc.bus_addr.eq(ethmac.interface.sram.reader.cmd_fifo.source.slot * ethmac.slot_size.constant),
+                pcie_pcie2wb_dma.desc.host_addr.eq(ethmac.interface.sram.reader.pcie_host_addr),
+                pcie_pcie2wb_dma.desc.length[align_bits:].eq(ethmac.interface.sram.reader.cmd_fifo.source.length[align_bits:] + 1),
+            ]
+            self.submodules += wishbone.InterconnectPointToPoint(
+                master = pcie_pcie2wb_dma.bus,
+                slave  = ethmac.bus_tx,
+            )
+
+            # Connect MSIs.
+            # -------------
+            self.comb += [
+                self.msis[f"{ethmac_name}_rx"].eq(ethmac.interface.sram.writer.pcie_irq),
+                self.msis[f"{ethmac_name}_tx"].eq(ethmac.interface.sram.reader.pcie_irq),
+            ]
 
     # Add PCIe PTM ---------------------------------------------------------------------------------
 
