@@ -84,10 +84,12 @@ struct liteeth_device {
 	/* Tx */
 	uint32_t tx_slot;                     /* Transmission slot */
 	uint32_t num_tx_slots;                /* Number of transmission slots */
+	uint8_t  tx_irq_num;                  /* TX Interrupt Number */
 
 	/* Rx */
 	uint32_t rx_slot;                     /* Reception slot */
 	uint32_t num_rx_slots;                /* Number of reception slots */
+	uint8_t  rx_irq_num;                  /* RX Interrupt Number */
 
 	spinlock_t lock;
 
@@ -208,8 +210,8 @@ static irqreturn_t litepcie_interrupt(int irq, void *data)
 	clear_mask = 0;
 
 	/* Handle LiteEth RX interrupt */
-	if (irq_vector & (1 << ETHMAC_RX_INTERRUPT)) {
-		clear_mask |= (1 << ETHMAC_RX_INTERRUPT);
+	if (irq_vector & (1 << liteeth_priv->rx_irq_num)) {
+		clear_mask |= (1 << liteeth_priv->rx_irq_num);
 		rx_pending = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_WRITER_PENDING_SLOTS_ADDR);
 		if (rx_pending != 0) {
 			/* Schedule NAPI */
@@ -218,8 +220,8 @@ static irqreturn_t litepcie_interrupt(int irq, void *data)
 	}
 
 	/* Handle LiteEth TX interrupt */
-	if (irq_vector & (1 << ETHMAC_TX_INTERRUPT)) {
-		clear_mask |= (1 << ETHMAC_TX_INTERRUPT);
+	if (irq_vector & (1 << liteeth_priv->tx_irq_num)) {
+		clear_mask |= (1 << liteeth_priv->tx_irq_num);
 		tx_ready = litepcie_readl(litepcie_dev, CSR_ETHMAC_SRAM_READER_READY_ADDR);
 		if ((tx_ready != 0) && netif_queue_stopped(liteeth_priv->netdev)) {
 			netif_wake_queue(liteeth_priv->netdev);
@@ -306,8 +308,8 @@ static int liteeth_open(struct net_device *netdev)
 	litepcie_writel(liteeth_priv->litepcie_dev, CSR_ETHMAC_SRAM_WRITER_ENABLE_ADDR, 1);
 
 	/* Enable the interrupts for TX and RX */
-	litepcie_enable_interrupt(liteeth_priv->litepcie_dev, ETHMAC_TX_INTERRUPT);
-	litepcie_enable_interrupt(liteeth_priv->litepcie_dev, ETHMAC_RX_INTERRUPT);
+	litepcie_enable_interrupt(liteeth_priv->litepcie_dev, liteeth_priv->tx_irq_num);
+	litepcie_enable_interrupt(liteeth_priv->litepcie_dev, liteeth_priv->rx_irq_num);
 
 	/* Enable NAPI */
 	napi_enable(&liteeth_priv->napi);
@@ -338,8 +340,8 @@ static int liteeth_stop(struct net_device *netdev)
 	litepcie_writel(liteeth_priv->litepcie_dev, CSR_ETHMAC_SRAM_WRITER_ENABLE_ADDR, 0);
 
 	/* Disable the interrupts for TX and RX */
-	litepcie_disable_interrupt(liteeth_priv->litepcie_dev, ETHMAC_TX_INTERRUPT);
-	litepcie_disable_interrupt(liteeth_priv->litepcie_dev, ETHMAC_RX_INTERRUPT);
+	litepcie_disable_interrupt(liteeth_priv->litepcie_dev, liteeth_priv->tx_irq_num);
+	litepcie_disable_interrupt(liteeth_priv->litepcie_dev, liteeth_priv->rx_irq_num);
 
 	/* Unmap and free the RX slots */
 	for (i = 0; i < liteeth_priv->num_rx_slots; i++) {
@@ -579,6 +581,10 @@ static int liteeth_init(struct litepcie_device *litepcie_dev)
 
 	/* Set the hardware (MAC) address for the network device */
 	eth_hw_addr_set(netdev, liteeth_mac_addr);
+
+	/* Assign interrupt numbers */
+	liteeth_priv->tx_irq_num = ETHMAC_TX_INTERRUPT;
+	liteeth_priv->rx_irq_num = ETHMAC_RX_INTERRUPT;
 
 	/* Set the network device operations and watchdog timeout */
 	netdev->netdev_ops     = &liteeth_netdev_ops;
