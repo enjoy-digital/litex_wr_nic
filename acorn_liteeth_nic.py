@@ -155,8 +155,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # PCIe NIC ---------------------------------------------------------------------------------
 
-        #self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0, self.ethphy1])
-        self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0])
+        self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0, self.ethphy1])
 
         # Leds -------------------------------------------------------------------------------------
 

@@ -92,14 +92,10 @@ class LiteXWRNICSoC(SoCMini):
         for n, eth_phy in enumerate(eth_phys):
             pcie_dma = self.get_module(f"pcie_dma{n}")
 
-            if n > 1:
-                continue # FIXME: Limit to 1 PHY for now.
-
             # Ethernet MAC.
             # -------------
             ethmac_name = f"ethmac{n}"
             eth_phy_cd  = "eth"
-            eth_phy_cd  = f"ethphy{n}_eth" # FIXME.
             if len(eth_phys) > 1:
                 eth_phy_cd = f"ethphy{n}_eth"
             self.add_ethernet(
@@ -120,7 +116,7 @@ class LiteXWRNICSoC(SoCMini):
             align_bits = log2_int(512)
             pcie_wb2pcie_dma = LitePCIe2WishboneDMA(
                 endpoint   = self.pcie_endpoint,
-                dma        = self.pcie_dma0.writer,
+                dma        = pcie_dma.writer,
                 data_width = 64,
                 mode       = "wb2pcie",
             )
@@ -142,7 +138,7 @@ class LiteXWRNICSoC(SoCMini):
             align_bits = log2_int(512)
             pcie_pcie2wb_dma = LitePCIe2WishboneDMA(
                 endpoint   = self.pcie_endpoint,
-                dma        = self.pcie_dma0.reader,
+                dma        = pcie_dma.reader,
                 data_width = 64,
                 mode       = "pcie2wb",
             )
