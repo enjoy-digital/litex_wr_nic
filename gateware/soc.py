@@ -34,21 +34,31 @@ from gateware.wr_common import wr_core_init, wr_core_files
 
 class LiteXWRNICSoC(SoCMini):
     SoCMini.csr_map = {
-        "ethmac0"           : 1,
-        "ethphy0"           : 2,
-        "identifier_mem"    : 3,
-        "leds"              : 4,
+        # Common.
+        "identifier_mem"    :  1,
+        "leds"              :  2,
 
         # PCIe.
-        "pcie_endpoint"     : 5,
-        "pcie_pcie2wb_dma0" : 6,
-        "pcie_wb2pcie_dma0" : 7,
-        "pcie_msi"          : 8,
-        "pcie_phy"          : 9,
+        "pcie_endpoint"     :  8,
+        "pcie_msi"          :  9,
+        "pcie_phy"          : 10,
+
+        # Ethernet.
+        "ethphy0"           : 16,
+        "ethmac0"           : 17,
+        "ethphy1"           : 18,
+        "ethmac1"           : 19,
+
+        # PCIe NIC.
+        "pcie_pcie2wb_dma0" : 24,
+        "pcie_wb2pcie_dma0" : 25,
+        "pcie_pcie2wb_dma1" : 26,
+        "pcie_wb2pcie_dma1" : 27,
     }
     SoCMini.mem_map = {
         "csr"      : 0x0000_0000,
         "ethmac0"  : 0x0002_0000,
+        "ethmac1"  : 0x0004_0000,
     }
 
     # Add PCIe NIC ---------------------------------------------------------------------------------
