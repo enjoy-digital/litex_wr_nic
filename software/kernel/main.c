@@ -58,10 +58,7 @@
 #define CSR_BASE 0x00000000
 #endif
 
-/* Number of Ethernet MACs */
-#define NUM_ETHMACS 2
-
-/* FIXME: Move to FPGA/CSR */
+/* CHECKME: Move to FPGA/CSR ?*/
 static uint8_t liteeth_mac_addr_base[] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
 /* -----------------------------------------------------------------------------------------------*/
@@ -96,7 +93,8 @@ struct liteeth_params {
 };
 
 /* Define the CSR addresses for each Ethernet MAC */
-static const struct ethmac_csr_addresses ethmac_csrs[NUM_ETHMACS] = {
+static const struct ethmac_csr_addresses ethmac_csrs[] = {
+#ifdef CSR_ETHMAC0_BASE
 	{   /* ETHMAC0 */
 		.sram_writer_enable_addr          = CSR_ETHMAC0_SRAM_WRITER_ENABLE_ADDR,
 		.sram_writer_pending_slots_addr   = CSR_ETHMAC0_SRAM_WRITER_PENDING_SLOTS_ADDR,
@@ -112,6 +110,8 @@ static const struct ethmac_csr_addresses ethmac_csrs[NUM_ETHMACS] = {
 		.sram_reader_start_addr           = CSR_ETHMAC0_SRAM_READER_START_ADDR,
 		.sram_reader_level_addr           = CSR_ETHMAC0_SRAM_READER_LEVEL_ADDR,
 	},
+#endif
+#ifdef CSR_ETHMAC1_BASE
 	{   /* ETHMAC1 */
 		.sram_writer_enable_addr          = CSR_ETHMAC1_SRAM_WRITER_ENABLE_ADDR,
 		.sram_writer_pending_slots_addr   = CSR_ETHMAC1_SRAM_WRITER_PENDING_SLOTS_ADDR,
@@ -127,10 +127,12 @@ static const struct ethmac_csr_addresses ethmac_csrs[NUM_ETHMACS] = {
 		.sram_reader_start_addr           = CSR_ETHMAC1_SRAM_READER_START_ADDR,
 		.sram_reader_level_addr           = CSR_ETHMAC1_SRAM_READER_LEVEL_ADDR,
 	},
+#endif
 };
 
 /* Define the parameters for each Ethernet MAC */
-static const struct liteeth_params liteeth_params[NUM_ETHMACS] = {
+static const struct liteeth_params liteeth_params[] = {
+#ifdef CSR_ETHMAC0_BASE
 	{   /* ETHMAC0 */
 		.slot_size    = ETHMAC0_SLOT_SIZE,
 		.rx_slots     = ETHMAC0_RX_SLOTS,
@@ -139,6 +141,8 @@ static const struct liteeth_params liteeth_params[NUM_ETHMACS] = {
 		.tx_interrupt = ETHMAC0_TX_INTERRUPT,
 		.csrs         = &ethmac_csrs[0],
 	},
+#endif
+#ifdef CSR_ETHMAC1_BASE
 	{   /* ETHMAC1 */
 		.slot_size    = ETHMAC1_SLOT_SIZE,
 		.rx_slots     = ETHMAC1_RX_SLOTS,
@@ -147,7 +151,10 @@ static const struct liteeth_params liteeth_params[NUM_ETHMACS] = {
 		.tx_interrupt = ETHMAC1_TX_INTERRUPT,
 		.csrs         = &ethmac_csrs[1],
 	},
+#endif
 };
+
+#define NUM_ETHMACS (sizeof(ethmac_csrs) / sizeof(ethmac_csrs[0]))
 
 /* Structure to hold the buffer private information for SKB */
 struct skb_buffer_priv {
