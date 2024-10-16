@@ -67,7 +67,7 @@ def checkout_commit():
 
 def copy_config_file():
     """Copy the configuration file to the repository."""
-    config_dest = os.path.join(CLONE_DIR, "configs/speca7_defconfig")
+    config_dest = os.path.join(CLONE_DIR, "configs/litex_wr_nic_defconfig")
     if not os.path.exists(CONFIG_SRC):
         print(f"Error: Configuration file {CONFIG_SRC} does not exist.")
         exit(1)
@@ -75,7 +75,7 @@ def copy_config_file():
 
 def build_firmware():
     """Build the firmware."""
-    run_command("make speca7_defconfig", cwd=CLONE_DIR)
+    run_command("make litex_wr_nic_defconfig", cwd=CLONE_DIR)
     run_command("make", cwd=CLONE_DIR)
 
 def copy_firmware():
