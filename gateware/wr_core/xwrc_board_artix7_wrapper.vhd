@@ -33,7 +33,8 @@ entity xwrc_board_artix7_wrapper is
     -- etherbone                = attach Etherbone slave to fabric interface
     g_fabric_iface              : t_board_fabric_iface := PLAIN;
     -- memory initialization file for embedded CPU
-    g_dpram_initf               : string := "default_xilinx";
+    g_dpram_initf               : string  := "default_xilinx";
+    g_dpram_size                : integer := 131072/4;
     -- identification (id and ver) of the layout of words in the generic diag interface
     g_diag_id                   : integer := 0;
     g_diag_ver                  : integer := 0;
@@ -231,6 +232,7 @@ begin
       g_tx_streamer_params        => c_tx_streamer_params_defaut,
       g_rx_streamer_params        => c_rx_streamer_params_defaut,
       g_dpram_initf               => g_dpram_initf,
+      g_dpram_size                => g_dpram_size,
       g_diag_id                   => g_diag_id,
       g_diag_ver                  => g_diag_ver,
       g_diag_ro_size              => g_diag_ro_size,

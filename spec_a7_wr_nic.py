@@ -327,6 +327,7 @@ class BaseSoC(LiteXWRNICSoC):
             self.specials += Instance("xwrc_board_artix7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = cpu_firmware,
+                p_g_dpram_size        = 131072/4,
                 p_txpolarity          = 0, # Not Inverted.
                 p_rxpolarity          = 0, # Not Inverted.
 

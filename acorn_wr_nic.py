@@ -281,6 +281,7 @@ class BaseSoC(LiteXWRNICSoC):
             self.specials += Instance("xwrc_board_artix7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = cpu_firmware,
+                p_g_dpram_size        = 131072/4,
                 p_txpolarity          = 0, # Inverted on Acorn and on baseboard.
                 p_rxpolarity          = 1, # Inverted on Acorn.
 

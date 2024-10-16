@@ -67,6 +67,7 @@ entity xwrc_board_artix7 is
     g_rx_streamer_params       : t_rx_streamer_params := c_rx_streamer_params_defaut;
     -- memory initialisation file for embedded CPU
     g_dpram_initf               : string               := "default_xilinx";
+    g_dpram_size                : integer              := 131072/4;
     -- identification (id and ver) of the layout of words in the generic diag interface
     g_diag_id                   : integer              := 0;
     g_diag_ver                  : integer              := 0;
@@ -455,7 +456,7 @@ begin  -- architecture struct
       g_ep_rxbuf_size             => 1024,
       g_tx_runt_padding           => TRUE,
       g_dpram_initf               => g_dpram_initf,
-      g_dpram_size                => 131072/4,
+      g_dpram_size                => g_dpram_size,
       g_interface_mode            => PIPELINED,
       g_address_granularity       => BYTE,
       g_aux_sdb                   => c_wrc_periph3_sdb,
