@@ -271,7 +271,15 @@ entity xwrc_board_common is
     pps_p_o     : out std_logic;
     pps_led_o   : out std_logic;
     -- Link ok indication
-    link_ok_o : out std_logic
+    link_ok_o : out std_logic;
+
+    -----------------------------------------
+    -- uRV Instruction Bus
+    -----------------------------------------
+    im_addr  : out std_logic_vector(31 downto 0);
+    im_data  : in  std_logic_vector(31 downto 0);
+    im_valid : in  std_logic;
+    im_rd    : out std_logic
     );
 
 end entity xwrc_board_common;
@@ -501,7 +509,12 @@ begin  -- architecture struct
       rst_aux_n_o          => aux_rst_n,
       aux_diag_i           => aux_diag_in,
       aux_diag_o           => aux_diag_out,
-      link_ok_o            => link_ok);
+      link_ok_o            => link_ok,
+      im_addr              => im_addr,
+      im_data              => im_data,
+      im_valid             => im_valid,
+      im_rd                => im_rd
+      );
 
   pps_csync_o     <= pps_csync;
   pps_valid_o     <= pps_valid;

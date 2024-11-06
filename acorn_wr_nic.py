@@ -278,10 +278,50 @@ class BaseSoC(LiteXWRNICSoC):
             # White Rabbit Core Instance.
             # ---------------------------
             cpu_firmware = os.path.join(self.file_basedir, "firmware/litex_wr_nic_wrc.bram")
+
+            # External ROM.
+            # -------------
+            rom_init = get_mem_data("firmware/wrpc-sw/wrc.bin",
+                data_width = 32,
+                endianness = "little"
+            )
+            rom      = Memory(32, depth=131072//4, init=rom_init)
+            rom_port = rom.get_port(clock_domain="wr", async_read=False)
+            self.specials += rom, rom_port
+
+            rom_port_addr = Signal(32)
+
+#            rom_port_dat_r = Signal(32)
+#            rom_port_addr  = Signal(32)
+#
+#            self.specials += Instance("generic_dpram",
+#                p_g_DATA_WIDTH               = 32,
+#                p_g_SIZE                     = 131072//4,
+#                p_g_WITH_BYTE_ENABLE         = "true",
+#                p_g_ADDR_CONFLICT_RESOLUTION = "dont_care",
+#                p_g_INIT_FILE                = cpu_firmware,
+#                p_g_FAIL_IF_FILE_NOT_FOUND   = "true",
+#                p_g_DUAL_CLOCK               = "false",
+#                i_rst_n_i = ~ResetSignal("wr"),
+#                i_clka_i  = ClockSignal("wr"),
+#                i_bwea_i  = 0b1111,
+#                i_wea_i   = 0b0,
+#                i_aa_i    = rom_port_addr,
+#                i_da_i    = 0b0,
+#                o_qa_o    = rom_port_dat_r,
+#                i_clkb_i  = ClockSignal("wr"),
+#                i_bweb_i  = 0b1111,
+#                i_web_i   = 0b0,
+#                i_ab_i    = 0b0,
+#                i_db_i    = 0b0,
+#                o_qb_o    = Open(),
+#            )
+
             self.specials += Instance("xwrc_board_artix7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = cpu_firmware,
-                p_g_dpram_size        = 131072/4,
+                p_g_dpram_size        = 131072//4,
+                #p_g_dpram_size        = 16384//4,
                 p_txpolarity          = 0, # Inverted on Acorn and on baseboard.
                 p_rxpolarity          = 1, # Inverted on Acorn.
 
@@ -385,7 +425,17 @@ class BaseSoC(LiteXWRNICSoC):
                 o_wrf_snk_stall       = Open(), # CHECKME.
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
                 o_wrf_snk_rty         = Open(), # CHECKME.
+
+                # uRV Instruction Bus.
+                o_im_addr      = rom_port_addr,
+                i_im_data      = rom_port.dat_r,
+                #o_im_addr      = Cat(Signal(2), rom_port_addr),
+                #i_im_data      = rom_port_dat_r,
+                i_im_valid     = 1,
+                o_im_rd        = Open()
             )
+            self.comb += rom_port.adr.eq(rom_port_addr[2:])
+
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
 

@@ -247,7 +247,15 @@ entity xwrc_board_artix7 is
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
-    GT0_EXT_QPLL_LOCK   : in  std_logic
+    GT0_EXT_QPLL_LOCK   : in  std_logic;
+
+    -----------------------------------------
+    -- uRV Instruction Bus
+    -----------------------------------------
+    im_addr  : out std_logic_vector(31 downto 0);
+    im_data  : in  std_logic_vector(31 downto 0);
+    im_valid : in  std_logic;
+    im_rd    : out std_logic
     );
 
 end entity xwrc_board_artix7;
@@ -552,7 +560,11 @@ begin  -- architecture struct
       btn2_i               => btn2_i,
       pps_p_o              => pps_p_o,
       pps_led_o            => pps_led_o,
-      link_ok_o            => link_ok_o);
+      link_ok_o            => link_ok_o,
+      im_addr              => im_addr,
+      im_data              => im_data,
+      im_valid             => im_valid,
+      im_rd                => im_rd);
 
   onewire_oen_o <= onewire_en(0);
   onewire_in(0) <= onewire_i;

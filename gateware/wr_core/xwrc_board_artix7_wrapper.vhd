@@ -163,7 +163,15 @@ entity xwrc_board_artix7_wrapper is
     gt0_ext_qpll_reset   : out std_logic;
     gt0_ext_qpll_clk     : in  std_logic;
     gt0_ext_qpll_refclk  : in  std_logic;
-    gt0_ext_qpll_lock    : in  std_logic
+    gt0_ext_qpll_lock    : in  std_logic;
+
+    -----------------------------------------
+    -- uRV Instruction Bus
+    -----------------------------------------
+    im_addr  : out std_logic_vector(31 downto 0);
+    im_data  : in  std_logic_vector(31 downto 0);
+    im_valid : in  std_logic;
+    im_rd    : out std_logic
   );
 end xwrc_board_artix7_wrapper;
 
@@ -305,7 +313,11 @@ begin
       GT0_EXT_QPLL_RESET   => gt0_ext_qpll_reset,
       GT0_EXT_QPLL_CLK     => gt0_ext_qpll_clk,
       GT0_EXT_QPLL_REFCLK  => gt0_ext_qpll_refclk,
-      GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock
+      GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock,
+      im_addr              => im_addr,
+      im_data              => im_data,
+      im_valid             => im_valid,
+      im_rd                => im_rd
     );
 
 end architecture;

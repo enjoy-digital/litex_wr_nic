@@ -333,7 +333,15 @@ entity wr_core is
     -- DIAG to/from external modules
     -------------------------------------
     aux_diag_i : in  t_generic_word_array(g_diag_ro_size-1 downto 0) := (others=>(others=>'0'));
-    aux_diag_o : out t_generic_word_array(g_diag_rw_size-1 downto 0)
+    aux_diag_o : out t_generic_word_array(g_diag_rw_size-1 downto 0);
+
+    -----------------------------------------
+    -- uRV Instruction Bus
+    -----------------------------------------
+    im_addr  : out std_logic_vector(31 downto 0);
+    im_data  : in  std_logic_vector(31 downto 0);
+    im_valid : in  std_logic;
+    im_rd    : out std_logic
     );
 end wr_core;
 
@@ -870,7 +878,11 @@ begin
       dwb_o        => cpu_dwb_out,
       dwb_i        => cpu_dwb_in,
       host_slave_i => cpu_csr_wb_in,
-      host_slave_o => cpu_csr_wb_out
+      host_slave_o => cpu_csr_wb_out,
+      im_addr      => im_addr,
+      im_data      => im_data,
+      --im_valid     => im_valid,
+      im_rd        => im_rd
       );
 
   -----------------------------------------------------------------------------

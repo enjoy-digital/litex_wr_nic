@@ -44,7 +44,11 @@ entity wrc_urv_wrapper is
     dwb_o     : out t_wishbone_master_out;
     dwb_i     : in  t_wishbone_master_in;
     host_slave_i : in t_wishbone_slave_in;
-    host_slave_o : out t_wishbone_slave_out
+    host_slave_o : out t_wishbone_slave_out;
+    im_addr  : out std_logic_vector(31 downto 0);
+    im_data  : in  std_logic_vector(31 downto 0);
+    --im_valid : in  std_logic;
+    im_rd    : out std_logic
     );
 end wrc_urv_wrapper;
 
@@ -86,16 +90,7 @@ architecture arch of wrc_urv_wrapper is
   signal cpu_rst        : std_logic;
   signal cpu_rst_d      : std_logic;
 
-  signal im_addr  : std_logic_vector(31 downto 0);
-  signal im_data  : std_logic_vector(31 downto 0);
   signal im_valid : std_logic;
-  signal im_rd    : std_logic;
-
-  attribute KEEP : string;
-  attribute KEEP of im_addr  : signal is "true";
-  attribute KEEP of im_data  : signal is "true";
-  attribute KEEP of im_valid : signal is "true";
-  attribute KEEP of im_rd    : signal is "true";
 
   signal dm_addr, dm_data_s, dm_data_l                  : std_logic_vector(31 downto 0);
   signal dm_data_select                                 : std_logic_vector(3 downto 0);
@@ -121,7 +116,7 @@ begin
       g_with_hw_mulh  => 1,
       g_with_hw_mul   => 1,
       g_with_hw_div   => 1,
-      g_with_compressed_insns => 1
+      g_with_compressed_insns => 0
     )
     port map (
       clk_i            => clk_sys_i,
@@ -165,9 +160,9 @@ begin
       clka_i  => clk_sys_i,
       bwea_i  => "1111",
       wea_i   => '0',
-      aa_i    => im_addr(f_log2_size(g_IRAM_SIZE)+1 downto 2),
+      aa_i    => (others => '0'),
       da_i    => (others => '0'),
-      qa_o    => im_data,
+      qa_o    => open,
       clkb_i  => clk_sys_i,
       bweb_i  => dm_data_select,
       web_i   => dm_data_write,
