@@ -89,6 +89,13 @@ architecture arch of wrc_urv_wrapper is
   signal im_addr  : std_logic_vector(31 downto 0);
   signal im_data  : std_logic_vector(31 downto 0);
   signal im_valid : std_logic;
+  signal im_rd    : std_logic;
+
+  attribute KEEP : string;
+  attribute KEEP of im_addr  : signal is "true";
+  attribute KEEP of im_data  : signal is "true";
+  attribute KEEP of im_valid : signal is "true";
+  attribute KEEP of im_rd    : signal is "true";
 
   signal dm_addr, dm_data_s, dm_data_l                  : std_logic_vector(31 downto 0);
   signal dm_data_select                                 : std_logic_vector(3 downto 0);
@@ -121,6 +128,7 @@ begin
       rst_i            => cpu_rst,
       irq_i            => irq_i,
       im_addr_o        => im_addr,
+      im_rd_o          => im_rd,
       im_data_i        => im_data,
       im_valid_i       => im_valid,
       dm_addr_o        => dm_addr,
