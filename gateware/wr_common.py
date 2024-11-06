@@ -33,7 +33,7 @@ wr_core_files = [
 
     # Common Packages.
     "wr-cores/board/common/wr_board_pkg.vhd",
-    "wr-cores/board/common/xwrc_board_common.vhd",
+    #"wr-cores/board/common/xwrc_board_common.vhd",
 
     # Common Modules.
     "wr-cores/ip_cores/general-cores/modules/common/gc_async_counter_diff.vhd",
@@ -208,7 +208,7 @@ wr_core_files = [
     "wr-cores/modules/wrc_core/wrc_syscon_wb.vhd",
     #"wr-cores/modules/wrc_core/wrc_urv_wrapper.vhd",
     "wr-cores/modules/wrc_core/wrcore_pkg.vhd",
-    "wr-cores/modules/wrc_core/xwr_core.vhd",
+    #"wr-cores/modules/wrc_core/xwr_core.vhd",
 
     # WR PHY Modules.
     "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
@@ -228,6 +228,8 @@ wr_core_files = [
 
     # WR Core Modules.
     "gateware/wr_core/wr_core.vhd",
+    "gateware/wr_core/xwr_core.vhd",
+    "gateware/wr_core/xwrc_board_common.vhd",
     "gateware/wr_core/xwrc_platform_vivado.vhd",
     "gateware/wr_core/xwrc_board_artix7.vhd",
     "gateware/wr_core/xwrc_board_artix7_wrapper.vhd",
