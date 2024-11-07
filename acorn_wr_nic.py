@@ -279,43 +279,49 @@ class BaseSoC(LiteXWRNICSoC):
             # ---------------------------
             cpu_firmware = os.path.join(self.file_basedir, "firmware/litex_wr_nic_wrc.bram")
 
-            # External ROM.
-            # -------------
-            rom_init = get_mem_data("firmware/wrpc-sw/wrc.bin",
-                data_width = 32,
-                endianness = "little"
-            )
-            rom      = Memory(32, depth=131072//4, init=rom_init)
-            rom_port = rom.get_port(clock_domain="wr", async_read=False)
-            self.specials += rom, rom_port
-
-            rom_port_addr = Signal(32)
-
-#            rom_port_dat_r = Signal(32)
-#            rom_port_addr  = Signal(32)
-#
-#            self.specials += Instance("generic_dpram",
-#                p_g_DATA_WIDTH               = 32,
-#                p_g_SIZE                     = 131072//4,
-#                p_g_WITH_BYTE_ENABLE         = "true",
-#                p_g_ADDR_CONFLICT_RESOLUTION = "dont_care",
-#                p_g_INIT_FILE                = cpu_firmware,
-#                p_g_FAIL_IF_FILE_NOT_FOUND   = "true",
-#                p_g_DUAL_CLOCK               = "false",
-#                i_rst_n_i = ~ResetSignal("wr"),
-#                i_clka_i  = ClockSignal("wr"),
-#                i_bwea_i  = 0b1111,
-#                i_wea_i   = 0b0,
-#                i_aa_i    = rom_port_addr,
-#                i_da_i    = 0b0,
-#                o_qa_o    = rom_port_dat_r,
-#                i_clkb_i  = ClockSignal("wr"),
-#                i_bweb_i  = 0b1111,
-#                i_web_i   = 0b0,
-#                i_ab_i    = 0b0,
-#                i_db_i    = 0b0,
-#                o_qb_o    = Open(),
+#            # External ROM.
+#            # -------------
+#            rom_init = get_mem_data("firmware/wrpc-sw/wrc.bin",
+#                data_width = 32,
+#                endianness = "little"
 #            )
+#            rom      = Memory(32, depth=131072//4, init=rom_init)
+#            rom_port = rom.get_port(clock_domain="wr", async_read=False)
+#            self.specials += rom, rom_port
+#
+#            rom_port_addr = Signal(32)
+
+            dm_addr        = Signal(32)
+            dm_data_select = Signal(4)
+            dm_data_write  = Signal()
+            dm_data_s      = Signal(32)
+            dm_mem_rdata   = Signal(32)
+
+            rom_port_dat_r = Signal(32)
+            rom_port_addr  = Signal(32)
+
+            self.specials += Instance("generic_dpram",
+                p_g_DATA_WIDTH               = 32,
+                p_g_SIZE                     = 131072//4,
+                p_g_WITH_BYTE_ENABLE         = 1,
+                p_g_ADDR_CONFLICT_RESOLUTION = "dont_care",
+                p_g_INIT_FILE                = cpu_firmware,
+                p_g_FAIL_IF_FILE_NOT_FOUND   = 1,
+                p_g_DUAL_CLOCK               = 0,
+                i_rst_n_i = 1,
+                i_clka_i  = ClockSignal("wr"),
+                i_bwea_i  = 0b1111,
+                i_wea_i   = 0b0,
+                i_aa_i    = Cat(Signal(2), rom_port_addr),
+                i_da_i    = 0b0,
+                o_qa_o    = rom_port_dat_r,
+                i_clkb_i  = ClockSignal("wr"),
+                i_bweb_i  = dm_data_select,
+                i_web_i   = dm_data_write,
+                i_ab_i    = Cat(Signal(2), dm_addr),
+                i_db_i    = dm_data_s,
+                o_qb_o    = dm_mem_rdata,
+            )
 
             self.specials += Instance("xwrc_board_artix7_wrapper",
                 # Parameters.
@@ -428,13 +434,20 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # uRV Instruction Bus.
                 o_im_addr      = rom_port_addr,
-                i_im_data      = rom_port.dat_r,
+                i_im_data      = rom_port_dat_r,
                 #o_im_addr      = Cat(Signal(2), rom_port_addr),
                 #i_im_data      = rom_port_dat_r,
                 i_im_valid     = 1,
-                o_im_rd        = Open()
+                o_im_rd        = Open(),
+
+                # uRV Data Bus.
+                o_dm_addr        = dm_addr,
+                o_dm_data_select = dm_data_select,
+                o_dm_data_write  = dm_data_write,
+                o_dm_data_s      = dm_data_s,
+                i_dm_mem_rdata   = dm_mem_rdata,
             )
-            self.comb += rom_port.adr.eq(rom_port_addr[2:])
+            #self.comb += rom_port.adr.eq(rom_port_addr[2:])
 
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()

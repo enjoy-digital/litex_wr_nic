@@ -255,7 +255,16 @@ entity xwrc_board_artix7 is
     im_addr  : out std_logic_vector(31 downto 0);
     im_data  : in  std_logic_vector(31 downto 0);
     im_valid : in  std_logic;
-    im_rd    : out std_logic
+    im_rd    : out std_logic;
+
+    -----------------------------------------
+    -- uRV Data Bus Bus
+    -----------------------------------------
+    dm_addr        : out std_logic_vector(31 downto 0);
+    dm_data_select : out std_logic_vector(3 downto 0);
+    dm_data_write  : out std_logic;
+    dm_data_s      : out std_logic_vector(31 downto 0);
+    dm_mem_rdata   : in  std_logic_vector(31 downto 0)
     );
 
 end entity xwrc_board_artix7;
@@ -564,7 +573,13 @@ begin  -- architecture struct
       im_addr              => im_addr,
       im_data              => im_data,
       im_valid             => im_valid,
-      im_rd                => im_rd);
+      im_rd                => im_rd,
+      dm_addr              => dm_addr,
+      dm_data_select       => dm_data_select,
+      dm_data_write        => dm_data_write,
+      dm_data_s            => dm_data_s,
+      dm_mem_rdata         => dm_mem_rdata
+      );
 
   onewire_oen_o <= onewire_en(0);
   onewire_in(0) <= onewire_i;

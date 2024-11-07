@@ -32,7 +32,7 @@ wr_core_files = [
     # ----------------------------------------------------------------------------------------------
 
     # Common Packages.
-    "wr-cores/board/common/wr_board_pkg.vhd",
+    #"wr-cores/board/common/wr_board_pkg.vhd",
     #"wr-cores/board/common/xwrc_board_common.vhd",
 
     # Common Modules.
@@ -227,6 +227,7 @@ wr_core_files = [
     "gateware/wr_phy/wr_gtp_phy_family7.vhd",
 
     # WR Core Modules.
+    "gateware/wr_core/wr_board_pkg.vhd",
     "gateware/wr_core/wr_core.vhd",
     "gateware/wr_core/xwr_core.vhd",
     "gateware/wr_core/xwrc_board_common.vhd",

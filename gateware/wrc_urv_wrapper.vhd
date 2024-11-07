@@ -48,7 +48,13 @@ entity wrc_urv_wrapper is
     im_addr  : out std_logic_vector(31 downto 0);
     im_data  : in  std_logic_vector(31 downto 0);
     --im_valid : in  std_logic;
-    im_rd    : out std_logic
+    im_rd    : out std_logic;
+
+    dm_addr        : out std_logic_vector(31 downto 0);
+    dm_data_select : out std_logic_vector(3 downto 0);
+    dm_data_write  : out std_logic;
+    dm_data_s      : out std_logic_vector(31 downto 0);
+    dm_mem_rdata   : in  std_logic_vector(31 downto 0)
     );
 end wrc_urv_wrapper;
 
@@ -92,15 +98,24 @@ architecture arch of wrc_urv_wrapper is
 
   signal im_valid : std_logic;
 
-  signal dm_addr, dm_data_s, dm_data_l                  : std_logic_vector(31 downto 0);
-  signal dm_data_select                                 : std_logic_vector(3 downto 0);
-  signal dm_load, dm_store, dm_load_done, dm_store_done : std_logic;
+  --signal dm_addr        : std_logic_vector(31 downto 0);
+  --signal dm_data_select : std_logic_vector(3 downto 0);
+  --signal dm_data_write  : std_logic;
+  --signal dm_data_s      : std_logic_vector(31 downto 0);
+  --signal dm_mem_rdata   : std_logic_vector(31 downto 0);
 
-  signal dm_cycle_in_progress, dm_is_wishbone : std_logic;
+  signal dm_data_l      : std_logic_vector(31 downto 0);
+  signal dm_load        : std_logic;
+  signal dm_store       : std_logic;
+  signal dm_load_done   : std_logic;
+  signal dm_store_done  : std_logic;
 
-  signal dm_mem_rdata, dm_wb_rdata : std_logic_vector(31 downto 0);
-  signal dm_wb_write, dm_select_wb : std_logic;
-  signal dm_data_write             : std_logic;
+  signal dm_cycle_in_progress : std_logic;
+  signal dm_is_wishbone       : std_logic;
+
+  signal dm_wb_rdata   : std_logic_vector(31 downto 0);
+  signal dm_wb_write   : std_logic;
+  signal dm_select_wb  : std_logic;
 
   constant c_INSN_NOP : std_logic_vector(31 downto 0) := x"0000_0013";
   signal dbg_insn     : std_logic_vector(31 downto 0);
@@ -146,29 +161,29 @@ begin
   -- 1st MByte of the mem is the IRAM
   dm_is_wishbone <= '1' when dm_addr(31 downto 20) /= x"000" else '0';
 
-  U_iram : generic_dpram
-    generic map (
-      g_DATA_WIDTH               => 32,
-      g_SIZE                     => g_IRAM_SIZE,
-      g_WITH_BYTE_ENABLE         => TRUE,
-      g_ADDR_CONFLICT_RESOLUTION => "dont_care",
-      g_INIT_FILE                => g_IRAM_INIT,
-      g_FAIL_IF_FILE_NOT_FOUND   => TRUE,
-      g_DUAL_CLOCK               => FALSE)
-    port map (
-      rst_n_i => rst_n_i,
-      clka_i  => clk_sys_i,
-      bwea_i  => "1111",
-      wea_i   => '0',
-      aa_i    => (others => '0'),
-      da_i    => (others => '0'),
-      qa_o    => open,
-      clkb_i  => clk_sys_i,
-      bweb_i  => dm_data_select,
-      web_i   => dm_data_write,
-      ab_i    => dm_addr(f_log2_size(g_IRAM_SIZE)+1 downto 2),
-      db_i    => dm_data_s,
-      qb_o    => dm_mem_rdata);
+--  U_iram : generic_dpram
+--    generic map (
+--      g_DATA_WIDTH               => 32,
+--      g_SIZE                     => g_IRAM_SIZE,
+--      g_WITH_BYTE_ENABLE         => TRUE,
+--      g_ADDR_CONFLICT_RESOLUTION => "dont_care",
+--      g_INIT_FILE                => g_IRAM_INIT,
+--      g_FAIL_IF_FILE_NOT_FOUND   => TRUE,
+--      g_DUAL_CLOCK               => FALSE)
+--    port map (
+--      rst_n_i => rst_n_i,
+--      clka_i  => clk_sys_i,
+--      bwea_i  => "1111",
+--      wea_i   => '0',
+--      aa_i    => (others => '0'),
+--      da_i    => (others => '0'),
+--      qa_o    => open,
+--      clkb_i  => clk_sys_i,
+--      bweb_i  => dm_data_select,
+--      web_i   => dm_data_write,
+--      ab_i    => dm_addr(f_log2_size(g_IRAM_SIZE)+1 downto 2),
+--      db_i    => dm_data_s,
+--      qb_o    => dm_mem_rdata);
 
   -- Wishbone bus arbitration / internal RAM access
   p_wishbone_master : process(clk_sys_i)
