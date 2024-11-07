@@ -22,6 +22,8 @@ use work.streamers_pkg.all;
 use work.wr_xilinx_pkg.all;
 use work.wr_board_pkg.all;
 
+use work.genram_pkg.all;
+
 entity xwrc_board_artix7_wrapper is
   generic(
     -- Select whether to include external ref clock input
@@ -163,24 +165,24 @@ entity xwrc_board_artix7_wrapper is
     gt0_ext_qpll_reset   : out std_logic;
     gt0_ext_qpll_clk     : in  std_logic;
     gt0_ext_qpll_refclk  : in  std_logic;
-    gt0_ext_qpll_lock    : in  std_logic;
+    gt0_ext_qpll_lock    : in  std_logic
 
-    -----------------------------------------
-    -- uRV Instruction Bus
-    -----------------------------------------
-    im_addr  : out std_logic_vector(31 downto 0);
-    im_data  : in  std_logic_vector(31 downto 0);
-    im_valid : in  std_logic;
-    im_rd    : out std_logic;
-
-    -----------------------------------------
-    -- uRV Data Bus Bus
-    -----------------------------------------
-    dm_addr        : out std_logic_vector(31 downto 0);
-    dm_data_select : out std_logic_vector(3 downto 0);
-    dm_data_write  : out std_logic;
-    dm_data_s      : out std_logic_vector(31 downto 0);
-    dm_mem_rdata   : in  std_logic_vector(31 downto 0)
+--    -----------------------------------------
+--    -- uRV Instruction Bus
+--    -----------------------------------------
+--    im_addr  : out std_logic_vector(31 downto 0);
+--    im_data  : in  std_logic_vector(31 downto 0);
+--    im_valid : in  std_logic;
+--    im_rd    : out std_logic;
+--
+--    -----------------------------------------
+--    -- uRV Data Bus Bus
+--    -----------------------------------------
+--    dm_addr        : out std_logic_vector(31 downto 0);
+--    dm_data_select : out std_logic_vector(3 downto 0);
+--    dm_data_write  : out std_logic;
+--    dm_data_s      : out std_logic_vector(31 downto 0);
+--    dm_mem_rdata   : in  std_logic_vector(31 downto 0)
   );
 end xwrc_board_artix7_wrapper;
 
@@ -193,6 +195,17 @@ architecture wrapper of xwrc_board_artix7_wrapper is
 
   signal wb_slave_i : t_wishbone_slave_in  := cc_dummy_slave_in;
   signal wb_slave_o : t_wishbone_slave_out;
+
+  signal im_addr  : std_logic_vector(31 downto 0);
+  signal im_data  : std_logic_vector(31 downto 0);
+  signal im_valid : std_logic;
+  signal im_rd    : std_logic;
+
+  signal dm_addr        : std_logic_vector(31 downto 0);
+  signal dm_data_select : std_logic_vector(3 downto 0);
+  signal dm_data_write  : std_logic;
+  signal dm_data_s      : std_logic_vector(31 downto 0);
+  signal dm_mem_rdata   : std_logic_vector(31 downto 0);
 
 begin
 
@@ -333,5 +346,29 @@ begin
       dm_data_s            =>  dm_data_s,
       dm_mem_rdata         =>  dm_mem_rdata
     );
+
+  U_iram : generic_dpram
+    generic map (
+      g_DATA_WIDTH               => 32,
+      g_SIZE                     => g_dpram_size,
+      g_WITH_BYTE_ENABLE         => TRUE,
+      g_ADDR_CONFLICT_RESOLUTION => "dont_care",
+      g_INIT_FILE                => g_dpram_initf,
+      g_FAIL_IF_FILE_NOT_FOUND   => TRUE,
+      g_DUAL_CLOCK               => FALSE)
+    port map (
+      rst_n_i => '1',
+      clka_i  => clk_62m5_sys_o,
+      bwea_i  => "1111",
+      wea_i   => '0',
+      aa_i    => im_addr(f_log2_size(g_dpram_size)+1 downto 2),
+      da_i    => (others => '0'),
+      qa_o    => im_data,
+      clkb_i  => clk_62m5_sys_o,
+      bweb_i  => dm_data_select,
+      web_i   => dm_data_write,
+      ab_i    => dm_addr(f_log2_size(g_dpram_size)+1 downto 2),
+      db_i    => dm_data_s,
+      qb_o    => dm_mem_rdata);
 
 end architecture;
