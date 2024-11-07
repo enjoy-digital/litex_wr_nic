@@ -227,6 +227,7 @@ wr_core_files = [
     "gateware/wr_phy/wr_gtp_phy_family7.vhd",
 
     # WR Core Modules.
+    "gateware/wr_core/generic_dpram_wr.vhd",
     "gateware/wr_core/wr_board_pkg.vhd",
     "gateware/wr_core/wr_core.vhd",
     "gateware/wr_core/xwr_core.vhd",

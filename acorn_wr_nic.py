@@ -278,6 +278,8 @@ class BaseSoC(LiteXWRNICSoC):
             # White Rabbit Core Instance.
             # ---------------------------
             cpu_firmware = os.path.join(self.file_basedir, "firmware/litex_wr_nic_wrc.bram")
+            print(cpu_firmware)
+            #exit()
 
 #            # External ROM.
 #            # -------------
@@ -300,28 +302,21 @@ class BaseSoC(LiteXWRNICSoC):
             rom_port_dat_r = Signal(32)
             rom_port_addr  = Signal(32)
 
-#            self.specials += Instance("generic_dpram",
-#                p_g_DATA_WIDTH               = 32,
-#                p_g_SIZE                     = 131072//4,
-#                p_g_WITH_BYTE_ENABLE         = 1,
-#                p_g_ADDR_CONFLICT_RESOLUTION = "dont_care",
-#                p_g_INIT_FILE                = cpu_firmware,
-#                p_g_FAIL_IF_FILE_NOT_FOUND   = 1,
-#                p_g_DUAL_CLOCK               = 0,
-#                i_rst_n_i = 1,
-#                i_clka_i  = ClockSignal("wr"),
-#                i_bwea_i  = 0b1111,
-#                i_wea_i   = 0b0,
-#                i_aa_i    = Cat(Signal(2), rom_port_addr),
-#                i_da_i    = 0b0,
-#                o_qa_o    = rom_port_dat_r,
-#                i_clkb_i  = ClockSignal("wr"),
-#                i_bweb_i  = dm_data_select,
-#                i_web_i   = dm_data_write,
-#                i_ab_i    = Cat(Signal(2), dm_addr),
-#                i_db_i    = dm_data_s,
-#                o_qb_o    = dm_mem_rdata,
-#            )
+            self.specials += Instance("generic_dpram_wr",
+                i_rst_n_i = 1,
+                i_clka_i  = ClockSignal("wr"),
+                i_bwea_i  = 0b1111,
+                i_wea_i   = 0b0,
+                i_aa_i    = Cat(Signal(2), rom_port_addr),
+                i_da_i    = 0b0,
+                o_qa_o    = rom_port_dat_r,
+                #i_clkb_i  = ClockSignal("wr"),
+                #i_bweb_i  = dm_data_select,
+                #i_web_i   = dm_data_write,
+                #i_ab_i    = Cat(Signal(2), dm_addr),
+                #i_db_i    = dm_data_s,
+                #o_qb_o    = dm_mem_rdata,
+            )
 
             self.specials += Instance("xwrc_board_artix7_wrapper",
                 # Parameters.
@@ -432,13 +427,13 @@ class BaseSoC(LiteXWRNICSoC):
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
                 o_wrf_snk_rty         = Open(), # CHECKME.
 
-#                # uRV Instruction Bus.
-#                o_im_addr      = rom_port_addr,
-#                i_im_data      = rom_port_dat_r,
-#                #o_im_addr      = Cat(Signal(2), rom_port_addr),
-#                #i_im_data      = rom_port_dat_r,
-#                i_im_valid     = 1,
-#                o_im_rd        = Open(),
+                # uRV Instruction Bus.
+                o_im_addr      = rom_port_addr,
+                i_im_data      = rom_port_dat_r,
+                #o_im_addr      = Cat(Signal(2), rom_port_addr),
+                #i_im_data      = rom_port_dat_r,
+                i_im_valid     = 1,
+                o_im_rd        = Open(),
 #
 #                # uRV Data Bus.
 #                o_dm_addr        = dm_addr,

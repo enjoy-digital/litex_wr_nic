@@ -165,16 +165,16 @@ entity xwrc_board_artix7_wrapper is
     gt0_ext_qpll_reset   : out std_logic;
     gt0_ext_qpll_clk     : in  std_logic;
     gt0_ext_qpll_refclk  : in  std_logic;
-    gt0_ext_qpll_lock    : in  std_logic
+    gt0_ext_qpll_lock    : in  std_logic;
 
---    -----------------------------------------
---    -- uRV Instruction Bus
---    -----------------------------------------
---    im_addr  : out std_logic_vector(31 downto 0);
---    im_data  : in  std_logic_vector(31 downto 0);
---    im_valid : in  std_logic;
---    im_rd    : out std_logic;
---
+    -----------------------------------------
+    -- uRV Instruction Bus
+    -----------------------------------------
+    im_addr  : out std_logic_vector(31 downto 0);
+    im_data  : in  std_logic_vector(31 downto 0);
+    im_valid : in  std_logic;
+    im_rd    : out std_logic
+
 --    -----------------------------------------
 --    -- uRV Data Bus Bus
 --    -----------------------------------------
@@ -196,10 +196,10 @@ architecture wrapper of xwrc_board_artix7_wrapper is
   signal wb_slave_i : t_wishbone_slave_in  := cc_dummy_slave_in;
   signal wb_slave_o : t_wishbone_slave_out;
 
-  signal im_addr  : std_logic_vector(31 downto 0);
-  signal im_data  : std_logic_vector(31 downto 0);
-  signal im_valid : std_logic;
-  signal im_rd    : std_logic;
+  --signal im_addr  : std_logic_vector(31 downto 0);
+  --signal im_data  : std_logic_vector(31 downto 0);
+  --signal im_valid : std_logic;
+  --signal im_rd    : std_logic;
 
   signal dm_addr        : std_logic_vector(31 downto 0);
   signal dm_data_select : std_logic_vector(3 downto 0);
@@ -361,9 +361,9 @@ begin
       clka_i  => clk_62m5_sys_o,
       bwea_i  => "1111",
       wea_i   => '0',
-      aa_i    => im_addr(f_log2_size(g_dpram_size)+1 downto 2),
+      aa_i    => (others => '0'),
       da_i    => (others => '0'),
-      qa_o    => im_data,
+      qa_o    => open,
       clkb_i  => clk_62m5_sys_o,
       bweb_i  => dm_data_select,
       web_i   => dm_data_write,
