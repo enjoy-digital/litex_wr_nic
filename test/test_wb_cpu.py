@@ -10,6 +10,7 @@
 import os
 import sys
 import argparse
+from tqdm import tqdm
 from litex import RemoteClient
 
 # Constants ----------------------------------------------------------------------------------------
@@ -37,18 +38,16 @@ class CPU:
     def ram_read(self, addr):
         self.write_reg(CPU_ADR_REG, addr)
         data = self.read_reg(CPU_DAT_REG)
-        print(f"Read from addr 0x{addr*4:08x}: 0x{data:08x}")  # Debug output for read
         return data
 
     def ram_write(self, addr, data):
         self.write_reg(CPU_ADR_REG, addr)
         self.write_reg(CPU_DAT_REG, data)
-        print(f"Wrote to addr 0x{addr*4:08x}: 0x{data:08x}")  # Debug output for write
 
     def load_firmware(self, firmware_data):
-        """Load firmware binary data into CPU RAM in 32-bit words."""
+        """Load firmware binary data into CPU RAM in 32-bit."""
         self.reset(1)  # Hold CPU in reset
-        for i in range(0, len(firmware_data), 4):
+        for i in tqdm(range(0, len(firmware_data), 4), desc="Loading firmware", unit="word"):
             word = int.from_bytes(firmware_data[i:i+4], byteorder='big')
             self.ram_write(i // 4, word)
         self.reset(0)  # Release CPU reset
@@ -57,7 +56,7 @@ class CPU:
         """Dump CPU RAM contents up to specified length in 32-bit words."""
         self.reset(1)  # Hold CPU in reset
         data = []
-        for i in range(0, length, 4):
+        for i in tqdm(range(0, length, 4), desc="Dumping firmware", unit="word"):
             word = self.ram_read(i // 4)
             data.extend(word.to_bytes(4, byteorder='big'))
         self.reset(0)  # Release CPU reset
