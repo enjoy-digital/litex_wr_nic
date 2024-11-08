@@ -105,15 +105,21 @@ entity xwrc_board_artix7 is
     ready_for_reset_o   : out std_logic;
 
     ---------------------------------------------------------------------------
-    -- Shared SPI interface to DACs
+    -- AD5663R Serial DACs
     ---------------------------------------------------------------------------
-    dac_refclk_cs_n_o : out std_logic;
-    dac_refclk_sclk_o : out std_logic;
-    dac_refclk_din_o  : out std_logic;
+    dac_refclk_ldac_n_o : out std_logic;
+    dac_refclk_clr_n_o  : out std_logic;
+    dac_refclk_sclk_o   : out std_logic;
+    dac_refclk_sync_n_o : out std_logic;
+    dac_refclk_sdi_o    : out std_logic;
+    dac_refclk_sdo_i    : in  std_logic;
 
-    dac_dmtd_cs_n_o   : out std_logic;
-    dac_dmtd_sclk_o   : out std_logic;
-    dac_dmtd_din_o    : out std_logic;
+    dac_dmtd_ldac_n_o   : out std_logic;
+    dac_dmtd_clr_n_o    : out std_logic;
+    dac_dmtd_sclk_o     : out std_logic;
+    dac_dmtd_sync_n_o   : out std_logic;
+    dac_dmtd_sdi_o      : out std_logic;
+    dac_dmtd_sdo_i      : in  std_logic;
 
     ---------------------------------------------------------------------------
     -- SFP I/O for transceiver and SFP management info
@@ -300,6 +306,24 @@ architecture struct of xwrc_board_artix7 is
   signal sfp_scl_out         : std_logic;
   signal sfp_scl_in          : std_logic;
 
+  -- AD5663R Serial DAC.
+  component cute_a7_serial_dac_arb is
+  generic(
+      g_invert_sclk    : boolean;
+      g_num_data_bits  : integer;
+      g_num_extra_bits : integer);
+  port(
+      clk_i            : in  std_logic;
+      rst_n_i          : in  std_logic;
+      val_i            : in  std_logic_vector(g_num_data_bits-1 downto 0);
+      load_i           : in  std_logic;
+      dac_ldac_n_o     : out std_logic;
+      dac_clr_n_o      : out std_logic;
+      dac_sync_n_o     : out std_logic;
+      dac_sclk_o       : out std_logic;
+      dac_din_o        : out std_logic);
+  end component cute_a7_serial_dac_arb;
+
 begin  -- architecture struct
 
   sfp_scl <= '0' when sfp_scl_out = '0' else 'Z';
@@ -407,39 +431,39 @@ begin  -- architecture struct
   -- 2x SPI DAC
   -----------------------------------------------------------------------------
 
-  cmp_dmtd_dac : gc_serial_dac
+  cmp_dmtd_dac : cute_a7_serial_dac_arb
     generic map (
-      g_num_data_bits => 16,
-      g_num_extra_bits => 8,
-      g_num_cs_select => 1,
-      g_sclk_polarity => 0)
+        g_invert_sclk    => FALSE,
+        g_num_data_bits  => 16,
+        g_num_extra_bits => 8)
     port map (
-      clk_i         => clk_pll_62m5,
-      rst_n_i       => rst_62m5_n,
-      value_i       => dac_dmtd_data,
-      cs_sel_i      => "1",
-      load_i        => dac_dmtd_load,
-      sclk_divsel_i => "001",
-      dac_cs_n_o(0) => dac_dmtd_cs_n_o,
-      dac_sclk_o    => dac_dmtd_sclk_o,
-      dac_sdata_o   => dac_dmtd_din_o);
+        clk_i         => clk_pll_62m5,
+        rst_n_i       => rst_62m5_n,
+        val_i         => dac_dmtd_data,
+        load_i        => dac_dmtd_load,
+        dac_sync_n_o  => dac_dmtd_sync_n_o,
+        dac_ldac_n_o  => dac_dmtd_ldac_n_o,
+        dac_clr_n_o   => dac_dmtd_clr_n_o,
+        dac_sclk_o    => dac_dmtd_sclk_o,
+        dac_din_o     => dac_dmtd_sdi_o
+    );
 
-  cmp_refclk_dac : gc_serial_dac
+  cmp_refclk_dac : cute_a7_serial_dac_arb
     generic map (
-      g_num_data_bits => 16,
-      g_num_extra_bits => 8,
-      g_num_cs_select => 1,
-      g_sclk_polarity => 0)
+        g_invert_sclk    => FALSE,
+        g_num_data_bits  => 16,
+        g_num_extra_bits => 8)
     port map (
-      clk_i         => clk_pll_62m5,
-      rst_n_i       => rst_62m5_n,
-      value_i       => dac_refclk_data,
-      cs_sel_i      => "1",
-      load_i        => dac_refclk_load,
-      sclk_divsel_i => "001",
-      dac_cs_n_o(0) => dac_refclk_cs_n_o,
-      dac_sclk_o    => dac_refclk_sclk_o,
-      dac_sdata_o   => dac_refclk_din_o);
+        clk_i         => clk_pll_62m5,
+        rst_n_i       => rst_62m5_n,
+        val_i         => dac_refclk_data,
+        load_i        => dac_refclk_load,
+        dac_sync_n_o  => dac_refclk_sync_n_o,
+        dac_ldac_n_o  => dac_refclk_ldac_n_o,
+        dac_clr_n_o   => dac_refclk_clr_n_o,
+        dac_sclk_o    => dac_refclk_sclk_o,
+        dac_din_o     => dac_refclk_sdi_o
+    );
 
   -----------------------------------------------------------------------------
   -- The WR PTP core with optional fabric interface attached

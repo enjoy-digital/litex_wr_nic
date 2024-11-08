@@ -61,13 +61,20 @@ entity xwrc_board_artix7_wrapper is
     ext_ref_rst_o        : out std_logic;
     ready_for_reset_o    : out std_logic;
 
-    -- Shared SPI interface to DACs
-    dac_refclk_cs_n_o    : out std_logic;
-    dac_refclk_sclk_o    : out std_logic;
-    dac_refclk_din_o     : out std_logic;
-    dac_dmtd_cs_n_o      : out std_logic;
-    dac_dmtd_sclk_o      : out std_logic;
-    dac_dmtd_din_o       : out std_logic;
+    -- AD5663R Serial DACs
+    dac_refclk_ldac_n_o : out std_logic;
+    dac_refclk_clr_n_o  : out std_logic;
+    dac_refclk_sclk_o   : out std_logic;
+    dac_refclk_sync_n_o : out std_logic;
+    dac_refclk_sdi_o    : out std_logic;
+    dac_refclk_sdo_i    : in  std_logic;
+
+    dac_dmtd_ldac_n_o   : out std_logic;
+    dac_dmtd_clr_n_o    : out std_logic;
+    dac_dmtd_sclk_o     : out std_logic;
+    dac_dmtd_sync_n_o   : out std_logic;
+    dac_dmtd_sdi_o      : out std_logic;
+    dac_dmtd_sdo_i      : in  std_logic;
 
     -- SFP I/O for transceiver and SFP management info
     sfp_txp_o            : out std_logic;
@@ -253,12 +260,18 @@ begin
       dbg_rdy_o            => dbg_rdy_o,
       ext_ref_rst_o        => ext_ref_rst_o,
       ready_for_reset_o    => ready_for_reset_o,
-      dac_refclk_cs_n_o    => dac_refclk_cs_n_o,
+      dac_refclk_ldac_n_o  => dac_refclk_ldac_n_o,
+      dac_refclk_clr_n_o   => dac_refclk_clr_n_o,
       dac_refclk_sclk_o    => dac_refclk_sclk_o,
-      dac_refclk_din_o     => dac_refclk_din_o,
-      dac_dmtd_cs_n_o      => dac_dmtd_cs_n_o,
+      dac_refclk_sync_n_o  => dac_refclk_sync_n_o,
+      dac_refclk_sdi_o     => dac_refclk_sdi_o,
+      dac_refclk_sdo_i     => dac_refclk_sdo_i,
+      dac_dmtd_ldac_n_o    => dac_dmtd_ldac_n_o,
+      dac_dmtd_clr_n_o     => dac_dmtd_clr_n_o,
       dac_dmtd_sclk_o      => dac_dmtd_sclk_o,
-      dac_dmtd_din_o       => dac_dmtd_din_o,
+      dac_dmtd_sync_n_o    => dac_dmtd_sync_n_o,
+      dac_dmtd_sdi_o       => dac_dmtd_sdi_o,
+      dac_dmtd_sdo_i       => dac_dmtd_sdo_i,
       sfp_txp_o            => sfp_txp_o,
       sfp_txn_o            => sfp_txn_o,
       sfp_rxp_i            => sfp_rxp_i,

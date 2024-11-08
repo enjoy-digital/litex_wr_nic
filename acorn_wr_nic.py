@@ -299,14 +299,20 @@ class BaseSoC(LiteXWRNICSoC):
                 o_ready_for_reset_o   = Open(),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_cs_n_o   = Open(),
+                o_dac_refclk_ldac_n_o = Open(),
+                o_dac_refclk_clr_n_o  = Open(),
                 o_dac_refclk_sclk_o   = Open(),
-                o_dac_refclk_din_o    = Open(),
+                o_dac_refclk_sync_n_o = Open(),
+                o_dac_refclk_sdi_o    = Open(),
+                i_dac_refclk_sdo_i    = 0,
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_cs_n_o     = Open(),
+                o_dac_dmtd_ldac_n_o   = Open(),
+                o_dac_dmtd_clr_n_o    = Open(),
                 o_dac_dmtd_sclk_o     = Open(),
-                o_dac_dmtd_din_o      = Open(),
+                o_dac_dmtd_sync_n_o   = Open(),
+                o_dac_dmtd_sdi_o      = Open(),
+                i_dac_dmtd_sdo_i      = 0,
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
