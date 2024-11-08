@@ -90,6 +90,12 @@ architecture arch of wrc_urv_wrapper is
   signal im_data  : std_logic_vector(31 downto 0);
   signal im_valid : std_logic;
 
+  signal ha_im_addr     : std_logic_vector(31 downto 0);
+  signal ha_im_wdata    : std_logic_vector(31 downto 0);
+  signal ha_im_write    : std_logic;
+
+  signal im_addr_muxed : std_logic_vector(31 downto 0);
+
   signal dm_addr, dm_data_s, dm_data_l                  : std_logic_vector(31 downto 0);
   signal dm_data_select                                 : std_logic_vector(3 downto 0);
   signal dm_load, dm_store, dm_load_done, dm_store_done : std_logic;
@@ -104,17 +110,29 @@ architecture arch of wrc_urv_wrapper is
   signal dbg_insn     : std_logic_vector(31 downto 0);
 
   signal dwb_out         : t_wishbone_master_out;
+
+  signal regs_in : t_wrc_cpu_csr_out_registers;
+  signal regs_out : t_wrc_cpu_csr_in_registers;
+
 begin
+
+  wrc_cpu_csr_wb_slave_1: entity work.wrc_cpu_csr_wb_slave
+    port map (
+      rst_n_i   => rst_n_i,
+      clk_sys_i => clk_sys_i,
+      slave_i   => host_slave_i,
+      slave_o   => host_slave_o,
+      regs_i    => regs_out,
+      regs_o    => regs_in);
 
   dwb_o <= dwb_out;
 
   U_cpu_core : entity work.urv_cpu
     generic map (
-      g_with_hw_debug => 0,
-      g_with_hw_mulh  => 1,
-      g_with_hw_mul   => 1,
-      g_with_hw_div   => 1,
-      g_with_compressed_insns => 1
+      g_with_hw_debug => 1,
+      g_with_hw_mulh => 1,
+      g_with_hw_mul => 1,
+      g_with_hw_div => 1
     )
     port map (
       clk_i            => clk_sys_i,
@@ -131,14 +149,14 @@ begin
       dm_load_o        => dm_load,
       dm_load_done_i   => dm_load_done,
       dm_store_done_i  => dm_store_done,
-      dbg_force_i      => '0',
-      dbg_enabled_o    => open,
-      dbg_insn_i       => (others => '0'),
-      dbg_insn_set_i   => '0',
-      dbg_insn_ready_o => open,
-      dbg_mbx_data_i   => (others => '0'),
-      dbg_mbx_write_i  => '0',
-      dbg_mbx_data_o   => open);
+      dbg_force_i      => regs_in.dbg_force_o(0),
+      dbg_enabled_o    => regs_out.dbg_status_i(0),
+      dbg_insn_i       => dbg_insn,
+      dbg_insn_set_i   => regs_in.dbg_core0_insn_wr_o,
+      dbg_insn_ready_o => regs_out.dbg_insn_ready_i(0),
+      dbg_mbx_data_i   => regs_in.dbg_core0_mbx_o,
+      dbg_mbx_write_i  => regs_in.dbg_core0_mbx_load_o,
+      dbg_mbx_data_o   => regs_out.dbg_core0_mbx_i);
 
   -- 1st MByte of the mem is the IRAM
   dm_is_wishbone <= '1' when dm_addr(31 downto 20) /= x"000" else '0';
@@ -156,9 +174,9 @@ begin
       rst_n_i => rst_n_i,
       clka_i  => clk_sys_i,
       bwea_i  => "1111",
-      wea_i   => '0',
-      aa_i    => im_addr(f_log2_size(g_IRAM_SIZE)+1 downto 2),
-      da_i    => (others => '0'),
+      wea_i   => ha_im_write,
+      aa_i    => im_addr_muxed(f_log2_size(g_IRAM_SIZE)+1 downto 2),
+      da_i    => ha_im_wdata,
       qa_o    => im_data,
       clkb_i  => clk_sys_i,
       bweb_i  => dm_data_select,
@@ -166,6 +184,27 @@ begin
       ab_i    => dm_addr(f_log2_size(g_IRAM_SIZE)+1 downto 2),
       db_i    => dm_data_s,
       qb_o    => dm_mem_rdata);
+
+  --  Host access to the CPU memory (through instruction port)
+  p_iram_host_access : process(clk_sys_i)
+  begin
+    if rising_edge(clk_sys_i) then
+      if rst_n_i = '0' then
+        ha_im_write <= '0';
+      else
+        if regs_in.udata_load_o = '1' then
+          ha_im_wdata <= f_swap_endian_32(regs_in.udata_o);
+          ha_im_write <= '1';
+        else
+          ha_im_write <= '0';
+        end if;
+
+        ha_im_addr(21 downto 0)  <= regs_in.uaddr_addr_o & "00";
+        ha_im_addr(31 downto 22) <= (others => '0');
+        regs_out.udata_i        <= f_swap_endian_32(im_data);
+      end if;
+    end if;
+  end process p_iram_host_access;
 
   -- Wishbone bus arbitration / internal RAM access
   p_wishbone_master : process(clk_sys_i)
@@ -240,6 +279,22 @@ begin
 
   dm_data_write <= not dm_is_wishbone and dm_store;
   dm_data_l     <= dm_wb_rdata when dm_select_wb = '1' else dm_mem_rdata;
+  im_addr_muxed <= ha_im_addr  when cpu_rst = '1'      else im_addr;
+
+  p_dbg_insn : process(clk_sys_i)
+  begin
+    if rising_edge(clk_sys_i) then
+      if rst_n_i = '0' then
+        dbg_insn <= c_INSN_NOP;
+      else
+        if regs_in.dbg_core0_insn_wr_o = '1' then
+          dbg_insn <= regs_in.dbg_core0_insn_o;
+        else
+          dbg_insn <= c_INSN_NOP;
+        end if;
+      end if;
+    end if;
+  end process p_dbg_insn;
 
   p_im_valid : process(clk_sys_i)
   begin
@@ -254,6 +309,6 @@ begin
     end if;
   end process p_im_valid;
 
-  cpu_rst        <= not rst_n_i;
+  cpu_rst        <= not rst_n_i or regs_in.reset_o(0);
 
 end architecture arch;
