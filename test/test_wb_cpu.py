@@ -77,6 +77,7 @@ def read_firmware_file(filename):
 def main():
     parser = argparse.ArgumentParser(description="Control CPU on White Rabbit Core via Etherbone.")
     parser.add_argument("--reset", action="store_true", help="Manually reset the CPU.")
+    parser.add_argument("--build-firmware", action="store_true", help="Build CPU firmware.")
     parser.add_argument("--load-firmware", metavar="FILE", help="Path to firmware binary for loading.")
     parser.add_argument("--dump-firmware", metavar="FILE", help="Filename to save dumped firmware.")
     parser.add_argument("--dump-length", type=int, default=DEFAULT_DUMP_LENGTH, help="Dump length in bytes.")
@@ -92,6 +93,10 @@ def main():
         print("Resetting CPU manually...")
         cpu.reset(1)
         cpu.reset(0)
+
+    # Build firmware
+    if args.build_firmware:
+        os.system("cd ../firmware && ./build.py")
 
     # Load firmware command
     if args.load_firmware:
