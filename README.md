@@ -142,23 +142,49 @@ Note: Adapt the IP addresses to your network configuration.
 [> Build the WR RISC-V firmware
 -------------------------------
 
-The WR Core integrates a RISC-V CPU running a WRPC firmware to configure and control peripherals and
-provide status/diagnostics through the WRC console.
+The WR Core includes a RISC-V CPU running a firmware that controls peripherals and provides
+diagnostics through the WRC console. This section explains how to rebuild and reload the firmware
+onto the CPU using the tools and scripts provided in this project.
 
-The project includes a pre-generated firmware integrated into the FPGA design at build-time. To
-rebuild the firmware:
+**Build the Firmware**
+
+To rebuild the firmware, use the following commands:
 
 ```sh
 cd firmware
 ./build.py
 ```
 
-This rebuilt firmware will then be used for the FPGA builds.
+The build.py script compiles the firmware using a specific RISC-V toolchain as recommended in the WRPC User Manual ([Section 2.2]
+(https://ohwr.org/project/wr-cores/wikis/uploads/7cf8d2161b6e5fa86348455bbd022196/wrpc-user-manual-v5.0.pdf)).
+If the toolchain is not already installed, build.py will automatically download and use it.
 
-This rebuilt firmware will then be used for the FPGA builds. [Section 2.2]
-(https://ohwr.org/project/wr-cores/wikis/uploads/7cf8d2161b6e5fa86348455bbd022196/wrpc-user-manual-v5.0.pdf)
-recommends using a specific RISC-V toolchain to build the firmware  which `build.py` automatically
-downloads (if not already done) and uses.
+
+**Reload the Firmware**
+
+The LiteX server is required to establish a remote connection to the Etherbone bus. To start the server over a UDP connection, use:
+
+```sh
+litex_server --udp
+```
+
+With the LiteX server running, navigate to the test directory and use the test_wb_cpu.py script to load the new firmware onto the CPU.
+
+```sh
+cd test
+./test_wb_cpu.py --build-firmware --load-firmware ../firmware/wrpc-sw/wrc.bin
+```
+
+This command will:
+- Build the firmware if --build-firmware is specified.
+- Load the firmware from the specified path onto the CPU.
+
+The script will display a progress bar while loading the firmware, like this:
+
+```sh
+Loading firmware from ../firmware/wrpc-sw/wrc.bin...
+Loading firmware: 100%|██████████████████████████████████| 30270/30270 [00:00<00:00,
+```
 
 [> SDB
 ------
