@@ -1046,8 +1046,8 @@ begin
       mux_snk_i   => mux_snk_in,
       mux_class_i => mux_class);
 
-  mux_class(0)  <= x"00"; /* FIXME: Disable filtering for tests */
-  mux_class(1)  <= x"00"; /* FIXME: Disable filtering for tests */
+  mux_class(0)  <= x"0f"; /* Redirect 0-3 Packet Classes to CPU. */
+  mux_class(1)  <= x"ff"; /* Redirect 0-7 Packet Classes (ie all) to Fabric Interface. */
   ext_src_adr_o <= mux_src_out(1).adr;
   ext_src_dat_o <= mux_src_out(1).dat;
   ext_src_stb_o <= mux_src_out(1).stb;
