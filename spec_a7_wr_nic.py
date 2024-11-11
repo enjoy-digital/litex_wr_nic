@@ -102,7 +102,7 @@ class BaseSoC(LiteXWRNICSoC):
         with_white_rabbit = True,
 
         # PCIe NIC.
-        with_pcie_nic     = True,
+        with_pcie_nic     = False,
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform(variant="xc7a50t")
@@ -149,7 +149,8 @@ class BaseSoC(LiteXWRNICSoC):
         uart_wr_pads    = UARTPads()
 
         self.uart_xover_phy = UARTPHY(uart_xover_pads, clk_freq=sys_clk_freq, baudrate=115200)
-        self.uart_xover     = UART(self.uart_xover_phy, rx_fifo_depth=128, rx_fifo_rx_we=True)
+        #self.uart_xover     = UART(self.uart_xover_phy, rx_fifo_depth=128, rx_fifo_rx_we=True)
+        self.uart_xover     = UART(self.uart_xover_phy, rx_fifo_depth=16, rx_fifo_rx_we=True)
 
         self.uart_control = CSRStorage(fields=[
             CSRField("sel", size=1, offset=0, values=[
@@ -345,20 +346,35 @@ class BaseSoC(LiteXWRNICSoC):
                 o_ready_for_reset_o   = Open(),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_ldac_n_o = dac_refclk_pads.ldac_n,
+
+                #o_dac_refclk_ldac_n_o = dac_refclk_pads.ldac_n,
+                #o_dac_refclk_clr_n_o  = Open(),
+                #o_dac_refclk_sclk_o   = dac_refclk_pads.sclk,
+                #o_dac_refclk_sync_n_o = dac_refclk_pads.sync_n,
+                #o_dac_refclk_sdi_o    = dac_refclk_pads.sdi,
+                #i_dac_refclk_sdo_i    = dac_refclk_pads.sdo,
+
+                o_dac_refclk_ldac_n_o = Open(),
                 o_dac_refclk_clr_n_o  = Open(),
-                o_dac_refclk_sclk_o   = dac_refclk_pads.sclk,
-                o_dac_refclk_sync_n_o = dac_refclk_pads.sync_n,
-                o_dac_refclk_sdi_o    = dac_refclk_pads.sdi,
-                i_dac_refclk_sdo_i    = dac_refclk_pads.sdo,
+                o_dac_refclk_sclk_o   = Open(),
+                o_dac_refclk_sync_n_o = Open(),
+                o_dac_refclk_sdi_o    = Open(),
+                i_dac_refclk_sdo_i    = 0b0,
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_ldac_n_o   = dac_dmtd_pads.ldac_n,
+                #o_dac_dmtd_ldac_n_o   = dac_dmtd_pads.ldac_n,
+                #o_dac_dmtd_clr_n_o    = Open(),
+                #o_dac_dmtd_sclk_o     = dac_dmtd_pads.sclk,
+                #o_dac_dmtd_sync_n_o   = dac_dmtd_pads.sync_n,
+                #o_dac_dmtd_sdi_o      = dac_dmtd_pads.sdi,
+                #i_dac_dmtd_sdo_i      = dac_dmtd_pads.sdo,
+
+                o_dac_dmtd_ldac_n_o   = Open(),
                 o_dac_dmtd_clr_n_o    = Open(),
-                o_dac_dmtd_sclk_o     = dac_dmtd_pads.sclk,
-                o_dac_dmtd_sync_n_o   = dac_dmtd_pads.sync_n,
-                o_dac_dmtd_sdi_o      = dac_dmtd_pads.sdi,
-                i_dac_dmtd_sdo_i      = dac_dmtd_pads.sdo,
+                o_dac_dmtd_sclk_o     = Open(),
+                o_dac_dmtd_sync_n_o   = Open(),
+                o_dac_dmtd_sdi_o      = Open(),
+                i_dac_dmtd_sdo_i      = 0b0,
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
@@ -475,6 +491,36 @@ class BaseSoC(LiteXWRNICSoC):
                 self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
             else:
                 self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
+
+         # White Rabbit RefClk / DMTD DAC Test -----------------------------------------------------
+
+        class AD5663RDAC(LiteXModule):
+            def __init__(self, pads):
+                self._value = CSRStorage(16)
+                self._load  = CSRStorage(1)
+
+                # # #
+
+                self.specials += Instance("cute_a7_serial_dac_arb",
+                    p_g_invert_sclk    = 0,
+                    p_g_num_data_bits  = 16,
+                    p_g_num_extra_bits = 8,
+
+                    i_clk_i        = ClockSignal("wr"),
+                    i_rst_n_i      = ~ResetSignal("wr"),
+
+                    i_val_i        = self._value.storage,
+                    i_load_i       = self._load.storage,
+
+                    o_dac_ldac_n_o = pads.ldac_n,
+                    o_dac_clr_n_o  = Open(),
+                    o_dac_sync_n_o = pads.sync_n,
+                    o_dac_sclk_o   = pads.sclk,
+                    o_dac_din_o    = pads.sdi,
+                )
+
+        self.refclk_dac = AD5663RDAC(pads=dac_refclk_pads)
+        self.dmtd_dac   = AD5663RDAC(pads=dac_dmtd_pads)
 
         # PCIe PTM ---------------------------------------------------------------------------------
 
