@@ -119,15 +119,15 @@ _io = [
 
     # PLL.
     ("pll", 0,
-        Subsignal("cs",     Pins(" V9")), # PLL_CS.
-        Subsignal("refsel", Pins("U15")), # PLL_REFSEL.
-        Subsignal("reset",  Pins("U11")), # PLL_RESET.
-        Subsignal("sclk",   Pins("V11")), # PLL_SCLK.
-        Subsignal("sdo",    Pins("U10")), # PLL_SDI.
-        Subsignal("sync",   Pins("P16")), # PLL_SYNC.
-        Subsignal("lock",   Pins("U16")), # PLL_LOCK.
-        Subsignal("sdi",    Pins(" U9")), # PLL_SDO.
-        Subsignal("stat",   Pins("V16")), # PLL_STAT.
+        Subsignal("cs_n",    Pins(" V9")), # PLL_CS.
+        Subsignal("refsel",  Pins("U15")), # PLL_REFSEL.
+        Subsignal("reset_n", Pins("U11")), # PLL_RESET.
+        Subsignal("sck",     Pins("V11")), # PLL_SCLK.
+        Subsignal("sdi",     Pins("U10")), # PLL_SDI.
+        Subsignal("sync_n",  Pins("P16")), # PLL_SYNC.
+        Subsignal("lock",    Pins("U16")), # PLL_LOCK.
+        Subsignal("sdo",     Pins(" U9")), # PLL_SDO.
+        Subsignal("stat",    Pins("V16")), # PLL_STAT.
         IOStandard("LVCMOS33"),
     ),
 
