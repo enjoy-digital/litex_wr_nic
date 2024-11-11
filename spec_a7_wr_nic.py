@@ -360,40 +360,40 @@ class BaseSoC(LiteXWRNICSoC):
                 o_ready_for_reset_o   = Open(),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_ldac_n_o = dac_refclk_pads.ldac_n,
-                o_dac_refclk_clr_n_o  = Open(),
-                o_dac_refclk_sclk_o   = dac_refclk_pads.sclk,
-                o_dac_refclk_sync_n_o = dac_refclk_pads.sync_n,
-                o_dac_refclk_sdi_o    = dac_refclk_pads.sdi,
-                i_dac_refclk_sdo_i    = dac_refclk_pads.sdo,
+                #o_dac_refclk_ldac_n_o = dac_refclk_pads.ldac_n,
+                #o_dac_refclk_clr_n_o  = Open(),
+                #o_dac_refclk_sclk_o   = dac_refclk_pads.sclk,
+                #o_dac_refclk_sync_n_o = dac_refclk_pads.sync_n,
+                #o_dac_refclk_sdi_o    = dac_refclk_pads.sdi,
+                #i_dac_refclk_sdo_i    = dac_refclk_pads.sdo,
 
                 o_dac_refclk_load     = dac_refclk_load,
                 o_dac_refclk_data     = dac_refclk_data,
 
-                #o_dac_refclk_ldac_n_o = Open(),
-                #o_dac_refclk_clr_n_o  = Open(),
-                #o_dac_refclk_sclk_o   = Open(),
-                #o_dac_refclk_sync_n_o = Open(),
-                #o_dac_refclk_sdi_o    = Open(),
-                #i_dac_refclk_sdo_i    = 0b0,
+                o_dac_refclk_ldac_n_o = Open(),
+                o_dac_refclk_clr_n_o  = Open(),
+                o_dac_refclk_sclk_o   = Open(),
+                o_dac_refclk_sync_n_o = Open(),
+                o_dac_refclk_sdi_o    = Open(),
+                i_dac_refclk_sdo_i    = 0b0,
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_ldac_n_o   = dac_dmtd_pads.ldac_n,
-                o_dac_dmtd_clr_n_o    = Open(),
-                o_dac_dmtd_sclk_o     = dac_dmtd_pads.sclk,
-                o_dac_dmtd_sync_n_o   = dac_dmtd_pads.sync_n,
-                o_dac_dmtd_sdi_o      = dac_dmtd_pads.sdi,
-                i_dac_dmtd_sdo_i      = dac_dmtd_pads.sdo,
+                #o_dac_dmtd_ldac_n_o   = dac_dmtd_pads.ldac_n,
+                #o_dac_dmtd_clr_n_o    = Open(),
+                #o_dac_dmtd_sclk_o     = dac_dmtd_pads.sclk,
+                #o_dac_dmtd_sync_n_o   = dac_dmtd_pads.sync_n,
+                #o_dac_dmtd_sdi_o      = dac_dmtd_pads.sdi,
+                #i_dac_dmtd_sdo_i      = dac_dmtd_pads.sdo,
 
                 o_dac_dmtd_load       = dac_dmtd_load,
                 o_dac_dmtd_data       = dac_dmtd_data,
 
-                #o_dac_dmtd_ldac_n_o   = Open(),
-                #o_dac_dmtd_clr_n_o    = Open(),
-                #o_dac_dmtd_sclk_o     = Open(),
-                #o_dac_dmtd_sync_n_o   = Open(),
-                #o_dac_dmtd_sdi_o      = Open(),
-                #i_dac_dmtd_sdo_i      = 0b0,
+                o_dac_dmtd_ldac_n_o   = Open(),
+                o_dac_dmtd_clr_n_o    = Open(),
+                o_dac_dmtd_sclk_o     = Open(),
+                o_dac_dmtd_sync_n_o   = Open(),
+                o_dac_dmtd_sdi_o      = Open(),
+                i_dac_dmtd_sdo_i      = 0b0,
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
@@ -514,11 +514,25 @@ class BaseSoC(LiteXWRNICSoC):
         # White Rabbit RefClk / DMTD DAC Test ------------------------------------------------------
 
         class AD5663RDAC(LiteXModule):
-            def __init__(self, pads):
-                self._value = CSRStorage(16)
+            def __init__(self, pads, load, value):
+                self._force = CSRStorage()
                 self._load  = CSRStorage(1)
+                self._value = CSRStorage(16)
 
                 # # #
+
+                load_i  = Signal()
+                value_i = Signal(16)
+
+                self.sync.wr += [
+                    If(self._force.storage,
+                        load_i.eq(self._load.storage),
+                        value_i.eq(self._value.storage),
+                    ).Else(
+                        load_i.eq(load),
+                        value_i.eq(value),
+                    )
+                ]
 
                 self.specials += Instance("serial_dac_arb",
                     p_g_invert_sclk    = 0,
@@ -528,8 +542,8 @@ class BaseSoC(LiteXWRNICSoC):
                     i_clk_i        = ClockSignal("wr"),
                     i_rst_n_i      = ~ResetSignal("wr"),
 
-                    i_val_i        = self._value.storage,
-                    i_load_i       = self._load.storage,
+                    i_val_i        = value_i,
+                    i_load_i       = load_i,
 
                     o_dac_ldac_n_o = pads.ldac_n,
                     o_dac_clr_n_o  = Open(),
@@ -538,8 +552,8 @@ class BaseSoC(LiteXWRNICSoC):
                     o_dac_din_o    = pads.sdi,
                 )
 
-        #self.refclk_dac = AD5663RDAC(pads=dac_refclk_pads)
-        #self.dmtd_dac   = AD5663RDAC(pads=dac_dmtd_pads)
+        self.refclk_dac = AD5663RDAC(pads=dac_refclk_pads, load=dac_refclk_load, value=dac_refclk_data)
+        self.dmtd_dac   = AD5663RDAC(pads=dac_dmtd_pads, load=dac_dmtd_load, value=dac_dmtd_data)
 
         # White Rabbit RefClk AD9516 PLL Test ------------------------------------------------------
 

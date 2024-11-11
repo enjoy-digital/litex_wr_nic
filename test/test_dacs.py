@@ -34,6 +34,8 @@ def ramp_dac(bus, dac_value, dac_load):
 
 def main():
     parser = argparse.ArgumentParser(description="Control DACs on White Rabbit Core via Etherbone.")
+    parser.add_argument("--force",           action="store_true", help="Force DAC Control.")
+    parser.add_argument("--unforce",         action="store_true", help="Unforce DAC Control.")
     parser.add_argument("--refclk-dac",      type=int,            help="Set value for RefClk DAC.")
     parser.add_argument("--dmtd-dac",        type=int,            help="Set value for DMTD DAC.")
     parser.add_argument("--refclk-dac-ramp", action="store_true", help="Enable continuous ramp for RefClk DAC.")
@@ -43,6 +45,16 @@ def main():
     # Open the bus connection.
     bus = RemoteClient()
     bus.open()
+
+    # Force.
+    if args.force:
+        bus.regs.refclk_dac_force.write(1)
+        bus.regs.dmtd_dac_force.write(1)
+
+    # Un-Force.
+    if args.unforce:
+        bus.regs.refclk_dac_force.write(0)
+        bus.regs.dmtd_dac_force.write(0)
 
     # Set the refclk DAC if specified.
     if args.refclk_dac is not None:
