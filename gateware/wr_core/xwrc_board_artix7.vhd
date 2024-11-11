@@ -479,7 +479,7 @@ begin  -- architecture struct
     generic map (
       g_simulation                => 0,
       g_with_external_clock_input => g_with_external_clock_input,
-      g_board_name                => "CLB3",
+      g_board_name                => "SPA7",
       g_phys_uart                 => TRUE,
       g_virtual_uart              => TRUE,
       g_aux_clks                  => g_aux_clks,
