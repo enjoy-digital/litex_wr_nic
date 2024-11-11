@@ -14,27 +14,33 @@ from litex.build.openfpgaloader   import OpenFPGALoader
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
-    # Clk / Rst.
-    ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")), # RESET.
-    ("clk62p5_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.
-    ("clk62p5", 1,
-        Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_P.
-        Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_N.
-    ),
+    # Rst.
+    ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")),       # RESET.
+
+    # Free-Running Clk / 125MHz.
     ("clk125_oe", 0, Pins("F14"), IOStandard("LVCMOS25")), # OE_125M.
     ("clk125",    0,
         Subsignal("p", Pins("E16"), IOStandard("DIFF_SSTL15")), # CLK_125MHZ_P.
         Subsignal("n", Pins("D16"), IOStandard("DIFF_SSTL15")), # CLK_125MHZ_N.
     ),
+
+    # RefClk (GTP) / 125MHz from 25MHz VCXO + AD9516 (X5).
+    ("refclk125", 0,
+        Subsignal("p", Pins("B6")), # MGTREFCLK1_P.
+        Subsignal("n", Pins("B5")), # MGTREFCLK1_N.
+    ),
+
+    # DMTD Clk / 62.5MHz from VCXO.
+    ("clk62p5_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.
+
+    # ExtClk / From 10MHz input.
     ("clk10_ext", 0,
         Subsignal("p", Pins("E13"), IOStandard("DIFF_SSTL15")), # EXT_CLK_P.
         Subsignal("n", Pins("D14"), IOStandard("DIFF_SSTL15")), # EXT_CLK_N.
     ),
-
-    # RefClk (GTP).
-    ("refclk125", 0,
-        Subsignal("p", Pins("B6")), # MGTREFCLK1_P.
-        Subsignal("n", Pins("B5")), # MGTREFCLK1_N.
+    ("clk62p5", 0,
+        Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_P.
+        Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_N.
     ),
 
     # Revision.
