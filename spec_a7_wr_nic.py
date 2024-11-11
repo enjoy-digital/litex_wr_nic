@@ -52,8 +52,8 @@ class _CRG(LiteXModule):
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
         if with_white_rabbit:
-            self.cd_clk_125m_gtp  = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
-            self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
+            self.cd_clk_125m_gtp  = ClockDomain()
+            self.cd_clk_125m_dmtd = ClockDomain()
 
         # # #
 
@@ -62,18 +62,26 @@ class _CRG(LiteXModule):
         clk125    = platform.request("clk125")
         self.comb += clk125_oe.eq(1)
 
-        clk62p5_dmtd = platform.request("clk62p5_dmtd")
-
-        # Main PLL.
+        # Sys PLL (Free-Running).
         self.pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk125, 125e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
-        if with_white_rabbit:
-            pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
-            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
 
-        # DMTD PLL.
+        # RefClk Input (125MHz from 25MHz VCXO + AD9516 (X5)).
+        refclk125_pads = platform.request("refclk125")
+        refclk125_se = Signal()
+        self.specials += Instance("IBUFDS_GTE2",
+            i_CEB = 0,
+            i_I   = refclk125_pads.p,
+            i_IB  = refclk125_pads.n,
+            o_O   = refclk125_se,
+        )
+        self.comb += self.cd_clk_125m_gtp.clk.eq(refclk125_se)
+        self.comb += self.cd_refclk_eth.clk.eq(refclk125_se)
+
+        # DMTD PLL (62.5MHz from VCXO).
+        clk62p5_dmtd = platform.request("clk62p5_dmtd")
         self.dmtd_pll = dmtd_pll = S7PLL(speedgrade=-2)
         self.comb += dmtd_pll.reset.eq(self.rst)
         dmtd_pll.register_clkin(clk62p5_dmtd, 62.5e6)
@@ -565,19 +573,10 @@ class BaseSoC(LiteXWRNICSoC):
 
         from gateware.measurement import MultiClkMeasurement
 
-        refclk125_pads = platform.request("refclk125")
-        refclk125_se = Signal()
-        self.specials += Instance("IBUFDS_GTE2",
-            i_CEB = 0,
-            i_I   = refclk125_pads.p,
-            i_IB  = refclk125_pads.n,
-            o_O   = refclk125_se,
-        )
-
         self.clk_measurement = MultiClkMeasurement(clks={
             "clk0" : ClockSignal("sys"),
-            "clk1" : refclk125_se,
-            "clk2" : 0,
+            "clk1" : ClockSignal("clk_125m_dmtd"),
+            "clk2" : ClockSignal("clk_125m_gtp"),
             "clk3" : 0,
         })
 
