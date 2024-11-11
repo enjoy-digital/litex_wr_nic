@@ -307,7 +307,7 @@ architecture struct of xwrc_board_artix7 is
   signal sfp_scl_in          : std_logic;
 
   -- AD5663R Serial DAC.
-  component cute_a7_serial_dac_arb is
+  component serial_dac_arb is
   generic(
       g_invert_sclk    : boolean;
       g_num_data_bits  : integer;
@@ -322,7 +322,7 @@ architecture struct of xwrc_board_artix7 is
       dac_sync_n_o     : out std_logic;
       dac_sclk_o       : out std_logic;
       dac_din_o        : out std_logic);
-  end component cute_a7_serial_dac_arb;
+  end component serial_dac_arb;
 
 begin  -- architecture struct
 
@@ -431,7 +431,7 @@ begin  -- architecture struct
   -- 2x SPI DAC
   -----------------------------------------------------------------------------
 
-  cmp_dmtd_dac : cute_a7_serial_dac_arb
+  cmp_dmtd_dac : serial_dac_arb
     generic map (
         g_invert_sclk    => FALSE,
         g_num_data_bits  => 16,
@@ -448,7 +448,7 @@ begin  -- architecture struct
         dac_din_o     => dac_dmtd_sdi_o
     );
 
-  cmp_refclk_dac : cute_a7_serial_dac_arb
+  cmp_refclk_dac : serial_dac_arb
     generic map (
         g_invert_sclk    => FALSE,
         g_num_data_bits  => 16,

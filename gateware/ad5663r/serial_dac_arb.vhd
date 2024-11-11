@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity cute_a7_serial_dac_arb is
+entity serial_dac_arb is
   generic(
     g_invert_sclk    : boolean;
     g_num_data_bits  : integer:=16;
@@ -21,11 +21,11 @@ entity cute_a7_serial_dac_arb is
     dac_sclk_o      : out std_logic;
     dac_din_o       : out std_logic);
 
-end cute_a7_serial_dac_arb;
+end serial_dac_arb;
 
-architecture behavioral of cute_a7_serial_dac_arb is
+architecture behavioral of serial_dac_arb is
 
-  component cute_a7_serial_dac
+  component serial_dac
     generic (
       g_num_data_bits  : integer;
       g_num_extra_bits : integer);
@@ -60,7 +60,7 @@ begin  -- behavioral
   dac_ldac_n_o  <= '0';
   dac_clr_n_o   <= '0';
   
-  U_DAC : cute_a7_serial_dac
+  U_DAC : serial_dac
     generic map (
       g_num_data_bits  => 16,
       g_num_extra_bits => g_num_extra_bits)

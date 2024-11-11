@@ -27,7 +27,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity cute_a7_serial_dac is
+entity serial_dac is
 
   generic (
     g_num_data_bits  : integer := 16;
@@ -53,10 +53,10 @@ entity cute_a7_serial_dac is
 
     xdone_o : out std_logic
     );
-end cute_a7_serial_dac;
+end serial_dac;
 
 
-architecture syn of cute_a7_serial_dac is
+architecture syn of serial_dac is
 
   signal divider        : unsigned(11 downto 0);
   signal datash         : std_logic_vector(g_num_data_bits + g_num_extra_bits-1 downto 0);

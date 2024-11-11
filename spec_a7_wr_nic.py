@@ -501,7 +501,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # # #
 
-                self.specials += Instance("cute_a7_serial_dac_arb",
+                self.specials += Instance("serial_dac_arb",
                     p_g_invert_sclk    = 0,
                     p_g_num_data_bits  = 16,
                     p_g_num_extra_bits = 8,
