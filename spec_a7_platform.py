@@ -104,7 +104,7 @@ _io = [
         Subsignal("tx_n",  Pins("H1 F1")), # PCIe_PET0-1_N.
     ),
 
-    # DACs.
+    # RefClk DAC.
     ("dac_refclk", 0,
         Subsignal("ldac_n", Pins("U12")), # DAC_LDAC.
         Subsignal("sync_n", Pins("V13")), # DAC_SYNC.
@@ -114,6 +114,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # DMTD DAC.
     ("dac_dmtd", 0,
         Subsignal("ldac_n", Pins("N17")), # DDMTD_LDAC.
         Subsignal("sync_n", Pins("M17")), # DDMTD_SYNC.
@@ -123,7 +124,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
-    # PLL.
+    # AD9516 RefClk PLL.
     ("pll", 0,
         Subsignal("cs_n",    Pins(" V9")), # PLL_CS.
         Subsignal("refsel",  Pins("U15")), # PLL_REFSEL.
@@ -134,6 +135,20 @@ _io = [
         Subsignal("lock",    Pins("U16")), # PLL_LOCK.
         Subsignal("sdo",     Pins(" U9")), # PLL_SDO.
         Subsignal("stat",    Pins("V16")), # PLL_STAT.
+        IOStandard("LVCMOS33"),
+    ),
+
+    # AD9516 Ext PLL.
+    ("ext_pll", 0,
+        Subsignal("cs_n",    Pins("R3")), # EXT_PLL_CS.
+        Subsignal("refsel",  Pins("L4")), # EXT_PLL_REFSEL.
+        Subsignal("reset_n", Pins("V6")), # EXT_PLL_RESET.
+        Subsignal("sck",     Pins("T2")), # EXT_PLL_SCLK.
+        Subsignal("sdi",     Pins("U4")), # EXT_PLL_SDI.
+        Subsignal("sync_n",  Pins("R2")), # EXT_PLL_SYNC.
+        Subsignal("lock",    Pins("L3")), # EXT_PLL_LOCK.
+        Subsignal("sdo",     Pins("V4")), # EXT_PLL_SDO.
+        Subsignal("stat",    Pins("R1")), # EXT_PLL_STAT.
         IOStandard("LVCMOS33"),
     ),
 
