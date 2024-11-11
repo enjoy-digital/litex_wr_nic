@@ -114,12 +114,18 @@ entity xwrc_board_artix7 is
     dac_refclk_sdi_o    : out std_logic;
     dac_refclk_sdo_i    : in  std_logic;
 
+    dac_refclk_load     : out std_logic;
+    dac_refclk_data     : out std_logic_vector(15 downto 0);
+
     dac_dmtd_ldac_n_o   : out std_logic;
     dac_dmtd_clr_n_o    : out std_logic;
     dac_dmtd_sclk_o     : out std_logic;
     dac_dmtd_sync_n_o   : out std_logic;
     dac_dmtd_sdi_o      : out std_logic;
     dac_dmtd_sdo_i      : in  std_logic;
+
+    dac_dmtd_load       : out std_logic;
+    dac_dmtd_data       : out std_logic_vector(15 downto 0);
 
     ---------------------------------------------------------------------------
     -- SFP I/O for transceiver and SFP management info
@@ -282,10 +288,10 @@ architecture struct of xwrc_board_artix7 is
   signal rstlogic_rst_out   : std_logic_vector(1 downto 0);
 
   -- PLL DACs
-  signal dac_dmtd_load   : std_logic;
-  signal dac_dmtd_data   : std_logic_vector(15 downto 0);
-  signal dac_refclk_load : std_logic;
-  signal dac_refclk_data : std_logic_vector(15 downto 0);
+  --signal dac_dmtd_load   : std_logic;
+  --signal dac_dmtd_data   : std_logic_vector(15 downto 0);
+  --signal dac_refclk_load : std_logic;
+  --signal dac_refclk_data : std_logic_vector(15 downto 0);
 
   -- OneWire
   signal onewire_in : std_logic_vector(1 downto 0);

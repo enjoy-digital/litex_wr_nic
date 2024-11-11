@@ -69,12 +69,18 @@ entity xwrc_board_artix7_wrapper is
     dac_refclk_sdi_o    : out std_logic;
     dac_refclk_sdo_i    : in  std_logic;
 
+    dac_refclk_load     : out std_logic;
+    dac_refclk_data     : out std_logic_vector(15 downto 0);
+
     dac_dmtd_ldac_n_o   : out std_logic;
     dac_dmtd_clr_n_o    : out std_logic;
     dac_dmtd_sclk_o     : out std_logic;
     dac_dmtd_sync_n_o   : out std_logic;
     dac_dmtd_sdi_o      : out std_logic;
     dac_dmtd_sdo_i      : in  std_logic;
+
+    dac_dmtd_load       : out std_logic;
+    dac_dmtd_data       : out std_logic_vector(15 downto 0);
 
     -- SFP I/O for transceiver and SFP management info
     sfp_txp_o            : out std_logic;
@@ -266,12 +272,16 @@ begin
       dac_refclk_sync_n_o  => dac_refclk_sync_n_o,
       dac_refclk_sdi_o     => dac_refclk_sdi_o,
       dac_refclk_sdo_i     => dac_refclk_sdo_i,
+      dac_refclk_load      => dac_refclk_load,
+      dac_refclk_data      => dac_refclk_data,
       dac_dmtd_ldac_n_o    => dac_dmtd_ldac_n_o,
       dac_dmtd_clr_n_o     => dac_dmtd_clr_n_o,
       dac_dmtd_sclk_o      => dac_dmtd_sclk_o,
       dac_dmtd_sync_n_o    => dac_dmtd_sync_n_o,
       dac_dmtd_sdi_o       => dac_dmtd_sdi_o,
       dac_dmtd_sdo_i       => dac_dmtd_sdo_i,
+      dac_dmtd_load        => dac_dmtd_load,
+      dac_dmtd_data        => dac_dmtd_data,
       sfp_txp_o            => sfp_txp_o,
       sfp_txn_o            => sfp_txn_o,
       sfp_rxp_i            => sfp_rxp_i,

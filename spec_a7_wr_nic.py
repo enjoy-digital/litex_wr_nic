@@ -297,6 +297,12 @@ class BaseSoC(LiteXWRNICSoC):
                 platform.request("user_led", 3).eq(~led_fake_pps),
             ]
 
+            dac_refclk_load = Signal()
+            dac_refclk_data = Signal(16)
+
+            dac_dmtd_load = Signal()
+            dac_dmtd_data = Signal(16)
+
             # Clks.
             # -----
             self.cd_wr = ClockDomain("wr")
@@ -361,6 +367,9 @@ class BaseSoC(LiteXWRNICSoC):
                 o_dac_refclk_sdi_o    = dac_refclk_pads.sdi,
                 i_dac_refclk_sdo_i    = dac_refclk_pads.sdo,
 
+                o_dac_refclk_load     = dac_refclk_load,
+                o_dac_refclk_data     = dac_refclk_data,
+
                 #o_dac_refclk_ldac_n_o = Open(),
                 #o_dac_refclk_clr_n_o  = Open(),
                 #o_dac_refclk_sclk_o   = Open(),
@@ -375,6 +384,9 @@ class BaseSoC(LiteXWRNICSoC):
                 o_dac_dmtd_sync_n_o   = dac_dmtd_pads.sync_n,
                 o_dac_dmtd_sdi_o      = dac_dmtd_pads.sdi,
                 i_dac_dmtd_sdo_i      = dac_dmtd_pads.sdo,
+
+                o_dac_dmtd_load       = dac_dmtd_load,
+                o_dac_dmtd_data       = dac_dmtd_data,
 
                 #o_dac_dmtd_ldac_n_o   = Open(),
                 #o_dac_dmtd_clr_n_o    = Open(),
@@ -572,12 +584,35 @@ class BaseSoC(LiteXWRNICSoC):
 
         from gateware.measurement import MultiClkMeasurement
 
+
+        # White Rabbit Clk Measurement -------------------------------------------------------------
+
         self.clk_measurement = MultiClkMeasurement(clks={
             "clk0" : ClockSignal("sys"),
             "clk1" : ClockSignal("clk_125m_dmtd"),
             "clk2" : ClockSignal("clk_125m_gtp"),
             "clk3" : 0,
         })
+
+        # White Rabbit SoftPLL Measurement ---------------------------------------------------------
+
+        class SoftPLLMeasurement(LiteXModule):
+            def __init__(self):
+                self.dac_refclk = CSRStatus(16)
+                self.dac_dmtd   = CSRStatus(16)
+
+                # # #
+
+                self.sync.wr += [
+                    If(dac_refclk_data,
+                        self.dac_refclk.status.eq(dac_refclk_data),
+                    ),
+                    If(dac_dmtd_load,
+                        self.dac_dmtd.status.eq(dac_dmtd_data),
+                    ),
+                ]
+
+        self.soft_pll_measurement = SoftPLLMeasurement()
 
         # PCIe PTM ---------------------------------------------------------------------------------
 
