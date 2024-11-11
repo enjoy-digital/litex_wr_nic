@@ -563,6 +563,24 @@ class BaseSoC(LiteXWRNICSoC):
 
         self.ad9516_pll = AD9516PLL(pads=ad9516_pll_pads)
 
+        from gateware.measurement import MultiClkMeasurement
+
+        refclk125_pads = platform.request("refclk125")
+        refclk125_se = Signal()
+        self.specials += Instance("IBUFDS_GTE2",
+            i_CEB = 0,
+            i_I   = refclk125_pads.p,
+            i_IB  = refclk125_pads.n,
+            o_O   = refclk125_se,
+        )
+
+        self.clk_measurement = MultiClkMeasurement(clks={
+            "clk0" : ClockSignal("sys"),
+            "clk1" : refclk125_se,
+            "clk2" : 0,
+            "clk3" : 0,
+        })
+
         # PCIe PTM ---------------------------------------------------------------------------------
 
         if with_pcie_ptm:
