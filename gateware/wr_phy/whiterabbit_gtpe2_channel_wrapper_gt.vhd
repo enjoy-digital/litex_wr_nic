@@ -148,7 +148,10 @@ port
     ------------- Transmit Ports - TX Initialization and Reset Ports -----------
     txresetdone_out                         : out  std_logic;
     ------------------ Transmit Ports - pattern Generator Ports ----------------
-    txprbssel_in                            : in   std_logic_vector(2 downto 0)
+    txprbssel_in                            : in   std_logic_vector(2 downto 0);
+
+    txpippmen                               : in std_logic;
+    txpippmstepsize                         : in std_logic_vector(4 downto 0)
 
 );
 
@@ -831,11 +834,12 @@ begin
         PCSRSVDOUT                      =>      open,
         TXUSERRDY                       =>      TXUSERRDY_IN,
         ----------------- TX Phase Interpolator PPM Controller Ports ---------------
-        TXPIPPMEN                       =>      tied_to_ground_i,
+        TXPIPPMEN                       =>      txpippmen,
         TXPIPPMOVRDEN                   =>      tied_to_ground_i,
         TXPIPPMPD                       =>      tied_to_ground_i,
         TXPIPPMSEL                      =>      tied_to_vcc_i,
-        TXPIPPMSTEPSIZE                 =>      tied_to_ground_vec_i(4 downto 0),
+        TXPIPPMSTEPSIZE                 =>      txpippmstepsize,
+
         ---------------------- Transceiver Reset Mode Operation --------------------
         GTRESETSEL                      =>      tied_to_ground_i,
         RESETOVRD                       =>      tied_to_ground_i,

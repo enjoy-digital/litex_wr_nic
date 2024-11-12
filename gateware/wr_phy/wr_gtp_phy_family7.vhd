@@ -125,7 +125,11 @@ entity wr_gtp_phy_family7 is
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
-    GT0_EXT_QPLL_LOCK   : in  std_logic
+    GT0_EXT_QPLL_LOCK   : in  std_logic;
+
+    txpippmen       : in std_logic;
+    txpippmstepsize : in std_logic_vector(4 downto 0)
+
   );
 end entity wr_gtp_phy_family7;
 
@@ -409,7 +413,10 @@ begin
     GT0_PLL1RESET_IN         =>  pll1_reset,
     GT0_PLL1PD_IN            =>  pll1_pd,
     GT0_EXT_QPLL_CLK         => GT0_EXT_QPLL_CLK,
-    GT0_EXT_QPLL_REFCLK      => GT0_EXT_QPLL_REFCLK
+    GT0_EXT_QPLL_REFCLK      => GT0_EXT_QPLL_REFCLK,
+
+    txpippmen                => txpippmen,
+    txpippmstepsize          => txpippmstepsize
   );
 
   gen_pll0_support: if g_gtp_enable_pll0 = '1' generate
