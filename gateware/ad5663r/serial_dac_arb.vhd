@@ -69,7 +69,7 @@ begin  -- behavioral
       rst_n_i       => rst_n_i,
       value_i       => dac_value,   
       load_i        => dac_load,
-      sclk_divsel_i => "001",
+      sclk_divsel_i => "000",
       plldac_sclk_o   => dac_sclk_int,
       plldac_sdata_o  => dac_din_o,
       plldac_sync_n_o => dac_sync_n_o,
