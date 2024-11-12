@@ -227,7 +227,7 @@ class BaseSoC(LiteXWRNICSoC):
                     ndmas                = 1,
                     address_width        = 64,
                     with_ptm             = True,
-                    max_pending_requests = 4,
+                    max_pending_requests = 2,
                 )
 
         # White Rabbit -----------------------------------------------------------------------------
@@ -303,6 +303,9 @@ class BaseSoC(LiteXWRNICSoC):
             dac_dmtd_load = Signal()
             dac_dmtd_data = Signal(16)
 
+            pps_p_o          = Signal()
+            clk_ref_locked_o = Signal()
+
             # Clks.
             # -----
             self.cd_wr = ClockDomain("wr")
@@ -352,7 +355,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = clk10_ext,
 
-                o_clk_ref_locked_o    = Open(),
+                o_clk_ref_locked_o    = clk_ref_locked_o,
                 o_dbg_rdy_o           = Open(),
                 o_ext_ref_rst_o       = Open(),
                 o_clk_ref_62m5_o      = Open(),
@@ -423,7 +426,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # PPS / Leds.
                 i_pps_ext_i           = 0,
-                o_pps_p_o             = Open(),
+                o_pps_p_o             = pps_p_o,
                 o_pps_led_o           = led_pps,
                 o_led_link_o          = led_link,
                 o_led_act_o           = led_act,
@@ -618,15 +621,33 @@ class BaseSoC(LiteXWRNICSoC):
                 # # #
 
                 self.sync.wr += [
-                    If(dac_refclk_data,
-                        self.dac_refclk.status.eq(dac_refclk_data),
+                    If(dac_refclk_load,
+                        self.dac_refclk.status.eq(dac_refclk_data)
                     ),
                     If(dac_dmtd_load,
-                        self.dac_dmtd.status.eq(dac_dmtd_data),
+                        self.dac_dmtd.status.eq(dac_dmtd_data)
                     ),
                 ]
 
         self.soft_pll_measurement = SoftPLLMeasurement()
+
+        # White Rabbit LiteScope Analyzer ----------------------------------------------------------
+
+        analyzer_signals = [
+            pps_p_o,
+            clk_ref_locked_o,
+            dac_refclk_load,
+            self.soft_pll_measurement.dac_refclk.status,
+            dac_dmtd_load,
+            self.soft_pll_measurement.dac_dmtd.status,
+        ]
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            depth        = 512,
+            clock_domain = "wr",
+            samplerate   = int(62.5e6),
+            register     = True,
+            csr_csv      = "test/analyzer.csv"
+        )
 
         # PCIe PTM ---------------------------------------------------------------------------------
 
