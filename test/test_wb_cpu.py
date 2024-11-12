@@ -9,6 +9,7 @@
 
 import os
 import sys
+import time
 import argparse
 from tqdm import tqdm
 from litex import RemoteClient
@@ -50,6 +51,7 @@ class CPU:
         for i in tqdm(range(0, len(firmware_data), 4), desc="Loading firmware", unit="word"):
             word = int.from_bytes(firmware_data[i:i+4], byteorder='big')
             self.ram_write(i // 4, word)
+            time.sleep(1e-4) # CHECKME: Required over JTAG.
         self.reset(0)  # Release CPU reset
 
     def dump_firmware(self, length):
