@@ -52,8 +52,8 @@ class _CRG(LiteXModule):
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
         if with_white_rabbit:
-            self.cd_clk_125m_gtp  = ClockDomain()
-            self.cd_clk_125m_dmtd = ClockDomain()
+            self.cd_clk_125m_gtp   = ClockDomain()
+            self.cd_clk_62p5m_dmtd = ClockDomain()
 
         # # #
 
@@ -81,18 +81,19 @@ class _CRG(LiteXModule):
         self.comb += self.cd_refclk_eth.clk.eq(refclk125_se)
 
         # DMTD PLL (62.5MHz from VCXO).
-        clk62p5_dmtd = platform.request("clk62p5_dmtd")
-        self.dmtd_pll = dmtd_pll = S7PLL(speedgrade=-2)
-        self.comb += dmtd_pll.reset.eq(self.rst)
-        dmtd_pll.register_clkin(clk62p5_dmtd, 62.5e6)
-        dmtd_pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
+        #clk62p5_dmtd = platform.request("clk62p5_dmtd")
+        #self.dmtd_pll = dmtd_pll = S7PLL(speedgrade=-2)
+        #self.comb += dmtd_pll.reset.eq(self.rst)
+        #dmtd_pll.register_clkin(clk62p5_dmtd, 62.5e6)
+        #dmtd_pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
+        self.comb += self.cd_clk_62p5m_dmtd.clk.eq(platform.request("clk62p5_dmtd"))
 
         # False Paths.
         if with_white_rabbit:
             platform.add_false_path_constraints(
                 pll.clkin,
                 self.cd_sys.clk,
-                self.cd_clk_125m_dmtd.clk,
+                self.cd_clk_62p5m_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
             )
         else:
@@ -354,7 +355,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # Clocks/resets.
                 i_areset_n_i          = ~ResetSignal("sys"),
-                i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
+                i_clk_125m_dmtd_i     = ClockSignal("clk_62p5m_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = clk10_ext,
 
@@ -613,7 +614,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         self.clk_measurement = MultiClkMeasurement(clks={
             "clk0" : ClockSignal("sys"),
-            "clk1" : ClockSignal("clk_125m_dmtd"),
+            "clk1" : ClockSignal("clk_62p5m_dmtd"),
             "clk2" : ClockSignal("clk_125m_gtp"),
             "clk3" : 0,
         })

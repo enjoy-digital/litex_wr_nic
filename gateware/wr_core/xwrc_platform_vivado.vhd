@@ -409,21 +409,17 @@ begin  -- architecture rtl
 
       begin
       -- DMTD Div2 (124.9920 MHz -> 62,496 MHz)
-        process(clk_125m_dmtd_i)
-        begin
-          if rising_edge(clk_125m_dmtd_i) then
-            clk_dmtd <= not clk_dmtd;
-          end if;
-        end process;
+      --  process(clk_125m_dmtd_i)
+      --  begin
+      --    if rising_edge(clk_125m_dmtd_i) then
+      --      clk_dmtd <= not clk_dmtd;
+      --    end if;
+      --  end process;
+
+        clk_62m5_dmtd_o <= clk_125m_dmtd_i; -- FIXME: Cleanup.
 
         pll_dmtd_locked <= '1';
       end generate gen_kintex7_artix7_direct_dmtd;
-
-      -- DMTD PLL output clock buffer
-      cmp_clk_dmtd_buf_o : BUFG
-        port map (
-          O => clk_62m5_dmtd_o,
-          I => clk_dmtd);
 
       -- External 10MHz reference PLL for Kintex7
       gen_kintex7_artix7_ext_ref_pll : if (g_with_external_clock_input = TRUE) generate
