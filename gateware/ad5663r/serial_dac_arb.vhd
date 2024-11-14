@@ -110,7 +110,7 @@ begin  -- behavioral
               end if;
 
             when ENABLE_INT_REF =>
-              dac_value <= "0100"&"000000"&"00000000000000";  -- Enable internal reference
+              dac_value <= "0100"&"000010"&"00000000000000";  -- Enable internal reference and X2 Gain.
               dac_load  <= '1';
               state <= LOAD_DAC;
               
