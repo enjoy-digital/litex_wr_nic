@@ -107,7 +107,7 @@ class BaseSoC(LiteXWRNICSoC):
         with_white_rabbit = True,
 
         # PCIe NIC.
-        with_pcie_nic     = True,
+        with_pcie_nic     = False,
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
@@ -154,7 +154,7 @@ class BaseSoC(LiteXWRNICSoC):
         uart_wr_pads    = UARTPads()
 
         self.uart_xover_phy = UARTPHY(uart_xover_pads, clk_freq=sys_clk_freq, baudrate=115200)
-        self.uart_xover     = UART(self.uart_xover_phy, rx_fifo_depth=128, rx_fifo_rx_we=True)
+        self.uart_xover     = UART(self.uart_xover_phy, rx_fifo_depth=16, rx_fifo_rx_we=True)
 
         self.uart_control = CSRStorage(fields=[
             CSRField("sel", size=1, offset=0, values=[
@@ -466,8 +466,16 @@ def main():
 
     args = parser.parse_args()
 
-    # Build SoC.
-    # ----------
+    # Build Firmware.
+    # ---------------
+    if args.build:
+        print("Building firmware...")
+        r = os.system("cd firmware && ./build.py")
+        if r != 0:
+            raise RuntimeError("Firmware build failed.")
+
+    # Build SoC/Gateware (with integrated Firmware).
+    # ----------------------------------------------
     soc = BaseSoC()
     if args.with_wishbone_fabric_interface_probe:
         soc.add_wishbone_fabric_interface_probe()
