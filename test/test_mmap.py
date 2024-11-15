@@ -7,10 +7,16 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import argparse
 from litex import RemoteClient
 
-# Define the memory map regions
-memory_map = {
+# Constants ----------------------------------------------------------------------------------------
+
+BASE_ADDRESS = 0x2000_0000
+REGION_SIZE  = 0x100  # Each region spans 256 bytes (0x100)
+WORD_SIZE    = 4      # 4 bytes per word
+
+MEMORY_MAP = {
     "Minic"                       : 0x20000,
     "Endpoint"                    : 0x20100,
     "Softpll"                     : 0x20200,
@@ -25,19 +31,58 @@ memory_map = {
     "Secbar SDB"                  : 0x20c00,
 }
 
+# Memory Reader ------------------------------------------------------------------------------------
+
+class MemoryReader:
+    def __init__(self, client):
+        self.client = client
+
+    def read_region(self, name, base_address):
+        """Reads and dumps memory for a given region."""
+        print(f"Dumping region: {name}")
+        for offset in range(0, REGION_SIZE, WORD_SIZE):
+            address = BASE_ADDRESS + base_address + offset
+            value   = self.client.read(address)
+            print(f"  Address 0x{address:08x}: 0x{value:08x}")
+
+# Utilities ----------------------------------------------------------------------------------------
+
+def list_regions():
+    """List all available memory regions."""
+    print("Available regions:")
+    for name, base_address in MEMORY_MAP.items():
+        print(f"  {name:30} Base Address: 0x{BASE_ADDRESS + base_address:08x}")
+
+# Main ---------------------------------------------------------------------------------------------
+
 def main():
+    parser = argparse.ArgumentParser(description="Dump memory-mapped regions via Etherbone.")
+    parser.add_argument("--list",   action="store_true", help="List available memory regions.")
+    parser.add_argument("--region", type=str,            help="Specific region to dump (default: all).")
+    args = parser.parse_args()
+
+    # List Regions.
+    if args.list:
+        list_regions()
+        return
+
     # Connect to the LiteX server
     client = RemoteClient()
     client.open()
 
-    # Read and print values from each region
-    print("Dumping MMAP ranges:")
-    for component, base_address in memory_map.items():
-        print(f"Component: {component}")
-        for offset in range(0x0, 0x100, 0x4):
-            address = 0x2000_0000 + base_address + offset
-            value = client.read(address)  # Read 32-bit value from the address
-            print(f"  Address 0x{address:04x}: 0x{value:08x}")
+    reader = MemoryReader(client)
+
+    # Dump specific or all regions
+    if args.region:
+        region_name = args.region
+        if region_name in MEMORY_MAP:
+            reader.read_region(region_name, MEMORY_MAP[region_name])
+        else:
+            print(f"Error: Region '{region_name}' not found in memory map.")
+    else:
+        print("Dumping all regions...")
+        for name, base_address in MEMORY_MAP.items():
+            reader.read_region(name, base_address)
 
     # Close the client connection
     client.close()
