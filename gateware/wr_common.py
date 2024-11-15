@@ -206,7 +206,7 @@ wr_core_files = [
     "wr-cores/modules/wrc_core/wrc_periph.vhd",
     "wr-cores/modules/wrc_core/wrc_syscon_pkg.vhd",
     "wr-cores/modules/wrc_core/wrc_syscon_wb.vhd",
-    #"wr-cores/modules/wrc_core/wrc_urv_wrapper.vhd",
+    "wr-cores/modules/wrc_core/wrc_urv_wrapper.vhd",
     "wr-cores/modules/wrc_core/wrcore_pkg.vhd",
     "wr-cores/modules/wrc_core/xwr_core.vhd",
 
@@ -222,9 +222,6 @@ wr_core_files = [
     "gateware/ad5663r/serial_dac.vhd",
     "gateware/ad5663r/serial_dac_arb.vhd",
 
-    # WR uRV Modules.
-    "gateware/wrc_urv_wrapper.vhd",
-
     # WR PHY Modules.
     "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper.vhd",
     "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
@@ -232,7 +229,7 @@ wr_core_files = [
 
     # WR Core Modules.
     "gateware/wr-cores/modules/fabric/xwrf_mux.vhd",
-    "gateware/wr_core/wr_core.vhd",
+    "gateware/wr-cores/modules/wrc_core/wr_core.vhd",
     "gateware/wr_core/xwrc_platform_vivado.vhd",
     "gateware/wr_core/xwrc_board_artix7.vhd",
     "gateware/wr_core/xwrc_board_artix7_wrapper.vhd",
