@@ -21,6 +21,8 @@
 
 import argparse
 
+from migen.genlib.cdc import MultiReg
+
 from litex.gen import *
 
 from spec_a7_platform import *
@@ -301,7 +303,8 @@ class BaseSoC(LiteXWRNICSoC):
             dac_refclk_data = Signal(16)
             dac_dmtd_load   = Signal()
             dac_dmtd_data   = Signal(16)
-            pps_p_o         = Signal()
+            pps_in          = Signal()
+            pps_out         = Signal()
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -400,7 +403,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # PPS / Leds.
                 i_pps_ext_i           = 0,
-                o_pps_p_o             = pps_p_o,
+                o_pps_p_o             = pps_out,
                 o_pps_led_o           = led_pps,
                 o_led_link_o          = led_link,
                 o_led_act_o           = led_act,
@@ -433,9 +436,9 @@ class BaseSoC(LiteXWRNICSoC):
                 o_wrf_src_sel         = wrf_wb2stream.bus.sel,
 
                 i_wrf_src_ack         = wrf_wb2stream.bus.ack,
-                i_wrf_src_stall       = 0, # CHECKME.
+                i_wrf_src_stall       = 0, # Not Used.
                 i_wrf_src_err         = wrf_wb2stream.bus.err,
-                i_wrf_src_rty         = 0, # CHECKME.
+                i_wrf_src_rty         = 0, # Not Used.
 
                 # Wishbone Fabric Sink Interface.
                 i_wrf_snk_adr         = wrf_stream2wb.bus.adr,
@@ -446,18 +449,16 @@ class BaseSoC(LiteXWRNICSoC):
                 i_wrf_snk_sel         = wrf_stream2wb.bus.sel,
 
                 o_wrf_snk_ack         = wrf_stream2wb.bus.ack,
-                o_wrf_snk_stall       = Open(), # CHECKME.
+                o_wrf_snk_stall       = Open(), # Not Used.
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
-                o_wrf_snk_rty         = Open(), # CHECKME.
+                o_wrf_snk_rty         = Open(), # Not Used.
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
 
             # PPS Output.
-            pps_p_o_d = Signal(16)
-            self.sync.wr += pps_p_o_d.eq(pps_p_o)
             for i in range(5):
-                self.sync.wr += platform.request("gpio", i).eq(pps_p_o_d)
+                self.specials += MultiReg(i=pps_out, o=platform.request("gpio", i), odomain="wr", n=2) # FIXME: Calibrate board to avoid it and reach sub-ns timings.
 
             # Leds Output.
             self.comb += [

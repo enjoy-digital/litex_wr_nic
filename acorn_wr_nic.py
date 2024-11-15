@@ -9,6 +9,8 @@
 
 import argparse
 
+from migen.genlib.cdc import MultiReg
+
 from litex.gen import *
 
 from litex_boards.platforms import sqrl_acorn
@@ -354,9 +356,9 @@ class BaseSoC(LiteXWRNICSoC):
                 o_wrf_src_sel         = wrf_wb2stream.bus.sel,
 
                 i_wrf_src_ack         = wrf_wb2stream.bus.ack,
-                i_wrf_src_stall       = 0, # CHECKME.
+                i_wrf_src_stall       = 0, # Not Used.
                 i_wrf_src_err         = wrf_wb2stream.bus.err,
-                i_wrf_src_rty         = 0, # CHECKME.
+                i_wrf_src_rty         = 0, # Not Used.
 
                 # Wishbone Fabric Sink Interface.
                 i_wrf_snk_adr         = wrf_stream2wb.bus.adr,
@@ -367,9 +369,9 @@ class BaseSoC(LiteXWRNICSoC):
                 i_wrf_snk_sel         = wrf_stream2wb.bus.sel,
 
                 o_wrf_snk_ack         = wrf_stream2wb.bus.ack,
-                o_wrf_snk_stall       = Open(), # CHECKME.
+                o_wrf_snk_stall       = Open(), # Not Used.
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
-                o_wrf_snk_rty         = Open(), # CHECKME.
+                o_wrf_snk_rty         = Open(), # Not Used.
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
