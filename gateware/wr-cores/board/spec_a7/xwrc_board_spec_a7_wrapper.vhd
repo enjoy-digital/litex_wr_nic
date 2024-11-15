@@ -1,5 +1,5 @@
 --
--- This file is part of LiteX-WR-NIC.
+-- This file is part of SPEC-A7.
 --
 -- Copyright (c) 2024 Warsaw University of Technology
 -- Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
@@ -22,7 +22,7 @@ use work.streamers_pkg.all;
 use work.wr_xilinx_pkg.all;
 use work.wr_board_pkg.all;
 
-entity xwrc_board_litex_wr_nic_wrapper is
+entity xwrc_board_spec_a7_wrapper is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean := TRUE;
@@ -167,9 +167,9 @@ entity xwrc_board_litex_wr_nic_wrapper is
     txpippmen       : in std_logic;
     txpippmstepsize : in std_logic_vector(4 downto 0)
   );
-end xwrc_board_litex_wr_nic_wrapper;
+end xwrc_board_spec_a7_wrapper;
 
-architecture wrapper of xwrc_board_litex_wr_nic_wrapper is
+architecture wrapper of xwrc_board_spec_a7_wrapper is
 
   signal wrf_src_o : t_wrf_source_out;
   signal wrf_src_i : t_wrf_source_in := c_dummy_src_in;
@@ -224,8 +224,8 @@ begin
   wb_slave_rty    <= wb_slave_o.rty;
   wb_slave_stall  <= wb_slave_o.stall;
 
-  -- xwrc_board_litex_wr_nic Instance.
-  u_xwrc_board_litex_wr_nic : entity work.xwrc_board_litex_wr_nic
+  -- xwrc_board_spec_a7 Instance.
+  u_xwrc_board_spec_a7 : entity work.xwrc_board_spec_a7
     generic map (
       g_with_external_clock_input => g_with_external_clock_input,
       g_aux_clks                  => g_aux_clks,

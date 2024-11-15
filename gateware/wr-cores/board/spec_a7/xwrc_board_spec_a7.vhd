@@ -1,11 +1,11 @@
 -------------------------------------------------------------------------------
--- Title      : WRPC Wrapper for LiteX-WR-NIC.
+-- Title      : WRPC Wrapper for SPEC-A7
 -- Project    : WR PTP Core
 -- URL        : http://www.ohwr.org/projects/wr-cores/wiki/Wrpc_core
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -- Description: Top-level wrapper for WR PTP core including all the modules
--- needed to operate the core on the SPECA7 board.
+-- needed to operate the core on the SPEC-A7 board.
 -------------------------------------------------------------------------------
 -- Copyright (c) 2017 Nikhef
 -- Copyright (c) 2024 Warsaw University of Technology
@@ -47,7 +47,7 @@ use work.wr_board_pkg.all;
 library unisim;
 use unisim.vcomponents.all;
 
-entity xwrc_board_litex_wr_nic is
+entity xwrc_board_spec_a7 is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean              := TRUE;
@@ -247,9 +247,9 @@ entity xwrc_board_litex_wr_nic is
     txpippmstepsize : in std_logic_vector(4 downto 0)
     );
 
-end entity xwrc_board_litex_wr_nic;
+end entity xwrc_board_spec_a7;
 
-architecture struct of xwrc_board_litex_wr_nic is
+architecture struct of xwrc_board_spec_a7 is
 
   -----------------------------------------------------------------------------
   -- Signals
