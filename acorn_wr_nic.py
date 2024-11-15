@@ -66,8 +66,8 @@ class _CRG(LiteXModule):
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
         if with_white_rabbit:
-            self.cd_clk_125m_gtp   = ClockDomain() # Fake: No VCXO.
-            self.cd_clk_62p5m_dmtd = ClockDomain() # Fake: No VCXO.
+            self.cd_clk_125m_gtp  = ClockDomain() # Fake: No VCXO.
+            self.cd_clk_62m5_dmtd = ClockDomain() # Fake: No VCXO.
 
         # # #
 
@@ -88,7 +88,7 @@ class _CRG(LiteXModule):
 
         # DMTD PLL (62.5MHz from VCXO).
         # -----------------------------
-        pll.create_clkout(self.cd_clk_62p5m_dmtd, 125e6, margin=0)
+        pll.create_clkout(self.cd_clk_62m5_dmtd, 125e6, margin=0)
 
         # False Paths.
         # ------------
@@ -96,7 +96,7 @@ class _CRG(LiteXModule):
             platform.add_false_path_constraints(
                 pll.clkin,
                 self.cd_sys.clk,
-                self.cd_clk_62p5m_dmtd.clk,
+                self.cd_clk_62m5_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
             )
         else:
@@ -280,7 +280,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # Clocks/resets.
                 i_areset_n_i          = ~ResetSignal("sys"),
-                i_clk_62p5m_dmtd_i    = ClockSignal("clk_62p5m_dmtd"),
+                i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = 0,
                 o_clk_62m5_sys_o      = ClockSignal("wr"),

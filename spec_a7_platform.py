@@ -31,14 +31,14 @@ _io = [
     ),
 
     # DMTD Clk / 62.5MHz from VCXO.
-    ("clk62p5_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.
+    ("clk62m5_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.
 
     # ExtClk / From 10MHz input.
     ("clk10_ext", 0,
         Subsignal("p", Pins("E13"), IOStandard("DIFF_SSTL15")), # EXT_CLK_P.
         Subsignal("n", Pins("D14"), IOStandard("DIFF_SSTL15")), # EXT_CLK_N.
     ),
-    ("clk62p5", 0,
+    ("clk62m5", 0,
         Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_P.
         Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_N.
     ),
@@ -240,7 +240,7 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(Xilinx7SeriesPlatform):
-    default_clk_name   = "clk62p5"
+    default_clk_name   = "clk62m5"
     default_clk_period = 1e9/62.5e6
 
     def __init__(self, variant="xc7a35t", toolchain="vivado"):
@@ -260,4 +260,4 @@ class Platform(Xilinx7SeriesPlatform):
 
     def do_finalize(self, fragment):
         Xilinx7SeriesPlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk62p5", loose=True), 1e9/62.5e6)
+        self.add_period_constraint(self.lookup_request("clk62m5", loose=True), 1e9/62.5e6)

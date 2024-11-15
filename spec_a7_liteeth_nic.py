@@ -46,12 +46,12 @@ class CRG(LiteXModule):
         # # #
 
         # Clk/Rst.
-        clk62p5 = platform.request("clk62p5")
+        clk62m5 = platform.request("clk62m5")
 
         # PLL.
         self. pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(clk62p5, 62.5e6)
+        pll.register_clkin(clk62m5, 62.5e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
 

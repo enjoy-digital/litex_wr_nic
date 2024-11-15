@@ -85,7 +85,7 @@ entity xwrc_board_spec_a7 is
     -- reset PLLs.
     areset_edge_n_i     : in  std_logic := '1';
     -- Clock inputs from the board
-    clk_62p5m_dmtd_i     : in  std_logic;
+    clk_62m5_dmtd_i     : in  std_logic;
     clk_125m_gtp_i      : in  std_logic;
     -- 10MHz ext ref clock input (g_with_external_clock_input = TRUE)
     clk_10m_ext_i       : in  std_logic                               := '0';
@@ -308,7 +308,7 @@ begin  -- architecture struct
     port map (
       areset_n_i            => areset_n_i,
       clk_10m_ext_i         => clk_10m_ext_i,
-      clk_62p5m_dmtd_i      => clk_62p5m_dmtd_i,
+      clk_62m5_dmtd_i       => clk_62m5_dmtd_i,
       clk_125m_gtp_p_i      => clk_125m_gtp_i,
       clk_125m_gtp_n_i      => '0', --clk_125m_gtp_n_i,
       sfp_txn_o             => sfp_txn_o,
@@ -366,7 +366,7 @@ begin  -- architecture struct
       g_logdelay  => 4,                           -- 16 clock cycles
       g_syncdepth => 3)                           -- length of sync chains
     port map (
-      free_clk_i => clk_62p5m_dmtd_i,
+      free_clk_i => clk_62m5_dmtd_i,
       locked_i   => rstlogic_arst_n,
       clks_i     => rstlogic_clk_in,
       rstn_o     => rstlogic_rst_out);

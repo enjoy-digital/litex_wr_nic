@@ -105,12 +105,12 @@ entity xwrc_platform_xilinx is
     -- 125.000 MHz PLL reference
     clk_125m_pllref_i     : in  std_logic             := '0';
     -- 62.5 MHz DMTD reference
-    clk_62p5m_dmtd_i      : in  std_logic             := '0';
+    clk_62m5_dmtd_i       : in  std_logic             := '0';
     ---------------------------------------------------------------------------
     -- Clock inputs from custom PLLs (g_use_default_plls = FALSE)
     ---------------------------------------------------------------------------
     -- 62.5MHz DMTD offset clock and lock status
-    clk_62m5_dmtd_i       : in  std_logic             := '0';
+    --clk_62m5_dmtd_i       : in  std_logic             := '0';
     clk_dmtd_locked_i     : in  std_logic             := '1';
     -- 62.5MHz Main system clock and lock status
     clk_62m5_sys_i        : in  std_logic             := '0';
@@ -402,7 +402,7 @@ begin  -- architecture rtl
       gen_kintex7_artix7_direct_dmtd : if (g_direct_dmtd = TRUE) generate
 
       begin
-        clk_62m5_dmtd_o <= clk_62p5m_dmtd_i;
+        clk_62m5_dmtd_o <= clk_62m5_dmtd_i;
         pll_dmtd_locked <= '1';
       end generate gen_kintex7_artix7_direct_dmtd;
 

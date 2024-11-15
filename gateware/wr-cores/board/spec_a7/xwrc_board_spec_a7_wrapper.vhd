@@ -50,7 +50,7 @@ entity xwrc_board_spec_a7_wrapper is
     -- Clocks/resets
     areset_n_i           : in  std_logic;
     areset_edge_n_i      : in  std_logic := '1';
-    clk_62p5m_dmtd_i     : in  std_logic;
+    clk_62m5_dmtd_i      : in  std_logic;
     clk_125m_gtp_i       : in  std_logic;
     clk_10m_ext_i        : in  std_logic := '0';
     pps_ext_i            : in  std_logic := '0';
@@ -238,7 +238,7 @@ begin
     port map (
       areset_n_i           => areset_n_i,
       areset_edge_n_i      => areset_edge_n_i,
-      clk_62p5m_dmtd_i     => clk_62p5m_dmtd_i,
+      clk_62m5_dmtd_i      => clk_62m5_dmtd_i,
       clk_125m_gtp_i       => clk_125m_gtp_i,
       clk_10m_ext_i        => clk_10m_ext_i,
       pps_ext_i            => pps_ext_i,
