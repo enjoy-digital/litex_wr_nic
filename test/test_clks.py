@@ -1,59 +1,77 @@
 #!/usr/bin/env python3
 
 #
-# This file is part of LiteX-M2SDR.
+# This file is part of LiteX-WR-NIC.
 #
+# Copyright (c) 2024 Warsaw University of Technology
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import time
+import argparse
 from litex import RemoteClient
 
-bus = RemoteClient()
-bus.open()
+# Constants ----------------------------------------------------------------------------------------
 
-def latch_all():
-    bus.regs.clk_measurement_clk0_latch.write(1)
-    bus.regs.clk_measurement_clk1_latch.write(1)
-    bus.regs.clk_measurement_clk2_latch.write(1)
-    bus.regs.clk_measurement_clk3_latch.write(1)
+NUM_CLOCKS = 4
+CLOCK_MAPPING = {
+    0: "Sys Clk",
+    1: "DMTD Clk",
+    2: "Clk Ref",
+    3: "Unused",
+}
 
-def read_all():
-    values = [
-        bus.regs.clk_measurement_clk0_value.read(),
-        bus.regs.clk_measurement_clk1_value.read(),
-        bus.regs.clk_measurement_clk2_value.read(),
-        bus.regs.clk_measurement_clk3_value.read()
-    ]
-    return values
+# Functions ----------------------------------------------------------------------------------------
 
-num_measurements    = 10
-delay_between_tests = 1
+def measure_clocks(bus, count, delay):
+    """Measure and display clock frequencies."""
+    print("Initializing measurements...")
+    for i in range(NUM_CLOCKS):
+        getattr(bus.regs, f"clk_measurement_clk{i}_latch").write(1)
+    previous_values = [getattr(bus.regs, f"clk_measurement_clk{i}_value").read() for i in range(NUM_CLOCKS)]
+    time.sleep(delay)  # Initial delay for stability
+    start_time = time.time()
 
-# Latch and read initial values for each clock
-latch_all()
-previous_values = read_all()
-start_time = time.time()
+    for measurement in range(count):
+        time.sleep(delay)
 
-for i in range(num_measurements):
-    time.sleep(delay_between_tests)
+        # Latch and read current values
+        for i in range(NUM_CLOCKS):
+            getattr(bus.regs, f"clk_measurement_clk{i}_latch").write(1)
 
-    # Latch and read current values for each clock
-    latch_all()
-    current_values = read_all()
-    current_time = time.time()
+        current_values = [getattr(bus.regs, f"clk_measurement_clk{i}_value").read() for i in range(NUM_CLOCKS)]
+        elapsed_time   = time.time() - start_time
+        start_time     = time.time()
 
-    # Calculate the actual elapsed time
-    elapsed_time = current_time - start_time
-    start_time = current_time  # Update the start_time for the next iteration
+        # Skip the first measurement
+        if measurement == 0:
+            print(f"Skipping first measurement (stabilization).")
+            previous_values = current_values
+            continue
 
-    for clk_index in range(4):
-        # Compute the difference between the current and previous values
-        delta_value = current_values[clk_index] - previous_values[clk_index]
-        frequency_mhz = delta_value / (elapsed_time * 1e6)
-        print(f"Measurement {i + 1}, Clock {clk_index}: Frequency: {frequency_mhz:.2f} MHz")
+        print(f"Measurement {measurement}:")
+        for clk_index in range(NUM_CLOCKS):
+            delta_value = current_values[clk_index] - previous_values[clk_index]
+            frequency_mhz = delta_value / (elapsed_time * 1e6)
+            clk_name = CLOCK_MAPPING.get(clk_index, f"Clock {clk_index}")
+            print(f"  {clk_name}: {frequency_mhz:.2f} MHz")
+            previous_values[clk_index] = current_values[clk_index]
 
-        # Update the previous value for the next iteration
-        previous_values[clk_index] = current_values[clk_index]
+# Main ---------------------------------------------------------------------------------------------
 
-bus.close()
+def main():
+    parser = argparse.ArgumentParser(description="Measure clock frequencies of the SoC via Etherbone.")
+    parser.add_argument("--count", type=int,   default=10,  help="Number of measurements (default: 10).")
+    parser.add_argument("--delay", type=float, default=1.0, help="Delay between measurements in seconds (default: 1s).")
+    args = parser.parse_args()
+
+    bus = RemoteClient()
+    bus.open()
+
+    try:
+        measure_clocks(bus, args.count, args.delay)
+    finally:
+        bus.close()
+
+if __name__ == "__main__":
+    main()
