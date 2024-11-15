@@ -60,36 +60,43 @@ class Platform(sqrl_acorn.Platform):
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=True):
+    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True):
         self.rst            = Signal()
         self.cd_sys         = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
         if with_white_rabbit:
-            self.cd_clk_125m_gtp  = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
-            self.cd_clk_125m_dmtd = ClockDomain() # CHECKME/FIXME: Replace with appropriate clk.
+            self.cd_clk_125m_gtp   = ClockDomain() # Fake: No VCXO.
+            self.cd_clk_62p5m_dmtd = ClockDomain() # Fake: No VCXO.
 
         # # #
 
-        # Clk/Rst.
+        # Sys PLL (Free-Running from clk200).
+        # ----------------------------------
         clk200 = platform.request("clk200")
 
-        # PLL.
-        self. pll = pll = S7PLL()
+        self.pll = pll = S7PLL(speedgrade=-3)
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200, 200e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
-        if with_white_rabbit:
-            pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
-            pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
-            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+
+
+        # RefClk Input (125MHz).
+        # ----------------------
+        pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+        self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+
+        # DMTD PLL (62.5MHz from VCXO).
+        # -----------------------------
+        pll.create_clkout(self.cd_clk_62p5m_dmtd, 125e6, margin=0)
 
         # False Paths.
+        # ------------
         if with_white_rabbit:
             platform.add_false_path_constraints(
                 pll.clkin,
                 self.cd_sys.clk,
-                self.cd_clk_125m_dmtd.clk,
+                self.cd_clk_62p5m_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
             )
         else:
@@ -117,11 +124,10 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Clocking ---------------------------------------------------------------------------------
 
-        # General.
+        # General / WR.
         self.crg = _CRG(platform,
             sys_clk_freq      = sys_clk_freq,
             with_white_rabbit = with_white_rabbit,
-            with_pcie         = with_pcie,
         )
 
         # Shared QPLL.
@@ -287,7 +293,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # Clocks/resets.
                 i_areset_n_i          = ~ResetSignal("sys"),
-                i_clk_125m_dmtd_i     = ClockSignal("clk_125m_dmtd"),
+                i_clk_125m_dmtd_i     = ClockSignal("clk_62p5m_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = 0,
 

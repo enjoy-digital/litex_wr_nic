@@ -46,7 +46,7 @@ from gateware.wrf_wb2stream     import Wishbone2Stream
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True, with_pcie=True):
+    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True):
         self.rst            = Signal()
         self.cd_sys         = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
@@ -57,20 +57,21 @@ class _CRG(LiteXModule):
 
         # # #
 
-        # Clk/Rst.
+        # Sys PLL (Free-Running from clk125).
+        # ----------------------------------
         clk125_oe = platform.request("clk125_oe")
         clk125    = platform.request("clk125")
         self.comb += clk125_oe.eq(1)
 
-        # Sys PLL (Free-Running).
         self.pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk125, 125e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
 
-        # RefClk Input (125MHz from 25MHz VCXO + AD9516 (X5)).
+        # RefClk Input (125MHz from 25MHz VCXO x 5 (AD9516)).
+        # ---------------------------------------------------
         refclk125_pads = platform.request("refclk125")
-        refclk125_se = Signal()
+        refclk125_se   = Signal()
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB = 0,
             i_I   = refclk125_pads.p,
@@ -81,14 +82,11 @@ class _CRG(LiteXModule):
         self.comb += self.cd_refclk_eth.clk.eq(refclk125_se)
 
         # DMTD PLL (62.5MHz from VCXO).
-        #clk62p5_dmtd = platform.request("clk62p5_dmtd")
-        #self.dmtd_pll = dmtd_pll = S7PLL(speedgrade=-2)
-        #self.comb += dmtd_pll.reset.eq(self.rst)
-        #dmtd_pll.register_clkin(clk62p5_dmtd, 62.5e6)
-        #dmtd_pll.create_clkout(self.cd_clk_125m_dmtd, 125e6, margin=0)
+        # -----------------------------
         self.comb += self.cd_clk_62p5m_dmtd.clk.eq(platform.request("clk62p5_dmtd"))
 
         # False Paths.
+        # ------------
         if with_white_rabbit:
             platform.add_false_path_constraints(
                 pll.clkin,
@@ -121,11 +119,10 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Clocking ---------------------------------------------------------------------------------
 
-        # General.
+        # General / WR.
         self.crg = _CRG(platform,
             sys_clk_freq      = sys_clk_freq,
             with_white_rabbit = with_white_rabbit,
-            with_pcie         = with_pcie,
         )
 
         # Shared QPLL.
