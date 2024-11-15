@@ -28,7 +28,7 @@ def wr_core_init():
 # WR Core Files ------------------------------------------------------------------------------------
 
 wr_core_files = [
-    # Unmodified files.
+    # WR Unmodified files.
     # ----------------------------------------------------------------------------------------------
 
     # Common Packages.
@@ -235,6 +235,7 @@ wr_core_files = [
     # WR Platform.
     "gateware/wr-cores/platform/xilinx/xwrc_platform_vivado.vhd",
 
-    "gateware/wr_core/xwrc_board_artix7.vhd",
-    "gateware/wr_core/xwrc_board_artix7_wrapper.vhd",
+    # WR Board.
+    "gateware/wr_core/xwrc_board_litex_wr_nic.vhd",
+    "gateware/wr_core/xwrc_board_litex_wr_nic_wrapper.vhd",
 ]

@@ -278,7 +278,7 @@ class BaseSoC(LiteXWRNICSoC):
             # White Rabbit Core Instance.
             # ---------------------------
             cpu_firmware = os.path.join(self.file_basedir, "firmware/litex_wr_nic_wrc.bram")
-            self.specials += Instance("xwrc_board_artix7_wrapper",
+            self.specials += Instance("xwrc_board_litex_wr_nic_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = cpu_firmware,
                 p_g_dpram_size        = 131072/4,

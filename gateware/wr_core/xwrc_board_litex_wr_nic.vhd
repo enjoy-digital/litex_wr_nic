@@ -1,9 +1,9 @@
 -------------------------------------------------------------------------------
--- Title      : WRPC Wrapper for clbv3
+-- Title      : WRPC Wrapper for LiteX-WR-NIC.
 -- Project    : WR PTP Core
 -- URL        : http://www.ohwr.org/projects/wr-cores/wiki/Wrpc_core
 -------------------------------------------------------------------------------
--- File       : xwrc_board_acorn.vhd
+-- File       : xwrc_board_litex_wr_nic.vhd
 -- Author(s)  : Peter Jansweijer <peterj@nikhef.nl>
 -- Company    : Nikhef
 -- Created    : 2017-11-08
@@ -14,6 +14,8 @@
 -- needed to operate the core on the clbv3 board.
 -------------------------------------------------------------------------------
 -- Copyright (c) 2017 Nikhef
+-- Copyright (c) 2024 Warsaw University of Technology
+-- Copyright (c) 2024 Enjoy-Digital
 -------------------------------------------------------------------------------
 -- GNU LESSER GENERAL PUBLIC LICENSE
 --
@@ -51,7 +53,7 @@ use work.wr_board_pkg.all;
 library unisim;
 use unisim.vcomponents.all;
 
-entity xwrc_board_artix7 is
+entity xwrc_board_litex_wr_nic is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean              := TRUE;
@@ -251,9 +253,9 @@ entity xwrc_board_artix7 is
     txpippmstepsize : in std_logic_vector(4 downto 0)
     );
 
-end entity xwrc_board_artix7;
+end entity xwrc_board_litex_wr_nic;
 
-architecture struct of xwrc_board_artix7 is
+architecture struct of xwrc_board_litex_wr_nic is
 
   -----------------------------------------------------------------------------
   -- Signals
