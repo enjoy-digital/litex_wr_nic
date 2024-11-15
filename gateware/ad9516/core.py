@@ -5,16 +5,37 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
+
 from migen import *
 
 from litex.gen import *
 
 from litex.soc.interconnect.csr import *
 
+# AD9516 PLL Configuration -------------------------------------------------------------------------
+
+AD9516_CONFIG = [
+    (0x0000, 0x99), (0x0001, 0x00), (0x0002, 0x10), (0x0003, 0xC3), (0x0004, 0x00),
+    (0x0010, 0x7C), (0x0011, 0x05), (0x0012, 0x00), (0x0013, 0x0C), (0x0014, 0x12),
+    (0x0015, 0x00), (0x0016, 0x05), (0x0017, 0x88), (0x0018, 0x07), (0x0019, 0x00),
+    (0x001A, 0x00), (0x001B, 0x00), (0x001C, 0x02), (0x001D, 0x00), (0x001E, 0x00),
+    (0x001F, 0x0E), (0x00A0, 0x01), (0x00A1, 0x00), (0x00A2, 0x00), (0x00A3, 0x01),
+    (0x00A4, 0x00), (0x00A5, 0x00), (0x00A6, 0x01), (0x00A7, 0x00), (0x00A8, 0x00),
+    (0x00A9, 0x01), (0x00AA, 0x00), (0x00AB, 0x00), (0x00F0, 0x0A), (0x00F1, 0x0A),
+    (0x00F2, 0x08), (0x00F3, 0x08), (0x00F4, 0x0A), (0x00F5, 0x0A), (0x0140, 0x42),
+    (0x0141, 0x42), (0x0142, 0x42), (0x0143, 0x42), (0x0190, 0x00), (0x0191, 0x08),
+    (0x0192, 0x00), (0x0193, 0x00), (0x0194, 0x80), (0x0195, 0x00), (0x0196, 0x00),
+    (0x0197, 0x80), (0x0198, 0x00), (0x0199, 0x11), (0x019A, 0x00), (0x019B, 0x00),
+    (0x019C, 0x20), (0x019D, 0x00), (0x019E, 0x11), (0x019F, 0x00), (0x01A0, 0x00),
+    (0x01A1, 0x20), (0x01A2, 0x00), (0x01A3, 0x00), (0x01E0, 0x01), (0x01E1, 0x02),
+    (0x0230, 0x00), (0x0231, 0x00), (0x0232, 0x01)
+]
+
 # AD9516 PLL ---------------------------------------------------------------------------------------
 
 class AD9516PLL(LiteXModule):
-    def __init__(self, platform, pads):
+    def __init__(self, platform, pads, config=AD9516_CONFIG):
         self._rst  = CSRStorage()
         self._done = CSRStatus()
 
@@ -37,9 +58,12 @@ class AD9516PLL(LiteXModule):
             i_pll_miso_i     = pads.sdo,
             o_done_o         = self._done.status,
         )
-        self.add_sources(platform)
+        self.add_sources(platform, config)
 
-    def add_sources(self, platform):
+    def add_sources(self, platform, config):
+        # Generate VHDL package.
+        self.generate_vhdl_package(config)
+
         # SPI Top Sources.
         platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/spi_clgen.v")
         platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/spi_shift.v")
@@ -52,3 +76,42 @@ class AD9516PLL(LiteXModule):
         # WR PLL Ctrl Sources.
         platform.add_source("gateware/ad9516/wr_pll_ctrl_pkg.vhd")
         platform.add_source("gateware/ad9516/wr_pll_ctrl.vhd")
+
+    def generate_vhdl_package(self, config):
+        """Generate the VHDL package for wr_pll_ctrl."""
+        vhdl_template = """\
+library ieee;
+use ieee.std_logic_1164.all;
+
+package wr_pll_ctrl_pkg is
+
+  type t_data_array is array(natural range <>) of std_logic_vector(7 downto 0);
+  type t_addr_array is array(natural range <>) of std_logic_vector(15 downto 0);
+
+  -- AD9516 settings for NORMAL
+  constant c_spi_addr_array : t_addr_array := (
+    {addr_array}
+  );
+
+  constant c_spi_data_array_normal : t_data_array := (
+    {data_array}
+  );
+
+end wr_pll_ctrl_pkg;
+"""
+        addr_array_str = ",\n    ".join([f"x\"{addr:04X}\"" for addr, _ in config])
+        data_array_str = ",\n    ".join([f"x\"{data:02X}\"" for _, data in config])
+
+        vhdl_content = vhdl_template.format(
+            addr_array=addr_array_str,
+            data_array=data_array_str
+        )
+
+        output_dir = os.path.join(os.getcwd(), "gateware/ad9516")
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, "wr_pll_ctrl_pkg.vhd")
+
+        with open(output_file, "w") as f:
+            f.write(vhdl_content)
+
+        print(f"Generated VHDL package: {output_file}")
