@@ -458,6 +458,11 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
 
+            pps_p_o_d = Signal(16)
+            self.sync.wr += pps_p_o_d.eq(pps_p_o)
+            for i in range(5):
+                self.sync.wr += platform.request("gpio", i).eq(pps_p_o_d)
+
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 
             from liteeth.common import eth_phy_description

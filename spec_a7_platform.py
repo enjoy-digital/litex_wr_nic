@@ -57,6 +57,13 @@ _io = [
     ("frontpanel_led", 2, Pins("A10"), IOStandard("LVCMOS25")), # FP_LED2.
     ("frontpanel_led", 3, Pins("A12"), IOStandard("LVCMOS25")), # FP_LED3.
 
+    # GPIOs.
+    ("gpio", 0, Pins("M1"), IOStandard("LVCMOS33")), # GPIO0.
+    ("gpio", 1, Pins("V3"), IOStandard("LVCMOS33")), # GPIO1.
+    ("gpio", 2, Pins("U2"), IOStandard("LVCMOS33")), # GPIO2.
+    ("gpio", 3, Pins("N1"), IOStandard("LVCMOS33")), # GPIO3.
+    ("gpio", 4, Pins("P1"), IOStandard("LVCMOS33")), # GPIO4.
+
     # Serial.
     ("serial", 0,
         Subsignal("tx", Pins("R17")), # TX.
