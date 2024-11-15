@@ -10,7 +10,6 @@
 import argparse
 
 from litex.gen import *
-from litex.gen.genlib.misc import WaitTimer
 
 from litex_boards.platforms import sqrl_acorn
 
@@ -237,7 +236,6 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Signals.
             # --------
-            led_fake_pps = Signal()
             led_pps      = Signal()
             led_link     = Signal()
             led_act      = Signal()
@@ -245,18 +243,11 @@ class BaseSoC(LiteXWRNICSoC):
                 platform.request("user_led", 0).eq(~led_link),
                 platform.request("user_led", 1).eq(~led_act),
                 platform.request("user_led", 2).eq(~led_pps),
-                platform.request("user_led", 3).eq(~led_fake_pps),
             ]
 
             # Clks.
             # -----
             self.cd_wr = ClockDomain("wr")
-
-            # PPS Timer.
-            # ----------
-            self.pps_timer = pps_timer = WaitTimer(sys_clk_freq/2)
-            self.comb += pps_timer.wait.eq(~pps_timer.done)
-            self.sync += If(pps_timer.done, led_fake_pps.eq(~led_fake_pps))
 
             # White Rabbit Fabric Interface.
             # ------------------------------

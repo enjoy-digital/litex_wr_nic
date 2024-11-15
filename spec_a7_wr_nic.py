@@ -303,7 +303,6 @@ class BaseSoC(LiteXWRNICSoC):
                 platform.request("user_led", 0).eq(~led_link),
                 platform.request("user_led", 1).eq(~led_act),
                 platform.request("user_led", 2).eq(~led_pps),
-                platform.request("user_led", 3).eq(~led_fake_pps),
             ]
 
             dac_refclk_load = Signal()
@@ -321,12 +320,6 @@ class BaseSoC(LiteXWRNICSoC):
             # Clks.
             # -----
             self.cd_wr = ClockDomain("wr")
-
-            # PPS Timer.
-            # ----------
-            self.pps_timer = pps_timer = WaitTimer(sys_clk_freq/2)
-            self.comb += pps_timer.wait.eq(~pps_timer.done)
-            self.sync += If(pps_timer.done, led_fake_pps.eq(~led_fake_pps))
 
             # White Rabbit Fabric Interface.
             # ------------------------------
