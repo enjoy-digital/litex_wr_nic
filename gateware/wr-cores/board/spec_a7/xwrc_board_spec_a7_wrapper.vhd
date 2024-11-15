@@ -62,11 +62,11 @@ entity xwrc_board_spec_a7_wrapper is
     ready_for_reset_o    : out std_logic;
 
     -- Serial DACs
-    dac_refclk_load     : out std_logic;
-    dac_refclk_data     : out std_logic_vector(15 downto 0);
+    dac_refclk_load      : out std_logic;
+    dac_refclk_data      : out std_logic_vector(15 downto 0);
 
-    dac_dmtd_load       : out std_logic;
-    dac_dmtd_data       : out std_logic_vector(15 downto 0);
+    dac_dmtd_load        : out std_logic;
+    dac_dmtd_data        : out std_logic_vector(15 downto 0);
 
     -- SFP I/O for transceiver and SFP management info
     sfp_txp_o            : out std_logic;
@@ -159,13 +159,15 @@ entity xwrc_board_spec_a7_wrapper is
     pps_led_o            : out std_logic;
     link_ok_o            : out std_logic;
 
+    -- QPLL Rst/Clk/Lock.
     gt0_ext_qpll_reset   : out std_logic;
     gt0_ext_qpll_clk     : in  std_logic;
     gt0_ext_qpll_refclk  : in  std_logic;
     gt0_ext_qpll_lock    : in  std_logic;
 
-    txpippmen       : in std_logic;
-    txpippmstepsize : in std_logic_vector(4 downto 0)
+    -- TX PI Control.
+    txpippmen            : in std_logic;
+    txpippmstepsize      : in std_logic_vector(4 downto 0)
   );
 end xwrc_board_spec_a7_wrapper;
 
@@ -306,8 +308,8 @@ begin
       GT0_EXT_QPLL_CLK     => gt0_ext_qpll_clk,
       GT0_EXT_QPLL_REFCLK  => gt0_ext_qpll_refclk,
       GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock,
-      txpippmen           => txpippmen,
-      txpippmstepsize     => txpippmstepsize
+      txpippmen            => txpippmen,
+      txpippmstepsize      => txpippmstepsize
     );
 
 end architecture;

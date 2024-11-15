@@ -308,9 +308,6 @@ class BaseSoC(LiteXWRNICSoC):
             pps_p_o          = Signal()
             clk_ref_locked_o = Signal()
 
-            txpippmen       = Signal()
-            txpippmstepsize = Signal(5)
-
             # Clks.
             # -----
             self.cd_wr = ClockDomain("wr")
@@ -446,10 +443,6 @@ class BaseSoC(LiteXWRNICSoC):
                 o_wrf_snk_stall       = Open(), # CHECKME.
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
                 o_wrf_snk_rty         = Open(), # CHECKME.
-
-                # TX PI.
-                i_txpippmen       = txpippmen,
-                i_txpippmstepsize = txpippmstepsize,
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
@@ -614,24 +607,6 @@ class BaseSoC(LiteXWRNICSoC):
                 ]
 
         self.soft_pll_measurement = SoftPLLMeasurement()
-
-        # White Rabbit TX PI Control ---------------------------------------------------------------
-
-        class TXPIControl(LiteXModule):
-            def __init__(self):
-                self.enable = CSRStorage()
-                self.sign   = CSRStorage()
-                self.value  = CSRStorage(4)
-
-                # # #
-
-                self.comb += [
-                    txpippmen.eq(self.enable.storage),
-                    txpippmstepsize[4].eq(self.sign.storage),
-                    txpippmstepsize[:4].eq(self.value.storage),
-                ]
-
-        self.tx_pi_control = TXPIControl()
 
         # PCIe PTM ---------------------------------------------------------------------------------
 
