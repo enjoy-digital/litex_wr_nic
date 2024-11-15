@@ -3,15 +3,9 @@
 -- Project    : WR PTP Core
 -- URL        : http://www.ohwr.org/projects/wr-cores/wiki/Wrpc_core
 -------------------------------------------------------------------------------
--- File       : xwrc_board_litex_wr_nic.vhd
--- Author(s)  : Peter Jansweijer <peterj@nikhef.nl>
--- Company    : Nikhef
--- Created    : 2017-11-08
--- Last update: 2022-05-20
--- Standard   : VHDL'93
 -------------------------------------------------------------------------------
 -- Description: Top-level wrapper for WR PTP core including all the modules
--- needed to operate the core on the clbv3 board.
+-- needed to operate the core on the SPECA7 board.
 -------------------------------------------------------------------------------
 -- Copyright (c) 2017 Nikhef
 -- Copyright (c) 2024 Warsaw University of Technology
