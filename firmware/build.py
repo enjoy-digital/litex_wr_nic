@@ -22,7 +22,7 @@ REPO_URL          = "https://ohwr.org/project/wrpc-sw.git"
 CLONE_DIR         = "wrpc-sw"
 
 COMMIT_HASH       = "5ac04dd53a16f3931c3cb8361dc0d6bdbbf82dc6"
-CONFIG_SRC        = "litex_wr_nic_defconfig"
+CONFIG_SRC        = "spec_a7_defconfig"
 
 FIRMWARE_SRC      = os.path.join(CLONE_DIR, "wrc.bram")
 FIRMWARE_DEST     = "litex_wr_nic_wrc.bram"
@@ -67,7 +67,7 @@ def checkout_commit():
 
 def copy_config_file():
     """Copy the configuration file to the repository."""
-    config_dest = os.path.join(CLONE_DIR, "configs/litex_wr_nic_defconfig")
+    config_dest = os.path.join(CLONE_DIR, "configs/spec_a7_defconfig")
     if not os.path.exists(CONFIG_SRC):
         print(f"Error: Configuration file {CONFIG_SRC} does not exist.")
         exit(1)
@@ -75,7 +75,7 @@ def copy_config_file():
 
 def build_firmware():
     """Build the firmware."""
-    run_command("make litex_wr_nic_defconfig", cwd=CLONE_DIR)
+    run_command("make spec_a7_defconfig", cwd=CLONE_DIR)
     run_command("make", cwd=CLONE_DIR)
 
 def copy_firmware():
