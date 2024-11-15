@@ -53,6 +53,7 @@ from gateware.wb_clock_crossing import WishboneClockCrossing
 from gateware.wrf_stream2wb     import Stream2Wishbone
 from gateware.wrf_wb2stream     import Wishbone2Stream
 from gateware.ad5683r.core      import AD5683RDAC
+from gateware.ad9516.core       import AD9516PLL
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -497,50 +498,13 @@ class BaseSoC(LiteXWRNICSoC):
             gain  = 1,
         )
 
-        # White Rabbit RefClk AD9516 PLL Test ------------------------------------------------------
+        # White Rabbit RefClk AD9516 PLL Driver ----------------------------------------------------
 
-        ad9516_pll_pads = platform.request("pll")
-
-        class AD9516PLL(LiteXModule):
-            def __init__(self, pads):
-                self._rst  = CSRStorage()
-                self._done = CSRStatus()
-
-                # # #
-
-                self.specials += Instance("wr_pll_ctrl",
-                    p_g_project_name = "NORMAL",
-                    p_g_spi_clk_freq =  4,
-                    i_clk_i          = ClockSignal("sys"),
-                    i_rst_n_i        = ~self._rst.storage,
-                    i_pll_lock_i     = pads.lock,
-                    o_pll_reset_n_o  = pads.reset_n,
-                    i_pll_status_i   = pads.stat,
-                    o_pll_refsel_o   = pads.refsel,
-                    o_pll_sync_n_o   = pads.sync_n,
-                    o_pll_cs_n_o     = pads.cs_n,
-                    o_pll_sck_o      = pads.sck,
-                    o_pll_mosi_o     = pads.sdi,
-                    i_pll_miso_i     = pads.sdo,
-                    o_done_o         = self._done.status,
-                )
-
-                platform.add_source("gateware/ad9516/wr_pll_ctrl_pkg.vhd")
-                platform.add_source("gateware/ad9516/wr_pll_ctrl.vhd")
-
-                platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/spi_clgen.v")
-                platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/spi_shift.v")
-                platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/spi_top.v")
-                platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/wb_spi.vhd")
-                platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/timescale.v")
-                platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/spi_defines.v")
-                platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/xwb_spi.vhd")
-
-        self.ad9516_pll = AD9516PLL(pads=ad9516_pll_pads)
-
-        from gateware.measurement import MultiClkMeasurement
+        self.ad9516_pll = AD9516PLL(platform=platform, pads=platform.request("pll"))
 
         # White Rabbit Clk Measurement -------------------------------------------------------------
+
+        from gateware.measurement import MultiClkMeasurement
 
         self.clk_measurement = MultiClkMeasurement(clks={
             "clk0" : ClockSignal("sys"),
