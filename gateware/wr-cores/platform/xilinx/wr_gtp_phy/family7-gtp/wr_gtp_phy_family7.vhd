@@ -65,9 +65,6 @@ entity wr_gtp_phy_family7 is
     rxpolarity        : bit     := '0'
   );
   port (
-    -- test/debug
-    ready_for_reset_o        : out std_logic;
-
     -- Dedicated reference 125 MHz clock for the GTP transceiver
     clk_gtp_i        : in   std_logic;
 
@@ -125,11 +122,7 @@ entity wr_gtp_phy_family7 is
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
-    GT0_EXT_QPLL_LOCK   : in  std_logic;
-
-    txpippmen       : in std_logic;
-    txpippmstepsize : in std_logic_vector(4 downto 0)
-
+    GT0_EXT_QPLL_LOCK   : in  std_logic
   );
 end entity wr_gtp_phy_family7;
 
@@ -228,8 +221,6 @@ architecture structure of wr_gtp_phy_family7 is
     end f_to_bool;
 
 begin
-  -- debug/test
-  ready_for_reset_o <= ready_for_reset;
 
   U_EdgeDet_rst_i : gc_sync_ffs port map (
     clk_i    => clk_gtp_i,
@@ -413,10 +404,7 @@ begin
     GT0_PLL1RESET_IN         =>  pll1_reset,
     GT0_PLL1PD_IN            =>  pll1_pd,
     GT0_EXT_QPLL_CLK         => GT0_EXT_QPLL_CLK,
-    GT0_EXT_QPLL_REFCLK      => GT0_EXT_QPLL_REFCLK,
-
-    txpippmen                => txpippmen,
-    txpippmstepsize          => txpippmstepsize
+    GT0_EXT_QPLL_REFCLK      => GT0_EXT_QPLL_REFCLK
   );
 
   gen_pll0_support: if g_gtp_enable_pll0 = '1' generate

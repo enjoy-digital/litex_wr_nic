@@ -92,13 +92,7 @@ entity xwrc_board_spec_a7 is
     -- External PPS input (g_with_external_clock_input = TRUE)
     pps_ext_i           : in  std_logic                               := '0';
 
-    -- debug/test ggm 20240402
-    clk_ref_62m5_o      : out std_logic;
     clk_62m5_sys_o      : out std_logic;
-    clk_ref_locked_o    : out std_logic;
-    dbg_rdy_o           : out std_logic;
-    ext_ref_rst_o       : out std_logic;
-    ready_for_reset_o   : out std_logic;
 
     ---------------------------------------------------------------------------
     -- Serial DACs
@@ -241,10 +235,7 @@ entity xwrc_board_spec_a7 is
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
-    GT0_EXT_QPLL_LOCK   : in  std_logic;
-
-    txpippmen       : in std_logic;
-    txpippmstepsize : in std_logic_vector(4 downto 0)
+    GT0_EXT_QPLL_LOCK   : in  std_logic
     );
 
 end entity xwrc_board_spec_a7;
@@ -256,7 +247,6 @@ architecture struct of xwrc_board_spec_a7 is
   -----------------------------------------------------------------------------
 
   -- IBUFDS
-  --signal clk_62p5m_dmtd_i : std_logic;
   signal clk_dmtd     : std_logic;
 
   -- PLLs, clocks
@@ -316,11 +306,6 @@ begin  -- architecture struct
       txpolarity                  => txpolarity,
       rxpolarity                  => rxpolarity)
     port map (
-      -- test/debug ggm 20240402
-      clk_ref_locked_o      => clk_ref_locked_o,
-      dbg_rdy_o             => dbg_rdy_o,
-      ready_for_reset_o     => ready_for_reset_o,
-
       areset_n_i            => areset_n_i,
       clk_10m_ext_i         => clk_10m_ext_i,
       clk_62p5m_dmtd_i      => clk_62p5m_dmtd_i,
@@ -347,18 +332,10 @@ begin  -- architecture struct
       GT0_EXT_QPLL_RESET    => GT0_EXT_QPLL_RESET,
       GT0_EXT_QPLL_CLK      => GT0_EXT_QPLL_CLK,
       GT0_EXT_QPLL_REFCLK   => GT0_EXT_QPLL_REFCLK,
-      GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK,
-
-      txpippmen           => txpippmen,
-      txpippmstepsize     => txpippmstepsize
+      GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK
     );
 
-  clk_ref_62m5_o <= clk_ref_62m5;
-
   clk_62m5_sys_o <= clk_pll_62m5;
-
-  -- test/debug
-  ext_ref_rst_o <= ext_ref_rst;
 
   -----------------------------------------------------------------------------
   -- Reset logic

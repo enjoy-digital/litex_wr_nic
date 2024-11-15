@@ -54,12 +54,7 @@ entity xwrc_board_spec_a7_wrapper is
     clk_125m_gtp_i       : in  std_logic;
     clk_10m_ext_i        : in  std_logic := '0';
     pps_ext_i            : in  std_logic := '0';
-    clk_ref_62m5_o       : out std_logic;
     clk_62m5_sys_o       : out std_logic;
-    clk_ref_locked_o     : out std_logic;
-    dbg_rdy_o            : out std_logic;
-    ext_ref_rst_o        : out std_logic;
-    ready_for_reset_o    : out std_logic;
 
     -- Serial DACs
     dac_refclk_load      : out std_logic;
@@ -163,11 +158,7 @@ entity xwrc_board_spec_a7_wrapper is
     gt0_ext_qpll_reset   : out std_logic;
     gt0_ext_qpll_clk     : in  std_logic;
     gt0_ext_qpll_refclk  : in  std_logic;
-    gt0_ext_qpll_lock    : in  std_logic;
-
-    -- TX PI Control.
-    txpippmen            : in std_logic;
-    txpippmstepsize      : in std_logic_vector(4 downto 0)
+    gt0_ext_qpll_lock    : in  std_logic
   );
 end xwrc_board_spec_a7_wrapper;
 
@@ -251,12 +242,7 @@ begin
       clk_125m_gtp_i       => clk_125m_gtp_i,
       clk_10m_ext_i        => clk_10m_ext_i,
       pps_ext_i            => pps_ext_i,
-      clk_ref_62m5_o       => clk_ref_62m5_o,
       clk_62m5_sys_o       => clk_62m5_sys_o,
-      clk_ref_locked_o     => clk_ref_locked_o,
-      dbg_rdy_o            => dbg_rdy_o,
-      ext_ref_rst_o        => ext_ref_rst_o,
-      ready_for_reset_o    => ready_for_reset_o,
       dac_refclk_load      => dac_refclk_load,
       dac_refclk_data      => dac_refclk_data,
       dac_dmtd_load        => dac_dmtd_load,
@@ -307,9 +293,7 @@ begin
       GT0_EXT_QPLL_RESET   => gt0_ext_qpll_reset,
       GT0_EXT_QPLL_CLK     => gt0_ext_qpll_clk,
       GT0_EXT_QPLL_REFCLK  => gt0_ext_qpll_refclk,
-      GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock,
-      txpippmen            => txpippmen,
-      txpippmstepsize      => txpippmstepsize
+      GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock
     );
 
 end architecture;

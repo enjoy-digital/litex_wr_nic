@@ -242,6 +242,10 @@ class BaseSoC(LiteXWRNICSoC):
         # White Rabbit -----------------------------------------------------------------------------
 
         if with_white_rabbit:
+            # Clks.
+            # -----
+            self.cd_wr = ClockDomain("wr")
+
             # Pads.
             # -----
             dac_refclk_pads   = platform.request("dac_refclk")
@@ -289,7 +293,6 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Signals.
             # --------
-            led_fake_pps = Signal()
             led_pps      = Signal()
             led_link     = Signal()
             led_act      = Signal()
@@ -307,10 +310,6 @@ class BaseSoC(LiteXWRNICSoC):
 
             pps_p_o          = Signal()
             clk_ref_locked_o = Signal()
-
-            # Clks.
-            # -----
-            self.cd_wr = ClockDomain("wr")
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -350,13 +349,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_clk_62p5m_dmtd_i    = ClockSignal("clk_62p5m_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = clk10_ext,
-
-                o_clk_ref_locked_o    = clk_ref_locked_o,
-                o_dbg_rdy_o           = Open(),
-                o_ext_ref_rst_o       = Open(),
-                o_clk_ref_62m5_o      = Open(),
                 o_clk_62m5_sys_o      = ClockSignal("wr"),
-                o_ready_for_reset_o   = Open(),
 
                 # DAC RefClk Interface.
                 o_dac_refclk_load     = dac_refclk_load,

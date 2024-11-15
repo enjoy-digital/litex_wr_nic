@@ -173,10 +173,6 @@ entity xwrc_platform_xilinx is
     phy16_o               : out t_phy_16bits_to_wrc;
     phy16_i               : in  t_phy_16bits_from_wrc := c_dummy_phy16_from_wrc;
 
-    -- test/debug
-    dbg_rdy_o             : out std_logic;
-    ready_for_reset_o     : out std_logic;
-
     -- External reference
     ext_ref_mul_o         : out std_logic;
     ext_ref_mul_locked_o  : out std_logic;
@@ -185,10 +181,7 @@ entity xwrc_platform_xilinx is
     GT0_EXT_QPLL_RESET    : out std_logic;
     GT0_EXT_QPLL_CLK      : in  std_logic;
     GT0_EXT_QPLL_REFCLK   : in  std_logic;
-    GT0_EXT_QPLL_LOCK     : in  std_logic;
-
-    txpippmen       : in std_logic;
-    txpippmstepsize : in std_logic_vector(4 downto 0)
+    GT0_EXT_QPLL_LOCK     : in  std_logic
     );
 
 end entity xwrc_platform_xilinx;
@@ -740,9 +733,6 @@ begin  -- architecture rtl
     phy16_o.sfp_los      <= sfp_los_i;
     sfp_tx_disable_o     <= phy16_i.sfp_tx_disable;
 
-    -- test/debug
-    dbg_rdy_o            <= phy16_o.rdy;
-
     phy8_o <= c_dummy_phy8_to_wrc;
 
     gen_gtp_ch_dual: if (g_gtp_enable_ch0 /= 0 and g_gtp_enable_ch1 /= 0)
@@ -797,7 +787,6 @@ begin  -- architecture rtl
         txpolarity        => txpolarity,
         rxpolarity        => rxpolarity)
       port map(
-        ready_for_reset_o   => ready_for_reset_o,
         clk_gtp_i           => clk_125m_gtp_buf,
         tx_out_clk_o        => clk_ref,
         tx_data_i           => phy16_i.tx_data,
@@ -823,10 +812,7 @@ begin  -- architecture rtl
         GT0_EXT_QPLL_RESET  => GT0_EXT_QPLL_RESET,
         GT0_EXT_QPLL_CLK    => GT0_EXT_QPLL_CLK,
         GT0_EXT_QPLL_REFCLK => GT0_EXT_QPLL_REFCLK,
-        GT0_EXT_QPLL_LOCK   => GT0_EXT_QPLL_LOCK,
-
-        txpippmen           => txpippmen,
-        txpippmstepsize     => txpippmstepsize
+        GT0_EXT_QPLL_LOCK   => GT0_EXT_QPLL_LOCK
         );
 
     clk_125m_ref_o       <= clk_ref;
