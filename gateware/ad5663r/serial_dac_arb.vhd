@@ -5,8 +5,9 @@ use ieee.numeric_std.all;
 entity serial_dac_arb is
   generic(
     g_invert_sclk    : boolean;
-    g_num_data_bits  : integer:=16;
-    g_num_extra_bits : integer:=8
+    g_num_data_bits  : integer := 16;
+    g_num_extra_bits : integer := 8;
+    g_enable_x2_gain : boolean := true
     );
   port(
     clk_i   : in std_logic;
@@ -59,7 +60,7 @@ begin  -- behavioral
 
   dac_ldac_n_o  <= '0';
   dac_clr_n_o   <= '0';
-  
+
   U_DAC : serial_dac
     generic map (
       g_num_data_bits  => 16,
@@ -67,7 +68,7 @@ begin  -- behavioral
     port map (
       clk_i         => clk_i,
       rst_n_i       => rst_n_i,
-      value_i       => dac_value,   
+      value_i       => dac_value,
       load_i        => dac_load,
       sclk_divsel_i => "000",
       plldac_sclk_o   => dac_sclk_int,
@@ -79,10 +80,10 @@ begin  -- behavioral
     begin
       if(g_invert_sclk) then
         dac_sclk_o <= not dac_sclk_int;
-       else
+      else
         dac_sclk_o <= dac_sclk_int;
-       end if;
-      end process;
+      end if;
+    end process;
 
   process(clk_i)
   begin
@@ -102,18 +103,22 @@ begin  -- behavioral
           end if;
         else
           case state is
-            when INIT => 
+            when INIT =>
               if init_cnt(6) = '1' then
                 state <= ENABLE_INT_REF;
               else
-                init_cnt <= init_cnt +1;
+                init_cnt <= init_cnt + 1;
               end if;
 
             when ENABLE_INT_REF =>
-              dac_value <= "0100"&"000010"&"00000000000000";  -- Enable internal reference and X2 Gain.
+              if g_enable_x2_gain then
+                dac_value <= "0100"&"000010"&"00000000000000";  -- Enable internal reference / X2 Gain.
+              else
+                dac_value <= "0100"&"000000"&"00000000000000";  -- Enable internal reference / X1 Gain.
+              end if;
               dac_load  <= '1';
               state <= LOAD_DAC;
-              
+
             when WAIT_DATA =>
               if(d1_ready = '1') then
                 dac_value   <= "0011"&dac_data&"0000";
@@ -122,7 +127,7 @@ begin  -- behavioral
                 state      <= LOAD_DAC;
               end if;
 
-            when LOAD_DAC=>
+            when LOAD_DAC =>
               dac_load <= '0';
               state    <= WAIT_DONE;
 
@@ -136,5 +141,5 @@ begin  -- behavioral
       end if;
     end if;
   end process;
-  
+
 end behavioral;
