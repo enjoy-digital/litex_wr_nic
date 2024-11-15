@@ -211,6 +211,9 @@ wr_core_files = [
     "wr-cores/modules/wrc_core/xwr_core.vhd",
 
     # WR PHY Modules.
+    #"wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd",
+    #"wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
+    #"wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd",
     "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
     "wr-cores/platform/xilinx/wr_gtp_phy/gtp_bitslide.vhd",
     "wr-cores/platform/xilinx/wr_xilinx_pkg.vhd",
@@ -219,13 +222,16 @@ wr_core_files = [
     # ----------------------------------------------------------------------------------------------
 
     # WR PHY Modules.
-    "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper.vhd",
-    "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
-    "gateware/wr_phy/wr_gtp_phy_family7.vhd",
+    "gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd",
+    "gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
+    "gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd",
+
+    # WR Fabric Modules.
+    "gateware/wr-cores/modules/fabric/xwrf_mux.vhd",
 
     # WR Core Modules.
-    "gateware/wr-cores/modules/fabric/xwrf_mux.vhd",
     "gateware/wr-cores/modules/wrc_core/wr_core.vhd",
+
     "gateware/wr_core/xwrc_platform_vivado.vhd",
     "gateware/wr_core/xwrc_board_artix7.vhd",
     "gateware/wr_core/xwrc_board_artix7_wrapper.vhd",
