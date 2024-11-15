@@ -1,5 +1,5 @@
 #
-# This file is part of LiteEth.
+# This file is part of LiteX-WR-NIC.
 #
 # Copyright (c) 2015-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2022 Tongchen126 <https://github.com/tongchen126>

@@ -1,8 +1,8 @@
 #
-# This file is part of LitePCIe-PTM.
+# This file is part of LiteX-WR-NIC.
 #
-# Copyright (c) 2023 NetTimeLogic
-# Copyright (c) 2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2024 Warsaw University of Technology
+# Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
