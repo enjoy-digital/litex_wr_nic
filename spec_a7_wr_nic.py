@@ -340,7 +340,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit Core Instance.
             # ---------------------------
-            cpu_firmware = os.path.join(self.file_basedir, "firmware/litex_wr_nic_wrc.bram")
+            cpu_firmware = os.path.join(self.file_basedir, "firmware/spec_a7_wrc.bram")
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = cpu_firmware,

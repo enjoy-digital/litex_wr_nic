@@ -25,7 +25,7 @@ COMMIT_HASH       = "5ac04dd53a16f3931c3cb8361dc0d6bdbbf82dc6"
 CONFIG_SRC        = "spec_a7_defconfig"
 
 FIRMWARE_SRC      = os.path.join(CLONE_DIR, "wrc.bram")
-FIRMWARE_DEST     = "litex_wr_nic_wrc.bram"
+FIRMWARE_DEST     = "spec_a7_wrc.bram"
 
 # Build Helpers/Functions --------------------------------------------------------------------------
 
