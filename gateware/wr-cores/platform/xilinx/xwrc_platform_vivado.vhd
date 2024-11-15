@@ -104,8 +104,8 @@ entity xwrc_platform_xilinx is
     clk_20m_vcxo_i        : in  std_logic             := '0';
     -- 125.000 MHz PLL reference
     clk_125m_pllref_i     : in  std_logic             := '0';
-    -- 124.992 MHz DMTD reference (CLBv3 reference design)
-    clk_125m_dmtd_i       : in  std_logic             := '0';
+    -- 62.5 MHz DMTD reference
+    clk_62p5m_dmtd_i      : in  std_logic             := '0';
     ---------------------------------------------------------------------------
     -- Clock inputs from custom PLLs (g_use_default_plls = FALSE)
     ---------------------------------------------------------------------------
@@ -202,6 +202,7 @@ architecture rtl of xwrc_platform_xilinx is
   signal pll_arst            : std_logic := '0';
   signal clk_125m_pllref_buf : std_logic;
   signal clk_sys             : std_logic;
+  signal clk_125m_dmtd_i     : std_logic;
 
 begin  -- architecture rtl
 
@@ -408,16 +409,7 @@ begin  -- architecture rtl
       gen_kintex7_artix7_direct_dmtd : if (g_direct_dmtd = TRUE) generate
 
       begin
-      -- DMTD Div2 (124.9920 MHz -> 62,496 MHz)
-      --  process(clk_125m_dmtd_i)
-      --  begin
-      --    if rising_edge(clk_125m_dmtd_i) then
-      --      clk_dmtd <= not clk_dmtd;
-      --    end if;
-      --  end process;
-
-        clk_62m5_dmtd_o <= clk_125m_dmtd_i; -- FIXME: Cleanup.
-
+        clk_62m5_dmtd_o <= clk_62p5m_dmtd_i;
         pll_dmtd_locked <= '1';
       end generate gen_kintex7_artix7_direct_dmtd;
 

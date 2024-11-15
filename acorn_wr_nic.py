@@ -284,7 +284,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # Clocks/resets.
                 i_areset_n_i          = ~ResetSignal("sys"),
-                i_clk_125m_dmtd_i     = ClockSignal("clk_62p5m_dmtd"),
+                i_clk_62p5m_dmtd_i    = ClockSignal("clk_62p5m_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = 0,
 
