@@ -231,7 +231,7 @@ wr_core_files = [
     "gateware/wr_phy/wr_gtp_phy_family7.vhd",
 
     # WR Core Modules.
-    "gateware/wr_core/xwrf_mux.vhd",
+    "gateware/wr-cores/modules/fabric/xwrf_mux.vhd",
     "gateware/wr_core/wr_core.vhd",
     "gateware/wr_core/xwrc_platform_vivado.vhd",
     "gateware/wr_core/xwrc_board_artix7.vhd",
