@@ -42,6 +42,9 @@ from gateware.qpll              import SharedQPLL
 from gateware.wb_clock_crossing import WishboneClockCrossing
 from gateware.wrf_stream2wb     import Stream2Wishbone
 from gateware.wrf_wb2stream     import Wishbone2Stream
+from gateware.ad5683r.core      import AD5683RDAC
+from gateware.ad9516.core       import AD9516PLL
+from gateware.measurement       import MultiClkMeasurement
 
 # Platform -----------------------------------------------------------------------------------------
 
@@ -376,7 +379,7 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
 
-            # Leds.
+            # Leds Output.
             self.comb += [
                 platform.request("user_led", 0).eq(~led_link),
                 platform.request("user_led", 1).eq(~led_act),
@@ -435,6 +438,15 @@ class BaseSoC(LiteXWRNICSoC):
                 self.ptm_requester.time_rst.eq(ResetSignal("sys")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
+
+        # Clk Measurement (Debug) ------------------------------------------------------------------
+
+        self.clk_measurement = MultiClkMeasurement(clks={
+            "clk0" : ClockSignal("sys"),
+            "clk1" : ClockSignal("clk_62m5_dmtd"),
+            "clk2" : ClockSignal("clk_125m_gtp"),
+            "clk3" : 0,
+        })
 
 # Build --------------------------------------------------------------------------------------------
 

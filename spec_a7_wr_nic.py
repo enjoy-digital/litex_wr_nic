@@ -56,6 +56,7 @@ from gateware.wrf_stream2wb     import Stream2Wishbone
 from gateware.wrf_wb2stream     import Wishbone2Stream
 from gateware.ad5683r.core      import AD5683RDAC
 from gateware.ad9516.core       import AD9516PLL
+from gateware.measurement       import MultiClkMeasurement
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -502,37 +503,6 @@ class BaseSoC(LiteXWRNICSoC):
             else:
                 self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
 
-        # White Rabbit Clk Measurement -------------------------------------------------------------
-
-        from gateware.measurement import MultiClkMeasurement
-
-        self.clk_measurement = MultiClkMeasurement(clks={
-            "clk0" : ClockSignal("sys"),
-            "clk1" : ClockSignal("clk_62m5_dmtd"),
-            "clk2" : ClockSignal("clk_125m_gtp"),
-            "clk3" : 0,
-        })
-
-        # White Rabbit SoftPLL Measurement ---------------------------------------------------------
-
-        class SoftPLLMeasurement(LiteXModule):
-            def __init__(self):
-                self.dac_refclk = CSRStatus(16)
-                self.dac_dmtd   = CSRStatus(16)
-
-                # # #
-
-                self.sync.wr += [
-                    If(dac_refclk_load,
-                        self.dac_refclk.status.eq(dac_refclk_data)
-                    ),
-                    If(dac_dmtd_load,
-                        self.dac_dmtd.status.eq(dac_dmtd_data)
-                    ),
-                ]
-
-        self.soft_pll_measurement = SoftPLLMeasurement()
-
         # PCIe PTM ---------------------------------------------------------------------------------
 
         if with_pcie_ptm:
@@ -550,6 +520,15 @@ class BaseSoC(LiteXWRNICSoC):
                 self.ptm_requester.time_rst.eq(ResetSignal("sys")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
+
+        # Clk Measurement (Debug) ------------------------------------------------------------------
+
+        self.clk_measurement = MultiClkMeasurement(clks={
+            "clk0" : ClockSignal("sys"),
+            "clk1" : ClockSignal("clk_62m5_dmtd"),
+            "clk2" : ClockSignal("clk_125m_gtp"),
+            "clk3" : 0,
+        })
 
 # Build --------------------------------------------------------------------------------------------
 

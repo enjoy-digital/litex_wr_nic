@@ -16,9 +16,10 @@ from litex.soc.interconnect.csr import *
 class AD5683RDAC(LiteXModule):
     def __init__(self, platform, pads, load, value, gain=1):
         assert gain in [1, 2]
-        self._force = CSRStorage()
-        self._load  = CSRStorage(1)
-        self._value = CSRStorage(16)
+        self._force   = CSRStorage()
+        self._load    = CSRStorage(1)
+        self._value   = CSRStorage(16)
+        self._current = CSRStatus(16)
 
         # # #
 
@@ -36,6 +37,7 @@ class AD5683RDAC(LiteXModule):
                 value_i.eq(value),
             )
         ]
+        self.comb += self._current.status.eq(value_i)
 
         # DAC Driver Instance.
         self.specials += Instance("serial_dac_arb",

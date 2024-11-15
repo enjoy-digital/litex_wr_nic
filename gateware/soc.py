@@ -345,8 +345,9 @@ class LiteXWRNICSoC(SoCMini):
 
     def add_dac_vcxo_probe(self):
         analyzer_signals = [
-            self.soft_pll_measurement.dac_refclk.status,
-            self.soft_pll_measurement.dac_dmtd.status,
+            self.refclk_pll._done.status,
+            self.refclk_dac._current.status,
+            self.dmtd_dac._current.status,
         ]
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 512,
