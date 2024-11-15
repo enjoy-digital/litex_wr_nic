@@ -52,7 +52,7 @@ from gateware.qpll              import SharedQPLL
 from gateware.wb_clock_crossing import WishboneClockCrossing
 from gateware.wrf_stream2wb     import Stream2Wishbone
 from gateware.wrf_wb2stream     import Wishbone2Stream
-
+from gateware.ad5683r.core      import AD5683RDAC
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -481,52 +481,21 @@ class BaseSoC(LiteXWRNICSoC):
 
         # White Rabbit RefClk / DMTD DAC Drivers ---------------------------------------------------
 
-        class AD5663RDAC(LiteXModule):
-            def __init__(self, pads, load, value, gain=1):
-                assert gain in [1, 2]
-                self._force = CSRStorage()
-                self._load  = CSRStorage(1)
-                self._value = CSRStorage(16)
+        # RefClk DAC.
+        self.refclk_dac = AD5683RDAC(platform,
+            pads  = dac_refclk_pads,
+            load  = dac_refclk_load,
+            value = dac_refclk_data,
+            gain  = 2, # 2 for 0-3V range to be able to accelerate enough RefClk, not working with 1.
+        )
 
-                # # #
-
-                load_i  = Signal()
-                value_i = Signal(16)
-
-                self.sync.wr += [
-                    If(self._force.storage,
-                        load_i.eq(self._load.storage),
-                        value_i.eq(self._value.storage),
-                    ).Else(
-                        load_i.eq(load),
-                        value_i.eq(value),
-                    )
-                ]
-
-                self.specials += Instance("serial_dac_arb",
-                    p_g_invert_sclk    = 0,
-                    p_g_num_data_bits  = 16,
-                    p_g_num_extra_bits = 8,
-                    p_g_x2_gain        = {1: 0, 2: 1}[gain],
-
-                    i_clk_i        = ClockSignal("wr"),
-                    i_rst_n_i      = ~ResetSignal("wr"),
-
-                    i_val_i        = value_i,
-                    i_load_i       = load_i,
-
-                    o_dac_ldac_n_o = pads.ldac_n,
-                    o_dac_clr_n_o  = Open(),
-                    o_dac_sync_n_o = pads.sync_n,
-                    o_dac_sclk_o   = pads.sclk,
-                    o_dac_din_o    = pads.sdi,
-                )
-
-                platform.add_source("gateware/ad5663r/serial_dac.vhd")
-                platform.add_source("gateware/ad5663r/serial_dac_arb.vhd")
-
-        self.refclk_dac = AD5663RDAC(pads=dac_refclk_pads, load=dac_refclk_load, value=dac_refclk_data, gain=2)
-        self.dmtd_dac   = AD5663RDAC(pads=dac_dmtd_pads,   load=dac_dmtd_load,   value=dac_dmtd_data,   gain=1)
+        # DMTD DAC.
+        self.dmtd_dac = AD5683RDAC(platform,
+            pads  = dac_dmtd_pads,
+            load  = dac_dmtd_load,
+            value = dac_dmtd_data,
+            gain  = 1,
+        )
 
         # White Rabbit RefClk AD9516 PLL Test ------------------------------------------------------
 
