@@ -232,7 +232,9 @@ wr_core_files = [
     # WR Core Modules.
     "gateware/wr-cores/modules/wrc_core/wr_core.vhd",
 
-    "gateware/wr_core/xwrc_platform_vivado.vhd",
+    # WR Platform.
+    "gateware/wr-cores/platform/xilinx/xwrc_platform_vivado.vhd",
+
     "gateware/wr_core/xwrc_board_artix7.vhd",
     "gateware/wr_core/xwrc_board_artix7_wrapper.vhd",
 ]

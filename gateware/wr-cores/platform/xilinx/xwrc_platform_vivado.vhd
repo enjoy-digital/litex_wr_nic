@@ -512,164 +512,164 @@ begin  -- architecture rtl
     ---------------------------------------------------------------------------
     --   Zynq US+ PLLs
     ---------------------------------------------------------------------------
-    -- gen_zynqus_default_plls: if (g_fpga_family = "zynqus") generate
+    gen_zynqus_default_plls: if (g_fpga_family = "zynqus") generate
 
-    --   signal clk_sys_prebuf : std_logic;
-    --   signal clk_sys_fb  : std_logic;
-    --   signal pll_sys_locked  : std_logic;
-    --   signal clk_dmtd     : std_logic;
-    --   signal clk_dmtd_div : std_logic;
-    --   signal clk_pll_aux  : std_logic_vector(3 downto 0);
+      signal clk_sys_prebuf : std_logic;
+      signal clk_sys_fb  : std_logic;
+      signal pll_sys_locked  : std_logic;
+      signal clk_dmtd     : std_logic;
+      signal clk_dmtd_div : std_logic;
+      signal clk_pll_aux  : std_logic_vector(3 downto 0);
 
-    -- begin
-    --   --  Note: VCO must be between 800Mhz and 1600Mhz (ds925 v1.18 table 85)
-    --   --  With MULT=8, VCO is 1GHz
-    --   cmp_sys_clk_pll : MMCME3_ADV
-    --     generic map (
-    --       BANDWIDTH            => "OPTIMIZED",
-    --       CLKOUT4_CASCADE      => "FALSE",
-    --       COMPENSATION         => "AUTO",
-    --       STARTUP_WAIT         => "FALSE",
-    --       DIVCLK_DIVIDE        => 1,
-    --       CLKFBOUT_MULT_F      => 8.0,
-    --       CLKFBOUT_PHASE       => 0.000,
-    --       CLKFBOUT_USE_FINE_PS => "FALSE",
+    begin
+      --  Note: VCO must be between 800Mhz and 1600Mhz (ds925 v1.18 table 85)
+      --  With MULT=8, VCO is 1GHz
+      cmp_sys_clk_pll : MMCME3_ADV
+        generic map (
+          BANDWIDTH            => "OPTIMIZED",
+          CLKOUT4_CASCADE      => "FALSE",
+          COMPENSATION         => "AUTO",
+          STARTUP_WAIT         => "FALSE",
+          DIVCLK_DIVIDE        => 1,
+          CLKFBOUT_MULT_F      => 8.0,
+          CLKFBOUT_PHASE       => 0.000,
+          CLKFBOUT_USE_FINE_PS => "FALSE",
 
-    --       CLKIN1_PERIOD        => 8.000,
+          CLKIN1_PERIOD        => 8.000,
 
-    --       CLKOUT0_DIVIDE_F     => 16.000,
-    --       CLKOUT0_PHASE        => 0.000,
-    --       CLKOUT0_DUTY_CYCLE   => 0.500,
-    --       CLKOUT0_USE_FINE_PS  => "FALSE",
+          CLKOUT0_DIVIDE_F     => 16.000,
+          CLKOUT0_PHASE        => 0.000,
+          CLKOUT0_DUTY_CYCLE   => 0.500,
+          CLKOUT0_USE_FINE_PS  => "FALSE",
 
-    --       CLKOUT1_DIVIDE     => g_aux_pll_cfg(0).divide,
-    --       CLKOUT1_PHASE      => 0.000,
-    --       CLKOUT1_DUTY_CYCLE => 0.500,
-    --       CLKOUT1_USE_FINE_PS  => "FALSE",
+          CLKOUT1_DIVIDE     => g_aux_pll_cfg(0).divide,
+          CLKOUT1_PHASE      => 0.000,
+          CLKOUT1_DUTY_CYCLE => 0.500,
+          CLKOUT1_USE_FINE_PS  => "FALSE",
 
-    --       CLKOUT2_DIVIDE     => g_aux_pll_cfg(1).divide,
-    --       CLKOUT2_PHASE      => 0.000,
-    --       CLKOUT2_DUTY_CYCLE => 0.500,
-    --       CLKOUT2_USE_FINE_PS  => "FALSE",
+          CLKOUT2_DIVIDE     => g_aux_pll_cfg(1).divide,
+          CLKOUT2_PHASE      => 0.000,
+          CLKOUT2_DUTY_CYCLE => 0.500,
+          CLKOUT2_USE_FINE_PS  => "FALSE",
 
-    --       CLKOUT3_DIVIDE     => g_aux_pll_cfg(2).divide,
-    --       CLKOUT3_PHASE      => 0.000,
-    --       CLKOUT3_DUTY_CYCLE => 0.500,
-    --       CLKOUT3_USE_FINE_PS  => "FALSE",
+          CLKOUT3_DIVIDE     => g_aux_pll_cfg(2).divide,
+          CLKOUT3_PHASE      => 0.000,
+          CLKOUT3_DUTY_CYCLE => 0.500,
+          CLKOUT3_USE_FINE_PS  => "FALSE",
 
-    --       CLKOUT4_DIVIDE     => g_aux_pll_cfg(3).divide,
-    --       CLKOUT4_PHASE      => 0.000,
-    --       CLKOUT4_DUTY_CYCLE => 0.500,
-    --       CLKOUT4_USE_FINE_PS  => "FALSE"
-    --       )
-    --     port map (
-    --       CLKFBOUT => clk_sys_fb,
-    --       CLKOUT0  => clk_sys_prebuf,
-    --       CLKOUT1  => clk_pll_aux(0),
-    --       CLKOUT2  => clk_pll_aux(1),
-    --       CLKOUT3  => clk_pll_aux(2),
-    --       CLKOUT4  => clk_pll_aux(3),
-    --       CLKFBIN  => clk_sys_fb,
-    --       CLKIN1   => clk_125m_pllref_i,
-    --       CLKIN2   => '0',
-    --       CLKINSEL => '1',
-    --       DADDR    => (others => '0'),
-    --       DCLK     => '0',
-    --       DEN      => '0',
-    --       DI       => (others => '0'),
-    --       DWE      => '0',
-    --       CDDCREQ  => '0',
-    --       PSCLK    => '0',
-    --       PSEN     => '0',
-    --       PSINCDEC => '0',
-    --       LOCKED   => pll_sys_locked,
-    --       PWRDWN   => '0',
-    --       RST      => pll_arst);
+          CLKOUT4_DIVIDE     => g_aux_pll_cfg(3).divide,
+          CLKOUT4_PHASE      => 0.000,
+          CLKOUT4_DUTY_CYCLE => 0.500,
+          CLKOUT4_USE_FINE_PS  => "FALSE"
+          )
+        port map (
+          CLKFBOUT => clk_sys_fb,
+          CLKOUT0  => clk_sys_prebuf,
+          CLKOUT1  => clk_pll_aux(0),
+          CLKOUT2  => clk_pll_aux(1),
+          CLKOUT3  => clk_pll_aux(2),
+          CLKOUT4  => clk_pll_aux(3),
+          CLKFBIN  => clk_sys_fb,
+          CLKIN1   => clk_125m_pllref_i,
+          CLKIN2   => '0',
+          CLKINSEL => '1',
+          DADDR    => (others => '0'),
+          DCLK     => '0',
+          DEN      => '0',
+          DI       => (others => '0'),
+          DWE      => '0',
+          CDDCREQ  => '0',
+          PSCLK    => '0',
+          PSEN     => '0',
+          PSINCDEC => '0',
+          LOCKED   => pll_sys_locked,
+          PWRDWN   => '0',
+          RST      => pll_arst);
 
-    --   -- System PLL output clock buffer
-    --   cmp_clk_sys_buf_o : BUFG
-    --   port map (
-    --     I => clk_sys_prebuf,
-    --     O => clk_sys);
+      -- System PLL output clock buffer
+      cmp_clk_sys_buf_o : BUFG
+      port map (
+        I => clk_sys_prebuf,
+        O => clk_sys);
 
-    --   clk_62m5_sys_o <= clk_sys;
-    --   pll_locked_o   <= pll_sys_locked;
+      clk_62m5_sys_o <= clk_sys;
+      pll_locked_o   <= pll_sys_locked;
 
-    --   cmp_clk_dmtd_buf_o: BUFGCE_DIV
-    --     generic map (
-    --       BUFGCE_DIVIDE => 2)
-    --     port map (
-    --       O   => clk_62m5_dmtd_o,
-    --       CE  => '1',
-    --       CLR => '0',
-    --       I   => clk_125m_dmtd_i);
+      cmp_clk_dmtd_buf_o: BUFGCE_DIV
+        generic map (
+          BUFGCE_DIVIDE => 2)
+        port map (
+          O   => clk_62m5_dmtd_o,
+          CE  => '1',
+          CLR => '0',
+          I   => clk_125m_dmtd_i);
 
-    --   gen_auxclk_bufs: for I in g_aux_pll_cfg'range generate
-    --     -- Aux PLL_BASE clocks with BUFG enabled
-    --     gen_auxclk_bufg_en: if g_aux_pll_cfg(I).enabled and g_aux_pll_cfg(I).bufg_en generate
-    --       cmp_clk_sys_buf_o : BUFG
-    --         port map (
-    --           O => clk_pll_aux_o(I),
-    --           I => clk_pll_aux(I));
-    --     end generate;
-    --     -- Aux PLL_BASE clocks with BUFG disabled
-    --     gen_auxclk_no_bufg: if g_aux_pll_cfg(I).enabled and g_aux_pll_cfg(I).bufg_en = FALSE generate
-    --       clk_pll_aux_o(I) <= clk_pll_aux(I);
-    --     end generate;
-    --     -- Disabled aux PLL_BASE clocks
-    --     gen_auxclk_disabled: if not g_aux_pll_cfg(I).enabled generate
-    --       clk_pll_aux_o(I) <= '0';
-    --     end generate;
-    --   end generate;
-    -- end generate gen_zynqus_default_plls;
+      gen_auxclk_bufs: for I in g_aux_pll_cfg'range generate
+        -- Aux PLL_BASE clocks with BUFG enabled
+        gen_auxclk_bufg_en: if g_aux_pll_cfg(I).enabled and g_aux_pll_cfg(I).bufg_en generate
+          cmp_clk_sys_buf_o : BUFG
+            port map (
+              O => clk_pll_aux_o(I),
+              I => clk_pll_aux(I));
+        end generate;
+        -- Aux PLL_BASE clocks with BUFG disabled
+        gen_auxclk_no_bufg: if g_aux_pll_cfg(I).enabled and g_aux_pll_cfg(I).bufg_en = FALSE generate
+          clk_pll_aux_o(I) <= clk_pll_aux(I);
+        end generate;
+        -- Disabled aux PLL_BASE clocks
+        gen_auxclk_disabled: if not g_aux_pll_cfg(I).enabled generate
+          clk_pll_aux_o(I) <= '0';
+        end generate;
+      end generate;
+    end generate gen_zynqus_default_plls;
 
     ---------------------------------------------------------------------------
     --   Zynq US+ Buffers when external PLLs are used
     ---------------------------------------------------------------------------
-    -- gen_zynqus_si5341_plls: if (g_fpga_family = "zynqus_epll") generate
+    gen_zynqus_si5341_plls: if (g_fpga_family = "zynqus_epll") generate
 
-    --   cmp_clk_ref_buf: BUFG
-    --   port map (
-    --     I => clk_125m_pllref_i, -- 62.5MHz in DI/OT
-    --     O => clk_sys);
+      cmp_clk_ref_buf: BUFG
+      port map (
+        I => clk_125m_pllref_i, -- 62.5MHz in DI/OT
+        O => clk_sys);
 
-    --   clk_62m5_sys_o <= clk_sys;
-    --   pll_locked_o   <= '1'; --pll_sys_locked;
+      clk_62m5_sys_o <= clk_sys;
+      pll_locked_o   <= '1'; --pll_sys_locked;
 
-    --   cmp_clk_dmtd_buf_o: BUFG
-    --     port map (
-    --       O   => clk_62m5_dmtd_o,
-    --       I   => clk_125m_dmtd_i);
-    -- end generate gen_zynqus_si5341_plls;
+      cmp_clk_dmtd_buf_o: BUFG
+        port map (
+          O   => clk_62m5_dmtd_o,
+          I   => clk_125m_dmtd_i);
+    end generate gen_zynqus_si5341_plls;
 
     ---------------------------------------------------------------------------
     
-    --gen_no_ext_ref_pll : if (g_with_external_clock_input = FALSE) generate
-    --  clk_10m_ext_o         <= '0';
-    --  ext_ref_mul_o         <= '0';
-    --  ext_ref_mul_locked_o  <= '1';
-    --  ext_ref_mul_stopped_o <= '1';
-    --end generate gen_no_ext_ref_pll;
+    gen_no_ext_ref_pll : if (g_with_external_clock_input = FALSE) generate
+      clk_10m_ext_o         <= '0';
+      ext_ref_mul_o         <= '0';
+      ext_ref_mul_locked_o  <= '1';
+      ext_ref_mul_stopped_o <= '1';
+    end generate gen_no_ext_ref_pll;
 
   end generate gen_default_plls;
 
   -- If external PLLs are used, just copy clock inputs to outputs
-  --gen_custom_plls : if (g_use_default_plls = FALSE) generate
+  gen_custom_plls : if (g_use_default_plls = FALSE) generate
 
-  --  clk_62m5_sys_o  <= clk_62m5_sys_i;
-  --  clk_62m5_dmtd_o <= clk_62m5_dmtd_i;
-  --  clk_125m_ref_o  <= clk_125m_ref_i;
+    clk_62m5_sys_o  <= clk_62m5_sys_i;
+    clk_62m5_dmtd_o <= clk_62m5_dmtd_i;
+    clk_125m_ref_o  <= clk_125m_ref_i;
 
-  --  clk_125m_pllref_buf <= clk_125m_ref_i;
+    clk_125m_pllref_buf <= clk_125m_ref_i;
 
-  --  pll_locked_o     <= clk_sys_locked_i and clk_dmtd_locked_i;
-  --  clk_ref_locked_o <= clk_ref_locked_i;
+    pll_locked_o     <= clk_sys_locked_i and clk_dmtd_locked_i;
+    clk_ref_locked_o <= clk_ref_locked_i;
 
-  --  ext_ref_mul_o         <= clk_125m_ext_i;
-  --  ext_ref_mul_locked_o  <= clk_ext_locked_i;
-  --  ext_ref_mul_stopped_o <= clk_ext_stopped_i;
+    ext_ref_mul_o         <= clk_125m_ext_i;
+    ext_ref_mul_locked_o  <= clk_ext_locked_i;
+    ext_ref_mul_stopped_o <= clk_ext_stopped_i;
 
-  --end generate gen_custom_plls;
+  end generate gen_custom_plls;
 
   -- always pass ext reference reset input to output, even when not used
   clk_ext_rst_o <= ext_ref_rst_i;
@@ -859,62 +859,62 @@ begin  -- architecture rtl
   ---------------------------------------------------------------------------
   --   ZynqUS+ PHY
   ---------------------------------------------------------------------------
-  --gen_phy_zynqus : if (g_fpga_family = "zynqus" or g_fpga_family = "zynqus_epll") generate
+  gen_phy_zynqus : if (g_fpga_family = "zynqus" or g_fpga_family = "zynqus_epll") generate
 
-  --  signal clk_125m_gth_buf  : std_logic;
-  --  signal clk_ref : std_logic;
+    signal clk_125m_gth_buf  : std_logic;
+    signal clk_ref : std_logic;
 
-  --begin
-  --  U_Ref_Clock_Buffer : IBUFDS_GTE4
-  --    generic map (
-  --      REFCLK_EN_TX_PATH  => '0',
-  --      REFCLK_HROW_CK_SEL => "00",
-  --      REFCLK_ICNTL_RX    => "00")
-  --    port map (
-  --      O     => clk_125m_gth_buf,
-  --      ODIV2 => open,
-  --      CEB   => '0',
-  --      I     => clk_125m_gtp_p_i,
-  --      IB    => clk_125m_gtp_n_i);
+  begin
+    U_Ref_Clock_Buffer : IBUFDS_GTE4
+      generic map (
+        REFCLK_EN_TX_PATH  => '0',
+        REFCLK_HROW_CK_SEL => "00",
+        REFCLK_ICNTL_RX    => "00")
+      port map (
+        O     => clk_125m_gth_buf,
+        ODIV2 => open,
+        CEB   => '0',
+        I     => clk_125m_gtp_p_i,
+        IB    => clk_125m_gtp_n_i);
 
-  --  cmp_gth: wr_gthe4_phy_family7_xilinx_ip
-  --    generic map (
-  --      g_simulation         => g_simulation,
-  --      g_use_gclk_as_refclk => false)
-  --    port map (
-  --      clk_gth_i      => clk_125m_gth_buf,
-  --      clk_freerun_i  => clk_sys,
-  --      tx_out_clk_o   => clk_ref,
-  --      tx_locked_o    => open,
-  --      tx_data_i      => phy16_i.tx_data,
-  --      tx_k_i         => phy16_i.tx_k,
-  --      tx_disparity_o => phy16_o.tx_disparity,
-  --      tx_enc_err_o   => phy16_o.tx_enc_err,
-  --      rx_rbclk_o     => phy16_o.rx_clk,
-  --      rx_data_o      => phy16_o.rx_data,
-  --      rx_k_o         => phy16_o.rx_k,
-  --      rx_enc_err_o   => phy16_o.rx_enc_err,
-  --      rx_bitslide_o  => phy16_o.rx_bitslide,
-  --      rst_i          => phy16_i.rst,
-  --      loopen_i       => "000",
-  --      debug_i        => x"0000",
-  --      debug_o        => open,
-  --      pad_txn_o      => sfp_txn_o,
-  --      pad_txp_o      => sfp_txp_o,
-  --      pad_rxn_i      => sfp_rxn_i,
-  --      pad_rxp_i      => sfp_rxp_i,
-  --      rdy_o          => phy16_o.rdy);
+    cmp_gth: wr_gthe4_phy_family7_xilinx_ip
+      generic map (
+        g_simulation         => g_simulation,
+        g_use_gclk_as_refclk => false)
+      port map (
+        clk_gth_i      => clk_125m_gth_buf,
+        clk_freerun_i  => clk_sys,
+        tx_out_clk_o   => clk_ref,
+        tx_locked_o    => open,
+        tx_data_i      => phy16_i.tx_data,
+        tx_k_i         => phy16_i.tx_k,
+        tx_disparity_o => phy16_o.tx_disparity,
+        tx_enc_err_o   => phy16_o.tx_enc_err,
+        rx_rbclk_o     => phy16_o.rx_clk,
+        rx_data_o      => phy16_o.rx_data,
+        rx_k_o         => phy16_o.rx_k,
+        rx_enc_err_o   => phy16_o.rx_enc_err,
+        rx_bitslide_o  => phy16_o.rx_bitslide,
+        rst_i          => phy16_i.rst,
+        loopen_i       => "000",
+        debug_i        => x"0000",
+        debug_o        => open,
+        pad_txn_o      => sfp_txn_o,
+        pad_txp_o      => sfp_txp_o,
+        pad_rxn_i      => sfp_rxn_i,
+        pad_rxp_i      => sfp_rxp_i,
+        rdy_o          => phy16_o.rdy);
 
-  --  clk_125m_ref_o       <= clk_ref;  --  Note: 62.5Mhz
-  --  clk_ref_locked_o     <= '1';
-  --  phy16_o.ref_clk      <= clk_ref;
-  --  phy16_o.sfp_tx_fault <= sfp_tx_fault_i;
-  --  phy16_o.sfp_los      <= sfp_los_i;
-  --  sfp_tx_disable_o     <= phy16_i.sfp_tx_disable;
+    clk_125m_ref_o       <= clk_ref;  --  Note: 62.5Mhz
+    clk_ref_locked_o     <= '1';
+    phy16_o.ref_clk      <= clk_ref;
+    phy16_o.sfp_tx_fault <= sfp_tx_fault_i;
+    phy16_o.sfp_los      <= sfp_los_i;
+    sfp_tx_disable_o     <= phy16_i.sfp_tx_disable;
 
-  --  phy8_o <= c_dummy_phy8_to_wrc;
+    phy8_o <= c_dummy_phy8_to_wrc;
 
-  --end generate gen_phy_zynqus;
+  end generate gen_phy_zynqus;
 
   ---------------------------------------------------------------------------
 
