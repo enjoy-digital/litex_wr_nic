@@ -7,6 +7,18 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+# Build:
+# ./spec_a7_wr_nic.py --build --load
+
+# LiteX Server:
+# litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
+
+# LiteScope:
+# litescope_cli --subsampling=16384
+
+# CPU firmware compile/reload:
+# ./test_wb_cpu.py --build-firmware --load-firmware ../firmware/wrpc-sw/wrc.bin
+
 import argparse
 
 from litex.gen import *
@@ -587,7 +599,6 @@ class BaseSoC(LiteXWRNICSoC):
 
         from gateware.measurement import MultiClkMeasurement
 
-
         # White Rabbit Clk Measurement -------------------------------------------------------------
 
         self.clk_measurement = MultiClkMeasurement(clks={
@@ -616,33 +627,6 @@ class BaseSoC(LiteXWRNICSoC):
                 ]
 
         self.soft_pll_measurement = SoftPLLMeasurement()
-
-        # White Rabbit LiteScope Analyzer ----------------------------------------------------------
-
-        # LiteX Server:
-        # litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
-
-        # LiteScope:
-        # litescope_cli --subsampling=16384
-
-        # CPU firmware compile/reload:
-        # ./test_wb_cpu.py --build-firmware --load-firmware ../firmware/wrpc-sw/wrc.bin
-
-        analyzer_signals = [
-            pps_p_o,
-            clk_ref_locked_o,
-            dac_refclk_load,
-            self.soft_pll_measurement.dac_refclk.status,
-            dac_dmtd_load,
-            self.soft_pll_measurement.dac_dmtd.status,
-        ]
-        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-            depth        = 512,
-            clock_domain = "wr",
-            samplerate   = int(62.5e6),
-            register     = True,
-            csr_csv      = "test/analyzer.csv"
-        )
 
         # White Rabbit TX PI Control ---------------------------------------------------------------
 
@@ -693,8 +677,9 @@ def main():
 
     # Probes.
     # -------
-    parser.add_argument("--with-wishbone-fabric-interface-probe",  action="store_true")
-    parser.add_argument("--with-wishbone-slave-probe",             action="store_true")
+    parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true")
+    parser.add_argument("--with-wishbone-slave-probe",            action="store_true")
+    parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
 
     args = parser.parse_args()
 
@@ -713,6 +698,8 @@ def main():
         soc.add_wishbone_fabric_interface_probe()
     if args.with_wishbone_slave_probe:
         soc.add_wishbone_slave_probe()
+    if args.with_dac_vcxo_probe:
+        soc.add_dac_vcxo_probe()
     builder = Builder(soc, csr_csv="test/csr.csv")
     builder.build(run=args.build)
 

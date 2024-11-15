@@ -337,3 +337,16 @@ class LiteXWRNICSoC(SoCMini):
            register     = True,
            csr_csv      = "test/analyzer.csv"
        )
+
+    def add_dac_vcxo_probe(self):
+        analyzer_signals = [
+            self.soft_pll_measurement.dac_refclk.status,
+            self.soft_pll_measurement.dac_dmtd.status,
+        ]
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            depth        = 512,
+            clock_domain = "wr",
+            samplerate   = int(62.5e6),
+            register     = True,
+            csr_csv      = "test/analyzer.csv"
+        )

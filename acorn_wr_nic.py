@@ -467,8 +467,9 @@ def main():
 
     # Probes.
     # -------
-    parser.add_argument("--with-wishbone-fabric-interface-probe",  action="store_true")
-    parser.add_argument("--with-wishbone-slave-probe",             action="store_true")
+    parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true")
+    parser.add_argument("--with-wishbone-slave-probe",            action="store_true")
+    parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
 
     args = parser.parse_args()
 
@@ -487,6 +488,8 @@ def main():
         soc.add_wishbone_fabric_interface_probe()
     if args.with_wishbone_slave_probe:
         soc.add_wishbone_slave_probe()
+    if args.with_dac_vcxo_probe:
+        soc.add_dac_vcxo_probe()
     builder = Builder(soc, csr_csv="test/csr.csv")
     builder.build(run=args.build)
 
