@@ -105,24 +105,10 @@ entity xwrc_board_artix7 is
     ready_for_reset_o   : out std_logic;
 
     ---------------------------------------------------------------------------
-    -- AD5663R Serial DACs
+    -- Serial DACs
     ---------------------------------------------------------------------------
-    dac_refclk_ldac_n_o : out std_logic;
-    dac_refclk_clr_n_o  : out std_logic;
-    dac_refclk_sclk_o   : out std_logic;
-    dac_refclk_sync_n_o : out std_logic;
-    dac_refclk_sdi_o    : out std_logic;
-    dac_refclk_sdo_i    : in  std_logic;
-
     dac_refclk_load     : out std_logic;
     dac_refclk_data     : out std_logic_vector(15 downto 0);
-
-    dac_dmtd_ldac_n_o   : out std_logic;
-    dac_dmtd_clr_n_o    : out std_logic;
-    dac_dmtd_sclk_o     : out std_logic;
-    dac_dmtd_sync_n_o   : out std_logic;
-    dac_dmtd_sdi_o      : out std_logic;
-    dac_dmtd_sdo_i      : in  std_logic;
 
     dac_dmtd_load       : out std_logic;
     dac_dmtd_data       : out std_logic_vector(15 downto 0);
@@ -290,12 +276,6 @@ architecture struct of xwrc_board_artix7 is
   signal rstlogic_clk_in    : std_logic_vector(1 downto 0);
   signal rstlogic_rst_out   : std_logic_vector(1 downto 0);
 
-  -- PLL DACs
-  --signal dac_dmtd_load   : std_logic;
-  --signal dac_dmtd_data   : std_logic_vector(15 downto 0);
-  --signal dac_refclk_load : std_logic;
-  --signal dac_refclk_data : std_logic_vector(15 downto 0);
-
   -- OneWire
   signal onewire_in : std_logic_vector(1 downto 0);
   signal onewire_en : std_logic_vector(1 downto 0);
@@ -314,25 +294,6 @@ architecture struct of xwrc_board_artix7 is
   signal sfp_sda_in          : std_logic;
   signal sfp_scl_out         : std_logic;
   signal sfp_scl_in          : std_logic;
-
-  -- AD5663R Serial DAC.
-  component serial_dac_arb is
-  generic(
-      g_invert_sclk    : boolean;
-      g_num_data_bits  : integer;
-      g_num_extra_bits : integer;
-      g_enable_x2_gain : boolean);
-  port(
-      clk_i            : in  std_logic;
-      rst_n_i          : in  std_logic;
-      val_i            : in  std_logic_vector(g_num_data_bits-1 downto 0);
-      load_i           : in  std_logic;
-      dac_ldac_n_o     : out std_logic;
-      dac_clr_n_o      : out std_logic;
-      dac_sync_n_o     : out std_logic;
-      dac_sclk_o       : out std_logic;
-      dac_din_o        : out std_logic);
-  end component serial_dac_arb;
 
 begin  -- architecture struct
 
@@ -439,46 +400,6 @@ begin  -- architecture struct
 
   -- distribution of resets (already synchronized to their clock domains)
   rst_62m5_n <= rstlogic_rst_out(0);
-
-  -----------------------------------------------------------------------------
-  -- 2x SPI DAC (AD5683R)
-  -----------------------------------------------------------------------------
-
-  cmp_dmtd_dac : serial_dac_arb
-    generic map (
-        g_invert_sclk    => false,
-        g_num_data_bits  => 16,
-        g_num_extra_bits => 8,
-        g_enable_x2_gain => false) -- X1 Gain.
-    port map (
-        clk_i         => clk_pll_62m5,
-        rst_n_i       => rst_62m5_n,
-        val_i         => dac_dmtd_data,
-        load_i        => dac_dmtd_load,
-        dac_sync_n_o  => dac_dmtd_sync_n_o,
-        dac_ldac_n_o  => dac_dmtd_ldac_n_o,
-        dac_clr_n_o   => dac_dmtd_clr_n_o,
-        dac_sclk_o    => dac_dmtd_sclk_o,
-        dac_din_o     => dac_dmtd_sdi_o
-    );
-
-  cmp_refclk_dac : serial_dac_arb
-    generic map (
-        g_invert_sclk    => false,
-        g_num_data_bits  => 16,
-        g_num_extra_bits => 8,
-        g_enable_x2_gain => false) -- X2 Gain.
-    port map (
-        clk_i         => clk_pll_62m5,
-        rst_n_i       => rst_62m5_n,
-        val_i         => dac_refclk_data,
-        load_i        => dac_refclk_load,
-        dac_sync_n_o  => dac_refclk_sync_n_o,
-        dac_ldac_n_o  => dac_refclk_ldac_n_o,
-        dac_clr_n_o   => dac_refclk_clr_n_o,
-        dac_sclk_o    => dac_refclk_sclk_o,
-        dac_din_o     => dac_refclk_sdi_o
-    );
 
   -----------------------------------------------------------------------------
   -- The WR PTP core with optional fabric interface attached

@@ -61,23 +61,9 @@ entity xwrc_board_artix7_wrapper is
     ext_ref_rst_o        : out std_logic;
     ready_for_reset_o    : out std_logic;
 
-    -- AD5663R Serial DACs
-    dac_refclk_ldac_n_o : out std_logic;
-    dac_refclk_clr_n_o  : out std_logic;
-    dac_refclk_sclk_o   : out std_logic;
-    dac_refclk_sync_n_o : out std_logic;
-    dac_refclk_sdi_o    : out std_logic;
-    dac_refclk_sdo_i    : in  std_logic;
-
+    -- Serial DACs
     dac_refclk_load     : out std_logic;
     dac_refclk_data     : out std_logic_vector(15 downto 0);
-
-    dac_dmtd_ldac_n_o   : out std_logic;
-    dac_dmtd_clr_n_o    : out std_logic;
-    dac_dmtd_sclk_o     : out std_logic;
-    dac_dmtd_sync_n_o   : out std_logic;
-    dac_dmtd_sdi_o      : out std_logic;
-    dac_dmtd_sdo_i      : in  std_logic;
 
     dac_dmtd_load       : out std_logic;
     dac_dmtd_data       : out std_logic_vector(15 downto 0);
@@ -269,20 +255,8 @@ begin
       dbg_rdy_o            => dbg_rdy_o,
       ext_ref_rst_o        => ext_ref_rst_o,
       ready_for_reset_o    => ready_for_reset_o,
-      dac_refclk_ldac_n_o  => dac_refclk_ldac_n_o,
-      dac_refclk_clr_n_o   => dac_refclk_clr_n_o,
-      dac_refclk_sclk_o    => dac_refclk_sclk_o,
-      dac_refclk_sync_n_o  => dac_refclk_sync_n_o,
-      dac_refclk_sdi_o     => dac_refclk_sdi_o,
-      dac_refclk_sdo_i     => dac_refclk_sdo_i,
       dac_refclk_load      => dac_refclk_load,
       dac_refclk_data      => dac_refclk_data,
-      dac_dmtd_ldac_n_o    => dac_dmtd_ldac_n_o,
-      dac_dmtd_clr_n_o     => dac_dmtd_clr_n_o,
-      dac_dmtd_sclk_o      => dac_dmtd_sclk_o,
-      dac_dmtd_sync_n_o    => dac_dmtd_sync_n_o,
-      dac_dmtd_sdi_o       => dac_dmtd_sdi_o,
-      dac_dmtd_sdo_i       => dac_dmtd_sdo_i,
       dac_dmtd_load        => dac_dmtd_load,
       dac_dmtd_data        => dac_dmtd_data,
       sfp_txp_o            => sfp_txp_o,
