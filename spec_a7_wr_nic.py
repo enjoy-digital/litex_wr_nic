@@ -257,12 +257,6 @@ class BaseSoC(LiteXWRNICSoC):
             clk10_ext_pads    = platform.request("clk10_ext")
             clk10_ext         = Signal()
 
-            # DACs specific logic.
-            self.comb += [
-                dac_refclk_pads.ldac_n.eq(0), # Low = DAC automatically updated.
-                dac_dmtd_pads.ldac_n.eq(0),   # Low = DAC automatically updated.
-            ]
-
             # Temp 1-Wire specific logic.
             temp_1wire_oe_n = Signal()
             temp_1wire_i    = Signal()
