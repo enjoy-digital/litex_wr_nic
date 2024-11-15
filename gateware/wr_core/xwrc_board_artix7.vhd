@@ -320,7 +320,8 @@ architecture struct of xwrc_board_artix7 is
   generic(
       g_invert_sclk    : boolean;
       g_num_data_bits  : integer;
-      g_num_extra_bits : integer);
+      g_num_extra_bits : integer;
+      g_enable_x2_gain : boolean);
   port(
       clk_i            : in  std_logic;
       rst_n_i          : in  std_logic;
@@ -440,14 +441,15 @@ begin  -- architecture struct
   rst_62m5_n <= rstlogic_rst_out(0);
 
   -----------------------------------------------------------------------------
-  -- 2x SPI DAC
+  -- 2x SPI DAC (AD5683R)
   -----------------------------------------------------------------------------
 
   cmp_dmtd_dac : serial_dac_arb
     generic map (
-        g_invert_sclk    => FALSE,
+        g_invert_sclk    => false,
         g_num_data_bits  => 16,
-        g_num_extra_bits => 8)
+        g_num_extra_bits => 8,
+        g_enable_x2_gain => false) -- X1 Gain.
     port map (
         clk_i         => clk_pll_62m5,
         rst_n_i       => rst_62m5_n,
@@ -462,9 +464,10 @@ begin  -- architecture struct
 
   cmp_refclk_dac : serial_dac_arb
     generic map (
-        g_invert_sclk    => FALSE,
+        g_invert_sclk    => false,
         g_num_data_bits  => 16,
-        g_num_extra_bits => 8)
+        g_num_extra_bits => 8,
+        g_enable_x2_gain => false) -- X2 Gain.
     port map (
         clk_i         => clk_pll_62m5,
         rst_n_i       => rst_62m5_n,
