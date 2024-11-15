@@ -22,7 +22,6 @@
 import argparse
 
 from litex.gen import *
-from litex.gen.genlib.misc import WaitTimer
 
 from spec_a7_platform import *
 

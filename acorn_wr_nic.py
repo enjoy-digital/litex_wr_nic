@@ -15,6 +15,7 @@ from litex_boards.platforms import sqrl_acorn
 
 from litex.build.generic_platform import *
 from litex.build.io               import SDRTristate
+from litex.build.io               import DifferentialInput
 from litex.build.openfpgaloader   import OpenFPGALoader
 
 from litex.soc.interconnect.csr     import *
@@ -223,7 +224,7 @@ class BaseSoC(LiteXWRNICSoC):
                     ndmas                = 1,
                     address_width        = 64,
                     with_ptm             = True,
-                    max_pending_requests = 4,
+                    max_pending_requests = 2,
                 )
 
         # White Rabbit -----------------------------------------------------------------------------
@@ -285,20 +286,12 @@ class BaseSoC(LiteXWRNICSoC):
                 o_clk_62m5_sys_o      = ClockSignal("wr"),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_ldac_n_o = Open(),
-                o_dac_refclk_clr_n_o  = Open(),
-                o_dac_refclk_sclk_o   = Open(),
-                o_dac_refclk_sync_n_o = Open(),
-                o_dac_refclk_sdi_o    = Open(),
-                i_dac_refclk_sdo_i    = 0,
+                o_dac_refclk_load     = Open(),
+                o_dac_refclk_data     = Open(),
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_ldac_n_o   = Open(),
-                o_dac_dmtd_clr_n_o    = Open(),
-                o_dac_dmtd_sclk_o     = Open(),
-                o_dac_dmtd_sync_n_o   = Open(),
-                o_dac_dmtd_sdi_o      = Open(),
-                i_dac_dmtd_sdo_i      = 0,
+                o_dac_dmtd_load       = Open(),
+                o_dac_dmtd_data       = Open(),
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
@@ -317,8 +310,8 @@ class BaseSoC(LiteXWRNICSoC):
                 o_onewire_oen_o       = Open(),
 
                 # UART Interface.
-                i_uart_rxd_i           = uart_wr_pads.rx,
-                o_uart_txd_o           = uart_wr_pads.tx,
+                i_uart_rxd_i          = uart_wr_pads.rx,
+                o_uart_txd_o          = uart_wr_pads.tx,
 
                 # SPI Flash Interface.
                 o_spi_sclk_o          = Open(),
