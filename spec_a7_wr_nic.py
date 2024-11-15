@@ -536,6 +536,9 @@ class BaseSoC(LiteXWRNICSoC):
                     o_dac_din_o    = pads.sdi,
                 )
 
+                platform.add_source("gateware/ad5663r/serial_dac.vhd")
+                platform.add_source("gateware/ad5663r/serial_dac_arb.vhd")
+
         self.refclk_dac = AD5663RDAC(pads=dac_refclk_pads, load=dac_refclk_load, value=dac_refclk_data, gain=2)
         self.dmtd_dac   = AD5663RDAC(pads=dac_dmtd_pads,   load=dac_dmtd_load,   value=dac_dmtd_data,   gain=1)
 

@@ -218,10 +218,6 @@ wr_core_files = [
     # LiteX-WR NIC adapted files.
     # ----------------------------------------------------------------------------------------------
 
-    # AD5663R Serial DAC Modules.
-    "gateware/ad5663r/serial_dac.vhd",
-    "gateware/ad5663r/serial_dac_arb.vhd",
-
     # WR PHY Modules.
     "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper.vhd",
     "gateware/wr_phy/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
