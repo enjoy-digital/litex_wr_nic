@@ -29,7 +29,7 @@ from spec_a7_platform import *
 
 from litex.build.generic_platform import *
 from litex.build.io               import SDRTristate
-from litex.build.io               import DifferentialInput
+from litex.build.io               import DifferentialInput, DifferentialOutput
 from litex.build.openfpgaloader   import OpenFPGALoader
 
 from litex.soc.interconnect.csr     import *
@@ -460,6 +460,13 @@ class BaseSoC(LiteXWRNICSoC):
             # PPS Output.
             for i in range(5):
                 self.specials += MultiReg(i=pps_out, o=platform.request("gpio", i), odomain="wr", n=2) # FIXME: Calibrate board to avoid it and reach sub-ns timings.
+
+            pps_out_pads = platform.request("pps_out")
+            self.specials += DifferentialOutput(
+                i   = pps_out,
+                o_p = pps_out_pads.p,
+                o_n = pps_out_pads.n,
+            )
 
             # Leds Output.
             self.comb += [

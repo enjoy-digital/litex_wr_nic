@@ -159,6 +159,18 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # Sync-Out.
+    ("clk10m_out", 0,
+        Subsignal("p", Pins("B9")), # SYNC_DATA0_P.
+        Subsignal("n", Pins("A9")), # SYNC_DATA0_N.
+        IOStandard("LVDS_25"),
+    ),
+    ("pps_out", 0,
+        Subsignal("p", Pins("D8")), # SYNC_DATA1_P.
+        Subsignal("n", Pins("C8")), # SYNC_DATA1_P.
+        IOStandard("LVDS_25"),
+    ),
+
     # Temp.
     ("temp_1wire", 0, Pins("U14"), IOStandard("LVCMOS33")), # ONE_WIRE.
 
