@@ -303,7 +303,6 @@ class BaseSoC(LiteXWRNICSoC):
             dac_dmtd_data   = Signal(16)
             pps_p_o         = Signal()
 
-
             # White Rabbit Fabric Interface.
             # ------------------------------
             wrf_src = wishbone.Interface(data_width=16, address_width=2, adressing="byte")
@@ -325,6 +324,28 @@ class BaseSoC(LiteXWRNICSoC):
                 cd_from = "sys",
                 wb_to   = wb_slave_wr,
                 cd_to   = "wr",
+            )
+
+            # White Rabbit RefClk AD9516 PLL Driver.
+            # --------------------------------------
+            self.refclk_pll = AD9516PLL(platform=platform, pads=platform.request("pll"))
+
+            # White Rabbit RefClk / DMTD DAC Drivers.
+            # ---------------------------------------
+            # RefClk DAC.
+            self.refclk_dac = AD5683RDAC(platform,
+                pads  = dac_refclk_pads,
+                load  = dac_refclk_load,
+                value = dac_refclk_data,
+                gain  = 2, # 2 for 0-3V range to be able to accelerate enough RefClk, not working with 1.
+            )
+
+            # DMTD DAC.
+            self.dmtd_dac = AD5683RDAC(platform,
+                pads  = dac_dmtd_pads,
+                load  = dac_dmtd_load,
+                value = dac_dmtd_data,
+                gain  = 1,
             )
 
             # White Rabbit Core Instance.
@@ -432,13 +453,13 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
 
-            # PPS.
+            # PPS Output.
             pps_p_o_d = Signal(16)
             self.sync.wr += pps_p_o_d.eq(pps_p_o)
             for i in range(5):
                 self.sync.wr += platform.request("gpio", i).eq(pps_p_o_d)
 
-            # Leds.
+            # Leds Output.
             self.comb += [
                 platform.request("user_led", 0).eq(~led_link),
                 platform.request("user_led", 1).eq(~led_act),
@@ -479,28 +500,6 @@ class BaseSoC(LiteXWRNICSoC):
                 self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
             else:
                 self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
-
-        # White Rabbit RefClk / DMTD DAC Drivers ---------------------------------------------------
-
-        # RefClk DAC.
-        self.refclk_dac = AD5683RDAC(platform,
-            pads  = dac_refclk_pads,
-            load  = dac_refclk_load,
-            value = dac_refclk_data,
-            gain  = 2, # 2 for 0-3V range to be able to accelerate enough RefClk, not working with 1.
-        )
-
-        # DMTD DAC.
-        self.dmtd_dac = AD5683RDAC(platform,
-            pads  = dac_dmtd_pads,
-            load  = dac_dmtd_load,
-            value = dac_dmtd_data,
-            gain  = 1,
-        )
-
-        # White Rabbit RefClk AD9516 PLL Driver ----------------------------------------------------
-
-        self.ad9516_pll = AD9516PLL(platform=platform, pads=platform.request("pll"))
 
         # White Rabbit Clk Measurement -------------------------------------------------------------
 

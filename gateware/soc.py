@@ -49,6 +49,11 @@ class LiteXWRNICSoC(SoCMini):
         "ethphy1"           : 18,
         "ethmac1"           : 19,
 
+        # White Rabbit.
+        "refclk_pll"        : 20,
+        "refclk_dac"        : 21,
+        "dmtd_dac"          : 22,
+
         # PCIe NIC.
         "pcie_pcie2wb_dma0" : 24,
         "pcie_wb2pcie_dma0" : 25,
