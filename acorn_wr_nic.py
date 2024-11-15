@@ -105,6 +105,9 @@ class _CRG(LiteXModule):
 
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
+        # CPU Parameters.
+        cpu_firmware      = "firmware/spec_a7_wrc.bram",
+
         # PCIe Parameters.
         with_pcie         = True,
         with_pcie_ptm     = True,
@@ -118,8 +121,6 @@ class BaseSoC(LiteXWRNICSoC):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
-
-        self.file_basedir = os.path.abspath(os.path.dirname(__file__))
 
         # Clocking ---------------------------------------------------------------------------------
 
@@ -234,21 +235,15 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Pads.
             # -----
-            sfp_pads          = self.platform.request("sfp")
-            sfp_i2c_pads      = self.platform.request("sfp_i2c")
-            serial_pads       = self.platform.request("serial")
+            sfp_pads     = self.platform.request("sfp")
+            sfp_i2c_pads = self.platform.request("sfp_i2c")
+            serial_pads  = self.platform.request("serial")
 
             # Signals.
             # --------
-            led_pps      = Signal()
-            led_link     = Signal()
-            led_act      = Signal()
-            self.comb += [
-                platform.request("user_led", 0).eq(~led_link),
-                platform.request("user_led", 1).eq(~led_act),
-                platform.request("user_led", 2).eq(~led_pps),
-            ]
-
+            led_pps  = Signal()
+            led_link = Signal()
+            led_act  = Signal()
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -275,10 +270,9 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit Core Instance.
             # ---------------------------
-            cpu_firmware = os.path.join(self.file_basedir, "firmware/spec_a7_wrc.bram")
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
                 # Parameters.
-                p_g_dpram_initf       = cpu_firmware,
+                p_g_dpram_initf       = os.path.abspath(cpu_firmware),
                 p_g_dpram_size        = 131072/4,
                 p_txpolarity          = 0, # Inverted on Acorn and on baseboard.
                 p_rxpolarity          = 1, # Inverted on Acorn.
@@ -386,6 +380,13 @@ class BaseSoC(LiteXWRNICSoC):
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
+
+            # Leds.
+            self.comb += [
+                platform.request("user_led", 0).eq(~led_link),
+                platform.request("user_led", 1).eq(~led_act),
+                platform.request("user_led", 2).eq(~led_pps),
+            ]
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 

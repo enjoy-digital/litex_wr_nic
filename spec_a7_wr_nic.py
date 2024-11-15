@@ -113,6 +113,9 @@ class _CRG(LiteXModule):
 
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
+        # CPU Parameters.
+        cpu_firmware      = "firmware/spec_a7_wrc.bram",
+
         # PCIe Parameters.
         with_pcie         = True,
         with_pcie_ptm     = True,
@@ -124,10 +127,8 @@ class BaseSoC(LiteXWRNICSoC):
         with_pcie_nic     = False,
     ):
         # Platform ---------------------------------------------------------------------------------
-        platform = Platform(variant="xc7a50t")
+        platform      = Platform(variant="xc7a50t")
         platform.name = "spec_a7_wr_nic"
-
-        self.file_basedir = os.path.abspath(os.path.dirname(__file__))
 
         # Clocking ---------------------------------------------------------------------------------
 
@@ -248,18 +249,18 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Pads.
             # -----
-            dac_refclk_pads   = platform.request("dac_refclk")
-            dac_dmtd_pads     = platform.request("dac_dmtd")
-            sfp_disable_pads  = platform.request("sfp_disable")
-            sfp_fault_pads    = platform.request("sfp_fault")
-            sfp_los_pads      = platform.request("sfp_los")
-            sfp_pads          = platform.request("sfp")
-            sfp_i2c_pads      = platform.request("sfp_i2c")
-            temp_1wire_pads   = platform.request("temp_1wire")
-            flash_pads        = platform.request("flash")
-            flash_clk         = Signal()
-            clk10_ext_pads    = platform.request("clk10_ext")
-            clk10_ext         = Signal()
+            dac_refclk_pads  = platform.request("dac_refclk")
+            dac_dmtd_pads    = platform.request("dac_dmtd")
+            sfp_disable_pads = platform.request("sfp_disable")
+            sfp_fault_pads   = platform.request("sfp_fault")
+            sfp_los_pads     = platform.request("sfp_los")
+            sfp_pads         = platform.request("sfp")
+            sfp_i2c_pads     = platform.request("sfp_i2c")
+            temp_1wire_pads  = platform.request("temp_1wire")
+            flash_pads       = platform.request("flash")
+            flash_clk        = Signal()
+            clk10_ext_pads   = platform.request("clk10_ext")
+            clk10_ext        = Signal()
 
             # Temp 1-Wire specific logic.
             temp_1wire_oe_n = Signal()
@@ -293,23 +294,15 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Signals.
             # --------
-            led_pps      = Signal()
-            led_link     = Signal()
-            led_act      = Signal()
-            self.comb += [
-                platform.request("user_led", 0).eq(~led_link),
-                platform.request("user_led", 1).eq(~led_act),
-                platform.request("user_led", 2).eq(~led_pps),
-            ]
-
+            led_pps         = Signal()
+            led_link        = Signal()
+            led_act         = Signal()
             dac_refclk_load = Signal()
             dac_refclk_data = Signal(16)
+            dac_dmtd_load   = Signal()
+            dac_dmtd_data   = Signal(16)
+            pps_p_o         = Signal()
 
-            dac_dmtd_load = Signal()
-            dac_dmtd_data = Signal(16)
-
-            pps_p_o          = Signal()
-            clk_ref_locked_o = Signal()
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -336,10 +329,9 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit Core Instance.
             # ---------------------------
-            cpu_firmware = os.path.join(self.file_basedir, "firmware/spec_a7_wrc.bram")
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
                 # Parameters.
-                p_g_dpram_initf       = cpu_firmware,
+                p_g_dpram_initf       = os.path.abspath(cpu_firmware),
                 p_g_dpram_size        = 131072/4,
                 p_txpolarity          = 0, # Not Inverted.
                 p_rxpolarity          = 0, # Not Inverted.
@@ -376,8 +368,8 @@ class BaseSoC(LiteXWRNICSoC):
                 o_onewire_oen_o       = temp_1wire_oe_n,
 
                 # UART Interface.
-                i_uart_rxd_i           = uart_wr_pads.rx,
-                o_uart_txd_o           = uart_wr_pads.tx,
+                i_uart_rxd_i          = uart_wr_pads.rx,
+                o_uart_txd_o          = uart_wr_pads.tx,
 
                 # SPI Flash Interface.
                 o_spi_sclk_o          = flash_clk,
@@ -440,10 +432,18 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
 
+            # PPS.
             pps_p_o_d = Signal(16)
             self.sync.wr += pps_p_o_d.eq(pps_p_o)
             for i in range(5):
                 self.sync.wr += platform.request("gpio", i).eq(pps_p_o_d)
+
+            # Leds.
+            self.comb += [
+                platform.request("user_led", 0).eq(~led_link),
+                platform.request("user_led", 1).eq(~led_act),
+                platform.request("user_led", 2).eq(~led_pps),
+            ]
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 
