@@ -31,7 +31,7 @@ class PacketStreamer(Module):
             port.adr.eq(count),
             source.valid.eq(1),
             source.first.eq(count == 0),
-            source.last.eq( count == (len(datas) - 1)),
+            source.last.eq(count == (len(datas) - 1)),
             source.data.eq(port.dat_r),
         ]
         self.sync += [
@@ -97,23 +97,26 @@ class PacketChecker(Module):
     def add_debug(self, banner):
         last_loop = Signal(32)
         data_error_msg = " Data Error: 0x\%0{}x vs 0x\%0{}x".format(
-            self.data_width//4,
-            self.data_width//4)
+            self.data_width // 4,
+            self.data_width // 4
+        )
         framing_error_msg = " Framing Error"
+
         self.sync += [
+            # Print data error when it occurs.
             If(self.data_error,
-                Display(banner + data_error_msg,
-                    self.sink.data,
-                    self.reference
-                )
+                Display(banner + data_error_msg, self.sink.data, self.reference)
             ),
+            # Print framing error when it occurs.
             If(self.framing_error,
                 Display(banner + framing_error_msg)
             ),
+            # Only print loop updates when the loop counter changes.
             If(last_loop != self.loop,
                 Display(banner + " Loop: %d", self.loop),
                 last_loop.eq(self.loop)
             ),
+            # Finish simulation if a data error is detected after a delay.
             timeline(self.data_error, [
                 (128, [Finish()])
             ])
@@ -128,9 +131,9 @@ class WRCSim(SimSoC):
         self.cd_wr = ClockDomain()
         self.sync += self.cd_wr.clk.eq(~self.cd_wr.clk)
 
-        data = [i%256 for i in range(length)]
+        data = [i % 256 for i in range(length)]
 
-        # Streamer -> Stream2Wishbone -> Whishbone2Stream -> Checker -------------------------------
+        # Streamer -> Stream2Wishbone -> Wishbone2Stream -> Checker -------------------------------
 
         self.streamer  = PacketStreamer(8, data)
         self.stream2wb = Stream2Wishbone(cd_to="wr")
@@ -143,16 +146,30 @@ class WRCSim(SimSoC):
             self.wb2stream.source.connect(self.checker.sink),
         ]
 
+        # Simulation Summary ----------------------------------------------------------------------
+        self.total_loops = Signal(32)
+        self.total_errors = Signal(32)
+
+        self.sync += [
+            self.total_loops.eq(self.checker.loop),
+            If(self.checker.data_error | self.checker.framing_error,
+                self.total_errors.eq(self.total_errors + 1)
+            )
+        ]
+
         # Sim Finish -------------------------------------------------------------------------------
         cycles = Signal(32)
         self.sync += cycles.eq(cycles + 1)
-        self.sync += If(cycles == 1000, Finish())
+        self.sync += If(cycles == 1000,
+            Display("Simulation Complete: %d Loops, %d Errors.", self.total_loops, self.total_errors),
+            Finish()
+        )
 
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="White Rabbit WRF Interface Simulation")
-    parser.add_argument("--length",      default=16, type=int,help="Packet Data Length.")
+    parser.add_argument("--length",      default=16, type=int, help="Packet Data Length.")
     parser.add_argument("--trace",       action="store_true", help="Enable Tracing")
     parser.add_argument("--trace-fst",   action="store_true", help="Enable FST tracing (default=VCD)")
     parser.add_argument("--trace-start", default=0,           help="Cycle to start tracing")
