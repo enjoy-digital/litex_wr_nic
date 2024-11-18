@@ -490,33 +490,9 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 
-            from liteeth.common import eth_phy_description
+            from gateware.nic.phy import LiteEthPHYWRGMII
 
-            class LiteEthPHYWRGMII(LiteXModule):
-                dw = 8
-                with_preamble_crc = False
-                with_padding      = False
-                def __init__(self):
-                    self.sink    = sink   = stream.Endpoint(eth_phy_description(8))
-                    self.source  = source = stream.Endpoint(eth_phy_description(8))
-
-                    # # #
-
-                    self.cd_eth_rx = ClockDomain()
-                    self.cd_eth_tx = ClockDomain()
-                    self.comb += [
-                        self.cd_eth_rx.clk.eq(ClockSignal("sys")),
-                        self.cd_eth_rx.rst.eq(ResetSignal("sys")),
-                        self.cd_eth_tx.clk.eq(ClockSignal("sys")),
-                        self.cd_eth_tx.clk.eq(ClockSignal("sys")),
-                    ]
-
-                    self.comb += [
-                        sink.connect(wrf_stream2wb.sink,     omit={"last_be", "error"}),
-                        wrf_wb2stream.source.connect(source, omit={"last_be", "error"}),
-                    ]
-
-            self.ethphy0 = LiteEthPHYWRGMII()
+            self.ethphy0 = LiteEthPHYWRGMII(wrf_stream2wb, wrf_wb2stream)
 
             if not with_pcie_nic:
                 self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
