@@ -15,6 +15,20 @@ from litex.soc.interconnect.csr import *
 
 # AD9516 PLL Configurations ------------------------------------------------------------------------
 
+# AD916 MAIN:
+# - 25MHz VCXO on REF 1.
+# - 1500MHz VCO.
+# - Out0: Power-Down.
+# - Out1: Power-Down.
+# - Out2: 500MHz (LVPECL).
+# - Out3: 500MHz (LVPECL).
+# - Out4: Power-Down.
+# - Out5: Power-Down.
+# - Out6: 125MHz (LVDS).
+# - Out7: 125MHZ (LVDS).
+# - Out8: 125MHz (LVDS).
+# - Out9: 125MHz (LVDS).
+
 AD9516_MAIN_CONFIG = [
     (0x0000, 0x99), (0x0001, 0x00), (0x0002, 0x10), (0x0003, 0xC3),
     (0x0004, 0x00), (0x0010, 0x7C), (0x0011, 0x05), (0x0012, 0x00),
@@ -34,6 +48,12 @@ AD9516_MAIN_CONFIG = [
     (0x01A1, 0x20), (0x01A2, 0x00), (0x01A3, 0x00), (0x01E0, 0x01),
     (0x01E1, 0x02), (0x0230, 0x00), (0x0231, 0x00), (0x0232, 0x01),
 ]
+
+# AD916 EXT:
+# - 10MHz on REF IN (LVDS).
+# - 1500MHz VCO.
+# - Out6: 62.5MHz (LVDS).
+# - OutX: Power-Down.
 
 AD9516_EXT_CONFIG = [
     (0x0000, 0x99), (0x0001, 0x00), (0x0002, 0x10), (0x0003, 0xC3),
