@@ -28,7 +28,7 @@ from litex.gen import *
 from spec_a7_platform import *
 
 from litex.build.generic_platform import *
-from litex.build.io               import SDRTristate
+from litex.build.io               import SDRTristate, SDROutput
 from litex.build.io               import DifferentialInput, DifferentialOutput
 from litex.build.openfpgaloader   import OpenFPGALoader
 
@@ -492,18 +492,29 @@ class BaseSoC(LiteXWRNICSoC):
             for i in range(5):
                 self.specials += MultiReg(i=pps_out, o=platform.request("gpio", i), odomain="wr", n=2) # FIXME: Calibrate board to avoid it and reach sub-ns timings.
 
+            pps_out_r    = Signal()
             pps_out_pads = platform.request("pps_out")
+            self.specials += SDROutput(
+                i   = pps_out,
+                o   = pps_out_r,
+                clk = ClockSignal("wr"),
+            )
             self.specials += DifferentialOutput(
-                #i   = pps_out,
-                i   = ClockSignal("extclk_10m"), # FIXME: For delay line tests.
+                i   = pps_out_r,
                 o_p = pps_out_pads.p,
                 o_n = pps_out_pads.n,
             )
 
             # Clk10M Output.
+            clk10m_out_r    = Signal()
             clk10m_out_pads = platform.request("clk10m_out")
+            self.specials += SDROutput(
+                i   = pps_out, # FIXME: See on Cute A7 how 10MHz is generated.
+                o   = clk10m_out_r,
+                clk = ClockSignal("wr"),
+            )
             self.specials += DifferentialOutput(
-                i   = ClockSignal("extclk_10m"), # FIXME: For delay line tests.
+                i   = clk10m_out_r,
                 o_p = clk10m_out_pads.p,
                 o_n = clk10m_out_pads.n,
             )
