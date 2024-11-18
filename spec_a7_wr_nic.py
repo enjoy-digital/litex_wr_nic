@@ -98,13 +98,13 @@ class _CRG(LiteXModule):
         )
         self.comb += self.cd_clk_125m_gtp.clk.eq(refclk125_se)
         self.comb += self.cd_refclk_eth.clk.eq(refclk125_se)
-        platform.add_period_constraint(refclk125_pads.p, 1e9/125e6)
+        platform.add_period_constraint(self.cd_clk_125m_gtp.clk, 1e9/125e6)
 
         # DMTD PLL (62.5MHz from VCXO).
         # -----------------------------
         clk62m5_dmtd_pads = platform.request("clk62m5_dmtd")
         self.comb += self.cd_clk_62m5_dmtd.clk.eq(clk62m5_dmtd_pads)
-        platform.add_period_constraint(clk62m5_dmtd_pads, 1e9/62.5e6)
+        platform.add_period_constraint(self.cd_clk_62m5_dmtd.clk, 1e9/62.5e6)
 
         # False Paths.
         # ------------
@@ -114,6 +114,8 @@ class _CRG(LiteXModule):
                 self.cd_sys.clk,
                 self.cd_clk_62m5_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
+                self.cd_extclk_10m.clk,
+                self.cd_extclk_62m5.clk,
             )
         else:
             platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
@@ -478,6 +480,8 @@ class BaseSoC(LiteXWRNICSoC):
                 o_wrf_snk_rty         = Open(), # Not Used.
             )
             self.add_sources()
+            platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
+            platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
             # PPS Output.
             for i in range(5):
