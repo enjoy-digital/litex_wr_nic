@@ -174,6 +174,15 @@ _io = [
         IOStandard("LVDS_25"),
     ),
 
+    # DELAY.
+    ("delay", 0,
+        Subsignal("en",    Pins("J18")), # DELAY_EN.
+        Subsignal("sclk",  Pins("K18")), # DELAY_SCLK.
+        Subsignal("sdin",  Pins("J14")), # DELAY_SDIN.
+        Subsignal("sload", Pins("M16")), # DELAY_SLOAD.
+        IOStandard("LVCMOS33"),
+    ),
+
     # Temp.
     ("temp_1wire", 0, Pins("U14"), IOStandard("LVCMOS33")), # ONE_WIRE.
 
@@ -229,15 +238,6 @@ _io = [
     ("sfp_rx", 1,
         Subsignal("p", Pins("G4")), # SFP1_O_P.
         Subsignal("n", Pins("G3")), # SFP1_O_N.
-    ),
-
-    # DELAY.
-    ("delay", 0,
-        Subsignal("en",    Pins("J18")), # DELAY_EN.
-        Subsignal("sclk",  Pins("K18")), # DELAY_SCLK.
-        Subsignal("sdin",  Pins("J14")), # DELAY_SDIN.
-        Subsignal("sload", Pins("M16")), # DELAY_SLOAD.
-        IOStandard("LVCMOS33"),
     ),
 ]
 

@@ -57,6 +57,7 @@ from gateware.wrf_wb2stream     import Wishbone2Stream
 from gateware.ad5683r.core      import AD5683RDAC
 from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
+from gateware.nb6l295.core      import NB6L295DelayLine
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -483,15 +484,28 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
+            # Delay Line (PPS & Clk10M Output).
+            # ---------------------------------
+            self.delay_line = NB6L295DelayLine(platform=platform, pads=platform.request("delay"))
+
             # PPS Output.
             for i in range(5):
                 self.specials += MultiReg(i=pps_out, o=platform.request("gpio", i), odomain="wr", n=2) # FIXME: Calibrate board to avoid it and reach sub-ns timings.
 
             pps_out_pads = platform.request("pps_out")
             self.specials += DifferentialOutput(
-                i   = pps_out,
+                #i   = pps_out,
+                i   = ClockSignal("extclk_10m"), # FIXME: For delay line tests.
                 o_p = pps_out_pads.p,
                 o_n = pps_out_pads.n,
+            )
+
+            # Clk10M Output.
+            clk10m_out_pads = platform.request("clk10m_out")
+            self.specials += DifferentialOutput(
+                i   = ClockSignal("extclk_10m"), # FIXME: For delay line tests.
+                o_p = clk10m_out_pads.p,
+                o_n = clk10m_out_pads.n,
             )
 
             # Leds Output.
