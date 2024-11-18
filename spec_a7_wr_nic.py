@@ -77,6 +77,7 @@ class _CRG(LiteXModule):
         clk125_oe = platform.request("clk125_oe")
         clk125    = platform.request("clk125")
         self.comb += clk125_oe.eq(1)
+        platform.add_period_constraint(clk125, 1e9/125e6)
 
         self.pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
@@ -95,10 +96,13 @@ class _CRG(LiteXModule):
         )
         self.comb += self.cd_clk_125m_gtp.clk.eq(refclk125_se)
         self.comb += self.cd_refclk_eth.clk.eq(refclk125_se)
+        platform.add_period_constraint(refclk125_pads.p, 1e9/125e6)
 
         # DMTD PLL (62.5MHz from VCXO).
         # -----------------------------
-        self.comb += self.cd_clk_62m5_dmtd.clk.eq(platform.request("clk62m5_dmtd"))
+        clk62m5_dmtd_pads = platform.request("clk62m5_dmtd")
+        self.comb += self.cd_clk_62m5_dmtd.clk.eq(clk62m5_dmtd_pads)
+        platform.add_period_constraint(clk62m5_dmtd_pads, 1e9/62.5e6)
 
         # False Paths.
         # ------------
@@ -296,6 +300,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_n = clk10m_ext_pads.n,
                 o   = clk10m_ext,
             )
+            platform.add_period_constraint(clk10m_ext, 1e9/10e6)
 
             # Clk62m5 Ext logic.
             self.specials += DifferentialInput(
@@ -303,6 +308,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_n = clk62m5_ext_pads.n,
                 o   = clk62m5_ext,
             )
+            platform.add_period_constraint(clk62m5_ext, 1e9/62.5e6)
 
             # Signals.
             # --------
