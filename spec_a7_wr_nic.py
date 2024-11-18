@@ -55,7 +55,7 @@ from gateware.wb_clock_crossing import WishboneClockCrossing
 from gateware.wrf_stream2wb     import Stream2Wishbone
 from gateware.wrf_wb2stream     import Wishbone2Stream
 from gateware.ad5683r.core      import AD5683RDAC
-from gateware.ad9516.core       import AD9516PLL
+from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
 
 # CRG ----------------------------------------------------------------------------------------------
@@ -262,8 +262,10 @@ class BaseSoC(LiteXWRNICSoC):
             temp_1wire_pads  = platform.request("temp_1wire")
             flash_pads       = platform.request("flash")
             flash_clk        = Signal()
-            clk10_ext_pads   = platform.request("clk10_ext")
-            clk10_ext        = Signal()
+            clk10m_ext_pads  = platform.request("clk10m_ext")
+            clk10m_ext       = Signal()
+            clk62m5_ext_pads = platform.request("clk62m5_ext")
+            clk62m5_ext      = Signal()
 
             # Temp 1-Wire specific logic.
             temp_1wire_oe_n = Signal()
@@ -290,9 +292,16 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Clk10 Ext logic.
             self.specials += DifferentialInput(
-                i_p = clk10_ext_pads.p,
-                i_n = clk10_ext_pads.n,
-                o   = clk10_ext,
+                i_p = clk10m_ext_pads.p,
+                i_n = clk10m_ext_pads.n,
+                o   = clk10m_ext,
+            )
+
+            # Clk62m5 Ext logic.
+            self.specials += DifferentialInput(
+                i_p = clk62m5_ext_pads.p,
+                i_n = clk62m5_ext_pads.n,
+                o   = clk62m5_ext,
             )
 
             # Signals.
@@ -332,7 +341,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit RefClk AD9516 PLL Driver.
             # --------------------------------------
-            self.refclk_pll = AD9516PLL(platform=platform, pads=platform.request("pll"))
+            self.refclk_pll = AD9516PLL(platform=platform, pads=platform.request("pll"), config=AD9516_MAIN_CONFIG)
 
             # White Rabbit RefClk / DMTD DAC Drivers.
             # ---------------------------------------
@@ -352,6 +361,10 @@ class BaseSoC(LiteXWRNICSoC):
                 gain  = 1,
             )
 
+            # White Rabbit ExtClk AD9516 PLL Driver.
+            # --------------------------------------
+            self.extclk_pll = AD9516PLL(platform=platform, pads=platform.request("ext_pll"), config=AD9516_EXT_CONFIG)
+
             # White Rabbit Core Instance.
             # ---------------------------
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
@@ -365,7 +378,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_areset_n_i          = ~ResetSignal("sys"),
                 i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
-                i_clk_10m_ext_i       = clk10_ext,
+                i_clk_10m_ext_i       = clk10m_ext,
                 o_clk_62m5_sys_o      = ClockSignal("wr"),
 
                 # DAC RefClk Interface.
@@ -534,7 +547,8 @@ class BaseSoC(LiteXWRNICSoC):
             "clk0" : ClockSignal("sys"),
             "clk1" : ClockSignal("clk_62m5_dmtd"),
             "clk2" : ClockSignal("clk_125m_gtp"),
-            "clk3" : 0,
+            "clk3" : clk10m_ext,
+            "clk4" : clk62m5_ext,
         })
 
 # Build --------------------------------------------------------------------------------------------

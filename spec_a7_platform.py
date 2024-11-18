@@ -34,11 +34,11 @@ _io = [
     ("clk62m5_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.
 
     # ExtClk / From 10MHz input.
-    ("clk10_ext", 0,
+    ("clk10m_ext", 0,
         Subsignal("p", Pins("E13"), IOStandard("DIFF_SSTL15")), # EXT_CLK_P.
         Subsignal("n", Pins("D14"), IOStandard("DIFF_SSTL15")), # EXT_CLK_N.
     ),
-    ("clk62m5", 0,
+    ("clk62m5_ext", 0,
         Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_P.
         Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_N.
     ),

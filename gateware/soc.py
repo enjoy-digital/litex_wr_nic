@@ -53,6 +53,7 @@ class LiteXWRNICSoC(SoCMini):
         "refclk_pll"        : 20,
         "refclk_dac"        : 21,
         "dmtd_dac"          : 22,
+        "extclk_pll"        : 23,
 
         # PCIe NIC.
         "pcie_pcie2wb_dma0" : 24,

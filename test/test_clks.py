@@ -13,12 +13,13 @@ from litex import RemoteClient
 
 # Constants ----------------------------------------------------------------------------------------
 
-NUM_CLOCKS = 4
+NUM_CLOCKS = 5
 CLOCK_MAPPING = {
     0: "Sys Clk",
     1: "DMTD Clk",
     2: "Clk Ref",
-    3: "Unused",
+    3: "Clk10m Ext",
+    4: "Clk62m5 Ext",
 }
 
 # Functions ----------------------------------------------------------------------------------------
