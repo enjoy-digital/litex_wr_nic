@@ -69,6 +69,8 @@ class _CRG(LiteXModule):
         if with_white_rabbit:
             self.cd_clk_125m_gtp  = ClockDomain()
             self.cd_clk_62m5_dmtd = ClockDomain()
+        self.cd_extclk_10m  = ClockDomain()
+        self.cd_extclk_62m5 = ClockDomain()
 
         # # #
 
@@ -300,7 +302,8 @@ class BaseSoC(LiteXWRNICSoC):
                 i_n = clk10m_ext_pads.n,
                 o   = clk10m_ext,
             )
-            platform.add_period_constraint(clk10m_ext, 1e9/10e6)
+            self.comb += self.crg.cd_extclk_10m.clk.eq(clk10m_ext)
+            platform.add_period_constraint(self.crg.cd_extclk_10m.clk, 1e9/10e6)
 
             # Clk62m5 Ext logic.
             self.specials += DifferentialInput(
@@ -308,7 +311,8 @@ class BaseSoC(LiteXWRNICSoC):
                 i_n = clk62m5_ext_pads.n,
                 o   = clk62m5_ext,
             )
-            platform.add_period_constraint(clk62m5_ext, 1e9/62.5e6)
+            self.comb += self.crg.cd_extclk_62m5.clk.eq(clk62m5_ext)
+            platform.add_period_constraint(self.crg.cd_extclk_62m5.clk, 1e9/62.5e6)
 
             # Signals.
             # --------
@@ -384,7 +388,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_areset_n_i          = ~ResetSignal("sys"),
                 i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
-                i_clk_10m_ext_i       = clk10m_ext,
+                i_clk_10m_ext_i       = ClockSignal("extclk_10m"),
                 o_clk_62m5_sys_o      = ClockSignal("wr"),
 
                 # DAC RefClk Interface.
@@ -473,7 +477,6 @@ class BaseSoC(LiteXWRNICSoC):
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
                 o_wrf_snk_rty         = Open(), # Not Used.
             )
-            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
 
             # PPS Output.
@@ -529,8 +532,8 @@ class BaseSoC(LiteXWRNICSoC):
             "clk0" : ClockSignal("sys"),
             "clk1" : ClockSignal("clk_62m5_dmtd"),
             "clk2" : ClockSignal("clk_125m_gtp"),
-            "clk3" : clk10m_ext,
-            "clk4" : clk62m5_ext,
+            "clk3" : ClockSignal("extclk_10m"),
+            "clk4" : ClockSignal("extclk_62m5"),
         })
 
 # Build --------------------------------------------------------------------------------------------

@@ -20,8 +20,9 @@ _io = [
     # Free-Running Clk / 125MHz.
     ("clk125_oe", 0, Pins("F14"), IOStandard("LVCMOS25")), # OE_125M.
     ("clk125",    0,
-        Subsignal("p", Pins("E16"), IOStandard("DIFF_SSTL15")), # CLK_125MHZ_P.
-        Subsignal("n", Pins("D16"), IOStandard("DIFF_SSTL15")), # CLK_125MHZ_N.
+        Subsignal("p", Pins("E16")), # CLK_125MHZ_P.
+        Subsignal("n", Pins("D16")), # CLK_125MHZ_N.
+        IOStandard("LVDS_25"),
     ),
 
     # RefClk (GTP) / 125MHz from 25MHz VCXO + AD9516 (X5).
@@ -35,12 +36,14 @@ _io = [
 
     # ExtClk / From 10MHz input.
     ("clk10m_ext", 0,
-        Subsignal("p", Pins("E13"), IOStandard("DIFF_SSTL15")), # EXT_CLK_P.
-        Subsignal("n", Pins("D14"), IOStandard("DIFF_SSTL15")), # EXT_CLK_N.
+        Subsignal("p", Pins("E13")), # EXT_CLK_P.
+        Subsignal("n", Pins("D14")), # EXT_CLK_N.
+        IOStandard("LVDS_25"),
     ),
     ("clk62m5_ext", 0,
-        Subsignal("p", Pins("D13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_P.
-        Subsignal("n", Pins("C13"), IOStandard("DIFF_SSTL15")), # CLK_62_5MHZ_N.
+        Subsignal("p", Pins("D13")), # CLK_62_5MHZ_P.
+        Subsignal("n", Pins("C13")), # CLK_62_5MHZ_N.
+        IOStandard("LVDS_25"),
     ),
 
     # Revision.
