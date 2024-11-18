@@ -347,7 +347,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit RefClk AD9516 PLL Driver.
             # --------------------------------------
-            self.refclk_pll = AD9516PLL(platform=platform, pads=platform.request("pll"), config=AD9516_MAIN_CONFIG)
+            self.refclk_pll = AD9516PLL(platform=platform, pads=platform.request("pll"), config=AD9516_MAIN_CONFIG, name="main")
 
             # White Rabbit RefClk / DMTD DAC Drivers.
             # ---------------------------------------
@@ -369,7 +369,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit ExtClk AD9516 PLL Driver.
             # --------------------------------------
-            self.extclk_pll = AD9516PLL(platform=platform, pads=platform.request("ext_pll"), config=AD9516_EXT_CONFIG)
+            self.extclk_pll = AD9516PLL(platform=platform, pads=platform.request("ext_pll"), config=AD9516_EXT_CONFIG, name="ext")
 
             # White Rabbit Core Instance.
             # ---------------------------

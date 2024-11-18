@@ -58,14 +58,14 @@ AD9516_EXT_CONFIG = [
 # AD9516 PLL ---------------------------------------------------------------------------------------
 
 class AD9516PLL(LiteXModule):
-    def __init__(self, platform, pads, config):
+    def __init__(self, platform, pads, config, name):
         self._rst  = CSRStorage()
         self._done = CSRStatus()
 
         # # #
 
         # PLL Driver Instance.
-        self.specials += Instance("wr_pll_ctrl",
+        self.specials += Instance(f"wr_pll_ctrl_{name}",
             p_g_project_name = "NORMAL",
             p_g_spi_clk_freq =  4,
             i_clk_i          = ClockSignal("sys"),
@@ -81,11 +81,11 @@ class AD9516PLL(LiteXModule):
             i_pll_miso_i     = pads.sdo,
             o_done_o         = self._done.status,
         )
-        self.add_sources(platform, config)
+        self.add_sources(platform, config, name)
 
-    def add_sources(self, platform, config):
+    def add_sources(self, platform, config, name):
         # Generate VHDL package.
-        self.generate_vhdl_package(config)
+        self.generate_vhdl_package(config, name)
 
         # SPI Top Sources.
         platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/spi_clgen.v")
@@ -97,42 +97,43 @@ class AD9516PLL(LiteXModule):
         platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/xwb_spi.vhd")
 
         # WR PLL Ctrl Sources.
-        platform.add_source("gateware/ad9516/wr_pll_ctrl_pkg.vhd")
-        platform.add_source("gateware/ad9516/wr_pll_ctrl.vhd")
+        platform.add_source(f"gateware/ad9516/wr_pll_ctrl_{name}_pkg.vhd")
+        platform.add_source(f"gateware/ad9516/wr_pll_ctrl_{name}.vhd")
 
-    def generate_vhdl_package(self, config):
+    def generate_vhdl_package(self, config, name):
         """Generate the VHDL package for wr_pll_ctrl."""
         vhdl_template = """\
 library ieee;
 use ieee.std_logic_1164.all;
 
-package wr_pll_ctrl_pkg is
+package wr_pll_ctrl_{name}_pkg is
 
   type t_data_array is array(natural range <>) of std_logic_vector(7 downto 0);
   type t_addr_array is array(natural range <>) of std_logic_vector(15 downto 0);
 
-  -- AD9516 settings for NORMAL
+  -- AD9516 settings
   constant c_spi_addr_array : t_addr_array := (
     {addr_array}
   );
 
-  constant c_spi_data_array_normal : t_data_array := (
+  constant c_spi_data_array : t_data_array := (
     {data_array}
   );
 
-end wr_pll_ctrl_pkg;
+end wr_pll_ctrl_{name}_pkg;
 """
         addr_array_str = ",\n    ".join([f"x\"{addr:04X}\"" for addr, _ in config])
         data_array_str = ",\n    ".join([f"x\"{data:02X}\"" for _, data in config])
 
         vhdl_content = vhdl_template.format(
-            addr_array=addr_array_str,
-            data_array=data_array_str
+            addr_array = addr_array_str,
+            data_array = data_array_str,
+            name       = name,
         )
 
         output_dir = os.path.join(os.getcwd(), "gateware/ad9516")
         os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, "wr_pll_ctrl_pkg.vhd")
+        output_file = os.path.join(output_dir, f"wr_pll_ctrl_{name}_pkg.vhd")
 
         with open(output_file, "w") as f:
             f.write(vhdl_content)

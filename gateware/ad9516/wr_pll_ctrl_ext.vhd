@@ -4,9 +4,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.wr_pll_ctrl_pkg.all;
+use work.wr_pll_ctrl_ext_pkg.all;
 
-entity wr_pll_ctrl is
+entity wr_pll_ctrl_ext is
 generic (
   g_project_name : string := "NORMAL";
   -- clk_spi = clk/(div+1)/2 --> 6.25MHz sclk for 62.5 input (up to 25MHz)
@@ -28,9 +28,9 @@ port (
     pll_miso_i   : in  std_logic;
     -- spi controller status
     done_o       : out std_logic);
-end wr_pll_ctrl;
+end wr_pll_ctrl_ext;
 
-architecture Behavioral of wr_pll_ctrl is
+architecture Behavioral of wr_pll_ctrl_ext is
 
   component spi_top is
   port(
@@ -87,9 +87,9 @@ architecture Behavioral of wr_pll_ctrl is
   signal spi_enable      : std_logic := '0'; 
   signal spi_read_reg    : std_logic_vector(15 downto 0) := (others => '0');
   
-  signal spi_data_array_wr  : t_data_array(0 to ((c_spi_data_array_normal'length)-1));
-  signal spi_data_array_rd  : t_data_array(0 to ((c_spi_data_array_normal'length)-1));
-  signal spi_addr_array     : t_addr_array(0 to ((c_spi_data_array_normal'length)-1));
+  signal spi_data_array_wr  : t_data_array(0 to ((c_spi_data_array'length)-1));
+  signal spi_data_array_rd  : t_data_array(0 to ((c_spi_data_array'length)-1));
+  signal spi_addr_array     : t_addr_array(0 to ((c_spi_data_array'length)-1));
 
   signal spi_write_done  : std_logic := '0'; 
   signal spi_error       : std_logic;
@@ -97,9 +97,9 @@ architecture Behavioral of wr_pll_ctrl is
 
 begin
 
-  spi_data_array_wr <= c_spi_data_array_normal;
-  spi_data_array_rd(0 to ((c_spi_data_array_normal'length)-2)) <= c_spi_data_array_normal(0 to ((c_spi_data_array_normal'length)-2));
-  spi_data_array_rd((c_spi_data_array_normal'length)-1) <= x"00";
+  spi_data_array_wr <= c_spi_data_array;
+  spi_data_array_rd(0 to ((c_spi_data_array'length)-2)) <= c_spi_data_array(0 to ((c_spi_data_array'length)-2));
+  spi_data_array_rd((c_spi_data_array'length)-1) <= x"00";
   spi_addr_array    <= c_spi_addr_array;
 
   -- SPI signals
