@@ -106,10 +106,11 @@ class _CRG(LiteXModule):
 
         # Sys PLL (from WR Clk).
         # ----------------------
-        self.pll = pll = S7PLL(speedgrade=-2)
-        self.comb += pll.reset.eq(self.rst | ResetSignal("wr"))
-        pll.register_clkin(ClockSignal("wr"), 62.5e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
+        #self.pll = pll = S7PLL(speedgrade=-2)
+        #self.comb += pll.reset.eq(self.rst | ResetSignal("wr"))
+        #pll.register_clkin(ClockSignal("wr"), 62.5e6)
+        #pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
+        self.comb += self.cd_sys.clk.eq(clk125)
 
         # DMTD PLL (62.5MHz from VCXO).
         # -----------------------------
@@ -121,7 +122,7 @@ class _CRG(LiteXModule):
         # ------------
         if with_white_rabbit:
             platform.add_false_path_constraints(
-                pll.clkin,
+                #pll.clkin,
                 self.cd_init.clk,
                 self.cd_sys.clk,
                 self.cd_clk_62m5_dmtd.clk,

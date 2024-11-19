@@ -40,6 +40,8 @@ class Stream2Wishbone(LiteXModule):
             layout  = [("data", 16), ("valid_token_count", 3)],
             cd_from = "sys",
             cd_to   = cd_to,
+            depth   = 16,
+            with_common_rst = True,
         )
 
         # Sink -> Converter -> CDC.
