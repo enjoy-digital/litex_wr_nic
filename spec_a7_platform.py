@@ -193,6 +193,7 @@ _io = [
     ("sfp_los",       0, Pins("P18"),         IOStandard("LVCMOS33")), # SFP0_LOSE.
     ("sfp_mode",      0, Pins("R18 T18 T17"), IOStandard("LVCMOS33")), # SFP0_MODE0-2.
     ("sfp_rs",        0, Pins("N16"),         IOStandard("LVCMOS33")), # SFP0_RS.
+    ("sfp_det",       0, Pins("R18"),         IOStandard("LVCMOS33")), # SFP0_MODE0.
     ("sfp_i2c",       0,
         Subsignal("sda", Pins("T17")), # SFP0_MODE2.
         Subsignal("scl", Pins("T18")), # SFP0_MODE1.
@@ -221,6 +222,7 @@ _io = [
     ("sfp_los",       1, Pins("P15"),         IOStandard("LVCMOS33")), # SFP1_LOSE.
     ("sfp_mode",      1, Pins("T12 N14 M14"), IOStandard("LVCMOS33")), # SFP1_MODE0-2.
     ("sfp_rs",        1, Pins("R13"),         IOStandard("LVCMOS33")), # SFP1_RS.
+    ("sfp_det",       1, Pins("T12"),         IOStandard("LVCMOS33")), # SFP1_MODE0.
     ("sfp_i2c",       1,
         Subsignal("sda", Pins("M14")), # SFP1_MODE2.
         Subsignal("scl", Pins("N14")), # SFP1_MODE1.

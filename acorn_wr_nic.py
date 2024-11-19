@@ -304,7 +304,7 @@ class BaseSoC(LiteXWRNICSoC):
                 o_sfp_txn_o           = sfp_pads.txn,
                 i_sfp_rxp_i           = sfp_pads.rxp,
                 i_sfp_rxn_i           = sfp_pads.rxn,
-                i_sfp_det_i           = 0b1,
+                i_sfp_det_i           = 0b0,
                 io_sfp_sda            = sfp_i2c_pads.sda,
                 io_sfp_scl            = sfp_i2c_pads.scl,
                 i_sfp_tx_fault_i      = 0b0,

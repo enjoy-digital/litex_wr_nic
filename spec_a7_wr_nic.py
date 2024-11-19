@@ -268,6 +268,7 @@ class BaseSoC(LiteXWRNICSoC):
             sfp_los_pads     = platform.request("sfp_los")
             sfp_pads         = platform.request("sfp")
             sfp_i2c_pads     = platform.request("sfp_i2c")
+            sfp_det_pads     = platform.request("sfp_det")
             temp_1wire_pads  = platform.request("temp_1wire")
             flash_pads       = platform.request("flash")
             flash_clk        = Signal()
@@ -420,7 +421,7 @@ class BaseSoC(LiteXWRNICSoC):
                 o_sfp_txn_o           = sfp_pads.txn,
                 i_sfp_rxp_i           = sfp_pads.rxp,
                 i_sfp_rxn_i           = sfp_pads.rxn,
-                i_sfp_det_i           = 0b1,
+                i_sfp_det_i           = sfp_det_pads,
                 io_sfp_sda            = sfp_i2c_pads.sda,
                 io_sfp_scl            = sfp_i2c_pads.scl,
                 i_sfp_tx_fault_i      = sfp_fault_pads,
@@ -496,6 +497,18 @@ class BaseSoC(LiteXWRNICSoC):
             self.add_sources()
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
+
+            analyzer_signals = [
+                sfp_i2c_pads.sda,
+                sfp_i2c_pads.scl,
+            ]
+            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                depth        = 256,
+                clock_domain = "sys",
+                samplerate   = sys_clk_freq,
+                register     = True,
+                csr_csv      = "test/analyzer.csv"
+            )
 
             # Delay Line (PPS & Clk10M Output).
             # ---------------------------------
