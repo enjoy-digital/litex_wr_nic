@@ -26,6 +26,8 @@ from litex.soc.cores.hyperbus import HyperRAM
 from liteeth.phy.a7_gtp import QPLLSettings, QPLL
 from liteeth.phy.a7_1000basex import A7_1000BASEX
 
+from litex.soc.cores.bitbang import I2CMaster
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
@@ -128,6 +130,11 @@ class BaseSoC(SoCCore):
             pads         = platform.request_all("frontpanel_led"),
             sys_clk_freq = sys_clk_freq,
         )
+
+        # SFP I2C ----------------------------------------------------------------------------------
+
+        i2c_pads = platform.request("sfp_i2c", 0)
+        self.i2c = I2CMaster(pads=i2c_pads)
 
 # Build --------------------------------------------------------------------------------------------
 
