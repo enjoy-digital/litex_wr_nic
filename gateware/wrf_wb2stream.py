@@ -46,7 +46,7 @@ class Wishbone2Stream(LiteXModule):
             layout  = [("data", 16), ("sel", 2)],
             cd_from = cd_from,
             cd_to   = "sys",
-            depth   = 16,
+            depth   = 8,
             with_common_rst = True,
         )
 
