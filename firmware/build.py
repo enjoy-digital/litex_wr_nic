@@ -27,6 +27,9 @@ CONFIG_SRC        = "spec_a7_defconfig"
 FIRMWARE_SRC      = os.path.join(CLONE_DIR, "wrc.bram")
 FIRMWARE_DEST     = "spec_a7_wrc.bram"
 
+SDBFS_DEST        = "sdb-wrpc.bin"
+SDBFS_SRC         = "sdbfs"
+
 # Build Helpers/Functions --------------------------------------------------------------------------
 
 def run_command(command, cwd=None):
@@ -85,6 +88,23 @@ def copy_firmware():
         exit(1)
     shutil.copy(FIRMWARE_SRC, FIRMWARE_DEST)
 
+def build_sdbfs():
+    """Build the SDB filesystem."""
+    sdbfs_tool_path = os.path.join(CLONE_DIR, "tools", "gensdbfs")
+    sdbfs_src_path = os.path.abspath(SDBFS_SRC)
+    sdbfs_dest_path = os.path.abspath(SDBFS_DEST)
+
+    if not os.path.exists(sdbfs_tool_path):
+        print(f"Error: SDBFS tool {sdbfs_tool_path} does not exist.")
+        exit(1)
+
+    tools_path = os.path.join(CLONE_DIR, "tools")
+    os.environ["PATH"] = tools_path + os.pathsep + os.environ["PATH"]
+
+    # Run the command to generate SDB filesystem
+    run_command(f"./gensdbfs -b 65536 {sdbfs_src_path} {sdbfs_dest_path}", cwd=tools_path)
+
+
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
@@ -95,6 +115,7 @@ def main():
     copy_config_file()
     build_firmware()
     copy_firmware()
+    build_sdbfs()
     print("Build process completed successfully.")
 
 if __name__ == "__main__":
