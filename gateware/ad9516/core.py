@@ -78,7 +78,7 @@ AD9516_EXT_CONFIG = [
 # AD9516 PLL ---------------------------------------------------------------------------------------
 
 class AD9516PLL(LiteXModule):
-    def __init__(self, platform, pads, config, name):
+    def __init__(self, platform, pads, config, name, clk_domain="sys"):
         self._rst  = CSRStorage()
         self._done = CSRStatus()
 
@@ -88,7 +88,7 @@ class AD9516PLL(LiteXModule):
         self.specials += Instance(f"wr_pll_ctrl_{name}",
             p_g_project_name = "NORMAL",
             p_g_spi_clk_freq =  4,
-            i_clk_i          = ClockSignal("sys"),
+            i_clk_i          = ClockSignal(clk_domain),
             i_rst_n_i        = ~self._rst.storage,
             i_pll_lock_i     = pads.lock,
             o_pll_reset_n_o  = pads.reset_n,

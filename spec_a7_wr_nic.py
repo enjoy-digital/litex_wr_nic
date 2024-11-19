@@ -64,6 +64,7 @@ from gateware.nb6l295.core      import NB6L295DelayLine
 class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, with_white_rabbit=True):
         self.rst            = Signal()
+        self.cd_init        = ClockDomain()
         self.cd_sys         = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
@@ -75,17 +76,19 @@ class _CRG(LiteXModule):
 
         # # #
 
-        # Sys PLL (Free-Running from clk125).
-        # ----------------------------------
-        clk125_oe = platform.request("clk125_oe")
-        clk125    = platform.request("clk125")
+        # InitClk (125MHz, used for Main PLL bringup when SysClk is not yet available).
+        # -----------------------------------------------------------------------------
+        clk125_oe    = platform.request("clk125_oe")
+        clk125_pads  = platform.request("clk125")
+        clk125       = Signal()
         self.comb += clk125_oe.eq(1)
+        self.specials += DifferentialInput(
+            i_p = clk125_pads.p,
+            i_n = clk125_pads.n,
+            o   = clk125,
+        )
         platform.add_period_constraint(clk125, 1e9/125e6)
-
-        self.pll = pll = S7PLL(speedgrade=-2)
-        self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(clk125, 125e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
+        self.comb += self.cd_init.clk.eq(clk125)
 
         # RefClk Input (125MHz from 25MHz VCXO x 5 (AD9516)).
         # ---------------------------------------------------
@@ -101,6 +104,13 @@ class _CRG(LiteXModule):
         self.comb += self.cd_refclk_eth.clk.eq(refclk125_se)
         platform.add_period_constraint(self.cd_clk_125m_gtp.clk, 1e9/125e6)
 
+        # Sys PLL (from WR Clk).
+        # ----------------------
+        self.pll = pll = S7PLL(speedgrade=-2)
+        self.comb += pll.reset.eq(self.rst | ResetSignal("wr"))
+        pll.register_clkin(ClockSignal("wr"), 62.5e6)
+        pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
+
         # DMTD PLL (62.5MHz from VCXO).
         # -----------------------------
         clk62m5_dmtd_pads = platform.request("clk62m5_dmtd")
@@ -112,6 +122,7 @@ class _CRG(LiteXModule):
         if with_white_rabbit:
             platform.add_false_path_constraints(
                 pll.clkin,
+                self.cd_init.clk,
                 self.cd_sys.clk,
                 self.cd_clk_62m5_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
@@ -354,7 +365,13 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit RefClk AD9516 PLL Driver.
             # --------------------------------------
-            self.refclk_pll = AD9516PLL(platform=platform, pads=platform.request("pll"), config=AD9516_MAIN_CONFIG, name="main")
+            self.refclk_pll = AD9516PLL(
+                platform   = platform,
+                pads       = platform.request("pll"),
+                config     = AD9516_MAIN_CONFIG,
+                name       = "main",
+                clk_domain = "init", # Run in init_clk domain since PLL output is used for sys_clk.
+            )
 
             # White Rabbit RefClk / DMTD DAC Drivers.
             # ---------------------------------------
@@ -376,7 +393,13 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit ExtClk AD9516 PLL Driver.
             # --------------------------------------
-            self.extclk_pll = AD9516PLL(platform=platform, pads=platform.request("ext_pll"), config=AD9516_EXT_CONFIG, name="ext")
+            self.extclk_pll = AD9516PLL(
+                platform   = platform,
+                pads       = platform.request("ext_pll"),
+                config     = AD9516_EXT_CONFIG,
+                name       = "ext",
+                clk_domain = "sys",
+            )
 
             # White Rabbit Core Instance.
             # ---------------------------
@@ -388,7 +411,8 @@ class BaseSoC(LiteXWRNICSoC):
                 p_rxpolarity          = 0, # Not Inverted.
 
                 # Clocks/resets.
-                i_areset_n_i          = ~ResetSignal("sys"),
+                #i_areset_n_i          = ~ResetSignal("sys"),
+                i_areset_n_i          = 1,
                 i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = ClockSignal("extclk_10m"),
