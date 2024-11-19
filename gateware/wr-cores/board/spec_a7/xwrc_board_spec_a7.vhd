@@ -93,6 +93,7 @@ entity xwrc_board_spec_a7 is
     pps_ext_i           : in  std_logic                               := '0';
 
     clk_62m5_sys_o      : out std_logic;
+    rst_62m5_sys_o      : out std_logic;
 
     ---------------------------------------------------------------------------
     -- Serial DACs
@@ -336,6 +337,7 @@ begin  -- architecture struct
     );
 
   clk_62m5_sys_o <= clk_pll_62m5;
+  rst_62m5_sys_o <= not pll_locked;
 
   -----------------------------------------------------------------------------
   -- Reset logic

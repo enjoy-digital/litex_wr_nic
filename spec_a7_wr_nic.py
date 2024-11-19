@@ -393,6 +393,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = ClockSignal("extclk_10m"),
                 o_clk_62m5_sys_o      = ClockSignal("wr"),
+                o_rst_62m5_sys_o      = ResetSignal("wr"),
 
                 # DAC RefClk Interface.
                 o_dac_refclk_load     = dac_refclk_load,
