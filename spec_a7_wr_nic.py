@@ -132,6 +132,9 @@ class BaseSoC(LiteXWRNICSoC):
         with_pcie         = True,
         with_pcie_ptm     = True,
 
+        # SFP Parameters.
+        sfp_connector     = 0,
+
         # White Rabbit Paramters.
         with_white_rabbit = True,
 
@@ -263,12 +266,12 @@ class BaseSoC(LiteXWRNICSoC):
             # -----
             dac_refclk_pads  = platform.request("dac_refclk")
             dac_dmtd_pads    = platform.request("dac_dmtd")
-            sfp_disable_pads = platform.request("sfp_disable")
-            sfp_fault_pads   = platform.request("sfp_fault")
-            sfp_los_pads     = platform.request("sfp_los")
-            sfp_pads         = platform.request("sfp")
-            sfp_i2c_pads     = platform.request("sfp_i2c")
-            sfp_det_pads     = platform.request("sfp_det")
+            sfp_disable_pads = platform.request("sfp_disable", sfp_connector)
+            sfp_fault_pads   = platform.request("sfp_fault",   sfp_connector)
+            sfp_los_pads     = platform.request("sfp_los",     sfp_connector)
+            sfp_pads         = platform.request("sfp",         sfp_connector)
+            sfp_i2c_pads     = platform.request("sfp_i2c",     sfp_connector)
+            sfp_det_pads     = platform.request("sfp_det",     sfp_connector)
             temp_1wire_pads  = platform.request("temp_1wire")
             flash_pads       = platform.request("flash")
             flash_clk        = Signal()

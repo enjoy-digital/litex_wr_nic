@@ -118,6 +118,9 @@ class BaseSoC(LiteXWRNICSoC):
         with_pcie         = True,
         with_pcie_ptm     = True,
 
+        # SFP Parameters.
+        sfp_connector     = 0,
+
         # White Rabbit Paramters.
         with_white_rabbit = True,
 
@@ -241,8 +244,8 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Pads.
             # -----
-            sfp_pads     = self.platform.request("sfp")
-            sfp_i2c_pads = self.platform.request("sfp_i2c")
+            sfp_pads     = self.platform.request("sfp",     sfp_connector)
+            sfp_i2c_pads = self.platform.request("sfp_i2c", sfp_connector)
             serial_pads  = self.platform.request("serial")
 
             # Signals.
