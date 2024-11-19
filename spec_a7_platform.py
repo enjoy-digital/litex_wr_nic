@@ -197,6 +197,7 @@ _io = [
         Subsignal("sda", Pins("T17")), # SFP0_MODE2.
         Subsignal("scl", Pins("T18")), # SFP0_MODE1.
         IOStandard("LVCMOS33"),
+        Misc("PULLUP True"),
     ),
     ("sfp", 0,
         Subsignal("txp", Pins("D2")), # SFP0_I_P.
@@ -224,6 +225,7 @@ _io = [
         Subsignal("sda", Pins("M14")), # SFP1_MODE2.
         Subsignal("scl", Pins("N14")), # SFP1_MODE1.
         IOStandard("LVCMOS33"),
+        Misc("PULLUP True"),
     ),
     ("sfp", 1,
         Subsignal("txp", Pins("B2")), # SFP1_I_P.
