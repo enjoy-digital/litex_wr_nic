@@ -3,7 +3,7 @@
 # FLASH. That is why our default position for various parameters is right after
 # the bitstream.
 .
-	position = 1507328
+	position = 0
 
 # Allocation granularity is 64 bytes
 # We start with bitstream file at position 0, later the same set of files as for
@@ -12,7 +12,7 @@
 bitstream
   write = 1
   position = 0
-  maxsize = 1507328
+  maxsize = 0
 
 mac-address
 	write = 1

@@ -639,7 +639,8 @@ def main():
     # -----------
     if args.flash:
         prog = soc.platform.create_programmer()
-        prog.flash(0, builder.get_bitstream_filename(mode="flash"))
+        prog.flash(0x0000_0000, builder.get_bitstream_filename(mode="flash"))
+        prog.flash(0x002e_0000, "firmware/sdb-wrpc.bin")
 
 if __name__ == "__main__":
     main()
