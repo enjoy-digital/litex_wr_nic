@@ -126,21 +126,17 @@ class _CRG(LiteXModule):
 
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
-        # CPU Parameters.
-        cpu_firmware      = "firmware/spec_a7_wrc.bram",
-
         # PCIe Parameters.
-        with_pcie         = True,
-        with_pcie_ptm     = True,
-
-        # SFP Parameters.
-        sfp_connector     = 0,
+        with_pcie     = True,
+        with_pcie_ptm = True,
 
         # White Rabbit Paramters.
-        with_white_rabbit = True,
+        with_white_rabbit          = True,
+        white_rabbit_sfp_connector = 0,
+        white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
 
         # PCIe NIC.
-        with_pcie_nic     = True,
+        with_pcie_nic = True,
 
         # PPS Out Parameters.
         pps_out_macro_delay_default  = 62499996, # 16ns  taps (Up to 2**32-1 taps).
@@ -280,12 +276,12 @@ class BaseSoC(LiteXWRNICSoC):
             # -----
             dac_refclk_pads  = platform.request("dac_refclk")
             dac_dmtd_pads    = platform.request("dac_dmtd")
-            sfp_disable_pads = platform.request("sfp_disable", sfp_connector)
-            sfp_fault_pads   = platform.request("sfp_fault",   sfp_connector)
-            sfp_los_pads     = platform.request("sfp_los",     sfp_connector)
-            sfp_pads         = platform.request("sfp",         sfp_connector)
-            sfp_i2c_pads     = platform.request("sfp_i2c",     sfp_connector)
-            sfp_det_pads     = platform.request("sfp_det",     sfp_connector)
+            sfp_disable_pads = platform.request("sfp_disable", white_rabbit_sfp_connector)
+            sfp_fault_pads   = platform.request("sfp_fault",   white_rabbit_sfp_connector)
+            sfp_los_pads     = platform.request("sfp_los",     white_rabbit_sfp_connector)
+            sfp_pads         = platform.request("sfp",         white_rabbit_sfp_connector)
+            sfp_i2c_pads     = platform.request("sfp_i2c",     white_rabbit_sfp_connector)
+            sfp_det_pads     = platform.request("sfp_det",     white_rabbit_sfp_connector)
             temp_1wire_pads  = platform.request("temp_1wire")
             flash_pads       = platform.request("flash")
             flash_clk        = Signal()
@@ -414,7 +410,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ---------------------------
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
                 # Parameters.
-                p_g_dpram_initf       = os.path.abspath(cpu_firmware),
+                p_g_dpram_initf       = os.path.abspath(white_rabbit_cpu_firmware),
                 p_g_dpram_size        = 131072/4,
                 p_txpolarity          = 0, # Not Inverted.
                 p_rxpolarity          = 0, # Not Inverted.

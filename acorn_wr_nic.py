@@ -111,21 +111,17 @@ class _CRG(LiteXModule):
 
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
-        # CPU Parameters.
-        cpu_firmware      = "firmware/spec_a7_wrc.bram",
-
         # PCIe Parameters.
-        with_pcie         = True,
-        with_pcie_ptm     = True,
-
-        # SFP Parameters.
-        sfp_connector     = 0,
+        with_pcie     = True,
+        with_pcie_ptm = True,
 
         # White Rabbit Paramters.
-        with_white_rabbit = True,
+        with_white_rabbit          = True,
+        white_rabbit_sfp_connector = 0,
+        white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
 
         # PCIe NIC.
-        with_pcie_nic     = False,
+        with_pcie_nic = False,
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
@@ -244,8 +240,8 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Pads.
             # -----
-            sfp_pads     = self.platform.request("sfp",     sfp_connector)
-            sfp_i2c_pads = self.platform.request("sfp_i2c", sfp_connector)
+            sfp_pads     = self.platform.request("sfp",     white_rabbit_sfp_connector)
+            sfp_i2c_pads = self.platform.request("sfp_i2c", white_rabbit_sfp_connector)
             serial_pads  = self.platform.request("serial")
 
             # Signals.
@@ -281,7 +277,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ---------------------------
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
                 # Parameters.
-                p_g_dpram_initf       = os.path.abspath(cpu_firmware),
+                p_g_dpram_initf       = os.path.abspath(white_rabbit_cpu_firmware),
                 p_g_dpram_size        = 131072/4,
                 p_txpolarity          = 0, # Inverted on Acorn and on baseboard.
                 p_rxpolarity          = 1, # Inverted on Acorn.
