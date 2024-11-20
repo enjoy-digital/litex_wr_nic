@@ -58,6 +58,7 @@ from gateware.ad5683r.core      import AD5683RDAC
 from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
 from gateware.nb6l295.core      import NB6L295DelayLine
+from gateware.delay.core        import CoarseDelayLine
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -501,54 +502,52 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
-            analyzer_signals = [
-                sfp_i2c_pads.sda,
-                sfp_i2c_pads.scl,
-            ]
-            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                depth        = 256,
-                clock_domain = "sys",
-                samplerate   = sys_clk_freq,
-                register     = True,
-                csr_csv      = "test/analyzer.csv"
+
+            # Coarse Delay PLL.
+            # -----------------
+            self.cd_wr8x = ClockDomain()
+            self.coarse_delay_pll = coarse_delay_pll = S7PLL(speedgrade=-2)
+            self.comb += coarse_delay_pll.reset.eq(ResetSignal("wr"))
+            coarse_delay_pll.register_clkin(ClockSignal("wr"), 62.5e6)
+            coarse_delay_pll.create_clkout(self.cd_wr8x, 500e6, margin=0)
+
+            # Coarse Delay Line.
+            # ------------------
+            pps_out_coarse_delay   = Signal()
+            clk10_out_coarse_delay = Signal()
+            self.pps_out_coarse_delay = CoarseDelayLine(
+                i = pps_out,
+                o = pps_out_coarse_delay
+            )
+            self.clk10_out_coarse_delay = CoarseDelayLine(
+                i = pps_out, # FIXME: Use PPS for now to ease verify delay control.
+                o = clk10_out_coarse_delay
             )
 
-            # Delay Line (PPS & Clk10M Output).
+            # Fine Delay Line (PPS & Clk10M Output).
             # ---------------------------------
-            self.delay_line = NB6L295DelayLine(platform=platform, pads=platform.request("delay"))
+            self.fine_delay_line = NB6L295DelayLine(platform=platform, pads=platform.request("delay"))
 
             # PPS Output.
-            for i in range(5):
-                self.specials += MultiReg(i=pps_out, o=platform.request("gpio", i), odomain="wr", n=2) # FIXME: Calibrate board to avoid it and reach sub-ns timings.
-
-            pps_out_r    = Signal()
+            # -----------
             pps_out_pads = platform.request("pps_out")
-            self.specials += SDROutput(
-                i   = pps_out,
-                o   = pps_out_r,
-                clk = ClockSignal("wr"),
-            )
             self.specials += DifferentialOutput(
-                i   = pps_out_r,
+                i   = pps_out_coarse_delay,
                 o_p = pps_out_pads.p,
                 o_n = pps_out_pads.n,
             )
 
             # Clk10M Output.
-            clk10m_out_r    = Signal()
+            # --------------
             clk10m_out_pads = platform.request("clk10m_out")
-            self.specials += SDROutput(
-                i   = pps_out, # FIXME: See on Cute A7 how 10MHz is generated.
-                o   = clk10m_out_r,
-                clk = ClockSignal("wr"),
-            )
             self.specials += DifferentialOutput(
-                i   = clk10m_out_r,
+                i   = clk10_out_coarse_delay,
                 o_p = clk10m_out_pads.p,
                 o_n = clk10m_out_pads.n,
             )
 
             # Leds Output.
+            # ------------
             self.comb += [
                 platform.request("user_led", 0).eq(~led_link),
                 platform.request("user_led", 1).eq(~led_act),
