@@ -58,7 +58,7 @@ from gateware.ad5683r.core      import AD5683RDAC
 from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
 from gateware.nb6l295.core      import NB6L295DelayLine
-from gateware.delay.core        import CoarseDelayLine
+from gateware.delay.core        import CoarseDelay
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -511,20 +511,24 @@ class BaseSoC(LiteXWRNICSoC):
             coarse_delay_pll.register_clkin(ClockSignal("wr"), 62.5e6)
             coarse_delay_pll.create_clkout(self.cd_wr4x, 250e6, margin=0)
 
-            # Coarse Delay Line.
-            # ------------------
+            # Coarse Delay.
+            # -------------
             pps_out_coarse_delay   = Signal()
             clk10_out_coarse_delay = Signal()
-            self.pps_out_coarse_delay = CoarseDelayLine(
+            self.pps_out_coarse_delay = CoarseDelay(
                 i = pps_out,
-                o = pps_out_coarse_delay
+                o = pps_out_coarse_delay,
+                clk_domain = "wr",
+                clk_cycles = 1,
             )
-            self.clk10_out_coarse_delay = CoarseDelayLine(
+            self.clk10_out_coarse_delay = CoarseDelay(
                 i = pps_out, # FIXME: Use PPS for now to ease verify delay control.
-                o = clk10_out_coarse_delay
+                o = clk10_out_coarse_delay,
+                clk_domain = "wr",
+                clk_cycles = 1,
             )
 
-            # Fine Delay Line (PPS & Clk10M Output).
+            # Fine Delay (PPS & Clk10M Output).
             # ---------------------------------
             self.fine_delay_line = NB6L295DelayLine(platform=platform, pads=platform.request("delay"))
 
