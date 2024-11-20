@@ -130,8 +130,8 @@ class BaseSoC(LiteXWRNICSoC):
         cpu_firmware      = "firmware/spec_a7_wrc.bram",
 
         # PCIe Parameters.
-        with_pcie         = False,
-        with_pcie_ptm     = False,
+        with_pcie         = True,
+        with_pcie_ptm     = True,
 
         # SFP Parameters.
         sfp_connector     = 0,
@@ -140,7 +140,7 @@ class BaseSoC(LiteXWRNICSoC):
         with_white_rabbit = True,
 
         # PCIe NIC.
-        with_pcie_nic     = False,
+        with_pcie_nic     = True,
 
         # PPS Out Parameters.
         pps_out_macro_delay_default  = 62499996, # 16ns  taps (Up to 2**32-1 taps).
@@ -604,24 +604,6 @@ class BaseSoC(LiteXWRNICSoC):
                 o_n = clk10m_out_pads.n,
             )
 
-            # Delay Debug.
-            analyzer_signals = [
-                pps_out,
-                pps_out_gen,
-                pps_out_macro_delay,
-                self.pps_macro_delay.enable,
-                self.pps_macro_delay.count,
-                self.pps_macro_delay._value.storage,
-                self.fine_delay.cdc.sink,
-            ]
-            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                depth        = 256,
-                clock_domain = "wr",
-                samplerate   = int(62.5e6),
-                register     = True,
-                csr_csv      = "test/analyzer.csv",
-            )
-
             # Leds Output.
             # ------------
             self.comb += [
@@ -652,12 +634,12 @@ class BaseSoC(LiteXWRNICSoC):
             # Time Generator -----------------------------------------------------------------------
 
             self.time_generator = TimeGenerator(
-                clk_domain = "sys",
-                clk_freq   = 125e6,
+                clk_domain = "wr",
+                clk_freq   = 62.5e6,
             )
             self.comb += [
-                self.ptm_requester.time_clk.eq(ClockSignal("sys")),
-                self.ptm_requester.time_rst.eq(ResetSignal("sys")),
+                self.ptm_requester.time_clk.eq(ClockSignal("wr")),
+                self.ptm_requester.time_rst.eq(ResetSignal("wr")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
 
