@@ -211,10 +211,10 @@ class BaseSoC(LiteXWRNICSoC):
         platform.add_false_path_constraints(self.jtagbone_phy.cd_jtag.clk, self.crg.cd_sys.clk)
 
         # Frontpanel Leds --------------------------------------------------------------------------
-        self.leds = LedChaser(
-            pads         = platform.request_all("frontpanel_led"),
-            sys_clk_freq = sys_clk_freq,
-        )
+        #self.leds = LedChaser(
+        #    pads         = platform.request_all("frontpanel_led"),
+        #    sys_clk_freq = sys_clk_freq,
+        #)
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
@@ -505,11 +505,11 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Coarse Delay PLL.
             # -----------------
-            self.cd_wr8x = ClockDomain()
+            self.cd_wr4x = ClockDomain()
             self.coarse_delay_pll = coarse_delay_pll = S7PLL(speedgrade=-2)
             self.comb += coarse_delay_pll.reset.eq(ResetSignal("wr"))
             coarse_delay_pll.register_clkin(ClockSignal("wr"), 62.5e6)
-            coarse_delay_pll.create_clkout(self.cd_wr8x, 500e6, margin=0)
+            coarse_delay_pll.create_clkout(self.cd_wr4x, 250e6, margin=0)
 
             # Coarse Delay Line.
             # ------------------
@@ -549,9 +549,11 @@ class BaseSoC(LiteXWRNICSoC):
             # Leds Output.
             # ------------
             self.comb += [
-                platform.request("user_led", 0).eq(~led_link),
-                platform.request("user_led", 1).eq(~led_act),
-                platform.request("user_led", 2).eq(~led_pps),
+                platform.request("pps_out_led").eq(led_pps),
+                #platform.request("act_out_led").eq(led_act),
+                #platform.request("user_led", 0).eq(~led_link),
+                #platform.request("user_led", 1).eq(~led_act),
+                #platform.request("user_led", 2).eq(~led_pps),
             ]
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------

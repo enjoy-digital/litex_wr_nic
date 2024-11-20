@@ -21,15 +21,16 @@ from litex.soc.interconnect import stream
 
 class BitSlip(Module):
     def __init__(self, value, cycles=1):
-        self.i     = Signal(8)
-        self.o     = Signal(8)
+        self.i = Signal(4)
+        self.o = Signal(4)
 
         # # #
-        self.r = r = Signal((cycles+1)*8, reset_less=True)
-        self.sync += r.eq(Cat(r[8:], self.i))
+
+        self.r = r = Signal((cycles+1)*4, reset_less=True)
+        self.sync += r.eq(Cat(r[4:], self.i))
         cases = {}
-        for i in range(cycles*8):
-            cases[i] = self.o.eq(r[i:8+i])
+        for i in range(cycles*4):
+            cases[4-1-i] = self.o.eq(r[i:4+i])
         self.comb += Case(value, cases)
 
 # Coarse Delay Line --------------------------------------------------------------------------------
@@ -41,12 +42,14 @@ class CoarseDelayLine(LiteXModule):
         # # #
 
         # Bitslip.
-        self.bitslip = bitslip = BitSlip(value=self._value.storage, cycles=1)
-        self.comb += bitslip.i.eq(Replicate(i, 8))
+        bitslip = BitSlip(value=self._value.storage, cycles=2)
+        bitslip = ClockDomainsRenamer("wr")(bitslip)
+        self.submodules += bitslip
+        self.comb += bitslip.i.eq(Replicate(i, 4))
 
         # 8:1 Serialization.
         self.specials += Instance("OSERDESE2",
-            p_DATA_WIDTH     = 8,
+            p_DATA_WIDTH     = 4,
             p_TRISTATE_WIDTH = 1,
             p_DATA_RATE_OQ   = "SDR",
             p_DATA_RATE_TQ   = "BUF",
@@ -54,15 +57,15 @@ class CoarseDelayLine(LiteXModule):
 
             i_OCE    = 1,
             i_RST    = ResetSignal("wr"),
-            i_CLK    = ClockSignal("wr8x"),
+            i_CLK    = ClockSignal("wr4x"),
             i_CLKDIV = ClockSignal("wr"),
             i_D1     = bitslip.o[0],
             i_D2     = bitslip.o[1],
             i_D3     = bitslip.o[2],
             i_D4     = bitslip.o[3],
-            i_D5     = bitslip.o[4],
-            i_D6     = bitslip.o[5],
-            i_D7     = bitslip.o[6],
-            i_D8     = bitslip.o[7],
             o_OQ     = o,
         )
+
+# Fine Delay : 0-6ns.
+# Coarse Delay: 0-16ns.
+# White Rabbit Period: 16ns.
