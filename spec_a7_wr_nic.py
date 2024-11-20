@@ -343,6 +343,7 @@ class BaseSoC(LiteXWRNICSoC):
             dac_dmtd_data   = Signal(16)
             pps_in          = Signal()
             pps_out         = Signal()
+            pps_out_pulse   = Signal()
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -458,6 +459,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # PPS / Leds.
                 i_pps_ext_i           = 0,
+                o_pps_csync_o         = pps_out_pulse,
                 o_pps_p_o             = pps_out,
                 o_pps_led_o           = led_pps,
                 o_led_link_o          = led_link,
@@ -514,6 +516,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Sync-Out PLL.
             # -------------
+            self.cd_clk10mout = ClockDomain()
             self.cd_syncout   = ClockDomain()
             self.cd_syncout4x = ClockDomain()
             self.syncout_pll = syncout_pll = S7PLL(speedgrade=-2)
@@ -521,13 +524,14 @@ class BaseSoC(LiteXWRNICSoC):
             syncout_pll.register_clkin(platform.request("refclk125_syncout"), 125e6)
             syncout_pll.create_clkout(self.cd_syncout,   62.5e6, margin=0)
             syncout_pll.create_clkout(self.cd_syncout4x,  250e6, margin=0)
+            syncout_pll.create_clkout(self.cd_clk10mout,   10e6, margin=0) # CHECKME.
 
             # PPS Macro Delay.
             # ----------------
             pps_out_macro_delay = Signal()
             self.pps_macro_delay = MacroDelay(
-                i = pps_out,
-                o = pps_out_macro_delay,
+                pulse_i = pps_out_pulse,
+                pulse_o = pps_out_macro_delay,
                 clk_domain    = "syncout",
                 default_delay = pps_out_macro_delay_default,
             )
@@ -536,8 +540,8 @@ class BaseSoC(LiteXWRNICSoC):
             # ----------------
             clk10m_out_macro_delay = Signal()
             self.clk10m_macro_delay = MacroDelay(
-                i = pps_out,
-                o = clk10m_out_macro_delay,
+                pulse_i = pps_out_pulse,
+                pulse_o = clk10m_out_macro_delay,
                 clk_domain    = "syncout",
                 default_delay = clk10m_out_macro_delay_default,
             )
@@ -565,7 +569,7 @@ class BaseSoC(LiteXWRNICSoC):
                 default_delay = pps_out_coarse_delay_default,
             )
             self.clk10_out_coarse_delay = CoarseDelay(
-                i = pps_out, # FIXME: Use PPS for now to ease verify delay control.
+                i = self.cd_clk10mout.clk, # CHECKME.
                 o = clk10_out_coarse_delay,
                 clk_domain = "syncout",
                 clk_cycles = 1,
@@ -595,7 +599,7 @@ class BaseSoC(LiteXWRNICSoC):
             # --------------
             clk10m_out_pads = platform.request("clk10m_out")
             self.specials += DifferentialOutput(
-                i   = pps_out,
+                i   = clk10_out_coarse_delay,
                 o_p = clk10m_out_pads.p,
                 o_n = clk10m_out_pads.n,
             )

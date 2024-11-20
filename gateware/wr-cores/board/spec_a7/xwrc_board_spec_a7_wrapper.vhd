@@ -151,6 +151,7 @@ entity xwrc_board_spec_a7_wrapper is
     led_link_o           : out std_logic;
     btn1_i               : in  std_logic := '1';
     btn2_i               : in  std_logic := '1';
+    pps_csync_o          : out std_logic;
     pps_p_o              : out std_logic;
     pps_led_o            : out std_logic;
     link_ok_o            : out std_logic;
@@ -289,6 +290,7 @@ begin
       led_link_o           => led_link_o,
       btn1_i               => btn1_i,
       btn2_i               => btn2_i,
+      pps_csync_o          => pps_csync_o,
       pps_p_o              => pps_p_o,
       pps_led_o            => pps_led_o,
       link_ok_o            => link_ok_o,

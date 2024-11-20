@@ -12,7 +12,7 @@ from litex.soc.interconnect.csr import *
 # Macro Delay --------------------------------------------------------------------------------------
 
 class MacroDelay(LiteXModule):
-    def __init__(self, i, o, clk_domain="sys", default_delay=1):
+    def __init__(self, pulse_i, pulse_o, clk_domain="sys", default_delay=1):
         self._value = CSRStorage(32, description="Macro Delay Clk Cycles.", reset=default_delay)
 
         # # #
@@ -20,17 +20,11 @@ class MacroDelay(LiteXModule):
         # Sync.
         _sync = getattr(self.sync, clk_domain)
 
-        # Input Rising Edge Detection.
-        i_d      = Signal()
-        i_rising = Signal()
-        _sync += i_d.eq(i)
-        self.comb += i_rising.eq(i & ~i_d)
-
         # Delay.
         self.enable = enable = Signal()
         self.count  = count  = Signal(32)
         _sync += [
-            If(i_rising,
+            If(pulse_i,
                 enable.eq(1),
                 count.eq(self._value.storage - 1),
             ).Else(
@@ -43,4 +37,4 @@ class MacroDelay(LiteXModule):
         ]
 
         # Output.
-        self.comb += o.eq(enable & (count == 0))
+        self.comb += pulse_o.eq(enable & (count == 0))

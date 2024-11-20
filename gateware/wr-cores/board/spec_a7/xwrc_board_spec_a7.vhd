@@ -228,8 +228,9 @@ entity xwrc_board_spec_a7 is
     btn1_i     : in  std_logic := '1';
     btn2_i     : in  std_logic := '1';
     -- 1PPS output
-    pps_p_o    : out std_logic;
-    pps_led_o  : out std_logic;
+    pps_csync_o : out std_logic;
+    pps_p_o     : out std_logic;
+    pps_led_o   : out std_logic;
     -- Link ok indication
     link_ok_o  : out std_logic;
 
@@ -485,6 +486,7 @@ begin  -- architecture struct
       led_link_o           => led_link_o,
       btn1_i               => btn1_i,
       btn2_i               => btn2_i,
+      pps_csync_o          => pps_csync_o,
       pps_p_o              => pps_p_o,
       pps_led_o            => pps_led_o,
       link_ok_o            => link_ok_o);
