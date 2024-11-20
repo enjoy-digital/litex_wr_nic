@@ -28,8 +28,8 @@ class BitSlip(Module):
 # Coarse Delay -------------------------------------------------------------------------------------
 
 class CoarseDelay(LiteXModule):
-    def __init__(self, i, o, clk_domain="wr", clk_cycles=1):
-        self._value = CSRStorage(3)
+    def __init__(self, i, o, clk_domain="wr", clk_cycles=1, default_delay=0):
+        self._value = CSRStorage(3, reset=default_delay)
 
         # # #
 

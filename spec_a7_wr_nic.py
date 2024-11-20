@@ -141,6 +141,16 @@ class BaseSoC(LiteXWRNICSoC):
 
         # PCIe NIC.
         with_pcie_nic     = False,
+
+        # PPS Out Parameters.
+        pps_out_macro_delay_default  = int(62500000) - 3, # 16ns  taps (Up to 2**32-1 taps).
+        pps_out_coarse_delay_default =                 4, #  2ns  taps (8 taps).
+        pps_out_fine_delay_default   =               128, #  11ps taps (512 taps).
+
+        # Clk10M Out Paramters.
+        clk10m_out_macro_delay_default  = 0, # 16ns  taps (Up to 2**32-1 taps).
+        clk10m_out_coarse_delay_default = 0, #  2ns  taps (8 taps).
+        clk10m_out_fine_delay_default   = 0, #  11ps taps (512 taps).
     ):
         # Platform ---------------------------------------------------------------------------------
         platform      = Platform(variant="xc7a50t")
@@ -502,14 +512,24 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
-            # Macro Delay.
-            # ------------
+            # PPS Macro Delay.
+            # ----------------
             pps_out_macro_delay = Signal()
-            self.macro_delay = MacroDelay(
+            self.pps_macro_delay = MacroDelay(
                 i = pps_out,
                 o = pps_out_macro_delay,
                 clk_domain    = "wr",
-                default_delay = int(62.5e6) - 2,
+                default_delay = pps_out_macro_delay_default,
+            )
+
+            # Clk10M Macro Delay.
+            # ----------------
+            clk10m_out_macro_delay = Signal()
+            self.clk10m_macro_delay = MacroDelay(
+                i = pps_out,
+                o = clk10m_out_macro_delay,
+                clk_domain    = "wr",
+                default_delay = clk10m_out_macro_delay_default,
             )
 
             # PPS Generator.
@@ -540,17 +560,25 @@ class BaseSoC(LiteXWRNICSoC):
                 o = pps_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 1,
+                default_delay = pps_out_coarse_delay_default,
             )
             self.clk10_out_coarse_delay = CoarseDelay(
                 i = pps_out, # FIXME: Use PPS for now to ease verify delay control.
                 o = clk10_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 1,
+                default_delay = clk10m_out_coarse_delay_default,
             )
 
             # Fine Delay (PPS & Clk10M Output).
             # ---------------------------------
-            self.fine_delay = FineDelay(pads=platform.request("fine_delay"))
+            self.fine_delay = FineDelay(
+                pads           = platform.request("fine_delay"),
+                default_delays = [
+                    clk10m_out_fine_delay_default,
+                    pps_out_fine_delay_default,
+                ],
+            )
 
             # PPS Output.
             # -----------
@@ -575,9 +603,9 @@ class BaseSoC(LiteXWRNICSoC):
                 pps_out,
                 pps_out_gen,
                 pps_out_macro_delay,
-                self.macro_delay.enable,
-                self.macro_delay.count,
-                self.macro_delay._value.storage,
+                self.pps_macro_delay.enable,
+                self.pps_macro_delay.count,
+                self.pps_macro_delay._value.storage,
                 self.fine_delay.cdc.sink,
             ]
             self.analyzer = LiteScopeAnalyzer(analyzer_signals,

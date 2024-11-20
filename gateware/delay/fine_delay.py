@@ -12,7 +12,7 @@ from migen.genlib.cdc       import MultiReg
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
-
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
 
@@ -25,7 +25,8 @@ from litex.soc.interconnect import stream
 # Data Interface.
 
 class FineDelay(LiteXModule):
-    def __init__(self, pads, clk_divider=16):
+    def __init__(self, pads, default_delays=[0, 0], clk_divider=16):
+        assert len(default_delays) == 2
         self._channel = CSRStorage()
         self._value   = CSRStorage(9)
 
@@ -44,12 +45,48 @@ class FineDelay(LiteXModule):
             cd_from = "sys",
             cd_to   = "fine_delay",
         )
-        self.comb += [
+
+        # Timer.
+        self.timer = timer = WaitTimer(1e6)
+
+        # FSM.
+        self.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            timer.wait.eq(1),
+            If(timer.done,
+                NextState("CHANNEL0-DEFAULT-WRITE")
+            ),
+        )
+        fsm.act("CHANNEL0-DEFAULT-WRITE",
+            cdc.sink.valid.eq(1),
+            cdc.sink.channel.eq(0),
+            cdc.sink.value.eq(default_delays[0]),
+            NextState("CHANNEL0-DEFAULT-WAIT")
+        )
+        fsm.act("CHANNEL0-DEFAULT-WAIT",
+            timer.wait.eq(1),
+            If(timer.done,
+                NextState("CHANNEL1-DEFAULT-WRITE")
+            )
+        )
+        fsm.act("CHANNEL1-DEFAULT-WRITE",
+            cdc.sink.valid.eq(1),
+            cdc.sink.channel.eq(1),
+            cdc.sink.value.eq(default_delays[1]),
+            NextState("CHANNEL1-DEFAULT-WAIT")
+        )
+        fsm.act("CHANNEL1-DEFAULT-WAIT",
+            timer.wait.eq(1),
+            If(timer.done,
+                NextState("CSR-WRITE")
+            )
+        )
+        fsm.act("CSR-WRITE",
             cdc.sink.valid.eq(self._value.re),
             cdc.sink.channel.eq(self._channel.storage),
             cdc.sink.value.eq(self._value.storage),
-            cdc.source.ready.eq(1), # Always ready since busy is checked before req.
-        ]
+        )
+        self.comb += cdc.source.ready.eq(1) # Always ready since busy is checked before req.
 
         # Delay Line Driver Instance.
         self.specials += Instance("fine_delay_ctrl",
