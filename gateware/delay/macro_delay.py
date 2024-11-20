@@ -12,8 +12,8 @@ from litex.soc.interconnect.csr import *
 # Macro Delay --------------------------------------------------------------------------------------
 
 class MacroDelay(LiteXModule):
-    def __init__(self, i, o, clk_domain="sys", default_value=1):
-        self._value = CSRStorage(32, description="Macro Delay Clk Cycles.", reset=default_value)
+    def __init__(self, i, o, clk_domain="sys", default_delay=1):
+        self._value = CSRStorage(32, description="Macro Delay Clk Cycles.", reset=default_delay)
 
         # # #
 
@@ -27,17 +27,18 @@ class MacroDelay(LiteXModule):
         self.comb += i_rising.eq(i & ~i_d)
 
         # Delay.
-        enable = Signal()
-        count  = Signal(32)
+        self.enable = enable = Signal()
+        self.count  = count  = Signal(32)
         _sync += [
             If(i_rising,
                 enable.eq(1),
                 count.eq(self._value.storage - 1),
-            ),
-            If(count > 0,
-                count.eq(count - 1)
             ).Else(
-                enable.eq(0),
+                If(count == 0,
+                    enable.eq(0)
+                ).Else(
+                    count.eq(count - 1)
+                )
             )
         ]
 
