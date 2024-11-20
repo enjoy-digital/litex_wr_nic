@@ -30,6 +30,11 @@ _io = [
         Subsignal("p", Pins("B6")), # MGTREFCLK1_P.
         Subsignal("n", Pins("B5")), # MGTREFCLK1_N.
     ),
+    ("refclk125_syncout", 0,
+        Subsignal("p", Pins("E15")), # FPGA_GCLK_P.
+        Subsignal("n", Pins("D15")), # FPGA_GCLK_N.
+        IOStandard("LVDS_25"),
+    ),
 
     # DMTD Clk / 62.5MHz from VCXO.
     ("clk62m5_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.

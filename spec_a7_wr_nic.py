@@ -143,9 +143,9 @@ class BaseSoC(LiteXWRNICSoC):
         with_pcie_nic     = False,
 
         # PPS Out Parameters.
-        pps_out_macro_delay_default  = int(62500000) - 3, # 16ns  taps (Up to 2**32-1 taps).
-        pps_out_coarse_delay_default =                 1, #  2ns  taps (8 taps).
-        pps_out_fine_delay_default   =               128, #  11ps taps (512 taps).
+        pps_out_macro_delay_default  = 62499996, # 16ns  taps (Up to 2**32-1 taps).
+        pps_out_coarse_delay_default =        6, #  2ns  taps (8 taps).
+        pps_out_fine_delay_default   =      256, #  11ps taps (512 taps).
 
         # Clk10M Out Paramters.
         clk10m_out_macro_delay_default  = 0, # 16ns  taps (Up to 2**32-1 taps).
@@ -512,13 +512,23 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
+            # Sync-Out PLL.
+            # -------------
+            self.cd_syncout   = ClockDomain()
+            self.cd_syncout4x = ClockDomain()
+            self.syncout_pll = syncout_pll = S7PLL(speedgrade=-2)
+            self.comb += syncout_pll.reset.eq(ResetSignal("wr"))
+            syncout_pll.register_clkin(platform.request("refclk125_syncout"), 125e6)
+            syncout_pll.create_clkout(self.cd_syncout,   62.5e6, margin=0)
+            syncout_pll.create_clkout(self.cd_syncout4x,  250e6, margin=0)
+
             # PPS Macro Delay.
             # ----------------
             pps_out_macro_delay = Signal()
             self.pps_macro_delay = MacroDelay(
                 i = pps_out,
                 o = pps_out_macro_delay,
-                clk_domain    = "wr",
+                clk_domain    = "syncout",
                 default_delay = pps_out_macro_delay_default,
             )
 
@@ -528,7 +538,7 @@ class BaseSoC(LiteXWRNICSoC):
             self.clk10m_macro_delay = MacroDelay(
                 i = pps_out,
                 o = clk10m_out_macro_delay,
-                clk_domain    = "wr",
+                clk_domain    = "syncout",
                 default_delay = clk10m_out_macro_delay_default,
             )
 
@@ -538,18 +548,10 @@ class BaseSoC(LiteXWRNICSoC):
             self.pps_gen = PPSGenerator(
                 i = pps_out_macro_delay,
                 o = pps_out_gen,
-                clk_domain = "wr",
+                clk_domain = "syncout",
                 clk_freq   = int(62.5e6),
                 duty_cycle = 20/100, # 20% High / 80% Low PPS.
             )
-
-            # Coarse Delay PLL.
-            # -----------------
-            self.cd_wr4x = ClockDomain()
-            self.coarse_delay_pll = coarse_delay_pll = S7PLL(speedgrade=-2)
-            self.comb += coarse_delay_pll.reset.eq(ResetSignal("wr"))
-            coarse_delay_pll.register_clkin(ClockSignal("wr"), 62.5e6)
-            coarse_delay_pll.create_clkout(self.cd_wr4x, 250e6, margin=0)
 
             # Coarse Delay.
             # -------------
@@ -558,14 +560,14 @@ class BaseSoC(LiteXWRNICSoC):
             self.pps_out_coarse_delay = CoarseDelay(
                 i = pps_out_gen,
                 o = pps_out_coarse_delay,
-                clk_domain = "wr",
+                clk_domain = "syncout",
                 clk_cycles = 1,
                 default_delay = pps_out_coarse_delay_default,
             )
             self.clk10_out_coarse_delay = CoarseDelay(
                 i = pps_out, # FIXME: Use PPS for now to ease verify delay control.
                 o = clk10_out_coarse_delay,
-                clk_domain = "wr",
+                clk_domain = "syncout",
                 clk_cycles = 1,
                 default_delay = clk10m_out_coarse_delay_default,
             )
