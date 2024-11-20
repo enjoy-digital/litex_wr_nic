@@ -129,8 +129,8 @@ class BaseSoC(LiteXWRNICSoC):
         cpu_firmware      = "firmware/spec_a7_wrc.bram",
 
         # PCIe Parameters.
-        with_pcie         = True,
-        with_pcie_ptm     = True,
+        with_pcie         = False,
+        with_pcie_ptm     = False,
 
         # SFP Parameters.
         sfp_connector     = 0,
@@ -155,7 +155,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Shared QPLL.
         self.qpll = SharedQPLL(platform,
-            with_pcie           = with_pcie,
+            with_pcie           = True,
             with_eth            = with_white_rabbit,
             eth_refclk_freq     = 125e6,
             eth_refclk_from_pll = True,
@@ -507,7 +507,8 @@ class BaseSoC(LiteXWRNICSoC):
             self.macro_delay = MacroDelay(
                 i = pps_out,
                 o = pps_out_macro_delay,
-                clk_domain = "wr",
+                clk_domain    = "wr",
+                default_delay = int(62.5e6) - 2,
             )
 
             # Coarse Delay PLL.
@@ -555,6 +556,23 @@ class BaseSoC(LiteXWRNICSoC):
                 i   = pps_out,
                 o_p = clk10m_out_pads.p,
                 o_n = clk10m_out_pads.n,
+            )
+
+            # Delay Debug.
+            analyzer_signals = [
+                pps_out,
+                pps_out_macro_delay,
+                self.macro_delay.enable,
+                self.macro_delay.count,
+                self.macro_delay._value.storage,
+                self.fine_delay.cdc.sink,
+            ]
+            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                depth        = 256,
+                clock_domain = "wr",
+                samplerate   = int(62.5e6),
+                register     = True,
+                csr_csv      = "test/analyzer.csv",
             )
 
             # Leds Output.
