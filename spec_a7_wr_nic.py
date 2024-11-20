@@ -541,7 +541,7 @@ class BaseSoC(LiteXWRNICSoC):
             # --------------
             clk10m_out_pads = platform.request("clk10m_out")
             self.specials += DifferentialOutput(
-                i   = clk10_out_coarse_delay,
+                i   = pps_out,
                 o_p = clk10m_out_pads.p,
                 o_n = clk10m_out_pads.n,
             )
