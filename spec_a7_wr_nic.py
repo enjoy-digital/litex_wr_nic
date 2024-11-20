@@ -144,7 +144,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # PPS Out Parameters.
         pps_out_macro_delay_default  = int(62500000) - 3, # 16ns  taps (Up to 2**32-1 taps).
-        pps_out_coarse_delay_default =                 4, #  2ns  taps (8 taps).
+        pps_out_coarse_delay_default =                 1, #  2ns  taps (8 taps).
         pps_out_fine_delay_default   =               128, #  11ps taps (512 taps).
 
         # Clk10M Out Paramters.

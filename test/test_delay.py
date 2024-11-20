@@ -13,11 +13,15 @@ from litex import RemoteClient
 
 # Macro Delay Configuration ------------------------------------------------------------------------
 
-def set_macro_delay(bus, macro_value):
+def set_macro_delay(bus, channel, macro_value):
     if macro_value < 1:
         raise ValueError("Macro delay value must be at least 1.")
-    print(f"Setting macro delay to {macro_value}")
-    bus.regs.macro_delay_value.write(macro_value)
+    if channel == 0:
+        print(f"Setting macro delay for clk10_out to {macro_value}")
+        bus.regs.clk10m_macro_delay_value.write(macro_value)
+    if channel == 1:
+        print(f"Setting macro delay for pps_out to {macro_value}")
+        bus.regs.pps_macro_delay_value.write(macro_value)
 
 # Coarse Delay Configuration -----------------------------------------------------------------------
 
@@ -62,7 +66,9 @@ def main():
     try:
         # Configure macro delay.
         if args.macro is not None:
-            set_macro_delay(bus, args.macro)
+            if args.channel is None:
+                raise ValueError("--channel is required when setting macro delay.")
+            set_macro_delay(bus, args.channel, args.macro)
 
         # Configure coarse delay.
         if args.coarse is not None:
