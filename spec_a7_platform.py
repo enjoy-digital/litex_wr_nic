@@ -179,8 +179,8 @@ _io = [
         IOStandard("LVDS_25"),
     ),
 
-    # DELAY.
-    ("delay", 0,
+    # Fine-Delay.
+    ("fine_delay", 0,
         Subsignal("en",    Pins("J18")), # DELAY_EN.
         Subsignal("sclk",  Pins("K18")), # DELAY_SCLK.
         Subsignal("sdin",  Pins("J14")), # DELAY_SDIN.

@@ -38,13 +38,23 @@ def set_delay_line(bus, channel, fine_value, coarse_value):
     bus.regs.fine_delay_channel.write(channel)
     bus.regs.fine_delay_value.write(fine_value)
 
+def set_macro_delay(bus, macro_delay_value):
+    """
+    Set the macro delay value and wait for the operation to complete.
+    """
+    if macro_delay_value < 1:
+        raise ValueError("Macro delay value must be at least 1.")
+    print(f"Setting macro delay value: {macro_delay_value}")
+    bus.regs.macro_delay_value.write(macro_delay_value)
+
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Control Delay Line Module via Etherbone.")
-    parser.add_argument("--channel", type=int, choices=[0, 1], required=True, help="Select delay line channel (0 for clk10_out, 1 for pps_out).")
-    parser.add_argument("--fine",    type=int, required=True, help="Set fine delay value (0-511).")
-    parser.add_argument("--coarse",  type=int, required=True, help="Set coarse delay value (0-7).")
+    parser = argparse.ArgumentParser(description="Control Delay Line Module and Macro Delay via Etherbone.")
+    parser.add_argument("--channel",     type=int, choices=[0, 1], help="Select delay line channel (0 for clk10_out, 1 for pps_out).")
+    parser.add_argument("--fine",        type=int,                 help="Set fine delay value (0-511).")
+    parser.add_argument("--coarse",      type=int,                 help="Set coarse delay value (0-7).")
+    parser.add_argument("--macro-delay", type=int,                 help="Set macro delay value (in clock cycles).")
     args = parser.parse_args()
 
     # Open the bus connection.
@@ -52,8 +62,16 @@ def main():
     bus.open()
 
     try:
-        # Set delay line with the specified channel, fine, and coarse values.
-        set_delay_line(bus, args.channel, args.fine, args.coarse)
+        # Set delay line (fine and coarse) if channel is specified.
+        if args.channel is not None and args.fine is not None and args.coarse is not None:
+            set_delay_line(bus, args.channel, args.fine, args.coarse)
+
+        # Set macro delay if specified.
+        if args.macro_delay is not None:
+            set_macro_delay(bus, args.macro_delay)
+
+        if args.channel is None and args.macro_delay is None:
+            print("No operation specified. Use --channel to configure delay line or --macro-delay to configure macro delay.")
     except Exception as e:
         print(f"Error: {e}")
     finally:

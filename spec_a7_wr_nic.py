@@ -57,7 +57,7 @@ from gateware.wrf_wb2stream     import Wishbone2Stream
 from gateware.ad5683r.core      import AD5683RDAC
 from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
-from gateware.delay.core        import FineDelay, CoarseDelay
+from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -501,6 +501,14 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
+            # Macro Delay.
+            # ------------
+            pps_out_macro_delay = Signal()
+            self.macro_delay = MacroDelay(
+                i = pps_out,
+                o = pps_out_macro_delay,
+                clk_domain = "wr",
+            )
 
             # Coarse Delay PLL.
             # -----------------
@@ -515,7 +523,7 @@ class BaseSoC(LiteXWRNICSoC):
             pps_out_coarse_delay   = Signal()
             clk10_out_coarse_delay = Signal()
             self.pps_out_coarse_delay = CoarseDelay(
-                i = pps_out,
+                i = pps_out_macro_delay,
                 o = pps_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 1,
@@ -529,7 +537,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Fine Delay (PPS & Clk10M Output).
             # ---------------------------------
-            self.fine_delay = FineDelay(pads=platform.request("delay"))
+            self.fine_delay = FineDelay(pads=platform.request("fine_delay"))
 
             # PPS Output.
             # -----------
