@@ -151,6 +151,9 @@ class BaseSoC(LiteXWRNICSoC):
         clk10m_out_macro_delay_default  = 0, # 16ns  taps (Up to 2**32-1 taps).
         clk10m_out_coarse_delay_default = 0, #  2ns  taps (8 taps).
         clk10m_out_fine_delay_default   = 0, #  11ps taps (512 taps).
+
+        # Ext-PLL Parameters.
+        with_ext_pll = True,
     ):
         # Platform ---------------------------------------------------------------------------------
         platform      = Platform(variant="xc7a50t")
@@ -398,13 +401,14 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit ExtClk AD9516 PLL Driver.
             # --------------------------------------
-            self.extclk_pll = AD9516PLL(
-                platform   = platform,
-                pads       = platform.request("ext_pll"),
-                config     = AD9516_EXT_CONFIG,
-                name       = "ext",
-                clk_domain = "sys",
-            )
+            if with_ext_pll:
+                self.extclk_pll = AD9516PLL(
+                    platform   = platform,
+                    pads       = platform.request("ext_pll"),
+                    config     = AD9516_EXT_CONFIG,
+                    name       = "ext",
+                    clk_domain = "sys",
+                )
 
             # White Rabbit Core Instance.
             # ---------------------------
