@@ -15,7 +15,7 @@ from litex.build.openfpgaloader   import OpenFPGALoader
 
 _io = [
     # Rst.
-    ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")),       # RESET.
+    ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")), # RESET.
 
     # Free-Running Clk / 125MHz.
     ("clk125_oe", 0, Pins("F14"), IOStandard("LVCMOS25")), # OE_125M.
@@ -262,8 +262,6 @@ _connectors = [
     ["ext_misc",
         # I2C SDA SCL
         "M5 M2",
-        # GPIOs
-        "M1 M6 N6 N1 P1 M4 N4",
     ],
 ]
 # Platform -----------------------------------------------------------------------------------------
