@@ -57,8 +57,7 @@ from gateware.wrf_wb2stream     import Wishbone2Stream
 from gateware.ad5683r.core      import AD5683RDAC
 from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
-from gateware.nb6l295.core      import NB6L295DelayLine
-from gateware.delay.core        import CoarseDelay
+from gateware.delay.core        import FineDelay, CoarseDelay
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -530,7 +529,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Fine Delay (PPS & Clk10M Output).
             # ---------------------------------
-            self.fine_delay_line = NB6L295DelayLine(platform=platform, pads=platform.request("delay"))
+            self.fine_delay = FineDelay(pads=platform.request("delay"))
 
             # PPS Output.
             # -----------

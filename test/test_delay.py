@@ -9,6 +9,7 @@
 
 import time
 import argparse
+
 from litex import RemoteClient
 
 # Delay Line Control Functions ---------------------------------------------------------------------
@@ -16,11 +17,6 @@ from litex import RemoteClient
 def set_delay_line(bus, channel, fine_value, coarse_value):
     """
     Set fine and coarse delay values for the selected channel and wait for the operation to complete.
-
-    :param bus: RemoteClient object.
-    :param channel: Channel to configure (0 or 1).
-    :param fine_value: Fine delay value (0 to 511).
-    :param coarse_value: Coarse delay value (0 to 7).
     """
     if fine_value < 0 or fine_value > 511:
         raise ValueError("Fine value must be between 0 and 511.")
@@ -39,14 +35,8 @@ def set_delay_line(bus, channel, fine_value, coarse_value):
 
     # Set the fine delay value.
     print(f"Setting fine delay for channel={channel}, value={fine_value}")
-    bus.regs.fine_delay_line_sel.write(channel)
-    bus.regs.fine_delay_line_value.write(fine_value)
-    bus.regs.fine_delay_line_req.write(1)
-
-    # Wait for the delay line to finish processing.
-    while bus.regs.fine_delay_line_busy.read():
-        time.sleep(0.01)  # Poll every 10 ms
-    print("Delay line set successfully.")
+    bus.regs.fine_delay_channel.write(channel)
+    bus.regs.fine_delay_value.write(fine_value)
 
 # Main ---------------------------------------------------------------------------------------------
 
