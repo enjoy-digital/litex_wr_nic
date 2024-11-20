@@ -396,7 +396,7 @@ begin  -- architecture struct
       g_interface_mode            => PIPELINED,
       g_address_granularity       => BYTE,
       g_aux_sdb                   => c_wrc_periph3_sdb,
-      g_softpll_enable_debugger   => TRUE,
+      g_softpll_enable_debugger   => FALSE,
       g_vuart_fifo_size           => 1024,
       g_pcs_16bit                 => TRUE,
       g_diag_id                   => g_diag_id,
