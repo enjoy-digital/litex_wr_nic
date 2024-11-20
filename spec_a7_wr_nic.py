@@ -58,6 +58,7 @@ from gateware.ad5683r.core      import AD5683RDAC
 from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
 from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
+from gateware.pps               import PPSGenerator
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -511,6 +512,17 @@ class BaseSoC(LiteXWRNICSoC):
                 default_delay = int(62.5e6) - 2,
             )
 
+            # PPS Generator.
+            # --------------
+            pps_out_gen = Signal()
+            self.pps_gen = PPSGenerator(
+                i = pps_out_macro_delay,
+                o = pps_out_gen,
+                clk_domain = "wr",
+                clk_freq   = int(62.5e6),
+                duty_cycle = 20/100, # 20% High / 80% Low PPS.
+            )
+
             # Coarse Delay PLL.
             # -----------------
             self.cd_wr4x = ClockDomain()
@@ -524,7 +536,7 @@ class BaseSoC(LiteXWRNICSoC):
             pps_out_coarse_delay   = Signal()
             clk10_out_coarse_delay = Signal()
             self.pps_out_coarse_delay = CoarseDelay(
-                i = pps_out_macro_delay,
+                i = pps_out_gen,
                 o = pps_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 1,
@@ -561,6 +573,7 @@ class BaseSoC(LiteXWRNICSoC):
             # Delay Debug.
             analyzer_signals = [
                 pps_out,
+                pps_out_gen,
                 pps_out_macro_delay,
                 self.macro_delay.enable,
                 self.macro_delay.count,
