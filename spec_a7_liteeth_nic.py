@@ -38,8 +38,8 @@ from gateware.soc  import LiteXWRNICSoC
 
 class CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, with_eth=False):
-        self.rst      = Signal()
-        self.cd_sys   = ClockDomain()
+        self.rst            = Signal()
+        self.cd_sys         = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
 

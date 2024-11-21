@@ -47,21 +47,6 @@ from gateware.ad5683r.core      import AD5683RDAC
 from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
 from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
-# Platform -----------------------------------------------------------------------------------------
-
-class Platform(sqrl_acorn.Platform):
-    def detect_ftdi_chip(self):
-        lsusb_log = subprocess.run(['lsusb'], capture_output=True, text=True)
-        for ftdi_chip in ["ft232", "ft2232", "ft4232"]:
-            if f"Future Technology Devices International, Ltd {ftdi_chip.upper()}" in lsusb_log.stdout:
-                return ftdi_chip
-        return None
-
-    def create_programmer(self):
-        ftdi_chip = self.detect_ftdi_chip()
-        if ftdi_chip is None:
-            raise RuntimeError("No compatible FTDI device found.")
-        return OpenFPGALoader(cable=ftdi_chip, fpga_part="xc7a200tfbg484", freq=10e6)
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -126,7 +111,7 @@ class BaseSoC(LiteXWRNICSoC):
 
     ):
         # Platform ---------------------------------------------------------------------------------
-        platform = Platform()
+        platform = sqrl_acorn.Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
 
         # Clocking ---------------------------------------------------------------------------------

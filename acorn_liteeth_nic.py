@@ -34,28 +34,12 @@ from litepcie.software import generate_litepcie_software
 from gateware.qpll import SharedQPLL
 from gateware.soc  import LiteXWRNICSoC
 
-# Platform -----------------------------------------------------------------------------------------
-
-class Platform(sqrl_acorn.Platform):
-    def detect_ftdi_chip(self):
-        lsusb_log = subprocess.run(['lsusb'], capture_output=True, text=True)
-        for ftdi_chip in ["ft232", "ft2232", "ft4232"]:
-            if f"Future Technology Devices International, Ltd {ftdi_chip.upper()}" in lsusb_log.stdout:
-                return ftdi_chip
-        return None
-
-    def create_programmer(self):
-        ftdi_chip = self.detect_ftdi_chip()
-        if ftdi_chip is None:
-            raise RuntimeError("No compatible FTDI device found.")
-        return OpenFPGALoader(cable=ftdi_chip, fpga_part="xc7a200tfbg484", freq=10e6)
-
 # CRG ----------------------------------------------------------------------------------------------
 
 class CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, with_eth=False):
-        self.rst      = Signal()
-        self.cd_sys   = ClockDomain()
+        self.rst            = Signal()
+        self.cd_sys         = ClockDomain()
         self.cd_refclk_pcie = ClockDomain()
         self.cd_refclk_eth  = ClockDomain()
 
@@ -85,8 +69,7 @@ class CRG(LiteXModule):
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6, with_led_chaser=True, **kwargs):
         # Platform ---------------------------------------------------------------------------------
-
-        platform = Platform(variant="cle-215+")
+        platform = sqrl_acorn.Platform(variant="cle-215+")
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
 
         # Clocking ---------------------------------------------------------------------------------
