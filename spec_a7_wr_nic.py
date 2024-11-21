@@ -128,8 +128,8 @@ class _CRG(LiteXModule):
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
-        with_pcie     = True,
-        with_pcie_ptm = True,
+        with_pcie     = False,
+        with_pcie_ptm = False,
 
         # White Rabbit Paramters.
         with_white_rabbit          = True,
@@ -137,7 +137,7 @@ class BaseSoC(LiteXWRNICSoC):
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
 
         # PCIe NIC.
-        with_pcie_nic = True,
+        with_pcie_nic = False,
 
         # PPS Out Parameters.
         pps_out_macro_delay_default  = 62499996, # 16ns  taps (Up to 2**32-1 taps).
@@ -495,7 +495,7 @@ class BaseSoC(LiteXWRNICSoC):
             self.pps_macro_delay = MacroDelay(
                 pulse_i = pps_out_pulse,
                 pulse_o = pps_out_macro_delay,
-                clk_domain    = "syncout",
+                clk_domain    = "wr",
                 default_delay = pps_out_macro_delay_default,
             )
 
@@ -505,7 +505,7 @@ class BaseSoC(LiteXWRNICSoC):
             self.clk10m_macro_delay = MacroDelay(
                 pulse_i = pps_out_pulse,
                 pulse_o = clk10m_out_macro_delay,
-                clk_domain    = "syncout",
+                clk_domain    = "wr",
                 default_delay = clk10m_out_macro_delay_default,
             )
 
@@ -551,9 +551,20 @@ class BaseSoC(LiteXWRNICSoC):
 
             # PPS Output.
             # -----------
+
+            _pps_out = Signal()
+
+            # Deterministic delay debug.
+            self._pps_control = CSRStorage(3)
+            self.comb += Case(self._pps_control.storage, {
+                0 : _pps_out.eq(pps_out_pulse),
+                1 : _pps_out.eq(pps_out_macro_delay),
+                2 : _pps_out.eq(pps_out_gen),
+            })
+
             pps_out_pads = platform.request("pps_out")
             self.specials += DifferentialOutput(
-                i   = pps_out_coarse_delay,
+                i   = _pps_out,
                 o_p = pps_out_pads.p,
                 o_n = pps_out_pads.n,
             )
@@ -562,7 +573,7 @@ class BaseSoC(LiteXWRNICSoC):
             # --------------
             clk10m_out_pads = platform.request("clk10m_out")
             self.specials += DifferentialOutput(
-                i   = clk10_out_coarse_delay,
+                i   = pps_out_coarse_delay, # FIXME: For test.
                 o_p = clk10m_out_pads.p,
                 o_n = clk10m_out_pads.n,
             )
