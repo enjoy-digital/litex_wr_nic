@@ -17,7 +17,8 @@ def set_macro_delay(bus, channel, macro_value):
     if macro_value < 1:
         raise ValueError("Macro delay value must be at least 1.")
     if channel == 0:
-        raise ValueError("No macro delay on clk10_out.")
+        print(f"Setting macro delay for clk10m_out to {macro_value}")
+        bus.regs.clk10_macro_delay_value.write(macro_value)
     if channel == 1:
         print(f"Setting macro delay for pps_out to {macro_value}")
         bus.regs.pps_macro_delay_value.write(macro_value)

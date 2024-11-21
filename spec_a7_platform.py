@@ -65,10 +65,10 @@ _io = [
     ("frontpanel_led", 2, Pins("A10"), IOStandard("LVCMOS25")), # FP_LED2.
     ("frontpanel_led", 3, Pins("A12"), IOStandard("LVCMOS25")), # FP_LED3.
 
-    ("clk10m_out_led_n", 0, Pins("B11"), IOStandard("LVCMOS25")), # FP_LED0 / Active Low.
-    ("pps_out_led",      1, Pins("B10"), IOStandard("LVCMOS25")), # FP_LED1 / Active High.
-    ("tod_out_led",      2, Pins("A10"), IOStandard("LVCMOS25")), # FP_LED2 / Active High.
-    ("act_out_led",      3, Pins("A12"), IOStandard("LVCMOS25")), # FP_LED3 / Active High.
+    ("clk10m_out_led",  0, Pins("B11"), IOStandard("LVCMOS25")), # FP_LED0.
+    ("pps_out_led",     1, Pins("B10"), IOStandard("LVCMOS25")), # FP_LED1.
+    ("tod_out_led",     2, Pins("A10"), IOStandard("LVCMOS25")), # FP_LED2.
+    ("act_out_led",     3, Pins("A12"), IOStandard("LVCMOS25")), # FP_LED3.
 
     # GPIOs.
     ("gpio", 0, Pins("M1"), IOStandard("LVCMOS33")), # GPIO0.

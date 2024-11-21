@@ -146,8 +146,9 @@ class BaseSoC(LiteXWRNICSoC):
         pps_out_fine_delay_default   =      100, #  11ps taps (512 taps).
 
         # Clk10M Out Paramters.
-        clk10m_out_coarse_delay_default =  10, #  2ns  taps (64 taps).
-        clk10m_out_fine_delay_default   = 100, #  11ps taps (512 taps).
+        clk10m_out_macro_delay_default  = 6250000, # 16ns  taps (Up to 2**32-1 taps).
+        clk10m_out_coarse_delay_default =      10, #  2ns  taps (64 taps).
+        clk10m_out_fine_delay_default   =     100, #  11ps taps (512 taps).
 
         # Ext-PLL Parameters.
         with_ext_pll = True,
@@ -304,6 +305,7 @@ class BaseSoC(LiteXWRNICSoC):
             dac_dmtd_load   = Signal()
             dac_dmtd_data   = Signal(16)
             pps_in          = Signal()
+            pps_out_valid   = Signal()
             pps_out         = Signal()
             pps_out_pulse   = Signal()
 
@@ -421,6 +423,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_spi_miso_i          = flash_pads.miso,
 
                 # PPS / Leds.
+                o_pps_valid_o         = pps_out_valid,
                 i_pps_ext_i           = 0,
                 o_pps_csync_o         = pps_out_pulse,
                 o_pps_p_o             = pps_out,
@@ -495,6 +498,16 @@ class BaseSoC(LiteXWRNICSoC):
                 default_delay = pps_out_macro_delay_default,
             )
 
+            # Clk10M Macro Delay.
+            # -------------------
+            clk10m_out_macro_delay = Signal()
+            self.clk10m_macro_delay = MacroDelay(
+                pulse_i = pps_out_pulse,
+                pulse_o = clk10m_out_macro_delay,
+                clk_domain    = "wr",
+                default_delay = clk10m_out_macro_delay_default,
+            )
+
             # PPS Generator.
             # --------------
             pps_out_gen = Signal()
@@ -510,7 +523,7 @@ class BaseSoC(LiteXWRNICSoC):
             # -----------------
             clk10_out_gen = Signal()
             self.clk10m_gen = Clk10MGenerator(
-                pulse_i  = pps_out_pulse,
+                pulse_i  = clk10m_out_macro_delay,
                 clk10m_o = clk10_out_gen,
                 clk_domain = "wr8x",
             )
@@ -567,11 +580,8 @@ class BaseSoC(LiteXWRNICSoC):
             # Leds Output.
             # ------------
             self.comb += [
+                platform.request("clk10m_out_led").eq(pps_out_valid),
                 platform.request("pps_out_led").eq(led_pps),
-                #platform.request("act_out_led").eq(led_act),
-                #platform.request("user_led", 0).eq(~led_link),
-                #platform.request("user_led", 1).eq(~led_act),
-                #platform.request("user_led", 2).eq(~led_pps),
             ]
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
