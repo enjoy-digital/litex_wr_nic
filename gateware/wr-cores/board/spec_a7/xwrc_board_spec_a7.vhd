@@ -337,7 +337,7 @@ begin  -- architecture struct
       GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK
     );
 
-  clk_62m5_sys_o <= clk_pll_62m5;
+  clk_62m5_sys_o <= clk_ref_62m5;
   rst_62m5_sys_o <= not pll_locked;
 
   -----------------------------------------------------------------------------
