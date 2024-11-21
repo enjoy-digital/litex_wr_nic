@@ -8,8 +8,14 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
-
 from litex import RemoteClient
+
+# Constants ----------------------------------------------------------------------------------------
+
+SMA_MAP = {
+    "clk10m_out" : 0,
+    "pps_out"    : 1,
+}
 
 # Macro Delay Configuration ------------------------------------------------------------------------
 
@@ -19,7 +25,7 @@ def set_macro_delay(bus, channel, macro_value):
     if channel == 0:
         print(f"Setting macro delay for clk10m_out to {macro_value}")
         bus.regs.clk10_macro_delay_value.write(macro_value)
-    if channel == 1:
+    elif channel == 1:
         print(f"Setting macro delay for pps_out to {macro_value}")
         bus.regs.pps_macro_delay_value.write(macro_value)
 
@@ -28,10 +34,8 @@ def set_macro_delay(bus, channel, macro_value):
 def set_coarse_delay(bus, channel, coarse_value):
     if coarse_value < 0 or coarse_value > 63:
         raise ValueError("Coarse value must be between 0 and 63.")
-    if channel not in [0, 1]:
-        raise ValueError("Channel must be 0 (clk10_out) or 1 (pps_out).")
     if channel == 0:
-        print(f"Setting coarse delay for clk10_out to {coarse_value}")
+        print(f"Setting coarse delay for clk10m_out to {coarse_value}")
         bus.regs.clk10_out_coarse_delay_value.write(coarse_value)
     elif channel == 1:
         print(f"Setting coarse delay for pps_out to {coarse_value}")
@@ -42,8 +46,6 @@ def set_coarse_delay(bus, channel, coarse_value):
 def set_fine_delay(bus, channel, fine_value):
     if fine_value < 0 or fine_value > 511:
         raise ValueError("Fine value must be between 0 and 511.")
-    if channel not in [0, 1]:
-        raise ValueError("Channel must be 0 (clk10_out) or 1 (pps_out).")
     print(f"Setting fine delay for channel {channel} to {fine_value}")
     bus.regs.fine_delay_channel.write(channel)
     bus.regs.fine_delay_value.write(fine_value)
@@ -51,13 +53,19 @@ def set_fine_delay(bus, channel, fine_value):
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Control Delay Line Module via Etherbone.")
-    parser.add_argument("--channel", type=int, choices=[0, 1], help="Select delay line channel (0 for clk10_out, 1 for pps_out).")
-    parser.add_argument("--macro",   type=int, help="Set macro delay value (in clock cycles).")
-    parser.add_argument("--coarse",  type=int, help="Set coarse delay value (0-63).")
-    parser.add_argument("--fine",    type=int, help="Set fine delay value (0-511).")
+    parser = argparse.ArgumentParser(description="Control SyncOut Delays via JTAGBone/Etherbone.")
+    parser.add_argument("--sma",   type=str, choices=["clk10m_out", "pps_out"], help="Select SMA output (clk10m_out or pps_out).")
+    parser.add_argument("--macro", type=int, help="Set macro delay value (in clock cycles).")
+    parser.add_argument("--coarse",type=int, help="Set coarse delay value (0-63).")
+    parser.add_argument("--fine",  type=int, help="Set fine delay value (0-511).")
 
     args = parser.parse_args()
+
+    if args.sma is None:
+        raise ValueError("--sma is required to select the SMA output.")
+
+    # Map SMA to channel.
+    channel = SMA_MAP[args.sma]
 
     # Open the bus connection.
     bus = RemoteClient()
@@ -66,26 +74,21 @@ def main():
     try:
         # Configure macro delay.
         if args.macro is not None:
-            if args.channel is None:
-                raise ValueError("--channel is required when setting macro delay.")
-            set_macro_delay(bus, args.channel, args.macro)
+            set_macro_delay(bus, channel, args.macro)
 
         # Configure coarse delay.
         if args.coarse is not None:
-            if args.channel is None:
-                raise ValueError("--channel is required when setting coarse delay.")
-            set_coarse_delay(bus, args.channel, args.coarse)
+            set_coarse_delay(bus, channel, args.coarse)
 
         # Configure fine delay.
         if args.fine is not None:
-            if args.channel is None:
-                raise ValueError("--channel is required when setting fine delay.")
-            set_fine_delay(bus, args.channel, args.fine)
+            set_fine_delay(bus, channel, args.fine)
 
+        if args.macro is None and args.coarse is None and args.fine is None:
+            print("No operation specified. Use --macro, --coarse, or --fine with the appropriate arguments.")
     except Exception as e:
         print(f"Error: {e}")
     finally:
-
         # Close the bus connection.
         bus.close()
 
