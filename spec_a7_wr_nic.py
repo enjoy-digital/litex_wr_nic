@@ -166,7 +166,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Shared QPLL.
         self.qpll = SharedQPLL(platform,
-            with_pcie           = True,
+            with_pcie           = True, # Always True even when PCIe is disabled for correct WR Clocking.
             with_eth            = with_white_rabbit,
             eth_refclk_freq     = 125e6,
             eth_refclk_from_pll = True,
@@ -187,12 +187,6 @@ class BaseSoC(LiteXWRNICSoC):
         self.add_jtagbone()
         platform.add_period_constraint(self.jtagbone_phy.cd_jtag.clk, 1e9/20e6)
         platform.add_false_path_constraints(self.jtagbone_phy.cd_jtag.clk, self.crg.cd_sys.clk)
-
-        # Frontpanel Leds --------------------------------------------------------------------------
-        #self.leds = LedChaser(
-        #    pads         = platform.request_all("frontpanel_led"),
-        #    sys_clk_freq = sys_clk_freq,
-        #)
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:

@@ -16,8 +16,8 @@ from litex.gen import *
 from litex_boards.platforms import sqrl_acorn
 
 from litex.build.generic_platform import *
-from litex.build.io               import SDRTristate
-from litex.build.io               import DifferentialInput
+from litex.build.io               import SDRTristate, SDROutput
+from litex.build.io               import DifferentialInput, DifferentialOutput
 from litex.build.openfpgaloader   import OpenFPGALoader
 
 from litex.soc.interconnect.csr     import *
@@ -28,7 +28,7 @@ from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
-from litex.soc.cores.clock import S7PLL
+from litex.soc.cores.clock import S7PLL, S7MMCM
 from litex.soc.cores.led   import LedChaser
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
@@ -44,9 +44,9 @@ from gateware.wb_clock_crossing import WishboneClockCrossing
 from gateware.wrf_stream2wb     import Stream2Wishbone
 from gateware.wrf_wb2stream     import Wishbone2Stream
 from gateware.ad5683r.core      import AD5683RDAC
-from gateware.ad9516.core       import AD9516PLL
+from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
-
+from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(sqrl_acorn.Platform):
@@ -122,7 +122,8 @@ class BaseSoC(LiteXWRNICSoC):
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
 
         # PCIe NIC.
-        with_pcie_nic = False,
+        with_pcie_nic = True,
+
     ):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
@@ -138,7 +139,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Shared QPLL.
         self.qpll = SharedQPLL(platform,
-            with_pcie           = with_pcie,
+            with_pcie           = True, # Always True even when PCIe is disabled for correct WR Clocking.
             with_eth            = with_white_rabbit,
             eth_refclk_freq     = 125e6,
             eth_refclk_from_pll = True,
@@ -154,7 +155,6 @@ class BaseSoC(LiteXWRNICSoC):
 
         # UART -------------------------------------------------------------------------------------
         self.uart = UARTShared(pads=platform.request("serial"), sys_clk_freq=sys_clk_freq)
-
 
         # JTAGBone ---------------------------------------------------------------------------------
         self.add_jtagbone()
@@ -376,12 +376,12 @@ class BaseSoC(LiteXWRNICSoC):
             # Time Generator -----------------------------------------------------------------------
 
             self.time_generator = TimeGenerator(
-                clk_domain = "sys",
-                clk_freq   = 125e6,
+                clk_domain = "wr",
+                clk_freq   = 62.5e6,
             )
             self.comb += [
-                self.ptm_requester.time_clk.eq(ClockSignal("sys")),
-                self.ptm_requester.time_rst.eq(ResetSignal("sys")),
+                self.ptm_requester.time_clk.eq(ClockSignal("wr")),
+                self.ptm_requester.time_rst.eq(ResetSignal("wr")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
 
