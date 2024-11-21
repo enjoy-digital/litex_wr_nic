@@ -130,8 +130,8 @@ class _CRG(LiteXModule):
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
-        with_pcie     = False,
-        with_pcie_ptm = False,
+        with_pcie     = True,
+        with_pcie_ptm = True,
 
         # White Rabbit Paramters.
         with_white_rabbit          = True,
@@ -139,7 +139,7 @@ class BaseSoC(LiteXWRNICSoC):
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
 
         # PCIe NIC.
-        with_pcie_nic = False,
+        with_pcie_nic = True,
 
         # PPS Out Parameters.
         pps_out_macro_delay_default  = 62499998, # 16ns  taps (Up to 2**32-1 taps).
