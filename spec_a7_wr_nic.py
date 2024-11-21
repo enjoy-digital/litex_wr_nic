@@ -24,6 +24,7 @@ import argparse
 from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
+from litex.gen.genlib.misc import WaitTimer
 
 from spec_a7_platform import *
 
@@ -423,7 +424,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_spi_miso_i          = flash_pads.miso,
 
                 # PPS / Leds.
-                o_pps_valid_o         = pps_out_valid,
+                o_pps_valid_o         = Open(),
                 i_pps_ext_i           = 0,
                 o_pps_csync_o         = pps_out_pulse,
                 o_pps_p_o             = pps_out,
@@ -480,6 +481,17 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
+            # PPS Out Valid.
+            # --------------
+            # PPS is considered inactive if not PPS pulse from WR for 2s.
+            pps_out_active_timer = WaitTimer(2.0*62.5e6)
+            pps_out_active_timer = ClockDomainsRenamer("wr")(pps_out_active_timer)
+            self.submodules += pps_out_active_timer
+            self.comb += [
+                pps_out_active_timer.wait.eq(~pps_out),
+                pps_out_valid.eq(~pps_out_active_timer.done),
+            ]
+
             # Sync-Out PLL.
             # -------------
             self.cd_wr8x      = ClockDomain()
@@ -534,7 +546,7 @@ class BaseSoC(LiteXWRNICSoC):
             clk10_out_coarse_delay = Signal()
             self.pps_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
-                i   = pps_out_gen,
+                i   = pps_out_gen & pps_out_valid,
                 o   = pps_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 8, # 64-taps.
@@ -542,7 +554,7 @@ class BaseSoC(LiteXWRNICSoC):
             )
             self.clk10_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
-                i   = clk10_out_gen,
+                i   = clk10_out_gen & pps_out_valid,
                 o   = clk10_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 8, # 64-taps.
