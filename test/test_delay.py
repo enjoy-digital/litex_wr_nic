@@ -17,8 +17,7 @@ def set_macro_delay(bus, channel, macro_value):
     if macro_value < 1:
         raise ValueError("Macro delay value must be at least 1.")
     if channel == 0:
-        print(f"Setting macro delay for clk10_out to {macro_value}")
-        bus.regs.clk10m_macro_delay_value.write(macro_value)
+        raise ValueError("No macro delay on clk10_out.")
     if channel == 1:
         print(f"Setting macro delay for pps_out to {macro_value}")
         bus.regs.pps_macro_delay_value.write(macro_value)
@@ -26,8 +25,8 @@ def set_macro_delay(bus, channel, macro_value):
 # Coarse Delay Configuration -----------------------------------------------------------------------
 
 def set_coarse_delay(bus, channel, coarse_value):
-    if coarse_value < 0 or coarse_value > 7:
-        raise ValueError("Coarse value must be between 0 and 7.")
+    if coarse_value < 0 or coarse_value > 63:
+        raise ValueError("Coarse value must be between 0 and 63.")
     if channel not in [0, 1]:
         raise ValueError("Channel must be 0 (clk10_out) or 1 (pps_out).")
     if channel == 0:
@@ -54,7 +53,7 @@ def main():
     parser = argparse.ArgumentParser(description="Control Delay Line Module via Etherbone.")
     parser.add_argument("--channel", type=int, choices=[0, 1], help="Select delay line channel (0 for clk10_out, 1 for pps_out).")
     parser.add_argument("--macro",   type=int, help="Set macro delay value (in clock cycles).")
-    parser.add_argument("--coarse",  type=int, help="Set coarse delay value (0-7).")
+    parser.add_argument("--coarse",  type=int, help="Set coarse delay value (0-63).")
     parser.add_argument("--fine",    type=int, help="Set fine delay value (0-511).")
 
     args = parser.parse_args()

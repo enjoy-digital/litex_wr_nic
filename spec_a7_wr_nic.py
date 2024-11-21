@@ -141,13 +141,12 @@ class BaseSoC(LiteXWRNICSoC):
 
         # PPS Out Parameters.
         pps_out_macro_delay_default  = 62499998, # 16ns  taps (Up to 2**32-1 taps).
-        pps_out_coarse_delay_default =        1, #  2ns  taps (8 taps).
+        pps_out_coarse_delay_default =        1, #  2ns  taps (64 taps).
         pps_out_fine_delay_default   =      100, #  11ps taps (512 taps).
 
         # Clk10M Out Paramters.
-        clk10m_out_macro_delay_default  = 0, # 16ns  taps (Up to 2**32-1 taps).
-        clk10m_out_coarse_delay_default = 0, #  2ns  taps (8 taps).
-        clk10m_out_fine_delay_default   = 0, #  11ps taps (512 taps).
+        clk10m_out_coarse_delay_default =  34, #  2ns  taps (64 taps).
+        clk10m_out_fine_delay_default   = 100, #  11ps taps (512 taps).
 
         # Ext-PLL Parameters.
         with_ext_pll = True,
@@ -497,16 +496,6 @@ class BaseSoC(LiteXWRNICSoC):
                 default_delay = pps_out_macro_delay_default,
             )
 
-            # Clk10M Macro Delay.
-            # ----------------
-            clk10m_out_macro_delay = Signal()
-            self.clk10m_macro_delay = MacroDelay(
-                pulse_i = pps_out_pulse,
-                pulse_o = clk10m_out_macro_delay,
-                clk_domain    = "wr",
-                default_delay = clk10m_out_macro_delay_default,
-            )
-
             # PPS Generator.
             # --------------
             pps_out_gen = Signal()
@@ -527,7 +516,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i   = pps_out_gen,
                 o   = pps_out_coarse_delay,
                 clk_domain = "wr",
-                clk_cycles = 1,
+                clk_cycles = 8, # 64-taps.
                 default_delay = pps_out_coarse_delay_default,
             )
             self.clk10_out_coarse_delay = CoarseDelay(
@@ -535,7 +524,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i   = self.cd_clk10mout.clk, # CHECKME.
                 o   = clk10_out_coarse_delay,
                 clk_domain = "wr",
-                clk_cycles = 1,
+                clk_cycles = 8, # 64-taps.
                 default_delay = clk10m_out_coarse_delay_default,
             )
 

@@ -22,14 +22,14 @@ class BitSlip(Module):
         self.sync += r.eq(Cat(r[dw:], self.i))
         cases = {}
         for i in range(cycles*dw):
-            cases[dw-1-i] = self.o.eq(r[i:dw+i])
+            cases[cycles*dw-1-i] = self.o.eq(r[i:dw+i])
         self.comb += Case(value, cases)
 
 # Coarse Delay -------------------------------------------------------------------------------------
 
 class CoarseDelay(LiteXModule):
     def __init__(self, rst, i, o, clk_domain="wr", clk_cycles=1, default_delay=0):
-        self._value = CSRStorage(3, reset=default_delay)
+        self._value = CSRStorage(8, reset=default_delay)
 
         # # #
 
