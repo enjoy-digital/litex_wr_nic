@@ -60,6 +60,7 @@ from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT
 from gateware.measurement       import MultiClkMeasurement
 from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
 from gateware.pps               import PPSGenerator
+from gateware.clk10m            import Clk10MGenerator
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -145,7 +146,7 @@ class BaseSoC(LiteXWRNICSoC):
         pps_out_fine_delay_default   =      100, #  11ps taps (512 taps).
 
         # Clk10M Out Paramters.
-        clk10m_out_coarse_delay_default =  34, #  2ns  taps (64 taps).
+        clk10m_out_coarse_delay_default =  10, #  2ns  taps (64 taps).
         clk10m_out_fine_delay_default   = 100, #  11ps taps (512 taps).
 
         # Ext-PLL Parameters.
@@ -478,13 +479,11 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Sync-Out PLL.
             # -------------
-            self.cd_clk10mout = ClockDomain()
             self.cd_wr8x      = ClockDomain()
             self.syncout_pll  = syncout_pll = S7MMCM(speedgrade=-2)
             self.comb += syncout_pll.reset.eq(ResetSignal("wr"))
             syncout_pll.register_clkin(ClockSignal("wr"), 62.5e6)
-            syncout_pll.create_clkout(self.cd_wr8x,        500e6, margin=0, phase=0)
-            syncout_pll.create_clkout(self.cd_clk10mout,   10e6,  margin=0, phase=0) # CHECKME.
+            syncout_pll.create_clkout(self.cd_wr8x, 500e6, margin=0, phase=0)
 
             # PPS Macro Delay.
             # ----------------
@@ -507,6 +506,15 @@ class BaseSoC(LiteXWRNICSoC):
                 duty_cycle = 20/100, # 20% High / 80% Low PPS.
             )
 
+            # Clk10M Generator.
+            # -----------------
+            clk10_out_gen = Signal()
+            self.clk10m_gen = Clk10MGenerator(
+                pulse_i  = pps_out_pulse,
+                clk10m_o = clk10_out_gen,
+                clk_domain = "wr8x",
+            )
+
             # Coarse Delay.
             # -------------
             pps_out_coarse_delay   = Signal()
@@ -521,7 +529,7 @@ class BaseSoC(LiteXWRNICSoC):
             )
             self.clk10_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
-                i   = self.cd_clk10mout.clk, # CHECKME.
+                i   = clk10_out_gen,
                 o   = clk10_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 8, # 64-taps.
