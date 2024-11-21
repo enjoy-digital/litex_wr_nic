@@ -527,19 +527,19 @@ class BaseSoC(LiteXWRNICSoC):
             )
 
             # Clk10M Generator.
-            clk10_out_gen = Signal()
+            clk10m_out_gen = Signal()
             self.clk10m_gen = Clk10MGenerator(
                 pulse_i  = clk10m_out_macro_delay,
-                clk10m_o = clk10_out_gen,
+                clk10m_o = clk10m_out_gen,
                 clk_domain = "wr8x",
             )
 
             # Clk10M Coarse Delay.
-            clk10_out_coarse_delay = Signal()
-            self.clk10_out_coarse_delay = CoarseDelay(
+            clk10m_out_coarse_delay = Signal()
+            self.clk10m_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
-                i   = clk10_out_gen & pps_out_valid,
-                o   = clk10_out_coarse_delay,
+                i   = clk10m_out_gen & pps_out_valid,
+                o   = clk10m_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 8, # 64-taps.
                 default_delay = clk10m_out_coarse_delay_default,
@@ -548,7 +548,7 @@ class BaseSoC(LiteXWRNICSoC):
             # Clk10M Out.
             clk10m_out_pads = platform.request("clk10m_out")
             self.specials += DifferentialOutput(
-                i   = clk10_out_coarse_delay,
+                i   = clk10m_out_coarse_delay,
                 o_p = clk10m_out_pads.p,
                 o_n = clk10m_out_pads.n,
             )

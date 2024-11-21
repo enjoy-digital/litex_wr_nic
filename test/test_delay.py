@@ -36,7 +36,7 @@ def set_coarse_delay(bus, channel, coarse_value):
         raise ValueError("Coarse value must be between 0 and 63.")
     if channel == 0:
         print(f"Setting coarse delay for clk10m_out to {coarse_value}")
-        bus.regs.clk10_out_coarse_delay_value.write(coarse_value)
+        bus.regs.clk10m_out_coarse_delay_value.write(coarse_value)
     elif channel == 1:
         print(f"Setting coarse delay for pps_out to {coarse_value}")
         bus.regs.pps_out_coarse_delay_value.write(coarse_value)
