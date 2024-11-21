@@ -481,6 +481,20 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
+            # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
+
+            from gateware.nic.phy import LiteEthPHYWRGMII
+
+            self.ethphy0 = LiteEthPHYWRGMII(wrf_stream2wb, wrf_wb2stream)
+
+            if not with_pcie_nic:
+                self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
+            else:
+                self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
+
+
+            # White Rabbit Sync-Out ----------------------------------------------------------------
+
             # PPS Out Valid.
             # --------------
             # PPS is considered inactive if not PPS pulse from WR for 2s.
@@ -500,18 +514,10 @@ class BaseSoC(LiteXWRNICSoC):
             syncout_pll.register_clkin(ClockSignal("wr"), 62.5e6)
             syncout_pll.create_clkout(self.cd_wr8x, 500e6, margin=0, phase=0)
 
-            # PPS Macro Delay.
-            # ----------------
-            pps_out_macro_delay = Signal()
-            self.pps_macro_delay = MacroDelay(
-                pulse_i = pps_out_pulse,
-                pulse_o = pps_out_macro_delay,
-                clk_domain    = "wr",
-                default_delay = pps_out_macro_delay_default,
-            )
+            # Clk10M SMA Out.
+            # ---------------
 
             # Clk10M Macro Delay.
-            # -------------------
             clk10m_out_macro_delay = Signal()
             self.clk10m_macro_delay = MacroDelay(
                 pulse_i = pps_out_pulse,
@@ -520,19 +526,7 @@ class BaseSoC(LiteXWRNICSoC):
                 default_delay = clk10m_out_macro_delay_default,
             )
 
-            # PPS Generator.
-            # --------------
-            pps_out_gen = Signal()
-            self.pps_gen = PPSGenerator(
-                i = pps_out_macro_delay,
-                o = pps_out_gen,
-                clk_domain = "wr",
-                clk_freq   = int(62.5e6),
-                duty_cycle = 20/100, # 20% High / 80% Low PPS.
-            )
-
             # Clk10M Generator.
-            # -----------------
             clk10_out_gen = Signal()
             self.clk10m_gen = Clk10MGenerator(
                 pulse_i  = clk10m_out_macro_delay,
@@ -540,18 +534,8 @@ class BaseSoC(LiteXWRNICSoC):
                 clk_domain = "wr8x",
             )
 
-            # Coarse Delay.
-            # -------------
-            pps_out_coarse_delay   = Signal()
+            # Clk10M Coarse Delay.
             clk10_out_coarse_delay = Signal()
-            self.pps_out_coarse_delay = CoarseDelay(
-                rst = ~syncout_pll.locked,
-                i   = pps_out_gen & pps_out_valid,
-                o   = pps_out_coarse_delay,
-                clk_domain = "wr",
-                clk_cycles = 8, # 64-taps.
-                default_delay = pps_out_coarse_delay_default,
-            )
             self.clk10_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
                 i   = clk10_out_gen & pps_out_valid,
@@ -561,8 +545,58 @@ class BaseSoC(LiteXWRNICSoC):
                 default_delay = clk10m_out_coarse_delay_default,
             )
 
-            # Fine Delay (PPS & Clk10M Output).
-            # ---------------------------------
+            # Clk10M Out.
+            clk10m_out_pads = platform.request("clk10m_out")
+            self.specials += DifferentialOutput(
+                i   = clk10_out_coarse_delay,
+                o_p = clk10m_out_pads.p,
+                o_n = clk10m_out_pads.n,
+            )
+
+            # PPS SMA Out.
+            # ------------
+
+            # PPS Macro Delay.
+            pps_out_macro_delay = Signal()
+            self.pps_macro_delay = MacroDelay(
+                pulse_i = pps_out_pulse,
+                pulse_o = pps_out_macro_delay,
+                clk_domain    = "wr",
+                default_delay = pps_out_macro_delay_default,
+            )
+
+            # PPS Generator.
+            pps_out_gen = Signal()
+            self.pps_gen = PPSGenerator(
+                i = pps_out_macro_delay,
+                o = pps_out_gen,
+                clk_domain = "wr",
+                clk_freq   = int(62.5e6),
+                duty_cycle = 20/100, # 20% High / 80% Low PPS.
+            )
+
+            # PPS Coarse Delay.
+            pps_out_coarse_delay   = Signal()
+            self.pps_out_coarse_delay = CoarseDelay(
+                rst = ~syncout_pll.locked,
+                i   = pps_out_gen & pps_out_valid,
+                o   = pps_out_coarse_delay,
+                clk_domain = "wr",
+                clk_cycles = 8, # 64-taps.
+                default_delay = pps_out_coarse_delay_default,
+            )
+
+            # PPS Out.
+            pps_out_pads = platform.request("pps_out")
+            self.specials += DifferentialOutput(
+                i   = pps_out_coarse_delay,
+                o_p = pps_out_pads.p,
+                o_n = pps_out_pads.n,
+            )
+
+
+            # Fine Delay (Clk10M & PPS Out).
+            # ------------------------------
             self.fine_delay = FineDelay(
                 pads           = platform.request("fine_delay"),
                 default_delays = [
@@ -571,41 +605,13 @@ class BaseSoC(LiteXWRNICSoC):
                 ],
             )
 
-            # PPS Output.
-            # -----------
-            pps_out_pads = platform.request("pps_out")
-            self.specials += DifferentialOutput(
-                i   = pps_out_coarse_delay,
-                o_p = pps_out_pads.p,
-                o_n = pps_out_pads.n,
-            )
 
-            # Clk10M Output.
-            # --------------
-            clk10m_out_pads = platform.request("clk10m_out")
-            self.specials += DifferentialOutput(
-                i   = clk10_out_coarse_delay, # FIXME: For test.
-                o_p = clk10m_out_pads.p,
-                o_n = clk10m_out_pads.n,
-            )
-
-            # Leds Output.
-            # ------------
+            # FrontPanel Leds.
+            # ----------------
             self.comb += [
                 platform.request("clk10m_out_led").eq(pps_out_valid),
                 platform.request("pps_out_led").eq(led_pps),
             ]
-
-            # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
-
-            from gateware.nic.phy import LiteEthPHYWRGMII
-
-            self.ethphy0 = LiteEthPHYWRGMII(wrf_stream2wb, wrf_wb2stream)
-
-            if not with_pcie_nic:
-                self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
-            else:
-                self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
 
         # PCIe PTM ---------------------------------------------------------------------------------
 
