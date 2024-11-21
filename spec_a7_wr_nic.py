@@ -140,9 +140,9 @@ class BaseSoC(LiteXWRNICSoC):
         with_pcie_nic = False,
 
         # PPS Out Parameters.
-        pps_out_macro_delay_default  = 62499996, # 16ns  taps (Up to 2**32-1 taps).
-        pps_out_coarse_delay_default =        6, #  2ns  taps (8 taps).
-        pps_out_fine_delay_default   =      256, #  11ps taps (512 taps).
+        pps_out_macro_delay_default  = 62499998, # 16ns  taps (Up to 2**32-1 taps).
+        pps_out_coarse_delay_default =        1, #  2ns  taps (8 taps).
+        pps_out_fine_delay_default   =      100, #  11ps taps (512 taps).
 
         # Clk10M Out Paramters.
         clk10m_out_macro_delay_default  = 0, # 16ns  taps (Up to 2**32-1 taps).
@@ -480,14 +480,12 @@ class BaseSoC(LiteXWRNICSoC):
             # Sync-Out PLL.
             # -------------
             self.cd_clk10mout = ClockDomain()
-            self.cd_syncout   = ClockDomain()
-            self.cd_syncout4x = ClockDomain()
-            self.syncout_pll = syncout_pll = S7MMCM(speedgrade=-2)
+            self.cd_wr8x      = ClockDomain()
+            self.syncout_pll  = syncout_pll = S7MMCM(speedgrade=-2)
             self.comb += syncout_pll.reset.eq(ResetSignal("wr"))
-            syncout_pll.register_clkin(platform.request("refclk125_syncout"), 125e6)
-            syncout_pll.create_clkout(self.cd_syncout,   62.5e6, margin=0)
-            syncout_pll.create_clkout(self.cd_syncout4x,  250e6, margin=0)
-            syncout_pll.create_clkout(self.cd_clk10mout,   10e6, margin=0) # CHECKME.
+            syncout_pll.register_clkin(ClockSignal("wr"), 62.5e6)
+            syncout_pll.create_clkout(self.cd_wr8x,        500e6, margin=0, phase=0)
+            syncout_pll.create_clkout(self.cd_clk10mout,   10e6,  margin=0, phase=0) # CHECKME.
 
             # PPS Macro Delay.
             # ----------------
@@ -515,7 +513,7 @@ class BaseSoC(LiteXWRNICSoC):
             self.pps_gen = PPSGenerator(
                 i = pps_out_macro_delay,
                 o = pps_out_gen,
-                clk_domain = "syncout",
+                clk_domain = "wr",
                 clk_freq   = int(62.5e6),
                 duty_cycle = 20/100, # 20% High / 80% Low PPS.
             )
@@ -525,16 +523,18 @@ class BaseSoC(LiteXWRNICSoC):
             pps_out_coarse_delay   = Signal()
             clk10_out_coarse_delay = Signal()
             self.pps_out_coarse_delay = CoarseDelay(
-                i = pps_out_gen,
-                o = pps_out_coarse_delay,
-                clk_domain = "syncout",
+                rst = ~syncout_pll.locked,
+                i   = pps_out_gen,
+                o   = pps_out_coarse_delay,
+                clk_domain = "wr",
                 clk_cycles = 1,
                 default_delay = pps_out_coarse_delay_default,
             )
             self.clk10_out_coarse_delay = CoarseDelay(
-                i = self.cd_clk10mout.clk, # CHECKME.
-                o = clk10_out_coarse_delay,
-                clk_domain = "syncout",
+                rst = ~syncout_pll.locked,
+                i   = self.cd_clk10mout.clk, # CHECKME.
+                o   = clk10_out_coarse_delay,
+                clk_domain = "wr",
                 clk_cycles = 1,
                 default_delay = clk10m_out_coarse_delay_default,
             )
@@ -551,20 +551,9 @@ class BaseSoC(LiteXWRNICSoC):
 
             # PPS Output.
             # -----------
-
-            _pps_out = Signal()
-
-            # Deterministic delay debug.
-            self._pps_control = CSRStorage(3)
-            self.comb += Case(self._pps_control.storage, {
-                0 : _pps_out.eq(pps_out_pulse),
-                1 : _pps_out.eq(pps_out_macro_delay),
-                2 : _pps_out.eq(pps_out_gen),
-            })
-
             pps_out_pads = platform.request("pps_out")
             self.specials += DifferentialOutput(
-                i   = _pps_out,
+                i   = pps_out_coarse_delay,
                 o_p = pps_out_pads.p,
                 o_n = pps_out_pads.n,
             )
@@ -573,7 +562,7 @@ class BaseSoC(LiteXWRNICSoC):
             # --------------
             clk10m_out_pads = platform.request("clk10m_out")
             self.specials += DifferentialOutput(
-                i   = pps_out_coarse_delay, # FIXME: For test.
+                i   = clk10_out_coarse_delay, # FIXME: For test.
                 o_p = clk10m_out_pads.p,
                 o_n = clk10m_out_pads.n,
             )

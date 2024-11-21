@@ -28,7 +28,7 @@ class BitSlip(Module):
 # Coarse Delay -------------------------------------------------------------------------------------
 
 class CoarseDelay(LiteXModule):
-    def __init__(self, i, o, clk_domain="wr", clk_cycles=1, default_delay=0):
+    def __init__(self, rst, i, o, clk_domain="wr", clk_cycles=1, default_delay=0):
         self._value = CSRStorage(3, reset=default_delay)
 
         # # #
@@ -43,13 +43,13 @@ class CoarseDelay(LiteXModule):
         self.specials += Instance("OSERDESE2",
             p_DATA_WIDTH     = 8,
             p_TRISTATE_WIDTH = 1,
-            p_DATA_RATE_OQ   = "DDR",
+            p_DATA_RATE_OQ   = "SDR",
             p_DATA_RATE_TQ   = "BUF",
             p_SERDES_MODE    = "MASTER",
 
             i_OCE    = 1,
-            i_RST    = ResetSignal(clk_domain),
-            i_CLK    = ClockSignal(clk_domain + "4x"),
+            i_RST    = ResetSignal(clk_domain) | rst,
+            i_CLK    = ClockSignal(clk_domain + "8x"),
             i_CLKDIV = ClockSignal(clk_domain),
             i_D1     = bitslip.o[0],
             i_D2     = bitslip.o[1],
