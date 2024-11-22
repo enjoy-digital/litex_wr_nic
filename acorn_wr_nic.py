@@ -12,6 +12,7 @@ import argparse
 from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
+from litex.gen.genlib.misc import WaitTimer
 
 from litex_boards.platforms import sqrl_acorn
 
@@ -47,6 +48,9 @@ from gateware.ad5683r.core      import AD5683RDAC
 from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
 from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
+from gateware.pps               import PPSGenerator
+from gateware.clk10m            import Clk10MGenerator
+from gateware.nic.phy           import LiteEthPHYWRGMII
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -101,7 +105,7 @@ class BaseSoC(LiteXWRNICSoC):
         with_pcie     = True,
         with_pcie_ptm = True,
 
-        # White Rabbit Paramters.
+        # White Rabbit Parameters.
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
@@ -111,6 +115,7 @@ class BaseSoC(LiteXWRNICSoC):
 
     ):
         # Platform ---------------------------------------------------------------------------------
+
         platform = sqrl_acorn.Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
 
@@ -132,6 +137,7 @@ class BaseSoC(LiteXWRNICSoC):
         self.qpll.enable_pll_refclk()
 
         # SoCMini ----------------------------------------------------------------------------------
+
         SoCMini.__init__(self, platform,
             clk_freq      = sys_clk_freq,
             ident         = "LiteX-WR-NIC on Acorn Baseboard Mini.",
@@ -139,14 +145,17 @@ class BaseSoC(LiteXWRNICSoC):
         )
 
         # UART -------------------------------------------------------------------------------------
+
         self.uart = UARTShared(pads=platform.request("serial"), sys_clk_freq=sys_clk_freq)
 
         # JTAGBone ---------------------------------------------------------------------------------
+
         self.add_jtagbone()
         platform.add_period_constraint(self.jtagbone_phy.cd_jtag.clk, 1e9/20e6)
         platform.add_false_path_constraints(self.jtagbone_phy.cd_jtag.clk, self.crg.cd_sys.clk)
 
         # PCIe -------------------------------------------------------------------------------------
+
         if with_pcie:
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width  = 64,
@@ -280,7 +289,9 @@ class BaseSoC(LiteXWRNICSoC):
                 i_spi_miso_i          = 0,
 
                 # PPS / Leds.
+                o_pps_valid_o         = Open(),
                 i_pps_ext_i           = 0,
+                o_pps_csync_o         = Open(),
                 o_pps_p_o             = Open(),
                 o_pps_led_o           = led_pps,
                 o_led_link_o          = led_link,
@@ -330,9 +341,17 @@ class BaseSoC(LiteXWRNICSoC):
                 o_wrf_snk_stall       = Open(), # Not Used.
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
                 o_wrf_snk_rty         = Open(), # Not Used.
+
+                # Time.
+                o_tm_link_up_o        = Open(),
+                o_tm_time_valid_o     = Open(),
+                o_tm_tai_o            = Open(),
+                o_tm_cycles_o         = Open(),
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
+            platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
+            platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
             # Leds Output.
             self.comb += [
@@ -342,9 +361,6 @@ class BaseSoC(LiteXWRNICSoC):
             ]
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
-
-            from gateware.nic.phy import LiteEthPHYWRGMII
-
             self.ethphy0 = LiteEthPHYWRGMII(wrf_stream2wb, wrf_wb2stream)
 
             if not with_pcie_nic:
@@ -356,6 +372,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         if with_pcie_ptm:
             assert with_pcie
+            assert with_white_rabbit
             self.add_pcie_ptm()
 
             # Time Generator -----------------------------------------------------------------------
@@ -364,6 +381,7 @@ class BaseSoC(LiteXWRNICSoC):
                 clk_domain = "wr",
                 clk_freq   = 62.5e6,
             )
+            # Connect TimeGenerator's Time to PCIe PTM.
             self.comb += [
                 self.ptm_requester.time_clk.eq(ClockSignal("wr")),
                 self.ptm_requester.time_rst.eq(ResetSignal("wr")),
@@ -377,6 +395,7 @@ class BaseSoC(LiteXWRNICSoC):
             "clk1" : ClockSignal("clk_62m5_dmtd"),
             "clk2" : ClockSignal("clk_125m_gtp"),
             "clk3" : 0,
+            "clk4" : 0,
         })
 
 # Build --------------------------------------------------------------------------------------------
@@ -395,6 +414,7 @@ def main():
     parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true")
     parser.add_argument("--with-wishbone-slave-probe",            action="store_true")
     parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
+    parser.add_argument("--with-time-probe",                      action="store_true")
 
     args = parser.parse_args()
 
@@ -415,6 +435,8 @@ def main():
         soc.add_wishbone_slave_probe()
     if args.with_dac_vcxo_probe:
         soc.add_dac_vcxo_probe()
+    if args.with_time_probe:
+        soc.add_time_probe()
     builder = Builder(soc, csr_csv="test/csr.csv")
     builder.build(run=args.build)
 

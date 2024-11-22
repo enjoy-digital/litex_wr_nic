@@ -7,25 +7,6 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-# Build:
-# ./spec_a7_wr_nic.py --build --load
-
-# LiteX Server:
-# litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
-
-# LiteScope:
-# litescope_cli --subsampling=16384
-
-# CPU firmware compile/reload:
-# ./test_wb_cpu.py --build-firmware --load-firmware ../firmware/wrpc-sw/wrc.bin
-
-# Set WR Time on ZEN:
-# wr_date set host
-
-# sudo ./test_i225_pps.py --enable
-# sudo phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -O 0 -m
-# sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m
-
 import argparse
 
 from migen.genlib.cdc import MultiReg
@@ -69,6 +50,7 @@ from gateware.measurement       import MultiClkMeasurement
 from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
 from gateware.pps               import PPSGenerator
 from gateware.clk10m            import Clk10MGenerator
+from gateware.nic.phy           import LiteEthPHYWRGMII
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -140,7 +122,7 @@ class BaseSoC(LiteXWRNICSoC):
         with_pcie     = True,
         with_pcie_ptm = True,
 
-        # White Rabbit Paramters.
+        # White Rabbit Parameters.
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
@@ -148,12 +130,12 @@ class BaseSoC(LiteXWRNICSoC):
         # PCIe NIC.
         with_pcie_nic = True,
 
-        # PPS Out Parameters.
+        # PPS Out Parameters (Adjusted over JTAGBone with test/test_delay.py).
         pps_out_macro_delay_default  = 62499998, # 16ns  taps (Up to 2**32-1 taps).
         pps_out_coarse_delay_default =        1, #  2ns  taps (64 taps).
         pps_out_fine_delay_default   =      100, #  11ps taps (512 taps).
 
-        # Clk10M Out Paramters.
+        # Clk10M Out Parameters. (Adjuted over JTAGBone with test/test_delay.py).
         clk10m_out_macro_delay_default  = 6250000, # 16ns  taps (Up to 2**32-1 taps).
         clk10m_out_coarse_delay_default =      10, #  2ns  taps (64 taps).
         clk10m_out_fine_delay_default   =     100, #  11ps taps (512 taps).
@@ -162,6 +144,7 @@ class BaseSoC(LiteXWRNICSoC):
         with_ext_pll = True,
     ):
         # Platform ---------------------------------------------------------------------------------
+
         platform      = Platform(variant="xc7a50t")
         platform.name = "spec_a7_wr_nic"
 
@@ -183,6 +166,7 @@ class BaseSoC(LiteXWRNICSoC):
         self.qpll.enable_pll_refclk()
 
         # SoCMini ----------------------------------------------------------------------------------
+
         SoCMini.__init__(self, platform,
             clk_freq      = sys_clk_freq,
             ident         = "LiteX-WR-NIC on SPEC-A7.",
@@ -190,14 +174,17 @@ class BaseSoC(LiteXWRNICSoC):
         )
 
         # UART -------------------------------------------------------------------------------------
+
         self.uart = UARTShared(pads=platform.request("serial"), sys_clk_freq=sys_clk_freq)
 
         # JTAGBone ---------------------------------------------------------------------------------
+
         self.add_jtagbone()
         platform.add_period_constraint(self.jtagbone_phy.cd_jtag.clk, 1e9/20e6)
         platform.add_false_path_constraints(self.jtagbone_phy.cd_jtag.clk, self.crg.cd_sys.clk)
 
         # PCIe -------------------------------------------------------------------------------------
+
         if with_pcie:
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width  = 64,
@@ -500,9 +487,6 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
-
-            from gateware.nic.phy import LiteEthPHYWRGMII
-
             self.ethphy0 = LiteEthPHYWRGMII(wrf_stream2wb, wrf_wb2stream)
 
             if not with_pcie_nic:

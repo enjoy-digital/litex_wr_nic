@@ -70,7 +70,8 @@ PCIePTMInjector module hasn't been required.
 The FPGA design can be build and tested with the following commands:
 
 ```sh
-$ ./acorn_wr_nic.py --build --load
+$ ./acorn_wr_nic.py --build --load or
+$ ./spec_a7_wr_nic.py --build --load
 ```
 
 The WR console/gui should then be available on `/dev/ttyUSB2`:
@@ -111,7 +112,8 @@ TODO: Describe PTM tests.
 The FPGA design can be build and tested with the following commands:
 
 ```sh
-$ ./acorn_liteeth_nic.py --build --load
+$ ./acorn_liteeth_nic.py --build --load or
+$ ./spec_a7_liteeth_nic.py --build --load
 ```
 
 When rebooting the Host PC, the board should also be enumerated and seen with `lspci`.
@@ -184,6 +186,42 @@ The script will display a progress bar while loading the firmware, like this:
 ```sh
 Loading firmware from ../firmware/wrpc-sw/wrc.bin...
 Loading firmware: 100%|██████████████████████████████████| 30270/30270 [00:00<00:00,
+```
+
+[> Use LiteX Server/LiteScope
+-----------------------------
+
+LiteX Server:
+```sh
+litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
+```
+
+LiteScope:
+```
+litescope_cli --subsampling=16384
+```
+
+[> Run PTM/Intel I225 PPS Demo
+------------------------------
+
+On WR Zen (used here as WR Master):
+```sh
+# Set WR date to Host date.
+wr_date set host
+```
+
+On PCIe Host:
+```sh
+cd software
+
+# Enable PPS generation on Intel I225/SPD0 Pin.
+cd ./intel_i225_pps.py --enable
+
+# Start Host -> Intel I225 phc2sys regulation.
+sudo phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -O 0 -m
+
+# Start SPEC-A7 -> Host phc2sys regulation.
+sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m
 ```
 
 [> SDB
