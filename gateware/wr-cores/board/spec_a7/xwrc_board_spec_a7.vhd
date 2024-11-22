@@ -215,10 +215,10 @@ entity xwrc_board_spec_a7 is
     ---------------------------------------------------------------------------
     -- Timecode I/F
     ---------------------------------------------------------------------------
-    --tm_link_up_o    : out std_logic;
-    --tm_time_valid_o : out std_logic;
-    --tm_tai_o        : out std_logic_vector(39 downto 0);
-    --tm_cycles_o     : out std_logic_vector(27 downto 0);
+    tm_link_up_o    : out std_logic;
+    tm_time_valid_o : out std_logic;
+    tm_tai_o        : out std_logic_vector(39 downto 0);
+    tm_cycles_o     : out std_logic_vector(27 downto 0);
 
     ---------------------------------------------------------------------------
     -- Buttons, LEDs and PPS output
@@ -479,10 +479,10 @@ begin  -- architecture struct
       fc_tx_pause_req_i    => fc_tx_pause_req_i,
       fc_tx_pause_delay_i  => fc_tx_pause_delay_i,
       fc_tx_pause_ready_o  => open, --fc_tx_pause_ready_o,
-      tm_link_up_o         => open, --tm_link_up_o,
-      tm_time_valid_o      => open, --tm_time_valid_o,
-      tm_tai_o             => open, --tm_tai_o,
-      tm_cycles_o          => open, --tm_cycles_o,
+      tm_link_up_o         => tm_link_up_o,
+      tm_time_valid_o      => tm_time_valid_o,
+      tm_tai_o             => tm_tai_o,
+      tm_cycles_o          => tm_cycles_o,
       led_act_o            => led_act_o,
       led_link_o           => led_link_o,
       btn1_i               => btn1_i,

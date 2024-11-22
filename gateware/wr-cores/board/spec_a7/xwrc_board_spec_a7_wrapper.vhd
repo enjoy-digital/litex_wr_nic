@@ -146,6 +146,12 @@ entity xwrc_board_spec_a7_wrapper is
     fc_tx_pause_req_i    : in  std_logic := '0';
     fc_tx_pause_delay_i  : in  std_logic_vector(15 downto 0) := x"0000";
 
+    -- Timecode I/F.
+    tm_link_up_o         : out std_logic;
+    tm_time_valid_o      : out std_logic;
+    tm_tai_o             : out std_logic_vector(39 downto 0);
+    tm_cycles_o          : out std_logic_vector(27 downto 0);
+
     -- Buttons, LEDs and PPS output
     led_act_o            : out std_logic;
     led_link_o           : out std_logic;
@@ -287,6 +293,10 @@ begin
       timestamps_ack_i     => timestamps_ack_i,
       fc_tx_pause_req_i    => fc_tx_pause_req_i,
       fc_tx_pause_delay_i  => fc_tx_pause_delay_i,
+      tm_link_up_o         => tm_link_up_o,
+      tm_time_valid_o      => tm_time_valid_o,
+      tm_tai_o             => tm_tai_o,
+      tm_cycles_o          => tm_cycles_o,
       led_act_o            => led_act_o,
       led_link_o           => led_link_o,
       btn1_i               => btn1_i,
