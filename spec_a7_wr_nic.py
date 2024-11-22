@@ -22,10 +22,6 @@
 # Set WR Time on ZEN:
 # wr_date set host
 
-# TODO: Add script to disable services:
-# sudo systemctl stop chrony.service
-# sudo systemctl stop systemd-timesyncd.service
-
 # sudo ./test_i225_pps.py --enable
 # sudo phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -O 0 -m
 # sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m

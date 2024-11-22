@@ -53,3 +53,11 @@ for i in `seq 0 16` ; do
     chmod 666 /dev/litepcie$i > /dev/null 2>&1
 done
 
+# Stop time synchronization services if they exist and are running to prevent interfering with PCIe
+# PTM and phc2sys.
+for service in chrony systemd-timesyncd; do
+    if systemctl is-active --quiet "$service"; then
+        echo "Stopping $service to ensure PCIe PTM and phc2sys can operate correctly..."
+        systemctl stop "$service" || echo "Failed to stop $service."
+    fi
+done
