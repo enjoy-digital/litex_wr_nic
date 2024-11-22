@@ -146,26 +146,6 @@ sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m
 These steps validate the proper integration of White Rabbit and PCIe PTM for precise time
 synchronization across devices.
 
-[> Xilinx PHY workaround / Implementation note
-----------------------------------------------
-
-From our understanding of the Xilinx PHY and [question]
-(https://support.xilinx.com/s/question/0D54U00007HkzneSAB/receive-all-message-tlps-on-user-interface-7-series-fpga-integrated-block?language=en_US)
-asked on Xilinx community forum, the Artix7's Xilinx PHY does not allow redirecting PTM TLP
-messages to the AXI interface. For a PTM Requester, this then prevent receiving the PTM
-Response/ResponseD TLP messages.
-
-To work-around this limitation, a PCIePTMSniffer has been implemented: The module is sniffing the RX
-Data between the GTPE2 and PCIE2 hardblocks and descrambling/decoding the PCIe traffic to
-re-generate the PTM TLPs.
-
-The re-generated PTM TLPs can then be re-injected in to LitePCIe core and use its PTM Depacketizer:
-
-![](doc/ptm_sniffer.png)
-
-The Xilinx PHY however allow generating the PTM Requests from the AXI interface, so a
-PCIePTMInjector module hasn't been required.
-
 [> Build and test White Rabbit NIC design
 -----------------------------------------
 
