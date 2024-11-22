@@ -13,19 +13,34 @@
 [> Intro
 --------
 
-This project aims to create a White Rabbit NIC based on LiteX, LitePCIe, and LiteEth with PCIe PTM
-support. The project currently has two designs:
+This project implements a LiteX-based White Rabbit NIC, combining networking and synchronization
+features with support for PCIe Precision Time Measurement (PTM). The design enables White Rabbit
+(WR) synchronization to be propagated to the host and other PTM-compatible systems while providing
+1Gbps Ethernet functionality.
 
-1. **White Rabbit Core NIC:**
-   - Includes a White Rabbit console on the UART interface.
-   - Uses White Rabbit Fabric interface for network capabilities.
+### Key Features
 
-2. **LiteEth 1000BaseX NIC:**
-   - Acts as a Linux NIC.
-   - Tested with Iperf3.
+- **White Rabbit Synchronization:** Sub-nanosecond timing precision, integrated WR fabric interface,
+    and support for PPS/10MHz clock outputs.
 
-The final goal is to merge these designs, removing the LiteEth 1000BaseX PHY, and connect directly
-to the White Rabbit fabric interface:
+- **PCIe PTM Integration:** Propagates WR clock to the host system and connected boards via PCIe
+    PTM. This ensures precise time distribution across systems.
+
+- **LitePCIe:** Provides the foundation for PCIe integration, including MMAP, DMA for NIC
+    functionality, and PTM TLP handling.
+
+- **LiteEth-based Ethernet NIC:** Offers a 1Gbps Ethernet interface with Linux driver support.
+
+### Supported Boards
+
+- **SPEC-A7:** Includes advanced clocking features like external 10MHz input and fine delay lines
+    for precise PPS/10MHz generation from WR network.
+
+- **LiteX Acorn Baseboard:** Features a larger FPGA (XC7A200T) for easier debugging. Future plans
+    aim to add digital VCXO functionality for full White Rabbit support.
+
+This open-source project is modular and developer-friendly, making it suitable for applications
+requiring precise timing and basic networking functionality.
 
 ![](doc/architecture.png)
 
