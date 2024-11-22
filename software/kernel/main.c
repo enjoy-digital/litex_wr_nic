@@ -763,8 +763,11 @@ static int liteeth_init(struct litepcie_device *litepcie_dev, int index)
 #define TIME_CONTROL_SYNC_ENABLE  (1 << CSR_TIME_GENERATOR_CONTROL_SYNC_ENABLE_OFFSET)
 
 /* PTM */
+#define PTM_OFFSET_NS (-500) /* FIXME: Adjust */
+/* control */
 #define PTM_CONTROL_ENABLE  (1 << CSR_PTM_REQUESTER_CONTROL_ENABLE_OFFSET)
 #define PTM_CONTROL_TRIGGER (1 << CSR_PTM_REQUESTER_CONTROL_TRIGGER_OFFSET)
+/* status */
 #define PTM_STATUS_VALID    (1 << CSR_PTM_REQUESTER_STATUS_VALID_OFFSET)
 #define PTM_STATUS_BUSY     (1 << CSR_PTM_REQUESTER_STATUS_BUSY_OFFSET)
 /* t1 */
@@ -776,6 +779,7 @@ static int liteeth_init(struct litepcie_device *litepcie_dev, int index)
 /* t4 */
 #define PTM_T4_TIME_L       (CSR_PTM_REQUESTER_T4_TIME_ADDR + (4))
 #define PTM_T4_TIME_H       (CSR_PTM_REQUESTER_T4_TIME_ADDR + (0))
+
 
 static u64 litepcie_read64(struct litepcie_device *dev, uint32_t addr)
 {
@@ -793,6 +797,8 @@ static int litepcie_read_time(struct litepcie_device *dev, struct timespec64 *ts
 	value = (((s64) litepcie_readl(dev, TIME_CONTROL_READ_TIME_H) << 32) |
 		(litepcie_readl(dev, TIME_CONTROL_READ_TIME_L) & 0xffffffff));
 
+	value = value - PTM_OFFSET_NS;
+
 	rd_ts = ns_to_timespec64(value);
 	ts->tv_nsec = rd_ts.tv_nsec;
 	ts->tv_sec = rd_ts.tv_sec;
@@ -803,6 +809,8 @@ static int litepcie_read_time(struct litepcie_device *dev, struct timespec64 *ts
 static int litepcie_write_time(struct litepcie_device *dev, const struct timespec64 *ts)
 {
 	s64 value = timespec64_to_ns(ts);
+
+	value = value + PTM_OFFSET_NS;
 
 	litepcie_writel(dev, TIME_CONTROL_WRITE_TIME_L, (value >>  0) & 0xffffffff);
 	litepcie_writel(dev, TIME_CONTROL_WRITE_TIME_H, (value >> 32) & 0xffffffff);
