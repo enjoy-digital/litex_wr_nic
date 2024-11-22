@@ -17,13 +17,13 @@ class TimeGenerator(LiteXModule):
     def __init__(self, clk_domain, clk_freq, with_csr=True):
         assert 1e9/clk_freq == int(1e9/clk_freq)
 
-        self.enable     = Signal()
-        self.pps_align  = Signal()
-        self.write      = Signal()
-        self.write_time = Signal(64)
+        self.enable      = Signal()
+        self.sync_enable = Signal()
+        self.write       = Signal()
+        self.write_time  = Signal(64)
 
-        # PPS Re-Alignment.
-        self.pps          = Signal()
+        # Time Sync Interface.
+        self.time_sync    = Signal()
         self.time_seconds = Signal(40)
 
         # # #
@@ -46,8 +46,8 @@ class TimeGenerator(LiteXModule):
             # Software Write.
             ).Elif(self.write,
                 time.eq(self.write_time),
-            # PPS Re-Alignment.
-            ).Elif(self.pps_align & self.pps,
+            # Time Sync.
+            ).Elif(self.sync_enable & self.time_sync,
                 time.eq(((self.time_seconds + 1)* int(1e9))),
             # Increment.
             ).Else(
@@ -67,9 +67,9 @@ class TimeGenerator(LiteXModule):
             ], reset=default_enable),
             CSRField("read",  size=1, offset=1, pulse=True),
             CSRField("write", size=1, offset=2, pulse=True),
-            CSRField("pps_align", size=1, offset=3, values=[
-                ("``0b0``", "PPS Alignment Disabled."),
-                ("``0b1``", "PPS Alignment Enabled."),
+            CSRField("sync_enable", size=1, offset=3, values=[
+                ("``0b0``", "Sync (Re-)Alignment Disabled."),
+                ("``0b1``", "Sync (Re-)Alignment Enabled."),
             ], reset=default_pps_align),
         ])
         self._read_time  = CSRStatus(64,  description="Read Time  (ns) (FPGA Time -> SW).")
@@ -80,8 +80,8 @@ class TimeGenerator(LiteXModule):
         # Enable.
         self.specials += MultiReg(self._control.fields.enable, self.enable)
 
-        # PPS Align.
-        self.specials += MultiReg(self._control.fields.pps_align, self.pps_align)
+        # Sync.
+        self.specials += MultiReg(self._control.fields.sync_enable, self.sync_enable)
 
         # Time Read (FPGA -> SW).
         time_read = Signal(64)

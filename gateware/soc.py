@@ -357,3 +357,17 @@ class LiteXWRNICSoC(SoCMini):
             register     = True,
             csr_csv      = "test/analyzer.csv"
         )
+
+    def add_time_probe(self):
+        analyzer_signals = [
+            self.time_generator.time_sync,
+            self.time_generator.time_seconds,
+            self.time_generator.time,
+        ]
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            depth        = 512,
+            clock_domain = "wr",
+            samplerate   = int(62.5e6),
+            register     = True,
+            csr_csv      = "test/analyzer.csv"
+        )

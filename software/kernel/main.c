@@ -760,7 +760,7 @@ static int liteeth_init(struct litepcie_device *litepcie_dev, int index)
 #define TIME_CONTROL_ENABLE       (1 << CSR_TIME_GENERATOR_CONTROL_ENABLE_OFFSET)
 #define TIME_CONTROL_READ         (1 << CSR_TIME_GENERATOR_CONTROL_READ_OFFSET)
 #define TIME_CONTROL_WRITE        (1 << CSR_TIME_GENERATOR_CONTROL_WRITE_OFFSET)
-#define TIME_CONTROL_PPS_ALIGN    (1 << CSR_TIME_GENERATOR_CONTROL_PPS_ALIGN_OFFSET)
+#define TIME_CONTROL_SYNC_ENABLE  (1 << CSR_TIME_GENERATOR_CONTROL_SYNC_ENABLE_OFFSET)
 
 /* PTM */
 #define PTM_CONTROL_ENABLE  (1 << CSR_PTM_REQUESTER_CONTROL_ENABLE_OFFSET)
@@ -788,7 +788,7 @@ static int litepcie_read_time(struct litepcie_device *dev, struct timespec64 *ts
 	struct timespec64 rd_ts;
 	s64 value;
 	litepcie_writel(dev, CSR_TIME_GENERATOR_CONTROL_ADDR,
-			(TIME_CONTROL_ENABLE | TIME_CONTROL_READ | TIME_CONTROL_PPS_ALIGN));
+			(TIME_CONTROL_ENABLE | TIME_CONTROL_READ | TIME_CONTROL_SYNC_ENABLE));
 
 	value = (((s64) litepcie_readl(dev, TIME_CONTROL_READ_TIME_H) << 32) |
 		(litepcie_readl(dev, TIME_CONTROL_READ_TIME_L) & 0xffffffff));
@@ -807,7 +807,7 @@ static int litepcie_write_time(struct litepcie_device *dev, const struct timespe
 	litepcie_writel(dev, TIME_CONTROL_WRITE_TIME_L, (value >>  0) & 0xffffffff);
 	litepcie_writel(dev, TIME_CONTROL_WRITE_TIME_H, (value >> 32) & 0xffffffff);
 	litepcie_writel(dev, CSR_TIME_GENERATOR_CONTROL_ADDR,
-			(TIME_CONTROL_ENABLE | TIME_CONTROL_WRITE | TIME_CONTROL_PPS_ALIGN));
+			(TIME_CONTROL_ENABLE | TIME_CONTROL_WRITE | TIME_CONTROL_SYNC_ENABLE));
 
 	return 0;
 }
@@ -1149,7 +1149,7 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 	}
 
 	/* Enable timer (time) counter */
-	litepcie_writel(litepcie_dev, CSR_TIME_GENERATOR_CONTROL_ADDR, TIME_CONTROL_ENABLE | TIME_CONTROL_PPS_ALIGN);
+	litepcie_writel(litepcie_dev, CSR_TIME_GENERATOR_CONTROL_ADDR, TIME_CONTROL_ENABLE | TIME_CONTROL_SYNC_ENABLE);
 
 	/* Enable PTM control and start first request */
 	litepcie_writel(litepcie_dev, CSR_PTM_REQUESTER_CONTROL_ADDR, PTM_CONTROL_ENABLE | PTM_CONTROL_TRIGGER);

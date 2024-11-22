@@ -635,6 +635,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         if with_pcie_ptm:
             assert with_pcie
+            assert with_white_rabbit
             self.add_pcie_ptm()
 
             # Time Generator -----------------------------------------------------------------------
@@ -643,34 +644,19 @@ class BaseSoC(LiteXWRNICSoC):
                 clk_domain = "wr",
                 clk_freq   = 62.5e6,
             )
+
+            # Connect White Rabbit Time Interface to TimeGenerator's Sync Interface.
             self.comb += [
-                self.time_generator.pps.eq(pps_out_pulse),
+                self.time_generator.time_sync.eq(pps_out_pulse),
                 self.time_generator.time_seconds.eq(tm_seconds),
             ]
 
+            # Connect TimeGenerator's Time to PCIe PTM.
             self.comb += [
                 self.ptm_requester.time_clk.eq(ClockSignal("wr")),
                 self.ptm_requester.time_rst.eq(ResetSignal("wr")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
-
-            # Time Debug.
-            analyzer_signals = [
-                pps_out,
-                pps_out_pulse,
-                tm_link_up,
-                tm_time_valid,
-                tm_seconds,
-                tm_cycles,
-                self.time_generator.time
-            ]
-            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                depth        = 256,
-                clock_domain = "wr",
-                samplerate   = int(62.5e6),
-                register     = True,
-                csr_csv      = "test/analyzer.csv",
-            )
 
         # Clk Measurement (Debug) ------------------------------------------------------------------
 
@@ -698,6 +684,7 @@ def main():
     parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true")
     parser.add_argument("--with-wishbone-slave-probe",            action="store_true")
     parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
+    parser.add_argument("--with-time-probe",                      action="store_true")
 
     args = parser.parse_args()
 
@@ -718,6 +705,8 @@ def main():
         soc.add_wishbone_slave_probe()
     if args.with_dac_vcxo_probe:
         soc.add_dac_vcxo_probe()
+    if args.with_time_probe:
+        soc.add_time_probe()
     builder = Builder(soc, csr_csv="test/csr.csv")
     builder.build(run=args.build)
 
