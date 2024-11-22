@@ -19,6 +19,17 @@
 # CPU firmware compile/reload:
 # ./test_wb_cpu.py --build-firmware --load-firmware ../firmware/wrpc-sw/wrc.bin
 
+# Set WR Time on ZEN:
+# wr_date set host
+
+# TODO: Add script to disable services:
+# sudo systemctl stop chrony.service
+# sudo systemctl stop systemd-timesyncd.service
+
+# sudo ./test_i225_pps.py --enable
+# sudo phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -O 0 -m
+# sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m
+
 import argparse
 
 from migen.genlib.cdc import MultiReg
@@ -310,6 +321,11 @@ class BaseSoC(LiteXWRNICSoC):
             pps_out         = Signal()
             pps_out_pulse   = Signal()
 
+            tm_link_up      = Signal()
+            tm_time_valid   = Signal()
+            tm_seconds      = Signal(40)
+            tm_cycles       = Signal(28)
+
             # White Rabbit Fabric Interface.
             # ------------------------------
             wrf_src = wishbone.Interface(data_width=16, address_width=2, adressing="byte")
@@ -476,6 +492,12 @@ class BaseSoC(LiteXWRNICSoC):
                 o_wrf_snk_stall       = Open(), # Not Used.
                 o_wrf_snk_err         = wrf_stream2wb.bus.err,
                 o_wrf_snk_rty         = Open(), # Not Used.
+
+                # Time.
+                o_tm_link_up_o        = tm_link_up,
+                o_tm_time_valid_o     = tm_time_valid,
+                o_tm_tai_o            = tm_seconds,
+                o_tm_cycles_o         = tm_cycles,
             )
             self.add_sources()
             platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
@@ -626,10 +648,33 @@ class BaseSoC(LiteXWRNICSoC):
                 clk_freq   = 62.5e6,
             )
             self.comb += [
+                self.time_generator.pps.eq(pps_out_pulse),
+                self.time_generator.time_seconds.eq(tm_seconds),
+            ]
+
+            self.comb += [
                 self.ptm_requester.time_clk.eq(ClockSignal("wr")),
                 self.ptm_requester.time_rst.eq(ResetSignal("wr")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
+
+            # Time Debug.
+            analyzer_signals = [
+                pps_out,
+                pps_out_pulse,
+                tm_link_up,
+                tm_time_valid,
+                tm_seconds,
+                tm_cycles,
+                self.time_generator.time
+            ]
+            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                depth        = 256,
+                clock_domain = "wr",
+                samplerate   = int(62.5e6),
+                register     = True,
+                csr_csv      = "test/analyzer.csv",
+            )
 
         # Clk Measurement (Debug) ------------------------------------------------------------------
 
