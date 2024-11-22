@@ -253,6 +253,17 @@ _io = [
         Subsignal("p", Pins("G4")), # SFP1_O_P.
         Subsignal("n", Pins("G3")), # SFP1_O_N.
     ),
+
+    # RGMII.
+    ("rgmii", 0,
+        Subsignal("rx_dv",   Pins("U1")),          # RGMII_RX_DV.
+        Subsignal("rx_clk",  Pins("R5")),          # RGMII_RX_CLK.
+        Subsignal("rx_data", Pins("P6 U6 T4 U5")), # RGMII_RXD0-3.
+        Subsignal("tx_data", Pins("M6 V2 P5 T5")), # RGMII_TXD0-3.
+        Subsignal("tx_en",   Pins("N6")),          # RGMII_TX_EN.
+        Subsignal("tx_clk",  Pins("N3")),          # RGMII_TX_CLK.
+        IOStandard("LVCMOS33"),
+    ),
 ]
 
 # Connectors ---------------------------------------------------------------------------------------
