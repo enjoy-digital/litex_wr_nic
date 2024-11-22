@@ -59,6 +59,93 @@ this project:
 - A JTAG-HS2 Cable.
 - A Logic Analyzer/Scope to observe PPS.
 
+[>  White Rabbit / PTM Demonstration with SPEC-A7 and Intel I225
+----------------------------------------------------------------
+
+In this section, we demonstrate the integration of White Rabbit (WR) synchronization with PCIe
+Precision Time Measurement (PTM) using the SPEC-A7 board as a bridge between WR and PCIe systems.
+The experiment validates the propagation of precise timing across a WR network, a PTM-capable host
+system, and an Intel I225 Ethernet controller, with all devices generating synchronized PPS
+signals.
+
+### Experiment Setup
+
+The setup involves the components and connections illustrated in the diagram below:
+
+![White Rabbit / PTM Demonstration with SPEC-A7 and Intel I225](doc/white_rabbit_ptm_demo.png)
+
+1. **White Rabbit ZEN (WR Master):**
+   - Acts as the timing reference, generating a precise PPS signal and distributing WR timing over a
+     WR link.
+
+2. **SPEC-A7 (WR Slave):**
+   - Synchronizes to the WR ZEN via the WR protocol.
+   - Outputs a PPS signal generated from WR timing for direct observation.
+   - Propagates WR timing to the host system via PCIe PTM.
+
+3. **Host System (PTM Capable):**
+   - Synchronizes its `CLOCK_REALTIME` to the WR clock using `phc2sys` and PCIe PTM.
+   - Regulates its clock and propagates the synchronized timing to the Intel I225 controller via
+     PCIe PTM and `phc2sys`.
+
+4. **Intel I225 Controller:**
+   - Receives timing information from the host system via PCIe PTM.
+   - Synchronizes its internal clock using `phc2sys` and generates a PPS signal for direct
+     observation.
+
+5. **Observation:**
+   - The PPS signals from the WR ZEN, SPEC-A7, and Intel I225 are observed using an oscilloscope or
+     logic analyzer to ensure alignment.
+
+### Results
+
+The experiment confirmed correct White Rabbit synchronization and PCIe PTM functionality:
+
+- The PPS signals from the WR ZEN, SPEC-A7, and Intel I225 are aligned.
+- No noticeable drift was observed between the three PPS signals over time, demonstrating successful
+  propagation of precise WR timing across all systems.
+- The use of `phc2sys` ensured accurate regulation of both the host system's `CLOCK_REALTIME` and
+  the Intel I225's internal clock.
+
+This result validates the SPEC-A7's capability to bridge WR and PCIe PTM systems, providing precise
+synchronization to hosts and downstream devices.
+
+### Run the PTM/Intel I225 PPS Demo
+
+Follow these steps to reproduce the demonstration:
+
+#### On WR Zen (used here as WR Master):
+```sh
+# Set WR date to match the Host date.
+wr_date set host
+```
+
+#### On PCIe Host:
+```sh
+cd software
+
+# Enable PPS generation on Intel I225/SPD0 pin.
+cd ./intel_i225_pps.py --enable
+
+# Start phc2sys regulation from Host -> Intel I225.
+sudo phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -O 0 -m
+
+# Start phc2sys regulation from SPEC-A7 -> Host.
+sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m
+```
+
+### Observing the Results
+
+- Use an oscilloscope or logic analyzer to monitor the PPS signals from:
+  1. The WR ZEN (reference timing source).
+  2. The SPEC-A7 board.
+  3. The Intel I225 Ethernet controller.
+
+- Confirm that the three PPS signals are aligned and do not drift over time.
+
+These steps validate the proper integration of White Rabbit and PCIe PTM for precise time
+synchronization across devices.
+
 [> Xilinx PHY workaround / Implementation note
 ----------------------------------------------
 
@@ -214,29 +301,6 @@ litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
 LiteScope:
 ```
 litescope_cli --subsampling=16384
-```
-
-[> Run PTM/Intel I225 PPS Demo
-------------------------------
-
-On WR Zen (used here as WR Master):
-```sh
-# Set WR date to Host date.
-wr_date set host
-```
-
-On PCIe Host:
-```sh
-cd software
-
-# Enable PPS generation on Intel I225/SPD0 Pin.
-cd ./intel_i225_pps.py --enable
-
-# Start Host -> Intel I225 phc2sys regulation.
-sudo phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -O 0 -m
-
-# Start SPEC-A7 -> Host phc2sys regulation.
-sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m
 ```
 
 [> SDB
