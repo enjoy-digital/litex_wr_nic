@@ -29,8 +29,9 @@ from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
-from litex.soc.cores.clock import S7PLL, S7MMCM
-from litex.soc.cores.led   import LedChaser
+from litex.soc.cores.clock          import S7PLL, S7MMCM
+from litex.soc.cores.led            import LedChaser
+from litex.soc.cores.spi.spi_master import SPIMaster
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
 from litepcie.software      import generate_litepcie_software_headers
@@ -641,6 +642,21 @@ class BaseSoC(LiteXWRNICSoC):
                 self.ptm_requester.time_rst.eq(ResetSignal("wr")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
+
+
+        # RF Out (LMX2572) -------------------------------------------------------------------------
+
+        # FIXME: Connect SYNC.
+
+        lmx2572_pads = platform.request("lmx2572")
+        lmx2572_pads.miso = Signal()
+        self.lmx2572 = SPIMaster(
+            pads         = lmx2572_pads,
+            data_width   = 24,
+            sys_clk_freq = sys_clk_freq,
+            spi_clk_freq = 5e6,
+            mode         = "aligned",
+        )
 
         # Clk Measurement (Debug) ------------------------------------------------------------------
 

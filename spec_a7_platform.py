@@ -264,6 +264,15 @@ _io = [
         Subsignal("tx_clk",  Pins("N3")),          # RGMII_TX_CLK.
         IOStandard("LVCMOS33"),
     ),
+
+    # LMX2572.
+    ("lmx2572", 0,
+        Subsignal("cs_n", Pins("R3")), # LMX_CS.
+        Subsignal("clk",  Pins("K1")), # LMX_SCK.
+        Subsignal("mosi", Pins("K5")), # LMX_SDI.
+        Subsignal("sync", Pins("K5")), # LMX_SYNC.
+        IOStandard("LVCMOS33"),
+    ),
 ]
 
 # Connectors ---------------------------------------------------------------------------------------
