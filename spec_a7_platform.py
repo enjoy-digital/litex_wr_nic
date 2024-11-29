@@ -18,19 +18,19 @@ _io = [
     ("rst", 0, Pins("K15"), IOStandard("LVCMOS33")), # RESET.
 
     # Free-Running Clk / 125MHz.
-    ("clk125_oe", 0, Pins("F14"), IOStandard("LVCMOS25")), # OE_125M.
-    ("clk125",    0,
+    ("clk125m_oe", 0, Pins("F14"), IOStandard("LVCMOS25")), # OE_125M.
+    ("clk125m",    0,
         Subsignal("p", Pins("E16")), # CLK_125MHZ_P.
         Subsignal("n", Pins("D16")), # CLK_125MHZ_N.
         IOStandard("LVDS_25"),
     ),
 
     # RefClk (GTP) / 125MHz from 25MHz VCXO + AD9516 (X5).
-    ("refclk125", 0,
+    ("refclk125m", 0,
         Subsignal("p", Pins("B6")), # MGTREFCLK1_P.
         Subsignal("n", Pins("B5")), # MGTREFCLK1_N.
     ),
-    ("refclk125_syncout", 0,
+    ("refclk125m_syncout", 0,
         Subsignal("p", Pins("E15")), # FPGA_GCLK_P.
         Subsignal("n", Pins("D15")), # FPGA_GCLK_N.
         IOStandard("LVDS_25"),
@@ -307,4 +307,9 @@ class Platform(Xilinx7SeriesPlatform):
 
     def do_finalize(self, fragment):
         Xilinx7SeriesPlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk62m5", loose=True), 1e9/62.5e6)
+        self.add_period_constraint(self.lookup_request("clk125m:p",            loose=True), 1e9/125e6)
+        self.add_period_constraint(self.lookup_request("refclk125m:p",         loose=True), 1e9/125e6)
+        self.add_period_constraint(self.lookup_request("refclk125m_syncout:p", loose=True), 1e9/125e6)
+        self.add_period_constraint(self.lookup_request("clk62m5_dmtd",         loose=True), 1e9/62.5e6)
+        self.add_period_constraint(self.lookup_request("clk10m_ext:p",         loose=True), 1e9/10.5e6)
+        self.add_period_constraint(self.lookup_request("clk62m5_ext:p",        loose=True), 1e9/62.5e6)
