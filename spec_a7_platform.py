@@ -39,18 +39,6 @@ _io = [
     # DMTD Clk / 62.5MHz from VCXO.
     ("clk62m5_dmtd", 0, Pins("T14"), IOStandard("LVCMOS33")), # CLK_25M_DMTD.
 
-    # ExtClk / From 10MHz input.
-    ("clk10m_ext", 0,
-        Subsignal("p", Pins("E13")), # EXT_CLK_P.
-        Subsignal("n", Pins("D14")), # EXT_CLK_N.
-        IOStandard("LVDS_25"),
-    ),
-    ("clk62m5_ext", 0,
-        Subsignal("p", Pins("D13")), # CLK_62_5MHZ_P.
-        Subsignal("n", Pins("C13")), # CLK_62_5MHZ_N.
-        IOStandard("LVDS_25"),
-    ),
-
     # Revision.
     ("revision", 0, Pins("D10 A14 A13"), IOStandard("LVCMOS25")), # HW_REV0-2.
 
@@ -184,6 +172,18 @@ _io = [
         IOStandard("LVDS_25"),
     ),
 
+    # Sync-In.
+    ("clk10m_in", 0,
+        Subsignal("p", Pins("E13")), # EXT_CLK_P.
+        Subsignal("n", Pins("D14")), # EXT_CLK_N.
+        IOStandard("LVDS_25"),
+    ),
+    ("clk62m5_in", 0,
+        Subsignal("p", Pins("D13")), # CLK_62_5MHZ_P.
+        Subsignal("n", Pins("C13")), # CLK_62_5MHZ_N.
+        IOStandard("LVDS_25"),
+    ),
+
     # Fine-Delay.
     ("fine_delay", 0,
         Subsignal("en",    Pins("J18")), # DELAY_EN.
@@ -287,9 +287,6 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(Xilinx7SeriesPlatform):
-    default_clk_name   = "clk62m5"
-    default_clk_period = 1e9/62.5e6
-
     def __init__(self, variant="xc7a35t", toolchain="vivado"):
         assert variant in ["xc7a35t", "xc7a50t"]
         Xilinx7SeriesPlatform.__init__(self, f"{variant}csg325-2", _io,  _connectors, toolchain=toolchain)
@@ -311,5 +308,5 @@ class Platform(Xilinx7SeriesPlatform):
         self.add_period_constraint(self.lookup_request("refclk125m:p",         loose=True), 1e9/125e6)
         self.add_period_constraint(self.lookup_request("refclk125m_syncout:p", loose=True), 1e9/125e6)
         self.add_period_constraint(self.lookup_request("clk62m5_dmtd",         loose=True), 1e9/62.5e6)
-        self.add_period_constraint(self.lookup_request("clk10m_ext:p",         loose=True), 1e9/10.5e6)
-        self.add_period_constraint(self.lookup_request("clk62m5_ext:p",        loose=True), 1e9/62.5e6)
+        self.add_period_constraint(self.lookup_request("clk10m_in:p",          loose=True), 1e9/10.0e6)
+        self.add_period_constraint(self.lookup_request("clk62m5_in:p",         loose=True), 1e9/62.5e6)

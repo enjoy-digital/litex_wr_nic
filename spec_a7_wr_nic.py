@@ -64,8 +64,8 @@ class _CRG(LiteXModule):
         if with_white_rabbit:
             self.cd_clk_125m_gtp  = ClockDomain()
             self.cd_clk_62m5_dmtd = ClockDomain()
-        self.cd_clk10m_ext  = ClockDomain()
-        self.cd_clk62m5_ext = ClockDomain()
+        self.cd_clk10m_in  = ClockDomain()
+        self.cd_clk62m5_in = ClockDomain()
 
         # # #
 
@@ -106,8 +106,8 @@ class _CRG(LiteXModule):
                 self.cd_sys.clk,
                 self.cd_clk_62m5_dmtd.clk,
                 self.cd_clk_125m_gtp.clk,
-                self.cd_clk10m_ext.clk,
-                self.cd_clk62m5_ext.clk,
+                self.cd_clk10m_in.clk,
+                self.cd_clk62m5_in.clk,
             )
         else:
             platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
@@ -242,10 +242,10 @@ class BaseSoC(LiteXWRNICSoC):
             temp_1wire_pads  = platform.request("temp_1wire")
             flash_pads       = platform.request("flash")
             flash_clk        = Signal()
-            clk10m_ext_pads  = platform.request("clk10m_ext")
-            clk10m_ext       = Signal()
-            clk62m5_ext_pads = platform.request("clk62m5_ext")
-            clk62m5_ext      = Signal()
+            clk10m_in_pads   = platform.request("clk10m_in")
+            clk10m_in        = Signal()
+            clk62m5_in_pads  = platform.request("clk62m5_in")
+            clk62m5_in       = Signal()
 
             # Temp 1-Wire specific logic.
             temp_1wire_oe_n = Signal()
@@ -272,19 +272,19 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Clk10m Ext logic.
             self.specials += DifferentialInput(
-                i_p = clk10m_ext_pads.p,
-                i_n = clk10m_ext_pads.n,
-                o   = clk10m_ext,
+                i_p = clk10m_in_pads.p,
+                i_n = clk10m_in_pads.n,
+                o   = clk10m_in,
             )
-            self.comb += self.crg.cd_clk10m_ext.clk.eq(clk10m_ext)
+            self.comb += self.crg.cd_clk10m_in.clk.eq(clk10m_in)
 
             # Clk62m5 Ext logic.
             self.specials += DifferentialInput(
-                i_p = clk62m5_ext_pads.p,
-                i_n = clk62m5_ext_pads.n,
-                o   = clk62m5_ext,
+                i_p = clk62m5_in_pads.p,
+                i_n = clk62m5_in_pads.n,
+                o   = clk62m5_in,
             )
-            self.comb += self.crg.cd_clk62m5_ext.clk.eq(clk62m5_ext)
+            self.comb += self.crg.cd_clk62m5_in.clk.eq(clk62m5_in)
 
             # Signals.
             # --------
@@ -380,7 +380,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_areset_n_i          = ~ResetSignal("sys"),
                 i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
-                i_clk_10m_ext_i       = ClockSignal("clk10m_ext"),
+                i_clk_10m_ext_i       = ClockSignal("clk10m_in"),
                 o_clk_62m5_sys_o      = ClockSignal("wr"),
                 o_rst_62m5_sys_o      = ResetSignal("wr"),
 
@@ -672,8 +672,8 @@ class BaseSoC(LiteXWRNICSoC):
             "clk0" : ClockSignal("sys"),
             "clk1" : ClockSignal("clk_62m5_dmtd"),
             "clk2" : ClockSignal("clk_125m_gtp"),
-            "clk3" : ClockSignal("clk10m_ext"),
-            "clk4" : ClockSignal("clk62m5_ext"),
+            "clk3" : ClockSignal("clk10m_in"),
+            "clk4" : ClockSignal("clk62m5_in"),
         })
 
 # Build --------------------------------------------------------------------------------------------
