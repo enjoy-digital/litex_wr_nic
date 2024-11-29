@@ -662,11 +662,14 @@ class BaseSoC(LiteXWRNICSoC):
 
         analyzer_signals = [
             lmx2572_pads,
+            pps_out,
+            pps_out_pulse,
+            pps_in,
         ]
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 1024,
-            clock_domain = "sys",
-            samplerate   = int(125e6),
+            clock_domain = "wr",
+            samplerate   = int(62.5e6),
             register     = True,
             csr_csv      = "test/analyzer.csv"
         )
