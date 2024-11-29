@@ -246,6 +246,8 @@ class BaseSoC(LiteXWRNICSoC):
             clk10m_in        = Signal()
             clk62m5_in_pads  = platform.request("clk62m5_in")
             clk62m5_in       = Signal()
+            pps_in_pads      = platform.request("pps_in")
+            pps_in           = Signal()
 
             # Temp 1-Wire specific logic.
             temp_1wire_oe_n = Signal()
@@ -270,7 +272,7 @@ class BaseSoC(LiteXWRNICSoC):
                 i_USRDONETS = 1,
             )
 
-            # Clk10m Ext logic.
+            # Clk10m In Logic.
             self.specials += DifferentialInput(
                 i_p = clk10m_in_pads.p,
                 i_n = clk10m_in_pads.n,
@@ -278,13 +280,17 @@ class BaseSoC(LiteXWRNICSoC):
             )
             self.comb += self.crg.cd_clk10m_in.clk.eq(clk10m_in)
 
-            # Clk62m5 Ext logic.
+            # Clk62m5 In Logic.
             self.specials += DifferentialInput(
                 i_p = clk62m5_in_pads.p,
                 i_n = clk62m5_in_pads.n,
                 o   = clk62m5_in,
             )
             self.comb += self.crg.cd_clk62m5_in.clk.eq(clk62m5_in)
+
+            # PPS In Logic.
+            self.comb += platform.request("pps_in_term_en").eq(1)
+            self.comb += pps_in.eq(pps_in_pads)
 
             # Signals.
             # --------
@@ -299,7 +305,6 @@ class BaseSoC(LiteXWRNICSoC):
             pps_out_valid   = Signal()
             pps_out         = Signal()
             pps_out_pulse   = Signal()
-
             tm_link_up      = Signal()
             tm_time_valid   = Signal()
             tm_seconds      = Signal(40)
@@ -420,7 +425,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # PPS / Leds.
                 o_pps_valid_o         = Open(),
-                i_pps_ext_i           = 0,
+                i_pps_ext_i           = pps_in,
                 o_pps_csync_o         = pps_out_pulse,
                 o_pps_p_o             = pps_out,
                 o_pps_led_o           = led_pps,

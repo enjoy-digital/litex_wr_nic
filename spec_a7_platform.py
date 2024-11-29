@@ -183,6 +183,8 @@ _io = [
         Subsignal("n", Pins("C13")), # CLK_62_5MHZ_N.
         IOStandard("LVDS_25"),
     ),
+    ("pps_in_term_en", 0, Pins("L2"), IOStandard("LVCMOS33")), # PPS_TERM_EN.
+    ("pps_in",         0, Pins("P3"), IOStandard("LVCMOS33")), # PPS_IN.
 
     # Fine-Delay.
     ("fine_delay", 0,
