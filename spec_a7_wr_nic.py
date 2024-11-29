@@ -657,7 +657,8 @@ class BaseSoC(LiteXWRNICSoC):
             spi_clk_freq = 5e6,
             mode         = "aligned",
         )
-        self.comb += lmx2572_pads.sync.eq(0)
+        self.lmx2572_sync = CSRStorage()
+        self.comb += lmx2572_pads.sync.eq(self.lmx2572_sync.storage)
 
         analyzer_signals = [
             lmx2572_pads,

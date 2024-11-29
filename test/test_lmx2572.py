@@ -49,6 +49,10 @@ class LMX2572:
                 except Exception as e:
                     print(f"Failed to write line: {line} ({e})")
 
+    def toggle_sync(self):
+        self.bus.regs.main_lmx2572_sync.write(0)
+        self.bus.regs.main_lmx2572_sync.write(1)
+
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
@@ -67,6 +71,8 @@ def main():
     # Load configuration from a file.
     if args.config:
         lmx2572.load(args.config)
+        for i in range(4):
+            lmx2572.toggle_sync()
 
     # Write a single register if specified.
     if args.write_reg:
