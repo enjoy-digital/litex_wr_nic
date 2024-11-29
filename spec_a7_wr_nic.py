@@ -120,8 +120,8 @@ class _CRG(LiteXModule):
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
-        with_pcie     = True,
-        with_pcie_ptm = True,
+        with_pcie     = False,
+        with_pcie_ptm = False,
 
         # White Rabbit Parameters.
         with_white_rabbit          = True,
@@ -129,17 +129,17 @@ class BaseSoC(LiteXWRNICSoC):
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
 
         # PCIe NIC.
-        with_pcie_nic = True,
+        with_pcie_nic = False,
 
         # PPS Out Parameters (Adjusted over JTAGBone with test/test_delay.py).
-        pps_out_macro_delay_default  = 62499998, # 16ns  taps (Up to 2**32-1 taps).
-        pps_out_coarse_delay_default =        1, #  2ns  taps (64 taps).
-        pps_out_fine_delay_default   =      100, #  11ps taps (512 taps).
+        pps_out_macro_delay_default  = 62499998, # 16ns taps (Up to 2**32-1 taps).
+        pps_out_coarse_delay_default =        1, #  2ns taps (64 taps).
+        pps_out_fine_delay_default   =      100, # 11ps taps (512 taps).
 
         # Clk10M Out Parameters. (Adjuted over JTAGBone with test/test_delay.py).
-        clk10m_out_macro_delay_default  = 6250000, # 16ns  taps (Up to 2**32-1 taps).
-        clk10m_out_coarse_delay_default =      10, #  2ns  taps (64 taps).
-        clk10m_out_fine_delay_default   =     100, #  11ps taps (512 taps).
+        clk10m_out_macro_delay_default  = 6250000, # 16ns taps (Up to 2**32-1 taps).
+        clk10m_out_coarse_delay_default =      10, #  2ns taps (64 taps).
+        clk10m_out_fine_delay_default   =     100, # 11ps taps (512 taps).
 
         # Ext-PLL Parameters.
         with_ext_pll = True,
@@ -656,6 +656,18 @@ class BaseSoC(LiteXWRNICSoC):
             sys_clk_freq = sys_clk_freq,
             spi_clk_freq = 5e6,
             mode         = "aligned",
+        )
+        self.comb += lmx2572_pads.sync.eq(0)
+
+        analyzer_signals = [
+            lmx2572_pads,
+        ]
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            depth        = 1024,
+            clock_domain = "sys",
+            samplerate   = int(125e6),
+            register     = True,
+            csr_csv      = "test/analyzer.csv"
         )
 
         # Clk Measurement (Debug) ------------------------------------------------------------------

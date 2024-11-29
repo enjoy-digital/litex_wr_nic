@@ -267,10 +267,10 @@ _io = [
 
     # LMX2572.
     ("lmx2572", 0,
-        Subsignal("cs_n", Pins("R3")), # LMX_CS.
+        Subsignal("cs_n", Pins("K2")), # LMX_CS.
         Subsignal("clk",  Pins("K1")), # LMX_SCK.
         Subsignal("mosi", Pins("K5")), # LMX_SDI.
-        Subsignal("sync", Pins("K5")), # LMX_SYNC.
+        Subsignal("sync", Pins("K6")), # LMX_SYNC.
         IOStandard("LVCMOS33"),
     ),
 ]
