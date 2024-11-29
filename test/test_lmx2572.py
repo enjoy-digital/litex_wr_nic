@@ -58,7 +58,7 @@ class LMX2572:
 def main():
     parser = argparse.ArgumentParser(description="Control LMX2572 via Etherbone.")
     parser.add_argument("--config",    type=str, help="Path to configuration file.")
-    parser.add_argument("--write-reg", nargs=2,  help="Write to a register (address and value in hex).")
+    parser.add_argument("--write-reg", nargs=2,  help="Write to a register (address and value).")
     args = parser.parse_args()
 
     # Open the bus connection.
@@ -77,11 +77,11 @@ def main():
     # Write a single register if specified.
     if args.write_reg:
         try:
-            addr = int(args.write_reg[0], 16)
-            value = int(args.write_reg[1], 16)
+            addr = int(args.write_reg[0], base=0)
+            value = int(args.write_reg[1], base=0)
             lmx2572.write_reg(addr, value)
-        except ValueError:
-            print("Invalid address or value format. Use hex values (e.g., 0x01 0x1234).")
+        except ValueError as e:
+            print(f"Invalid address or value format: {e}")
 
     # Close the bus connection.
     bus.close()
