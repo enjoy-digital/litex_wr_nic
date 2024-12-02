@@ -366,6 +366,59 @@ Before starting the calibration process, ensure you have access to the following
 - **Precision is Key:** The use of a high-precision oscilloscope or logic analyzer is essential for achieving accurate calibration.
 - **System Variability:** Repeat the calibration if significant hardware changes occur, such as a new WR setup or board.
 
+
+[> Configuring and Testing the RF PLL (LMX2572)
+-----------------------------------------------
+
+The RF PLL (LMX2572) is used to generate a wide range of frequencies. Configuration and testing can be done over the LiteX server using the provided `test/test_rf_pll.py` script. This script allows for writing single registers or loading a full register map configuration exported from the TICS software (Texas Instruments' configuration tool for the LMX2572).
+
+[!WARNING]
+While the configuration process appears to function correctly and the RF PLL shows a locked status (LED green), the output signal does not seem to be generated as expected. This issue may require additional hardware investigation by the SPEC-A7 hardware team.
+
+### Requirements
+
+- **LiteX Server:** Ensure the LiteX server is running in JTAG or Etherbone mode.
+- **Configuration File:** A register map exported from TICS software (e.g., `test/lmx2572_25m_to_100m.txt`).
+
+### Procedure
+
+1. **Prepare the Environment**
+   - Verify that the SPEC-A7 is powered, flashed with bitstream and USB/JTAG cable connected.
+   - Ensure the LiteX server is running:
+   ```sh
+   litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
+   ```
+
+2. **Configure the RF PLL**
+   - Use the `test/test_rf_pll.py` script to configure the LMX2572.
+
+#### Example 1: Writing a Single Register
+To write to a single register, specify the register address and value in hexadecimal format:
+```sh
+python3 test/test_rf_pll.py --write-reg 0x10 0x1234
+```
+This command writes the value `0x1234` to register `0x10`.
+
+#### Example 2: Loading a Full Configuration
+To load a full register map configuration exported from TICS, provide the path to the configuration file:
+```sh
+python3 test/test_rf_pll.py --config test/lmx2572_25m_to_100m.txt
+```
+This example loads the configuration from the file `test/lmx2572_25m_to_100m.txt` and programs the LMX2572. The script writes each register and toggles the synchronization signal after programming.
+
+3. **Validate the Configuration**
+   - Observe the PLL lock indicator (LED). If the configuration is successful, the PLL should lock, and the LED should turn green.
+   - Use a spectrum analyzer or oscilloscope to verify that the desired output frequency is being generated.
+
+### Example Configuration File
+
+The provided `test/lmx2572_25m_to_100m.txt` has been generated from TICS software.
+
+To generate similar files:
+- Open TICS software, configure the desired PLL settings, and export the register map as a text file.
+
+By following this procedure, you can configure and test the RF PLL (LMX2572) and load various configurations for different frequencies.
+
 [> SDB
 ------
 
