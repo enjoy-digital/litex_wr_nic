@@ -44,6 +44,19 @@ requiring precise timing and basic networking functionality.
 
 ![](doc/architecture.png)
 
+[> Table of Contents
+--------------------
+
+- [> Prerequisites / System setup](#-prerequisites--system-setup)
+- [> White Rabbit / PTM Demonstration](#-white-rabbit--ptm-demonstration)
+- [> Build and test designs](#-build-and-test-designs)
+- [> Build the WR RISC-V firmware](#-build-the-wr-risc-v-firmware)
+- [> Use LiteX Server and LiteScope](#-use-litex-server-and-litescope)
+- [> Configure Flash Data Base (SDB)](#-configure-flash-data-base-sdb)
+- [> Calibrate Sync Out Delays](#-calibrate-sync-out-delays)
+- [> Configure the RF PLL](#-configure-the-rf-pll)
+
+
 [> Prerequisites / System setup
 -------------------------------
 
@@ -59,8 +72,8 @@ this project:
 - A JTAG-HS2 Cable.
 - A Logic Analyzer/Scope to observe PPS.
 
-[>  White Rabbit / PTM Demonstration with SPEC-A7 and Intel I225
-----------------------------------------------------------------
+[> White Rabbit / PTM Demonstration
+-----------------------------------
 
 In this section, we demonstrate the integration of White Rabbit (WR) synchronization with PCIe
 Precision Time Measurement (PTM) using the SPEC-A7 board as a bridge between WR and PCIe systems.
@@ -146,13 +159,12 @@ sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m
 These steps validate the proper integration of White Rabbit and PCIe PTM for precise time
 synchronization across devices.
 
-[> Build and test White Rabbit NIC design
------------------------------------------
+[> Build and test designs
+-------------------------
 
 The FPGA design can be build and tested with the following commands:
 
 ```sh
-$ ./acorn_wr_nic.py --build --load or
 $ ./spec_a7_wr_nic.py --build --load
 ```
 
@@ -185,21 +197,6 @@ displayed even if not effective on the LiteX-Acorn-Baseboard-Mini.
 When rebooting the Host PC, the board should also be enumerated and seen with `lspci` with PTM
 capabilities.
 
-TODO: Finish WR Fabric Interface <-> NIC to WR NIC functionnality.
-TODO: Describe PTM tests.
-
-[> Build and test LiteEth 1000BaseX NIC design
-----------------------------------------------
-
-The FPGA design can be build and tested with the following commands:
-
-```sh
-$ ./acorn_liteeth_nic.py --build --load or
-$ ./spec_a7_liteeth_nic.py --build --load
-```
-
-When rebooting the Host PC, the board should also be enumerated and seen with `lspci`.
-
 The PCIe NIC driver can then be loaded:
 ```sh
 cd software/driver
@@ -221,7 +218,6 @@ iperf3 -c 192.168.1.122 -B 192.168.1.92 -R
 ```
 
 Note: Adapt the IP addresses to your network configuration.
-
 
 [> Build the WR RISC-V firmware
 -------------------------------
@@ -371,8 +367,8 @@ parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true
 parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
 ```
 
-[> Initial Flash File System Configuration (SDB)
--------------------------------------------------
+[> Configure Flash Data Base (SDB)
+----------------------------------
 
 The SDB (Simple Database) is a file system used to store configuration parameters in the SPI flash memory of White Rabbit hardware. The SDB typically contains calibration data, SFP module properties, MAC addresses, and other relevant metadata required for proper operation.
 
@@ -422,8 +418,8 @@ After flashing the FPGA and blank SDB template, the following steps are typicall
 
 For further details, refer to **wrpc-user-manual-v5.0.pdf** and *wrpc-sw/tools/sdbfs.README* in the `wrpc-sw` repository.
 
-[> Calibrating Sync Out Delay
------------------------------
+[> Calibrate Sync Out Delays
+----------------------------
 
 To achieve sub-nanosecond precision with White Rabbit (WR), the PPS and Clk10M outputs require precise delay calibration. The WR system allows configuration of three types of delays for each output:
 
@@ -501,8 +497,8 @@ Before starting the calibration process, ensure you have access to the following
 - **System Variability:** Repeat the calibration if significant hardware changes occur, such as a new WR setup or board.
 
 
-[> Configuring and Testing the RF PLL (LMX2572)
------------------------------------------------
+[> Configure the RF PLL
+-----------------------
 
 The RF PLL (LMX2572) is used to generate a wide range of frequencies. Configuration and testing can be done over the LiteX server using the provided `test/test_rf_pll.py` script. This script allows for writing single registers or loading a full register map configuration exported from the TICS software (Texas Instruments' configuration tool for the LMX2572).
 
