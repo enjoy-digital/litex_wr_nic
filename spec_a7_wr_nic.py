@@ -65,6 +65,7 @@ class _CRG(LiteXModule):
         self.cd_clk_62m5_dmtd = ClockDomain()
         self.cd_clk10m_in     = ClockDomain()
         self.cd_clk62m5_in    = ClockDomain()
+
         # # #
 
         # Sys PLL (Free-Running from clk125).
@@ -666,8 +667,6 @@ class BaseSoC(LiteXWRNICSoC):
             "wr_txoutclk",
             "wr_rxoutclk",
         ]
-        if with_pcie:
-            asynchronous_clk_domains += [self.pcie_phy.cd_pcie.clk]
         if with_white_rabbit:
             asynchronous_clk_domains += [self.fine_delay.cd_fine_delay.clk]
 

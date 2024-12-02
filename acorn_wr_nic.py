@@ -29,8 +29,9 @@ from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
-from litex.soc.cores.clock import S7PLL, S7MMCM
-from litex.soc.cores.led   import LedChaser
+from litex.soc.cores.clock          import S7PLL, S7MMCM
+from litex.soc.cores.led            import LedChaser
+from litex.soc.cores.spi.spi_master import SPIMaster
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
 from litepcie.software      import generate_litepcie_software_headers
@@ -56,13 +57,14 @@ from gateware.nic.phy           import LiteEthPHYWRGMII
 
 class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, with_white_rabbit=True):
-        self.rst            = Signal()
-        self.cd_sys         = ClockDomain()
-        self.cd_refclk_pcie = ClockDomain()
-        self.cd_refclk_eth  = ClockDomain()
-        if with_white_rabbit:
-            self.cd_clk_125m_gtp  = ClockDomain() # Fake: No VCXO.
-            self.cd_clk_62m5_dmtd = ClockDomain() # Fake: No VCXO.
+        self.rst              = Signal()
+        self.cd_sys           = ClockDomain()
+        self.cd_refclk_pcie   = ClockDomain()
+        self.cd_refclk_eth    = ClockDomain()
+        self.cd_clk_125m_gtp  = ClockDomain()
+        self.cd_clk_62m5_dmtd = ClockDomain()
+        self.cd_clk10m_in     = ClockDomain()
+        self.cd_clk62m5_in    = ClockDomain()
 
         # # #
 
@@ -85,33 +87,21 @@ class _CRG(LiteXModule):
         # -----------------------------
         pll.create_clkout(self.cd_clk_62m5_dmtd, 125e6, margin=0)
 
-        # False Paths.
-        # ------------
-        if with_white_rabbit:
-            platform.add_false_path_constraints(
-                pll.clkin,
-                self.cd_sys.clk,
-                self.cd_clk_62m5_dmtd.clk,
-                self.cd_clk_125m_gtp.clk,
-            )
-        else:
-            platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)
-
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
+        # ----------------
         with_pcie     = True,
         with_pcie_ptm = True,
+        with_pcie_nic = True,
 
         # White Rabbit Parameters.
+        # ------------------------
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
-
-        # PCIe NIC.
-        with_pcie_nic = True,
 
     ):
         # Platform ---------------------------------------------------------------------------------
@@ -204,9 +194,9 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Pads.
             # -----
-            sfp_pads     = self.platform.request("sfp",     white_rabbit_sfp_connector)
-            sfp_i2c_pads = self.platform.request("sfp_i2c", white_rabbit_sfp_connector)
-            serial_pads  = self.platform.request("serial")
+            sfp_pads     = platform.request("sfp",     white_rabbit_sfp_connector)
+            sfp_i2c_pads = platform.request("sfp_i2c", white_rabbit_sfp_connector)
+            serial_pads  = platform.request("serial")
 
             # Signals.
             # --------
@@ -350,8 +340,8 @@ class BaseSoC(LiteXWRNICSoC):
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
-            platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
-            platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
+            platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
+            platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
             # Leds Output.
             self.comb += [
@@ -388,14 +378,30 @@ class BaseSoC(LiteXWRNICSoC):
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
 
+        # Timing Constraints -----------------------------------------------------------------------
+
+        asynchronous_clk_domains = [
+            self.crg.cd_sys.clk,
+            self.crg.cd_clk_62m5_dmtd.clk,
+            self.crg.cd_clk_125m_gtp.clk,
+            self.crg.cd_clk10m_in.clk,
+            self.crg.cd_clk62m5_in.clk,
+            "wr_txoutclk",
+            "wr_rxoutclk",
+        ]
+        if with_white_rabbit:
+            asynchronous_clk_domains += []
+
+        platform.add_false_path_constraints(*asynchronous_clk_domains)
+
         # Clk Measurement (Debug) ------------------------------------------------------------------
 
         self.clk_measurement = MultiClkMeasurement(clks={
             "clk0" : ClockSignal("sys"),
             "clk1" : ClockSignal("clk_62m5_dmtd"),
             "clk2" : ClockSignal("clk_125m_gtp"),
-            "clk3" : 0,
-            "clk4" : 0,
+            "clk3" : ClockSignal("clk10m_in"),
+            "clk4" : ClockSignal("clk62m5_in"),
         })
 
 # Build --------------------------------------------------------------------------------------------
