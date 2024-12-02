@@ -752,53 +752,71 @@ static int liteeth_init(struct litepcie_device *litepcie_dev, int index)
 /*                                       PTP/PTM                                                  */
 /* -----------------------------------------------------------------------------------------------*/
 
-/* time */
+/* Time Control Register Addresses */
+/* Write Time Low and High Addresses */
 #define TIME_CONTROL_WRITE_TIME_L (CSR_TIME_GENERATOR_WRITE_TIME_ADDR + (4))
 #define TIME_CONTROL_WRITE_TIME_H (CSR_TIME_GENERATOR_WRITE_TIME_ADDR + (0))
+
+/* Read Time Low and High Addresses */
 #define TIME_CONTROL_READ_TIME_L  (CSR_TIME_GENERATOR_READ_TIME_ADDR + (4))
 #define TIME_CONTROL_READ_TIME_H  (CSR_TIME_GENERATOR_READ_TIME_ADDR + (0))
+
+/* Time Control Register Flags */
 #define TIME_CONTROL_ENABLE       (1 << CSR_TIME_GENERATOR_CONTROL_ENABLE_OFFSET)
 #define TIME_CONTROL_READ         (1 << CSR_TIME_GENERATOR_CONTROL_READ_OFFSET)
 #define TIME_CONTROL_WRITE        (1 << CSR_TIME_GENERATOR_CONTROL_WRITE_OFFSET)
 #define TIME_CONTROL_SYNC_ENABLE  (1 << CSR_TIME_GENERATOR_CONTROL_SYNC_ENABLE_OFFSET)
 
-/* PTM */
-#define PTM_OFFSET_NS (-500) /* FIXME: Adjust */
-/* control */
+/* PTM Offset in Nanoseconds (Adjust based on calibration) */
+#define PTM_OFFSET_NS (-500) /* FIXME: Adjust based on calibration */
+
+/* PTM Control Register Flags */
 #define PTM_CONTROL_ENABLE  (1 << CSR_PTM_REQUESTER_CONTROL_ENABLE_OFFSET)
 #define PTM_CONTROL_TRIGGER (1 << CSR_PTM_REQUESTER_CONTROL_TRIGGER_OFFSET)
-/* status */
+
+/* PTM Status Register Flags */
 #define PTM_STATUS_VALID    (1 << CSR_PTM_REQUESTER_STATUS_VALID_OFFSET)
 #define PTM_STATUS_BUSY     (1 << CSR_PTM_REQUESTER_STATUS_BUSY_OFFSET)
-/* t1 */
+
+/* PTM Time Registers */
+/* T1 Time Low and High (Local Request Timestamp at Requester) */
 #define PTM_T1_TIME_L       (CSR_PTM_REQUESTER_T1_TIME_ADDR + (4))
 #define PTM_T1_TIME_H       (CSR_PTM_REQUESTER_T1_TIME_ADDR + (0))
-/* t2 */
+
+/* T2 Time Low and High (Master Response Timestamp at Responder) */
 #define PTM_MASTER_TIME_L   (CSR_PTM_REQUESTER_MASTER_TIME_ADDR + (4))
 #define PTM_MASTER_TIME_H   (CSR_PTM_REQUESTER_MASTER_TIME_ADDR + (0))
-/* t4 */
+
+/* T4 Time Low and High (Local Response Receipt Timestamp at Requester) */
 #define PTM_T4_TIME_L       (CSR_PTM_REQUESTER_T4_TIME_ADDR + (4))
 #define PTM_T4_TIME_H       (CSR_PTM_REQUESTER_T4_TIME_ADDR + (0))
 
-
+/* Function to read a 64-bit value from two 32-bit registers */
 static u64 litepcie_read64(struct litepcie_device *dev, uint32_t addr)
 {
+	/* Read the high and low 32-bit parts and combine them */
 	return (((u64) litepcie_readl(dev, addr) << 32) |
 		(litepcie_readl(dev, addr + 4) & 0xffffffff));
 }
 
+/* Function to read the current time from the device's time generator */
 static int litepcie_read_time(struct litepcie_device *dev, struct timespec64 *ts)
 {
 	struct timespec64 rd_ts;
 	s64 value;
+
+	/* Issue a read command to the time generator */
 	litepcie_writel(dev, CSR_TIME_GENERATOR_CONTROL_ADDR,
 			(TIME_CONTROL_ENABLE | TIME_CONTROL_READ | TIME_CONTROL_SYNC_ENABLE));
 
+	/* Read the high and low parts of the time value */
 	value = (((s64) litepcie_readl(dev, TIME_CONTROL_READ_TIME_H) << 32) |
 		(litepcie_readl(dev, TIME_CONTROL_READ_TIME_L) & 0xffffffff));
 
+	/* Adjust the value by subtracting PTM offset */
 	value = value - PTM_OFFSET_NS;
 
+	/* Convert the value to timespec64 format */
 	rd_ts = ns_to_timespec64(value);
 	ts->tv_nsec = rd_ts.tv_nsec;
 	ts->tv_sec = rd_ts.tv_sec;
@@ -806,20 +824,26 @@ static int litepcie_read_time(struct litepcie_device *dev, struct timespec64 *ts
 	return 0;
 }
 
+/* Function to write a new time to the device's time generator */
 static int litepcie_write_time(struct litepcie_device *dev, const struct timespec64 *ts)
 {
 	s64 value = timespec64_to_ns(ts);
 
+	/* Adjust the value by adding PTM offset */
 	value = value + PTM_OFFSET_NS;
 
+	/* Write the low and high parts of the time value */
 	litepcie_writel(dev, TIME_CONTROL_WRITE_TIME_L, (value >>  0) & 0xffffffff);
 	litepcie_writel(dev, TIME_CONTROL_WRITE_TIME_H, (value >> 32) & 0xffffffff);
+
+	/* Issue a write command to the time generator */
 	litepcie_writel(dev, CSR_TIME_GENERATOR_CONTROL_ADDR,
 			(TIME_CONTROL_ENABLE | TIME_CONTROL_WRITE | TIME_CONTROL_SYNC_ENABLE));
 
 	return 0;
 }
 
+/* PTP clock operation: Get the current time with timestamping */
 static int litepcie_ptp_gettimex64(struct ptp_clock_info *ptp,
                    struct timespec64 *ts,
                    struct ptp_system_timestamp *sts)
@@ -828,62 +852,50 @@ static int litepcie_ptp_gettimex64(struct ptp_clock_info *ptp,
 							   ptp_caps);
 	unsigned long flags;
 
+	/* Acquire lock to ensure consistent time reading */
 	spin_lock_irqsave(&dev->tmreg_lock, flags);
 
+	/* Capture system timestamps before and after reading device time */
 	ptp_read_system_prets(sts);
 	litepcie_read_time(dev, ts);
 	ptp_read_system_postts(sts);
 
+	/* Release lock */
 	spin_unlock_irqrestore(&dev->tmreg_lock, flags);
 
 	return 0;
 }
 
+/* PTP clock operation: Set the device time */
 static int litepcie_ptp_settime(struct ptp_clock_info *ptp, const struct timespec64 *ts)
 {
 	struct litepcie_device *dev = container_of(ptp, struct litepcie_device,
 							   ptp_caps);
 	unsigned long flags;
 
+	/* Acquire lock to prevent concurrent access */
 	spin_lock_irqsave(&dev->tmreg_lock, flags);
 
+	/* Write the new time to the device */
 	litepcie_write_time(dev, ts);
 
+	/* Release lock */
 	spin_unlock_irqrestore(&dev->tmreg_lock, flags);
 
 	return 0; // Return success
 }
 
+/* PTP clock operation: Adjust the frequency by scaled parts per million */
+/* Currently not supported, returns error if scaled_ppm is non-zero */
 static int litepcie_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
-#if 1
 	if (scaled_ppm != 0)
 		return -EOPNOTSUPP;
-#else
-	struct litepcie_device *dev = container_of(ptp, struct litepcie_device,
-							   ptp_caps);
-    int neg_adj = 0;
-    u64 rate;
-    u32 inca;
-
-    if (scaled_ppm < 0) {
-        neg_adj = 1;
-        scaled_ppm = -scaled_ppm;
-    }
-    rate = scaled_ppm;
-    rate <<= 14;
-    rate = div_u64(rate, 78125);
-
-    inca = rate & INCVALUE_MASK;
-    if (neg_adj)
-        inca |= ISGN;
-
-    litepcie_write_time(IGC_TIMINCA, inca);
-#endif
 
     return 0;
 }
 
+/* PTP clock operation: Adjust the time by a given delta in nanoseconds */
 static int litepcie_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct litepcie_device *dev = container_of(ptp, struct litepcie_device,
@@ -891,19 +903,23 @@ static int litepcie_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	struct timespec64 now, then = ns_to_timespec64(delta);
 	unsigned long flags;
 
+	/* Acquire lock to prevent concurrent access */
 	spin_lock_irqsave(&dev->tmreg_lock, flags);
 
+	/* Read current time, add delta, and write back */
 	litepcie_read_time(dev, &now);
 	now = timespec64_add(now, then);
 	litepcie_write_time(dev, &now);
 
+	/* Release lock */
 	spin_unlock_irqrestore(&dev->tmreg_lock, flags);
 	return 0; // Return success
 }
 
+/* Function to obtain a synchronized device and system timestamp */
 static int litepcie_phc_get_syncdevicetime(ktime_t *device,
-                      struct system_counterval_t *system,
-                      void *ctx)
+                          struct system_counterval_t *system,
+                          void *ctx)
 {
 	u32 t1_curr_h, t1_curr_l;
 	u32 t2_curr_h, t2_curr_l;
@@ -915,63 +931,72 @@ static int litepcie_phc_get_syncdevicetime(ktime_t *device,
 	ktime_t t1, t2_curr;
 	int count = 100;
 
-	/* Get a snapshot of system clocks to use as historic value. */
+	/* Get a snapshot of system clocks to use as historic value */
 	ktime_get_snapshot(&dev->snapshot);
 
-	/* request */
-
+	/* Trigger a PTM request */
 	litepcie_writel(dev, CSR_PTM_REQUESTER_CONTROL_ADDR,
 		PTM_CONTROL_ENABLE | PTM_CONTROL_TRIGGER);
-	/* wait until valid */
+
+	/* Wait until PTM request is complete */
 	do {
 		reg = litepcie_readl(dev, CSR_PTM_REQUESTER_STATUS_ADDR);
 		if ((reg & PTM_STATUS_BUSY) == 0)
 			break;
-	}while (--count);
+	} while (--count);
 
 	if (!count) {
 		printk("Exceeded number of tries for PTM cycle\n");
 		return -ETIMEDOUT;
 	}
 
+	/* Read T1 time (Local Request Timestamp at Requester) */
 	t1_curr_l = litepcie_readl(dev, PTM_T1_TIME_L);
 	t1_curr_h = litepcie_readl(dev, PTM_T1_TIME_H);
 	t1_curr = ((u64)t1_curr_h << 32 | t1_curr_l);
 	t1 = ns_to_ktime(t1_curr);
 
+	/* Read T2 time (Master Response Timestamp at Responder) */
 	t2_curr_l = litepcie_readl(dev, PTM_MASTER_TIME_L);
 	t2_curr_h = litepcie_readl(dev, PTM_MASTER_TIME_H);
 	t2_curr = ((u64)t2_curr_h << 32 | t2_curr_l);
 
-	/* t3-t2 from downstream port */
+	/* Read propagation delay (t3 - t2 from downstream port) */
 	prop_delay = litepcie_readl(dev, CSR_PTM_REQUESTER_LINK_DELAY_ADDR);
-	/* PTM Master Time formula */
+
+	/* Compute PTM Master Time */
 	ptm_master_time = t2_curr - (((dev->t4_prev - dev->t1_prev) - prop_delay) >> 1);
 
+	/* Set device time */
 	*device = t1;
+
 #if IS_ENABLED(CONFIG_X86_TSC) && !defined(CONFIG_UML)
+	/* Convert ART (Absolute Reference Time) to TSC (Time Stamp Counter) */
 	*system = convert_art_ns_to_tsc(ptm_master_time);
 #else
-    *system (struct system_counterval_t) { };
+    *system = (struct system_counterval_t) { };
 #endif
 
-	/* store T4 & T1 for next request */
+	/* Store T4 and T1 for next request */
 	dev->t4_prev = litepcie_read64(dev, CSR_PTM_REQUESTER_T4_TIME_ADDR);
 	dev->t1_prev = t1_curr;
 
 	return 0;
 }
 
+/* PTP clock operation: Get cross timestamp between system and device clocks */
 static int litepcie_ptp_getcrosststamp(struct ptp_clock_info *ptp,
-                  struct system_device_crosststamp *cts)
+                      struct system_device_crosststamp *cts)
 {
-	struct litepcie_device *dev= container_of(ptp, struct litepcie_device,
-                           ptp_caps);
+	struct litepcie_device *dev = container_of(ptp, struct litepcie_device,
+                               ptp_caps);
 
+	/* Obtain the cross timestamp using the provided helper */
 	return get_device_system_crosststamp(litepcie_phc_get_syncdevicetime,
                          dev, &dev->snapshot, cts);
 }
 
+/* PTP clock operation: Enable or disable features (not supported) */
 static int litepcie_ptp_enable(struct ptp_clock_info __always_unused *ptp,
                  struct ptp_clock_request __always_unused *request,
                  int __always_unused on)
@@ -979,6 +1004,7 @@ static int litepcie_ptp_enable(struct ptp_clock_info __always_unused *ptp,
     return -EOPNOTSUPP;
 }
 
+/* PTP clock capabilities and function pointers */
 static struct ptp_clock_info litepcie_ptp_info = {
 	.owner          = THIS_MODULE,
 	.name           = LITEPCIE_NAME,
