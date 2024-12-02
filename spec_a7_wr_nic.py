@@ -66,7 +66,6 @@ class _CRG(LiteXModule):
             self.cd_clk_62m5_dmtd = ClockDomain()
         self.cd_clk10m_in  = ClockDomain()
         self.cd_clk62m5_in = ClockDomain()
-
         # # #
 
         # Sys PLL (Free-Running from clk125).
@@ -492,8 +491,27 @@ class BaseSoC(LiteXWRNICSoC):
                 o_tm_cycles_o         = tm_cycles,
             )
             self.add_sources()
-            platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
-            platform.add_platform_command("create_clock -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
+
+            # FIXME: Improve constraints.
+            platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
+            platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
+#            def add_wr_false_paths(platform, white_rabbit_clocks):
+#                design_clocks = [
+#                    "sys_clk",
+#                    #"clk125m_p",
+#                    #"refclk125m_p",
+#                    #"clk62m5_dmtd",
+#                    "jtag_clk",
+#                    #"pcie_x1_clk_p",
+#                    #"clk10m_in_p",
+#                    #"clk62m5_in_p",
+#                ]
+#                for design_clk in design_clocks:
+#                    for wr_clk in white_rabbit_clocks:
+#                        platform.add_platform_command(f"set_false_path -from [get_clocks {design_clk}] -to [get_clocks {wr_clk}]")
+#                        platform.add_platform_command(f"set_false_path -from [get_clocks {wr_clk}] -to [get_clocks {design_clk}]")
+#
+#            add_wr_false_paths(platform, ["wr_txoutclk", "wr_rxoutclk"])
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
             self.ethphy0 = LiteEthPHYWRGMII(wrf_stream2wb, wrf_wb2stream)
