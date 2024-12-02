@@ -39,14 +39,14 @@ class _CRG(LiteXModule):
         # # #
 
         # Clk/Rst.
-        clk125_oe = platform.request("clk125_oe")
-        clk125    = platform.request("clk125")
-        self.comb += clk125_oe.eq(1)
+        clk125m_oe = platform.request("clk125m_oe")
+        clk125m    = platform.request("clk125m")
+        self.comb += clk125m_oe.eq(1)
 
         # PLL.
         self. pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(self.rst)
-        pll.register_clkin(clk125, 125e6)
+        pll.register_clkin(clk125m, 125e6)
         pll.create_clkout(self.cd_sys,       sys_clk_freq, margin=0)
         pll.create_clkout(self.cd_sys2x, 2 * sys_clk_freq, margin=0)
         if with_eth:
