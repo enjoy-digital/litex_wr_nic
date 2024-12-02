@@ -146,20 +146,6 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
-    # AD9516 Ext PLL.
-    ("ext_pll", 0,
-        Subsignal("cs_n",    Pins("R3")), # EXT_PLL_CS.
-        Subsignal("refsel",  Pins("L4")), # EXT_PLL_REFSEL.
-        Subsignal("reset_n", Pins("V6")), # EXT_PLL_RESET.
-        Subsignal("sck",     Pins("T2")), # EXT_PLL_SCLK.
-        Subsignal("sdi",     Pins("U4")), # EXT_PLL_SDI.
-        Subsignal("sync_n",  Pins("R2")), # EXT_PLL_SYNC.
-        Subsignal("lock",    Pins("L3")), # EXT_PLL_LOCK.
-        Subsignal("sdo",     Pins("V4")), # EXT_PLL_SDO.
-        Subsignal("stat",    Pins("R1")), # EXT_PLL_STAT.
-        IOStandard("LVCMOS33"),
-    ),
-
     # Sync-Out.
     ("clk10m_out", 0,
         Subsignal("p", Pins("B9")), # SYNC_DATA0_P.
@@ -170,6 +156,15 @@ _io = [
         Subsignal("p", Pins("D8")), # SYNC_DATA1_P.
         Subsignal("n", Pins("C8")), # SYNC_DATA1_P.
         IOStandard("LVDS_25"),
+    ),
+
+    # Sync-Out Fine-Delay.
+    ("fine_delay", 0,
+        Subsignal("en",    Pins("J18")), # DELAY_EN.
+        Subsignal("sclk",  Pins("K18")), # DELAY_SCLK.
+        Subsignal("sdin",  Pins("J14")), # DELAY_SDIN.
+        Subsignal("sload", Pins("M16")), # DELAY_SLOAD.
+        IOStandard("LVCMOS33"),
     ),
 
     # Sync-In.
@@ -186,12 +181,17 @@ _io = [
     ("pps_in_term_en", 0, Pins("L2"), IOStandard("LVCMOS33")), # PPS_TERM_EN.
     ("pps_in",         0, Pins("P3"), IOStandard("LVCMOS33")), # PPS_IN.
 
-    # Fine-Delay.
-    ("fine_delay", 0,
-        Subsignal("en",    Pins("J18")), # DELAY_EN.
-        Subsignal("sclk",  Pins("K18")), # DELAY_SCLK.
-        Subsignal("sdin",  Pins("J14")), # DELAY_SDIN.
-        Subsignal("sload", Pins("M16")), # DELAY_SLOAD.
+    # Sync-In PLL.
+    ("sync_in_pll", 0,
+        Subsignal("cs_n",    Pins("R3")), # EXT_PLL_CS.
+        Subsignal("refsel",  Pins("L4")), # EXT_PLL_REFSEL.
+        Subsignal("reset_n", Pins("V6")), # EXT_PLL_RESET.
+        Subsignal("sck",     Pins("T2")), # EXT_PLL_SCLK.
+        Subsignal("sdi",     Pins("U4")), # EXT_PLL_SDI.
+        Subsignal("sync_n",  Pins("R2")), # EXT_PLL_SYNC.
+        Subsignal("lock",    Pins("L3")), # EXT_PLL_LOCK.
+        Subsignal("sdo",     Pins("V4")), # EXT_PLL_SDO.
+        Subsignal("stat",    Pins("R1")), # EXT_PLL_STAT.
         IOStandard("LVCMOS33"),
     ),
 
@@ -267,8 +267,8 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
-    # LMX2572.
-    ("lmx2572", 0,
+    # RF Out PLL (LMX2572).
+    ("rf_out_pll", 0,
         Subsignal("cs_n", Pins("K2")), # LMX_CS.
         Subsignal("clk",  Pins("K1")), # LMX_SCK.
         Subsignal("mosi", Pins("K5")), # LMX_SDI.

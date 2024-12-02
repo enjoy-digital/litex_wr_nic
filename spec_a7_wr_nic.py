@@ -117,29 +117,36 @@ class _CRG(LiteXModule):
 class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
-        with_pcie     = False,
-        with_pcie_ptm = False,
+        # ----------------
+        with_pcie     = True,
+        with_pcie_ptm = True,
+        with_pcie_nic = True,
 
         # White Rabbit Parameters.
+        # ------------------------
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
 
-        # PCIe NIC.
-        with_pcie_nic = False,
-
-        # PPS Out Parameters (Adjusted over JTAGBone with test/test_delay.py).
+        # Sync-Out Parameters.
+        # --------------------
+        # PPS Out (Adjusted over JTAGBone with test/test_delay.py).
         pps_out_macro_delay_default  = 62499998, # 16ns taps (Up to 2**32-1 taps).
         pps_out_coarse_delay_default =        1, #  2ns taps (64 taps).
         pps_out_fine_delay_default   =      100, # 11ps taps (512 taps).
 
-        # Clk10M Out Parameters. (Adjuted over JTAGBone with test/test_delay.py).
+        # Clk10M Out (Adjusted over JTAGBone with test/test_delay.py).
         clk10m_out_macro_delay_default  = 6250000, # 16ns taps (Up to 2**32-1 taps).
         clk10m_out_coarse_delay_default =      10, #  2ns taps (64 taps).
         clk10m_out_fine_delay_default   =     100, # 11ps taps (512 taps).
 
-        # Ext-PLL Parameters.
-        with_ext_pll = True,
+        # Sync-In Parameters.
+        # -------------------
+        with_sync_in_pll = True,
+
+        # RF-Out Parameters.
+        # ------------------
+        with_rf_out = True,
     ):
         # Platform ---------------------------------------------------------------------------------
 
@@ -272,26 +279,6 @@ class BaseSoC(LiteXWRNICSoC):
                 i_USRDONETS = 1,
             )
 
-            # Clk10m In Logic.
-            self.specials += DifferentialInput(
-                i_p = clk10m_in_pads.p,
-                i_n = clk10m_in_pads.n,
-                o   = clk10m_in,
-            )
-            self.comb += self.crg.cd_clk10m_in.clk.eq(clk10m_in)
-
-            # Clk62m5 In Logic.
-            self.specials += DifferentialInput(
-                i_p = clk62m5_in_pads.p,
-                i_n = clk62m5_in_pads.n,
-                o   = clk62m5_in,
-            )
-            self.comb += self.crg.cd_clk62m5_in.clk.eq(clk62m5_in)
-
-            # PPS In Logic.
-            self.comb += platform.request("pps_in_term_en").eq(1)
-            self.comb += pps_in.eq(pps_in_pads)
-
             # Signals.
             # --------
             led_pps         = Signal()
@@ -361,16 +348,37 @@ class BaseSoC(LiteXWRNICSoC):
                 gain  = 1,
             )
 
-            # White Rabbit ExtClk AD9516 PLL Driver.
-            # --------------------------------------
-            if with_ext_pll:
-                self.extclk_pll = AD9516PLL(
+            # White Rabbit Sync-In -----------------------------------------------------------------
+
+            # White Rabbit Sync-In AD9516 PLL Driver.
+            if with_sync_in_pll:
+                self.sync_in_pll = AD9516PLL(
                     platform   = platform,
-                    pads       = platform.request("ext_pll"),
+                    pads       = platform.request("sync_in_pll"),
                     config     = AD9516_EXT_CONFIG,
-                    name       = "ext",
+                    name       = "sync_in",
                     clk_domain = "sys",
                 )
+
+            # Clk10m In Logic.
+            self.specials += DifferentialInput(
+                i_p = clk10m_in_pads.p,
+                i_n = clk10m_in_pads.n,
+                o   = clk10m_in,
+            )
+            self.comb += self.crg.cd_clk10m_in.clk.eq(clk10m_in)
+
+            # Clk62m5 In Logic.
+            self.specials += DifferentialInput(
+                i_p = clk62m5_in_pads.p,
+                i_n = clk62m5_in_pads.n,
+                o   = clk62m5_in,
+            )
+            self.comb += self.crg.cd_clk62m5_in.clk.eq(clk62m5_in)
+
+            # PPS In Logic.
+            self.comb += platform.request("pps_in_term_en").eq(1)
+            self.comb += pps_in.eq(pps_in_pads)
 
             # White Rabbit Core Instance.
             # ---------------------------
@@ -608,7 +616,6 @@ class BaseSoC(LiteXWRNICSoC):
                 ],
             )
 
-
             # FrontPanel Leds.
             # ----------------
             self.comb += [
@@ -644,35 +651,37 @@ class BaseSoC(LiteXWRNICSoC):
             ]
 
 
-        # RF Out (LMX2572) -------------------------------------------------------------------------
+        # RF Out (LMX2572) -------------------------------------------------------------------
 
-        # FIXME: Connect SYNC.
+        if with_rf_out:
 
-        lmx2572_pads = platform.request("lmx2572")
-        lmx2572_pads.miso = Signal()
-        self.lmx2572 = SPIMaster(
-            pads         = lmx2572_pads,
-            data_width   = 24,
-            sys_clk_freq = sys_clk_freq,
-            spi_clk_freq = 5e6,
-            mode         = "aligned",
-        )
-        self.lmx2572_sync = CSRStorage()
-        self.comb += lmx2572_pads.sync.eq(self.lmx2572_sync.storage)
+            # FIXME: Connect SYNC.
 
-        analyzer_signals = [
-            lmx2572_pads,
-            pps_out,
-            pps_out_pulse,
-            pps_in,
-        ]
-        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-            depth        = 1024,
-            clock_domain = "wr",
-            samplerate   = int(62.5e6),
-            register     = True,
-            csr_csv      = "test/analyzer.csv"
-        )
+            rf_out_pll_pads = platform.request("rf_out_pll")
+            rf_out_pll_pads.miso = Signal()
+            self.rf_out_pll = SPIMaster(
+                pads         = rf_out_pll_pads,
+                data_width   = 24,
+                sys_clk_freq = sys_clk_freq,
+                spi_clk_freq = 5e6,
+                mode         = "aligned",
+            )
+            self.rf_out_pll_sync = CSRStorage()
+            self.comb += rf_out_pll_pads.sync.eq(self.rf_out_pll_sync.storage)
+
+#            analyzer_signals = [
+#                rf_out_pll_pads,
+#                pps_out,
+#                pps_out_pulse,
+#                pps_in,
+#            ]
+#            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+#                depth        = 1024,
+#                clock_domain = "wr",
+#                samplerate   = int(62.5e6),
+#                register     = True,
+#                csr_csv      = "test/analyzer.csv"
+#            )
 
         # Clk Measurement (Debug) ------------------------------------------------------------------
 
