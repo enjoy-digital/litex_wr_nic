@@ -287,6 +287,56 @@ LiteScope:
 ```
 litescope_cli --subsampling=16384
 ```
+[> Initial Flash File System Configuration (SDB)
+-------------------------------------------------
+
+The SDB (Simple Database) is a file system used to store configuration parameters in the SPI flash memory of White Rabbit hardware. The SDB typically contains calibration data, SFP module properties, MAC addresses, and other relevant metadata required for proper operation.
+
+### Automatic Integration
+
+A blank SDB template is automatically generated during the firmware build process and integrated into the FPGA flashing. This reserves the required space in the SPI flash but does not include any configuration data. Configuration must be completed manually using the White Rabbit Console (WRC) after flashing.
+
+For example, the gateware build flashes the FPGA bitstream and blank SDB file:
+```python
+# Flash FPGA.
+# -----------
+if args.flash:
+    prog = soc.platform.create_programmer()
+    prog.flash(0x0000_0000, builder.get_bitstream_filename(mode="flash"))  # Flash FPGA bitstream.
+    prog.flash(0x002e_0000, "firmware/sdb-wrpc.bin")                       # Flash blank SDB.
+```
+
+### Configuration Steps for Freshly Flashed Hardware
+
+After flashing the FPGA and blank SDB template, the following steps are typically required to configure the SDB:
+
+1. **Erase Existing Data (if necessary)**
+
+   Before adding new data, ensure the SFP section is clean:
+   ```bash
+   wrc# sfp erase
+   ```
+
+2. **Add SFP Modules**
+
+   Add the SFP module details (e.g., part number and calibration values):
+   ```bash
+   wrc# sfp add AXGE-1254-0531 180750 148326 1235332 333756144
+   wrc# sfp add AXGE-3454-0531 180750 148326 -1235332 333756144
+   ```
+
+3. **Set the MAC Address**
+
+   Configure the MAC address for the network interface:
+   ```bash
+   wrc# mac set 00:1A:2B:3C:4D:5E
+   ```
+
+4. **Verify the Configuration**
+
+   Use WRC commands to confirm the added data has been stored correctly in the flash memory.
+
+For further details, refer to **wrpc-user-manual-v5.0.pdf** and *wrpc-sw/tools/sdbfs.README* in the `wrpc-sw` repository.
 
 [> Calibrating Sync Out Delay
 -----------------------------
@@ -418,23 +468,3 @@ To generate similar files:
 - Open TICS software, configure the desired PLL settings, and export the register map as a text file.
 
 By following this procedure, you can configure and test the RF PLL (LMX2572) and load various configurations for different frequencies.
-
-[> SDB
-------
-
-see **wrpc-user-manual-v5.0.pdf** and *wrpc-sw/tools/sdbfs.README*
-
-A file must be stored into the SPI flash with parameters (cal, sfp, ...).
-
-in *wrpc-sw* (after having build firmware):
-
-```bash
-./tools/gensdbfs -b 65536 tools/sdbfs-flash /tmp/sdb-wrpc.bin
-```
-
-*SDBFS* update/rewrite:
-```
-wrc# sfp erase
-wrc# sfp add AXGE-1254-0531 180750 148326 1235332 333756144
-wrc# sfp add AXGE-3454-0531 180750 148326 -1235332 333756144
-```
