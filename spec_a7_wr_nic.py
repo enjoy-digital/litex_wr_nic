@@ -628,6 +628,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ------------------------------
             self.fine_delay = FineDelay(
                 pads           = platform.request("fine_delay"),
+                sys_clk_freq   = sys_clk_freq,
                 default_delays = [
                     clk10m_out_fine_delay_default,
                     pps_out_fine_delay_default,

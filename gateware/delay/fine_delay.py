@@ -25,7 +25,9 @@ from litex.soc.interconnect import stream
 # Data Interface.
 
 class FineDelay(LiteXModule):
-    def __init__(self, pads, default_delays=[0, 0], clk_divider=16):
+    def __init__(self, pads, sys_clk_freq, default_delays=[0, 0], clk_divider=16):
+        self.platform = LiteXContext.platform
+
         assert len(default_delays) == 2
         self._channel = CSRStorage()
         self._value   = CSRStorage(9)
@@ -37,7 +39,8 @@ class FineDelay(LiteXModule):
         fine_delay_count = Signal(int(math.log2(clk_divider)))
         self.sync += fine_delay_count.eq(fine_delay_count + 1)
         self.sync += self.cd_fine_delay.clk.eq(fine_delay_count[-1])
-        self.specials += AsyncResetSynchronizer(self.cd_fine_delay, ResetSignal("sys")),
+        self.specials += AsyncResetSynchronizer(self.cd_fine_delay, ResetSignal("sys"))
+        self.platform.add_period_constraint(self.cd_fine_delay.clk, 1e9/(sys_clk_freq/clk_divider))
 
         # CDC.
         self.cdc = cdc = stream.ClockDomainCrossing(
@@ -108,5 +111,4 @@ class FineDelay(LiteXModule):
         self.add_sources()
 
     def add_sources(self):
-        platform = LiteXContext.platform
-        platform.add_source("gateware/delay/fine_delay_ctrl.vhd")
+        self.platform.add_source("gateware/delay/fine_delay_ctrl.vhd")
