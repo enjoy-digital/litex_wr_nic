@@ -137,14 +137,17 @@ wr_date set host
 ```sh
 cd software
 
+#Set CPU to performance mode:
+sudo cpupower frequency-set -g performance
+
 # Enable PPS generation on Intel I225/SPD0 pin.
 cd ./intel_i225_pps.py --enable
 
 # Start phc2sys regulation from Host -> Intel I225.
-sudo phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -O 0 -m
+sudo phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -O 0 -m -E linreg -R 10
 
 # Start phc2sys regulation from SPEC-A7 -> Host.
-sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m
+sudo phc2sys -c CLOCK_REALTIME -s /dev/ptp3 -O 0 -m -E linreg -R 10
 ```
 
 ### Observing the Results
