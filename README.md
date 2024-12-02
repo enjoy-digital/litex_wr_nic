@@ -230,6 +230,11 @@ The WR Core includes a RISC-V CPU running a firmware that controls peripherals a
 diagnostics through the WRC console. This section explains how to rebuild and reload the firmware
 onto the CPU using the tools and scripts provided in this project.
 
+[!TIP]
+
+The RISC-V firmware is automatically built and integrated into the gateware during the build process of the FPGA design. The instructions in this section are only necessary if the firmware needs to be rebuilt or manually reloaded.
+
+
 **Build the Firmware**
 
 To rebuild the firmware, use the following commands:
@@ -282,6 +287,84 @@ LiteScope:
 ```
 litescope_cli --subsampling=16384
 ```
+
+[> Calibrating Sync Out Delay
+-----------------------------
+
+To achieve sub-nanosecond precision with White Rabbit (WR), the PPS and Clk10M outputs require precise delay calibration. The WR system allows configuration of three types of delays for each output:
+
+1. **Macro Delay:** Adjusts delay in full WR clock cycles (16ns increments).
+2. **Coarse Delay:** Adjusts delay in 1/8th WR clock cycles (2ns increments), using the FPGA's OSERDESE2 primitive on Artix-7 devices.
+3. **Fine Delay:** Adjusts delay in smaller steps (~11ps increments), using the NB6L295 delay line.
+
+
+### Requirements
+
+Before starting the calibration process, ensure you have access to the following:
+- **High-Precision Oscilloscope or Logic Analyzer:** Required to compare the PPS and Clk10M outputs with the reference signal for sub-nanosecond precision. A sampling rate of at least 1 GS/s is recommended for accurate measurements.
+- **Operational WR Setup:** The FPGA design must be running, with a WR slave link operational (connected to a WR Master via SFP).
+- **LiteX Server:** Ensure the LiteX server is set up for JTAG or Etherbone communication.
+
+### Calibration Procedure
+
+1. **Prepare the Environment**
+   - Connect the high-precision oscilloscope or logic analyzer to the PPS and Clk10M outputs, along with the reference signal from the WR master.
+   - Start the LiteX server in JTAG mode:
+     ```sh
+     litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
+     ```
+
+2. **Adjust the Macro Delay**
+   - Use the `test/test_delay.py` script to set the macro delay. Begin with the delay set to its maximum value (ensuring the PPS/Clk10M output is ahead of the reference).
+   - Gradually reduce the delay until the PPS/Clk10M output transitions from being ahead of the reference to being aligned or slightly late.
+   - The optimal macro delay is the highest value where the output is still ahead of the reference.
+   - Example command:
+     ```sh
+     python3 test/test_delay.py --sma pps_out --macro 62499998
+     ```
+
+3. **Adjust the Coarse Delay**
+   - With the macro delay set, adjust the coarse delay using the same principle.
+   - Gradually increase or decrease the coarse delay until the PPS/Clk10M output is perfectly aligned with the reference.
+   - Example command:
+     ```sh
+     python3 test/test_delay.py --sma clk10m_out --coarse 10
+     ```
+
+4. **Adjust the Fine Delay**
+   - With the macro and coarse delays set, fine-tune the delay using the fine delay parameter.
+   - Increase or decrease the fine delay to achieve exact alignment of the PPS/Clk10M output with the reference on the oscilloscope.
+   - Example command:
+     ```sh
+     python3 test/test_delay.py --sma pps_out --fine 100
+     ```
+
+5. **Validate Results**
+   - Compare the PPS/Clk10M outputs with the reference signal on the oscilloscope. Ensure all outputs are perfectly aligned, and any deviations are within acceptable limits.
+
+6. **Integrate Calibrated Values**
+   - Once the correct delays have been determined, integrate them into the FPGA build parameters by modifying the SoC definition in your design:
+     ```python
+     class BaseSoC(LiteXWRNICSoC):
+         def __init__(self, sys_clk_freq=125e6,
+            #...
+             # PPS Out Parameters (Calibrated values).
+             pps_out_macro_delay_default  = 62499998,
+             pps_out_coarse_delay_default =        1,
+             pps_out_fine_delay_default   =      100,
+
+             # Clk10M Out Parameters (Calibrated values).
+             clk10m_out_macro_delay_default  = 6250000,
+             clk10m_out_coarse_delay_default =      10,
+             clk10m_out_fine_delay_default   =     100,
+            # ...
+         ):
+     ```
+   - This ensures that subsequent FPGA builds use the calibrated delays.
+
+### Notes on Calibration
+- **Precision is Key:** The use of a high-precision oscilloscope or logic analyzer is essential for achieving accurate calibration.
+- **System Variability:** Repeat the calibration if significant hardware changes occur, such as a new WR setup or board.
 
 [> SDB
 ------
