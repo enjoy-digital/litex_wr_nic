@@ -275,18 +275,102 @@ Loading firmware from ../firmware/wrpc-sw/wrc.bin...
 Loading firmware: 100%|██████████████████████████████████| 30270/30270 [00:00<00:00,
 ```
 
-[> Use LiteX Server/LiteScope
------------------------------
+[> Use LiteX Server and LiteScope
+---------------------------------
 
-LiteX Server:
-```sh
+The **LiteX Server** and **LiteScope** are powerful tools included in the LiteX ecosystem. These tools are designed to help developers interact with, debug, and analyze LiteX-based designs running on FPGA hardware.
+
+### LiteX Server
+
+The **LiteX Server** acts as a bridge between the host computer and the FPGA hardware, allowing developers to interact with the system over JTAG, Etherbone, or other interfaces. It enables reading and writing to registers, controlling the system, and running test scripts directly from the host machine.
+
+#### Purpose
+- **Register Access:** Read and write hardware registers directly from the host machine.
+- **Control the System:** Perform low-level hardware debugging or interact with firmware.
+- **Integration with Python Scripts:** Control and test the system programmatically via Python scripts, as demonstrated by the scripts in the `test` directory.
+
+#### Running LiteX Server
+To start the LiteX Server for JTAG communication:
+```
+sh
 litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
 ```
 
-LiteScope:
+#### Basic Commands
+Once the LiteX Server is running, you can use the `litex_cli` tool to interact with the system. Some common examples include:
+
+- **Dump all registers:**
+  ```
+  sh
+  litex_cli --regs
+  ```
+
+- **Read a specific register:**
+  ```
+  sh
+  litex_cli --read <register_name>
+  ```
+
+- **Write to a specific register:**
+  ```
+  sh
+  litex_cli --write <register_name> <value>
+  ```
+
+These commands are particularly useful for quick debugging and checking hardware states. For more complex interactions, Python scripts can use the `RemoteClient` from the LiteX library to communicate with the system, as seen in the scripts under the `test` directory.
+
+### LiteScope
+
+**LiteScope** is an embedded logic analyzer included in LiteX designs. It allows developers to monitor and capture internal FPGA signals in real-time, making it an essential tool for debugging hardware and gateware issues.
+
+#### Using `litescope_cli`
+
+The `litescope_cli` tool provides an interface to LiteScope, supporting immediate dumps and conditional triggers. Below are a few common usage examples:
+
+1. **Immediate Signal Dump**
+   Capture and save signals directly without conditions:
+   ```sh
+   litescope_cli --dump capture.vcd
+   ```
+
+2. **Rising Edge Trigger**
+   Capture signals when a specific signal has a rising edge:
+   ```sh
+   litescope_cli --rising-edge <signal_name> --dump capture.vcd
+   ```
+
+3. **Subsampling**
+   Reduce capture rate to extend signal coverage:
+   ```sh
+   litescope_cli --subsampling 16384 --dump capture.vcd
+   ```
+
+4. **List Available Signals**
+   Display all signals that can be monitored or triggered:
+   ```sh
+   litescope_cli --list
+   ```
+
+For more options, including advanced triggers and capture configurations, run:
+```sh
+litescope_cli --help
 ```
-litescope_cli --subsampling=16384
+
+#### Integrated Probes
+
+Several pre-defined probes are integrated into the design, which can be enabled during the gateware build process to monitor specific subsystems. Examples include:
+
+- **Wishbone Fabric Interface Probe**
+- **Wishbone Slave Probe**
+- **DAC/VCXO Probe**
+- **Time Signal Probe**
+
+These probes can be activated by adding arguments during the gateware build, such as:
+```python
+parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true")
+parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
 ```
+
 [> Initial Flash File System Configuration (SDB)
 -------------------------------------------------
 
