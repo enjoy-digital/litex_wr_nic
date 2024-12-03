@@ -69,7 +69,7 @@ class LiteXWRNICSoC(SoCMini):
 
     # Add PCIe NIC ---------------------------------------------------------------------------------
 
-    def add_pcie_nic(self, pcie_phy=None, eth_phys=[], eth_ntxslots=2, eth_nrxslots=2, with_timing_constraints=True):
+    def add_pcie_nic(self, pcie_phy=None, eth_phys=[], eth_ntxslots=4, eth_nrxslots=4, with_timing_constraints=True):
         # PCIe MSIs.
         # ----------
         pcie_msis = {}
