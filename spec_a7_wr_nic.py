@@ -103,7 +103,7 @@ class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
         # ----------------
-        with_pcie = True,
+        with_pcie = False,
 
         # White Rabbit Parameters.
         # ------------------------
@@ -255,21 +255,21 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Signals.
             # --------
-            led_pps         = Signal()
-            led_link        = Signal()
-            led_act         = Signal()
-            dac_refclk_load = Signal()
-            dac_refclk_data = Signal(16)
-            dac_dmtd_load   = Signal()
-            dac_dmtd_data   = Signal(16)
-            pps_in          = Signal()
-            pps_out_valid   = Signal()
-            pps_out         = Signal()
-            pps_out_pulse   = Signal()
-            tm_link_up      = Signal()
-            tm_time_valid   = Signal()
-            tm_seconds      = Signal(40)
-            tm_cycles       = Signal(28)
+            self.led_pps         = led_pps         = Signal()
+            self.led_link        = led_link        = Signal()
+            self.led_act         = led_act         = Signal()
+            self.dac_refclk_load = dac_refclk_load = Signal()
+            self.dac_refclk_data = dac_refclk_data = Signal(16)
+            self.dac_dmtd_load   = dac_dmtd_load   = Signal()
+            self.dac_dmtd_data   = dac_dmtd_data   = Signal(16)
+            self.pps_in          = pps_in          = Signal()
+            self.pps_out_valid   = pps_out_valid   = Signal()
+            self.pps_out         = pps_out         = Signal()
+            self.pps_out_pulse   = pps_out_pulse   = Signal()
+            self.tm_link_up      = tm_link_up      = Signal()
+            self.tm_time_valid   = tm_time_valid   = Signal()
+            self.tm_seconds      = tm_seconds      = Signal(40)
+            self.tm_cycles       = tm_cycles       = Signal(28)
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -351,7 +351,7 @@ class BaseSoC(LiteXWRNICSoC):
             self.comb += self.crg.cd_clk62m5_in.clk.eq(clk62m5_in)
 
             # PPS In Logic.
-            self.comb += platform.request("pps_in_term_en").eq(1)
+            self.comb += platform.request("pps_in_term_en").eq(1) # CHECKME: Make it configurable?
             self.comb += pps_in.eq(pps_in_pads)
 
             # White Rabbit Core Instance.
@@ -687,7 +687,7 @@ def main():
     parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true")
     parser.add_argument("--with-wishbone-slave-probe",            action="store_true")
     parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
-    parser.add_argument("--with-time-probe",                      action="store_true")
+    parser.add_argument("--with-time-pps-probe",                  action="store_true")
 
     args = parser.parse_args()
 
@@ -708,8 +708,8 @@ def main():
         soc.add_wishbone_slave_probe()
     if args.with_dac_vcxo_probe:
         soc.add_dac_vcxo_probe()
-    if args.with_time_probe:
-        soc.add_time_probe()
+    if args.with_time_pps_probe:
+        soc.add_time_pps_probe()
     builder = Builder(soc, csr_csv="test/csr.csv")
     builder.build(run=args.build)
 

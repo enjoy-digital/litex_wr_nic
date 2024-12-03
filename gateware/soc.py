@@ -358,12 +358,22 @@ class LiteXWRNICSoC(SoCMini):
             csr_csv      = "test/analyzer.csv"
         )
 
-    def add_time_probe(self):
+    def add_time_pps_probe(self):
         analyzer_signals = [
-            self.time_generator.time_sync,
-            self.time_generator.time_seconds,
-            self.time_generator.time,
+            self.pps_in,
+            self.pps_out,
+            self.pps_out_pulse,
+            self.tm_link_up,
+            self.tm_time_valid,
+            self.tm_seconds,
+            self.tm_cycles,
         ]
+        if hasattr(self, "time_generator"):
+            analyzer_signals += [
+                self.time_generator.time_sync,
+                self.time_generator.time_seconds,
+                self.time_generator.time,
+            ]
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 512,
             clock_domain = "wr",
