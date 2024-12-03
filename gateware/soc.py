@@ -83,7 +83,7 @@ class LiteXWRNICSoC(SoCMini):
         # ----------
         self.add_pcie(name="pcie", phy=pcie_phy,
             ndmas                = len(eth_phys),
-            max_pending_requests = 2,
+            max_pending_requests = 4,
             data_width           = 64,
             with_dma_buffering   = False,
             with_dma_loopback    = False,
