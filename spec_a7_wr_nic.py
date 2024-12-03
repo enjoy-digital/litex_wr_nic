@@ -103,9 +103,7 @@ class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
         # ----------------
-        with_pcie     = True,
-        with_pcie_ptm = True,
-        with_pcie_nic = True,
+        with_pcie = True,
 
         # White Rabbit Parameters.
         # ------------------------
@@ -173,13 +171,13 @@ class BaseSoC(LiteXWRNICSoC):
         platform.add_period_constraint(self.jtagbone_phy.cd_jtag.clk, 1e9/20e6)
         platform.add_false_path_constraints(self.jtagbone_phy.cd_jtag.clk, self.crg.cd_sys.clk)
 
-        # PCIe -------------------------------------------------------------------------------------
+        # PCIe PHY ---------------------------------------------------------------------------------
 
         if with_pcie:
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width  = 64,
                 bar0_size   = 0x20000,
-                with_ptm    = with_pcie_ptm,
+                with_ptm    = True,
                 refclk_freq = 100e6,
             )
             self.pcie_phy.update_config({
@@ -204,15 +202,6 @@ class BaseSoC(LiteXWRNICSoC):
             for clk0, clk1 in false_paths:
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk0}] -to [get_clocks {clk1}]")
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk1}] -to [get_clocks {clk0}]")
-
-
-            if not with_pcie_nic:
-                self.add_pcie(phy=self.pcie_phy,
-                    ndmas                = 1,
-                    address_width        = 64,
-                    with_ptm             = True,
-                    max_pending_requests = 2,
-                )
 
         # White Rabbit -----------------------------------------------------------------------------
 
@@ -481,13 +470,8 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
+
             self.ethphy0 = LiteEthPHYWRGMII(wrf_stream2wb, wrf_wb2stream)
-
-            if not with_pcie_nic:
-                self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
-            else:
-                self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
-
 
             # White Rabbit Sync-Out ----------------------------------------------------------------
 
@@ -609,15 +593,21 @@ class BaseSoC(LiteXWRNICSoC):
                 platform.request("pps_out_led").eq(led_pps),
             ]
 
-        # PCIe PTM ---------------------------------------------------------------------------------
+        # PCIe NIC ---------------------------------------------------------------------------------
 
-        if with_pcie_ptm:
-            assert with_pcie
-            assert with_white_rabbit
+        if with_pcie and with_white_rabbit:
+            self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
             self.add_pcie_ptm()
 
-            # Time Generator -----------------------------------------------------------------------
+        # Etherbone --------------------------------------------------------------------------------
 
+        if (not with_pcie) and with_white_rabbit:
+            self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
+
+        # Time Generator ---------------------------------------------------------------------------
+
+        if with_pcie and with_white_rabbit:
+            # Time Generator.
             self.time_generator = TimeGenerator(
                 clk_domain = "wr",
                 clk_freq   = 62.5e6,
@@ -635,7 +625,6 @@ class BaseSoC(LiteXWRNICSoC):
                 self.ptm_requester.time_rst.eq(ResetSignal("wr")),
                 self.ptm_requester.time.eq(self.time_generator.time)
             ]
-
 
         # RF Out (LMX2572) -------------------------------------------------------------------------
 
