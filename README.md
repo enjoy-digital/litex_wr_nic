@@ -210,12 +210,12 @@ sudo init.sh
 The board can then be used as a Linux NIC and tested with tools like iperf3 ex:
 
 Server (without the board):
-```
+```sh
 iperf3 -s
 ```
 
 Client (with the board):
-```
+```sh
 iperf3 -c 192.168.1.122 -B 192.168.1.92
 iperf3 -c 192.168.1.122 -B 192.168.1.92 -R
 ```
@@ -299,20 +299,17 @@ litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
 Once the LiteX Server is running, you can use the `litex_cli` tool to interact with the system. Some common examples include:
 
 - **Dump all registers:**
-  ```
-  sh
+  ```sh
   litex_cli --regs
   ```
 
 - **Read a specific register:**
-  ```
-  sh
+  ```sh
   litex_cli --read <register_name>
   ```
 
 - **Write to a specific register:**
-  ```
-  sh
+  ```sh
   litex_cli --write <register_name> <value>
   ```
 
@@ -551,3 +548,18 @@ To generate similar files:
 - Open TICS software, configure the desired PLL settings, and export the register map as a text file.
 
 By following this procedure, you can configure and test the RF PLL (LMX2572) and load various configurations for different frequencies.
+
+[> License
+----------
+
+This project is licensed under the BSD 2-Clause License and White Rabbit is licensed under the CERN OHL License.
+
+[> Contributing
+---------------
+
+Contributions are welcome! Please open issues or pull requests on the GitHub repository.
+
+[> Contact
+----------
+
+For questions or support, please contact [florent@enjoy-digital.fr].
