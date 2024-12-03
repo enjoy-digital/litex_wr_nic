@@ -50,7 +50,7 @@ class UARTShared(LiteXModule):
 
         # UARTPHY and UART for crossover interface.
         self.xover_phy = UARTPHY(crossover_pads, clk_freq=sys_clk_freq, baudrate=115200)
-        self.xover     = UART(self.xover_phy, rx_fifo_depth=16, rx_fifo_rx_we=True)
+        self.xover     = UART(self.xover_phy, rx_fifo_depth=128, rx_fifo_rx_we=True)
 
         # Signal for the active UART selection.
         active_uart = Signal(reset=default_sel)  # Tracks the currently active port (last RX activity).
