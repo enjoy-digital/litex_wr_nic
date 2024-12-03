@@ -407,8 +407,8 @@ class BaseSoC(LiteXWRNICSoC):
                 o_onewire_oen_o       = temp_1wire_oe_n,
 
                 # UART Interface.
-                i_uart_rxd_i          = self.uart.wr_pads.rx,
-                o_uart_txd_o          = self.uart.wr_pads.tx,
+                i_uart_rxd_i          = self.uart.shared_pads.rx,
+                o_uart_txd_o          = self.uart.shared_pads.tx,
 
                 # SPI Flash Interface.
                 o_spi_sclk_o          = flash_clk,
