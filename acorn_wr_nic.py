@@ -93,7 +93,7 @@ class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
         # ----------------
-        with_pcie = False,
+        with_pcie = True,
 
         # White Rabbit Parameters.
         # ------------------------
