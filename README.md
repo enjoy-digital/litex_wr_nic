@@ -64,13 +64,27 @@ requiring precise timing and basic networking functionality.
 -------------------------------
 
 These are required in order to build and use the FPGA design and associated software provided in
-this project:
-- Linux computer, PTM capable (Tested with Ubuntu 22.04.4 LTS).
-- Python3, Xilinx Vivado installed.
-- LiteX [installed]
-  (https://github.com/enjoy-digital/litex/wiki/Installation#litex-installation-guide) and up to
-  date.
-- A LiteX-Acorn-Baseboard Mini.
+this project.
+
+### Ubuntu Installation and Dependencies
+
+The project has been tested on Ubuntu 24.04 LTS. Below are the steps to prepare the environment:
+
+1. Install Ubuntu 24.04 LTS.
+2. Install required dependencies:
+   ```
+   sudo apt update
+   sudo apt install build-essential python3-pip git iperf3 locales libreadline-dev
+   ```
+3. Install **LiteX** by following the [LiteX Installation Guide](https://github.com/enjoy-digital/litex/wiki/Installation#litex-installation-guide).
+
+4. Install **Xilinx Vivado** and ensure it is in your `PATH`.
+
+5. Clone this repository and ensure you have the necessary hardware (see below).
+
+### Required Hardware
+- Linux computer, PTM capable.
+- A LiteX-Acorn-Baseboard Mini or SPEC-A7 board.
 - An Intel I225 board.
 - A JTAG-HS2 Cable.
 - A Logic Analyzer/Scope to observe PPS.
