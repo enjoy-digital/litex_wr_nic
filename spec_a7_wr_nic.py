@@ -520,18 +520,18 @@ class BaseSoC(LiteXWRNICSoC):
             )
 
             # Clk10M Generator.
-            clk10m_out_gen = Signal()
+            clk10m_out_gen = Signal(8)
             self.clk10m_gen = Clk10MGenerator(
                 pulse_i  = clk10m_out_macro_delay,
                 clk10m_o = clk10m_out_gen,
-                clk_domain = "wr8x",
+                clk_domain = "wr",
             )
 
             # Clk10M Coarse Delay.
             clk10m_out_coarse_delay = Signal()
             self.clk10m_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
-                i   = clk10m_out_gen & pps_out_valid,
+                i   = clk10m_out_gen  & Replicate(pps_out_valid, 8),
                 o   = clk10m_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 8, # 64-taps.
@@ -697,6 +697,9 @@ class BaseSoC(LiteXWRNICSoC):
             ext_ref_mul_locked,
             ext_ref_mul_stopped,
             ext_ref_rst,
+            clk10m_out_gen,
+            self.clk10m_out_coarse_delay.bitslip.i,
+            self.clk10m_out_coarse_delay.bitslip.o,
         ]
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 512,
