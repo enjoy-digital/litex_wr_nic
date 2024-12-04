@@ -34,32 +34,36 @@ from gateware.wr_common import wr_core_init, wr_core_files
 
 class LiteXWRNICSoC(SoCMini):
     SoCMini.csr_map = {
-        # Common.
-        "identifier_mem"    :  1,
-        "leds"              :  2,
+        # Common (0-7).
+        "identifier_mem"          : 1,
+        "ctrl"                    : 2,
+        "leds"                    : 3,
+        "clk_measurement"         : 4,
 
-        # PCIe.
-        "pcie_endpoint"     :  8,
-        "pcie_msi"          :  9,
-        "pcie_phy"          : 10,
+        # PCIe (8-15).
+        "pcie_endpoint"           : 8,
+        "pcie_msi"                : 9,
+        "pcie_phy"                : 10,
+        "pcie_dma0"               : 11,
+        "ptm_requester"           : 12,
 
-        # Ethernet.
-        "ethphy0"           : 16,
-        "ethmac0"           : 17,
-        "ethphy1"           : 18,
-        "ethmac1"           : 19,
+        # Ethernet (16-20).
+        "ethmac0"                 : 16,
+        "ethmac1"                 : 17,
 
-        # White Rabbit.
-        "refclk_pll"        : 20,
-        "refclk_dac"        : 21,
-        "dmtd_dac"          : 22,
-        "extclk_pll"        : 23,
-
-        # PCIe NIC.
-        "pcie_pcie2wb_dma0" : 24,
-        "pcie_wb2pcie_dma0" : 25,
-        "pcie_pcie2wb_dma1" : 26,
-        "pcie_wb2pcie_dma1" : 27,
+        # White Rabbit (20-31).
+        "refclk_pll"              : 20,
+        "refclk_dac"              : 21,
+        "dmtd_dac"                : 22,
+        "rf_out_pll"              : 23,
+        "sync_in_pll"             : 24,
+        "time_generator"          : 25,
+        "pps_in_macro_delay"      : 26,
+        "pps_macro_delay"         : 27,
+        "pps_out_coarse_delay"    : 28,
+        "clk10m_macro_delay"      : 29,
+        "clk10m_out_coarse_delay" : 30,
+        "fine_delay"              : 31,
     }
     SoCMini.mem_map = {
         "csr"      : 0x0000_0000,
