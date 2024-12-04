@@ -16,7 +16,7 @@ class PPSGenerator(LiteXModule):
     def __init__(self, i, o,  clk_domain, clk_freq, duty_cycle=20/100):
         timer = WaitTimer(clk_freq*duty_cycle)
         timer = ClockDomainsRenamer(clk_domain)(timer)
-        self.submodules += timer
+        self.add_module(name="timer", module=timer)
         self.comb += [
             timer.wait.eq(~i),
             o.eq(~timer.done),

@@ -603,7 +603,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ----------------
             self.comb += [
                 platform.request("clk10m_out_led").eq(pps_out_valid),
-                platform.request("pps_out_led").eq(led_pps),
+                platform.request("pps_out_led").eq(pps_out_gen & pps_out_valid),
                 platform.request("act_out_led").eq(led_link & ~led_act)
             ]
 
@@ -685,7 +685,6 @@ class BaseSoC(LiteXWRNICSoC):
             "clk4" : ClockSignal("clk62m5_in"),
         })
 
-
         # Debug ------------------------------------------------------------------------------------
 
         analyzer_signals = [
@@ -693,6 +692,11 @@ class BaseSoC(LiteXWRNICSoC):
             self.pps_out,
             self.pps_out_pulse,
             self.crg.cd_clk10m_in.clk,
+            pps_out_gen,
+            pps_out_valid,
+            pps_out_macro_delay,
+            self.pps_gen.timer.wait,
+            self.pps_gen.timer.done,
             ext_ref_mul,
             ext_ref_mul_locked,
             ext_ref_mul_stopped,
