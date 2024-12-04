@@ -5,31 +5,32 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from migen import *
-
 from litex.gen import *
-from litex.gen.genlib.misc import WaitTimer
+
+from litex.soc.interconnect import stream
 
 # Clk 10MHz Generator ------------------------------------------------------------------------------
 
 class Clk10MGenerator(LiteXModule):
-    def __init__(self, pulse_i, clk10m_o, clk_domain="wr8x"):
+    def __init__(self, pulse_i, clk10m_o, clk_domain="wr"):
+        # Gearbox for 50-bit input to 8-bit output.
+        gearbox = stream.Gearbox(i_dw=50, o_dw=8, msb_first=False)
+        gearbox = ResetInserter()(gearbox)
+        gearbox = ClockDomainsRenamer(clk_domain)(gearbox)
+        self.add_module(name="gearbox", module=gearbox)
 
-        # Sync.
-        _sync = getattr(self.sync, clk_domain)
+        # Gearbox Synchronization.
+        self.comb += gearbox.reset.eq(pulse_i)
 
-        # 10MHz Gen from 500MHz.
-        count = Signal(8)
-        _sync += [
-            If(pulse_i,
-                count.eq(0),
-                clk10m_o.eq(0),
-            ).Else(
-                count.eq(count + 1),
-                If(count == (25 - 1),
-                    count.eq(0),
-                    clk10m_o.eq(~clk10m_o)
-                )
-            )
+        # Gearbox Input.
+        self.comb += [
+            gearbox.sink.valid.eq(1),
+            gearbox.sink.data[:25].eq(0b0000000000000000000000000),
+            gearbox.sink.data[25:].eq(0b1111111111111111111111111),
         ]
 
+        # Gearbox Output.
+        self.comb += [
+            gearbox.source.ready.eq(1),
+            clk10m_o.eq(gearbox.source.data)
+        ]
