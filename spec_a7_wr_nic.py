@@ -120,8 +120,8 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Clk10M Out (Adjusted over JTAGBone with test/test_delay.py).
         clk10m_out_macro_delay_default  = 6250000, # 16ns taps (Up to 2**32-1 taps).
-        clk10m_out_coarse_delay_default =      10, #  2ns taps (64 taps).
-        clk10m_out_fine_delay_default   =     100, # 11ps taps (512 taps).
+        clk10m_out_coarse_delay_default =       1, #  2ns taps (64 taps).
+        clk10m_out_fine_delay_default   =     200, # 11ps taps (512 taps).
 
         # Sync-In Parameters.
         # -------------------
