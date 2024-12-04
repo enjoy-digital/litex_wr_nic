@@ -556,7 +556,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # PPS Macro Delay.
             pps_out_macro_delay = Signal()
-            self.pps_macro_delay = MacroDelay(
+            self.pps_out_macro_delay = MacroDelay(
                 pulse_i = pps_out_pulse,
                 pulse_o = pps_out_macro_delay,
                 clk_domain    = "wr",
@@ -565,7 +565,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # PPS Generator.
             pps_out_gen = Signal()
-            self.pps_gen = PPSGenerator(
+            self.pps_out_gen = PPSGenerator(
                 i = pps_out_macro_delay,
                 o = pps_out_gen,
                 clk_domain = "wr",
@@ -646,11 +646,9 @@ class BaseSoC(LiteXWRNICSoC):
             ]
 
         # RF Out (LMX2572) -------------------------------------------------------------------------
+        # CHECKME: Connect SYNC if useful.
 
         if with_rf_out:
-
-            # FIXME: Connect SYNC.
-
             rf_out_pll_pads = platform.request("rf_out_pll")
             rf_out_pll_pads.miso = Signal()
             self.rf_out_pll = SPIMaster(
@@ -660,8 +658,6 @@ class BaseSoC(LiteXWRNICSoC):
                 spi_clk_freq = 5e6,
                 mode         = "aligned",
             )
-            self.rf_out_pll_sync = CSRStorage()
-            self.comb += rf_out_pll_pads.sync.eq(self.rf_out_pll_sync.storage)
 
         # Timing Constraints -----------------------------------------------------------------------
 

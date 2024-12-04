@@ -59,7 +59,7 @@ class LiteXWRNICSoC(SoCMini):
         "sync_in_pll"             : 24,
         "time_generator"          : 25,
         "pps_in_macro_delay"      : 26,
-        "pps_macro_delay"         : 27,
+        "pps_out_macro_delay"     : 27,
         "pps_out_coarse_delay"    : 28,
         "clk10m_macro_delay"      : 29,
         "clk10m_out_coarse_delay" : 30,

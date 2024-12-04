@@ -28,7 +28,7 @@ def set_macro_delay(bus, channel, macro_value):
         bus.regs.clk10m_macro_delay_value.write(macro_value)
     elif channel == 1:
         print(f"Setting macro delay for pps_out to {macro_value}")
-        bus.regs.pps_macro_delay_value.write(macro_value)
+        bus.regs.pps_out_macro_delay_value.write(macro_value)
     elif channel == 2:
         print(f"Setting macro delay for pps_in to {macro_value}")
         bus.regs.pps_in_macro_delay_value.write(macro_value)
