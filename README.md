@@ -23,6 +23,9 @@ features with support for PCIe Precision Time Measurement (PTM). The design enab
 - **White Rabbit Synchronization:** Sub-nanosecond timing precision, integrated WR fabric interface,
     and support for PPS/10MHz clock outputs.
 
+- **Flexible WR Modes:** The board can operate as a White Rabbit Slave, Master, or GrandMaster,
+    allowing for versatile timing applications.
+
 - **PCIe PTM Integration:** Propagates WR clock to the host system and connected boards via PCIe
     PTM. This ensures precise time distribution across systems.
 
