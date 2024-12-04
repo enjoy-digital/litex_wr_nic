@@ -33,11 +33,17 @@ class CoarseDelay(LiteXModule):
 
         # # #
 
-        # Bitslip.
+        # BitSlip for fine-grained 1/8 cycle delays.
         bitslip = BitSlip(dw=8, value=self._value.storage, cycles=clk_cycles)
         bitslip = ClockDomainsRenamer(clk_domain)(bitslip)
-        self.submodules += bitslip
-        self.comb += bitslip.i.eq(Replicate(i, 8))
+        self.add_module(name="bitslip", module=bitslip)
+
+        # Handle 1-bit or 8-bit input.
+        assert len(i) in [1, 8]
+        if len(i) == 1:
+            self.comb += bitslip.i.eq(Replicate(i, 8))
+        if len(i) == 8:
+            self.comb += bitslip.i.eq(i)
 
         # 8:1 Serialization.
         self.specials += Instance("OSERDESE2",
