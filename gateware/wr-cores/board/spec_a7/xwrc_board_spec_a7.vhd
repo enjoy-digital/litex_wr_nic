@@ -238,7 +238,13 @@ entity xwrc_board_spec_a7 is
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
-    GT0_EXT_QPLL_LOCK   : in  std_logic
+    GT0_EXT_QPLL_LOCK   : in  std_logic;
+
+    -- Debug.
+    ext_ref_mul         : out std_logic;
+    ext_ref_mul_locked  : out std_logic;
+    ext_ref_mul_stopped : out std_logic;
+    ext_ref_rst         : out std_logic
     );
 
 end entity xwrc_board_spec_a7;
@@ -274,10 +280,10 @@ architecture struct of xwrc_board_spec_a7 is
   signal phy16_from_wrc : t_phy_16bits_from_wrc;
 
   -- External reference
-  signal ext_ref_mul         : std_logic;
-  signal ext_ref_mul_locked  : std_logic;
-  signal ext_ref_mul_stopped : std_logic;
-  signal ext_ref_rst         : std_logic;
+  --signal ext_ref_mul         : std_logic;
+  --signal ext_ref_mul_locked  : std_logic;
+  --signal ext_ref_mul_stopped : std_logic;
+  --signal ext_ref_rst         : std_logic;
 
   signal sfp_sda_out         : std_logic;
   signal sfp_sda_in          : std_logic;

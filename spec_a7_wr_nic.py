@@ -354,6 +354,12 @@ class BaseSoC(LiteXWRNICSoC):
             self.comb += platform.request("pps_in_term_en").eq(1) # CHECKME: Make it configurable?
             self.comb += pps_in.eq(pps_in_pads)
 
+
+            ext_ref_mul         = Signal()
+            ext_ref_mul_locked  = Signal()
+            ext_ref_mul_stopped = Signal()
+            ext_ref_rst         = Signal()
+
             # White Rabbit Core Instance.
             # ---------------------------
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
@@ -464,6 +470,13 @@ class BaseSoC(LiteXWRNICSoC):
                 o_tm_time_valid_o     = tm_time_valid,
                 o_tm_tai_o            = tm_seconds,
                 o_tm_cycles_o         = tm_cycles,
+
+
+                # Debug.
+                o_ext_ref_mul         = ext_ref_mul,
+                o_ext_ref_mul_locked  = ext_ref_mul_locked,
+                o_ext_ref_mul_stopped = ext_ref_mul_stopped,
+                o_ext_ref_rst         = ext_ref_rst,
             )
             self.add_sources()
             platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
@@ -591,6 +604,7 @@ class BaseSoC(LiteXWRNICSoC):
             self.comb += [
                 platform.request("clk10m_out_led").eq(pps_out_valid),
                 platform.request("pps_out_led").eq(led_pps),
+                platform.request("act_out_led").eq(led_link & ~led_act)
             ]
 
         # PCIe NIC ---------------------------------------------------------------------------------
@@ -670,6 +684,27 @@ class BaseSoC(LiteXWRNICSoC):
             "clk3" : ClockSignal("clk10m_in"),
             "clk4" : ClockSignal("clk62m5_in"),
         })
+
+
+        # Debug ------------------------------------------------------------------------------------
+
+        analyzer_signals = [
+            self.pps_in,
+            self.pps_out,
+            self.pps_out_pulse,
+            self.crg.cd_clk10m_in.clk,
+            ext_ref_mul,
+            ext_ref_mul_locked,
+            ext_ref_mul_stopped,
+            ext_ref_rst,
+        ]
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            depth        = 512,
+            clock_domain = "sys",
+            samplerate   = int(125e6),
+            register     = True,
+            csr_csv      = "test/analyzer.csv"
+        )
 
 # Build --------------------------------------------------------------------------------------------
 
