@@ -176,7 +176,7 @@ The WR console/gui should then be available on `/dev/ttyUSB2`:
 ```
 wrc# gui
 
-CLB3 WRPC Monitor wrpc-v5.0-9-g5ac04dd5 | Esc/q = exit; r = redraw
+SPA7 WRPC Monitor wrpc-v5.0-9-g5ac04dd5 | Esc/q = exit; r = redraw
 
 TAI Time: 1970-01-01-00:06:32  UTC offset: 0    PLL mode: BC  state: Locking
 ---+-------------------+-------------------------+---------+---------+-----
