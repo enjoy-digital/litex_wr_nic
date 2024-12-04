@@ -93,9 +93,7 @@ class BaseSoC(LiteXWRNICSoC):
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
         # ----------------
-        with_pcie     = True,
-        with_pcie_ptm = True,
-        with_pcie_nic = True,
+        with_pcie = False,
 
         # White Rabbit Parameters.
         # ------------------------
@@ -144,13 +142,13 @@ class BaseSoC(LiteXWRNICSoC):
         platform.add_period_constraint(self.jtagbone_phy.cd_jtag.clk, 1e9/20e6)
         platform.add_false_path_constraints(self.jtagbone_phy.cd_jtag.clk, self.crg.cd_sys.clk)
 
-        # PCIe -------------------------------------------------------------------------------------
+        # PCIe PHY ---------------------------------------------------------------------------------
 
         if with_pcie:
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
                 data_width  = 64,
                 bar0_size   = 0x20000,
-                with_ptm    = with_pcie_ptm,
+                with_ptm    = True,
                 refclk_freq = 100e6,
             )
             self.pcie_phy.update_config({
@@ -176,15 +174,6 @@ class BaseSoC(LiteXWRNICSoC):
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk0}] -to [get_clocks {clk1}]")
                 platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk1}] -to [get_clocks {clk0}]")
 
-
-            if not with_pcie_nic:
-                self.add_pcie(phy=self.pcie_phy,
-                    ndmas                = 1,
-                    address_width        = 64,
-                    with_ptm             = True,
-                    max_pending_requests = 2,
-                )
-
         # White Rabbit -----------------------------------------------------------------------------
 
         if with_white_rabbit:
@@ -200,9 +189,9 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Signals.
             # --------
-            led_pps  = Signal()
-            led_link = Signal()
-            led_act  = Signal()
+            self.led_pps         = led_pps         = Signal()
+            self.led_link        = led_link        = Signal()
+            self.led_act         = led_act         = Signal()
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -351,26 +340,36 @@ class BaseSoC(LiteXWRNICSoC):
             ]
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
+
             self.ethphy0 = LiteEthPHYWRGMII(wrf_stream2wb, wrf_wb2stream)
 
-            if not with_pcie_nic:
-                self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
-            else:
-                self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
 
-        # PCIe PTM ---------------------------------------------------------------------------------
+        # PCIe NIC ---------------------------------------------------------------------------------
 
-        if with_pcie_ptm:
-            assert with_pcie
-            assert with_white_rabbit
+        if with_pcie and with_white_rabbit:
+            self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
             self.add_pcie_ptm()
 
-            # Time Generator -----------------------------------------------------------------------
+        # Etherbone --------------------------------------------------------------------------------
 
+        if (not with_pcie) and with_white_rabbit:
+            self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
+
+        # Time Generator ---------------------------------------------------------------------------
+
+        if with_pcie and with_white_rabbit:
+            # Time Generator.
             self.time_generator = TimeGenerator(
                 clk_domain = "wr",
                 clk_freq   = 62.5e6,
             )
+
+            # Connect White Rabbit Time Interface to TimeGenerator's Sync Interface.
+            self.comb += [
+                self.time_generator.time_sync.eq(pps_out_pulse),
+                self.time_generator.time_seconds.eq(tm_seconds),
+            ]
+
             # Connect TimeGenerator's Time to PCIe PTM.
             self.comb += [
                 self.ptm_requester.time_clk.eq(ClockSignal("wr")),
@@ -420,7 +419,7 @@ def main():
     parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true")
     parser.add_argument("--with-wishbone-slave-probe",            action="store_true")
     parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
-    parser.add_argument("--with-time-probe",                      action="store_true")
+    parser.add_argument("--with-time-pps-probe",                  action="store_true")
 
     args = parser.parse_args()
 
@@ -441,8 +440,8 @@ def main():
         soc.add_wishbone_slave_probe()
     if args.with_dac_vcxo_probe:
         soc.add_dac_vcxo_probe()
-    if args.with_time_probe:
-        soc.add_time_probe()
+    if args.with_time_pps_probe:
+        soc.add_time_pps_probe()
     builder = Builder(soc, csr_csv="test/csr.csv")
     builder.build(run=args.build)
 
