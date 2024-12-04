@@ -15,6 +15,7 @@ from litex import RemoteClient
 SMA_MAP = {
     "clk10m_out" : 0,
     "pps_out"    : 1,
+    "pps_in"     : 2,
 }
 
 # Macro Delay Configuration ------------------------------------------------------------------------
@@ -28,6 +29,9 @@ def set_macro_delay(bus, channel, macro_value):
     elif channel == 1:
         print(f"Setting macro delay for pps_out to {macro_value}")
         bus.regs.pps_macro_delay_value.write(macro_value)
+    elif channel == 2:
+        print(f"Setting macro delay for pps_in to {macro_value}")
+        bus.regs.pps_in_macro_delay_value.write(macro_value)
 
 # Coarse Delay Configuration -----------------------------------------------------------------------
 
@@ -54,10 +58,10 @@ def set_fine_delay(bus, channel, fine_value):
 
 def main():
     parser = argparse.ArgumentParser(description="Control SyncOut Delays via JTAGBone/Etherbone.")
-    parser.add_argument("--sma",   type=str, choices=["clk10m_out", "pps_out"], help="Select SMA output (clk10m_out or pps_out).")
-    parser.add_argument("--macro", type=int, help="Set macro delay value (in clock cycles).")
-    parser.add_argument("--coarse",type=int, help="Set coarse delay value (0-63).")
-    parser.add_argument("--fine",  type=int, help="Set fine delay value (0-511).")
+    parser.add_argument("--sma",    type=str, choices=["clk10m_out", "pps_out", "pps_in"], help="Select SMA output (clk10m_out, pps_out, or pps_in).")
+    parser.add_argument("--macro",  type=int, help="Set macro delay value (in clock cycles).")
+    parser.add_argument("--coarse", type=int, help="Set coarse delay value (0-63).")
+    parser.add_argument("--fine",   type=int, help="Set fine delay value (0-511).")
 
     args = parser.parse_args()
 

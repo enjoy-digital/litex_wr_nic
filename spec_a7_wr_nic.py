@@ -111,6 +111,10 @@ class BaseSoC(LiteXWRNICSoC):
         white_rabbit_sfp_connector = 0,
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
 
+        # Sync-In Parameters.
+        # -------------------
+        pps_in_macro_delay_default  = 62500000, # 16ns taps (Up to 2**32-1 taps).
+
         # Sync-Out Parameters.
         # --------------------
         # PPS Out (Adjusted over JTAGBone with test/test_delay.py).
@@ -350,9 +354,23 @@ class BaseSoC(LiteXWRNICSoC):
             )
             self.comb += self.crg.cd_clk62m5_in.clk.eq(clk62m5_in)
 
-            # PPS In Logic.
+            # PPS In Detection and Macro Delay.
+            pps_in_d           = Signal()
+            pps_in_pulse       = Signal()
+            pps_in_macro_delay = Signal()
+
             self.comb += platform.request("pps_in_term_en").eq(1) # CHECKME: Make it configurable?
-            self.comb += pps_in.eq(pps_in_pads)
+
+            self.specials += MultiReg(pps_in_pads, pps_in, odomain="wr")
+            self.sync.wr += pps_in_d.eq(pps_in)
+            self.comb += pps_in_pulse.eq(pps_in & ~pps_in_d)
+
+            self.pps_in_macro_delay = MacroDelay(
+                pulse_i = pps_in_pulse,
+                pulse_o = pps_in_macro_delay,
+                clk_domain    = "wr",
+                default_delay = pps_in_macro_delay_default,
+            )
 
             # White Rabbit Core Instance.
             # ---------------------------
@@ -407,7 +425,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # PPS / Leds.
                 o_pps_valid_o         = Open(),
-                i_pps_ext_i           = pps_in,
+                i_pps_ext_i           = pps_in_macro_delay,
                 o_pps_csync_o         = pps_out_pulse,
                 o_pps_p_o             = pps_out,
                 o_pps_led_o           = led_pps,

@@ -360,6 +360,7 @@ class LiteXWRNICSoC(SoCMini):
 
     def add_time_pps_probe(self):
         analyzer_signals = [
+            self.platform.lookup_request("pps_in"),
             self.pps_in,
             self.pps_out,
             self.pps_out_pulse,
