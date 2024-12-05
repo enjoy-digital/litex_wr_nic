@@ -11,6 +11,10 @@ from litex.soc.interconnect import stream
 
 # Clk 10MHz Generator ------------------------------------------------------------------------------
 
+# This module generates a 10MHz clock signal by utilizing a stream gearbox to downscale a 50-bit
+# input into an 8-bit output, producing the desired frequency pattern. The 8-bit output is then
+# serialized using an OSERDESE2 primitive to generate the final 10MHz clock.
+
 class Clk10MGenerator(LiteXModule):
     def __init__(self, pulse_i, clk10m_o, clk_domain="wr"):
         # Gearbox for 50-bit input to 8-bit output.
