@@ -54,8 +54,9 @@ requiring precise timing and basic networking functionality.
 - [> White Rabbit / PTM Demonstration](#-white-rabbit--ptm-demonstration)
 - [> Build and test designs](#-build-and-test-designs)
 - [> Build the WR RISC-V firmware](#-build-the-wr-risc-v-firmware)
-- [> Use LiteX Server and LiteScope](#-use-litex-server-and-litescope)
 - [> Configure Flash Data Base (SDB)](#-configure-flash-data-base-sdb)
+- [> Use LiteX Server and LiteScope](#-use-litex-server-and-litescope)
+- [> Python Tests](#-python-tests)
 - [> Calibrate Sync Out Delays](#-calibrate-sync-out-delays)
 - [> Configure the RF PLL](#-configure-the-rf-pll)
 
@@ -291,6 +292,57 @@ Loading firmware from ../firmware/wrpc-sw/wrc.bin...
 Loading firmware: 100%|██████████████████████████████████| 30270/30270 [00:00<00:00,
 ```
 
+[> Configure Flash Data Base (SDB)
+----------------------------------
+
+The SDB (Simple Database) is a file system used to store configuration parameters in the SPI flash memory of White Rabbit hardware. The SDB typically contains calibration data, SFP module properties, MAC addresses, and other relevant metadata required for proper operation.
+
+### Automatic Integration
+
+A blank SDB template is automatically generated during the firmware build process and integrated into the FPGA flashing. This reserves the required space in the SPI flash but does not include any configuration data. Configuration must be completed manually using the White Rabbit Console (WRC) after flashing.
+
+For example, the gateware build flashes the FPGA bitstream and blank SDB file:
+```python
+# Flash FPGA.
+# -----------
+if args.flash:
+    prog = soc.platform.create_programmer()
+    prog.flash(0x0000_0000, builder.get_bitstream_filename(mode="flash"))  # Flash FPGA bitstream.
+    prog.flash(0x002e_0000, "firmware/sdb-wrpc.bin")                       # Flash blank SDB.
+```
+
+### Configuration Steps for Freshly Flashed Hardware
+
+After flashing the FPGA and blank SDB template, the following steps are typically required to configure the SDB:
+
+1. **Erase Existing Data (if necessary)**
+
+   Before adding new data, ensure the SFP section is clean:
+   ```bash
+   wrc# sfp erase
+   ```
+
+2. **Add SFP Modules**
+
+   Add the SFP module details (e.g., part number and calibration values):
+   ```bash
+   wrc# sfp add AXGE-1254-0531 180750 148326 1235332 333756144
+   wrc# sfp add AXGE-3454-0531 180750 148326 -1235332 333756144
+   ```
+
+3. **Set the MAC Address**
+
+   Configure the MAC address for the network interface:
+   ```bash
+   wrc# mac set 00:1A:2B:3C:4D:5E
+   ```
+
+4. **Verify the Configuration**
+
+   Use WRC commands to confirm the added data has been stored correctly in the flash memory.
+
+For further details, refer to **wrpc-user-manual-v5.0.pdf** and *wrpc-sw/tools/sdbfs.README* in the `wrpc-sw` repository.
+
 [> Use LiteX Server and LiteScope
 ---------------------------------
 
@@ -384,56 +436,33 @@ parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true
 parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
 ```
 
-[> Configure Flash Data Base (SDB)
-----------------------------------
+[> Python Tests
+---------------
 
-The SDB (Simple Database) is a file system used to store configuration parameters in the SPI flash memory of White Rabbit hardware. The SDB typically contains calibration data, SFP module properties, MAC addresses, and other relevant metadata required for proper operation.
+The `test` directory provides a suite of Python scripts designed to exercise different
+functionalities of the system over **LiteX-Server** and **JTAGBone**. These tests allow developers
+to interact with and debug the system's various hardware components, from clock management to DAC
+control and memory-mapped regions. Each test script focuses on a specific subsystem, providing a
+hands-on way to validate and tune the system.
 
-### Automatic Integration
+### Available Tests
 
-A blank SDB template is automatically generated during the firmware build process and integrated into the FPGA flashing. This reserves the required space in the SPI flash but does not include any configuration data. Configuration must be completed manually using the White Rabbit Console (WRC) after flashing.
+| **Test Script**       | **Purpose**                                                                                           |
+|-----------------------|-------------------------------------------------------------------------------------------------------|
+| `test_cpu.py`         | Controls the CPU on the White Rabbit core, including firmware loading, dumping, and manual resets.    |
+| `test_clks.py`        | Measures and displays the frequencies of various clock sources in the system.                        |
+| `test_dacs.py`        | Configures and ramps DAC values for components like RefClk and DMTD, with measurement capabilities.    |
+| `test_delay.py`       | Adjusts and fine-tunes SyncOut delays (macro, coarse, and fine) for PPS and Clk10M outputs.           |
+| `test_mmap.py`        | Dumps memory-mapped regions for diagnostics and debugging.                                            |
+| `test_rf_pll.py`      | Configures the LMX2572 RF PLL, including register writes and full configuration loading.              |
 
-For example, the gateware build flashes the FPGA bitstream and blank SDB file:
-```python
-# Flash FPGA.
-# -----------
-if args.flash:
-    prog = soc.platform.create_programmer()
-    prog.flash(0x0000_0000, builder.get_bitstream_filename(mode="flash"))  # Flash FPGA bitstream.
-    prog.flash(0x002e_0000, "firmware/sdb-wrpc.bin")                       # Flash blank SDB.
+### Running the Tests
+
+Each script is standalone and can be executed directly with Python. The scripts provide various command-line arguments for customization and allow direct interaction with the hardware. For more details on how to use a specific script, run it with the `--help` option, ex:
+
+```sh
+python3 test/test_cpu.py --help
 ```
-
-### Configuration Steps for Freshly Flashed Hardware
-
-After flashing the FPGA and blank SDB template, the following steps are typically required to configure the SDB:
-
-1. **Erase Existing Data (if necessary)**
-
-   Before adding new data, ensure the SFP section is clean:
-   ```bash
-   wrc# sfp erase
-   ```
-
-2. **Add SFP Modules**
-
-   Add the SFP module details (e.g., part number and calibration values):
-   ```bash
-   wrc# sfp add AXGE-1254-0531 180750 148326 1235332 333756144
-   wrc# sfp add AXGE-3454-0531 180750 148326 -1235332 333756144
-   ```
-
-3. **Set the MAC Address**
-
-   Configure the MAC address for the network interface:
-   ```bash
-   wrc# mac set 00:1A:2B:3C:4D:5E
-   ```
-
-4. **Verify the Configuration**
-
-   Use WRC commands to confirm the added data has been stored correctly in the flash memory.
-
-For further details, refer to **wrpc-user-manual-v5.0.pdf** and *wrpc-sw/tools/sdbfs.README* in the `wrpc-sw` repository.
 
 [> Calibrate Sync Out Delays
 ----------------------------
