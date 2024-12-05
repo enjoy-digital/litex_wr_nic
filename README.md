@@ -56,7 +56,7 @@ requiring precise timing and basic networking functionality.
 - [> Build the WR RISC-V firmware](#-build-the-wr-risc-v-firmware)
 - [> Configure Flash Data Base (SDB)](#-configure-flash-data-base-sdb)
 - [> Use LiteX Server and LiteScope](#-use-litex-server-and-litescope)
-- [> Python Tests](#-python-tests)
+- [> JTAGBone Tests](#-jtagbone-tests)
 - [> Calibrate Sync Out Delays](#-calibrate-sync-out-delays)
 - [> Configure the RF PLL](#-configure-the-rf-pll)
 
@@ -461,8 +461,8 @@ parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true
 parser.add_argument("--with-dac-vcxo-probe",                  action="store_true")
 ```
 
-[> Python Tests
----------------
+[> JTAGBone Tests
+-----------------
 
 The `test` directory provides a suite of Python scripts designed to exercise different
 functionalities of the system over **LiteX-Server** and **JTAGBone**. These tests allow developers
