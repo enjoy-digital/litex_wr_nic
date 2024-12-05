@@ -12,6 +12,9 @@ from litex.gen.genlib.misc import WaitTimer
 
 # PPS Generator ------------------------------------------------------------------------------------
 
+# This module generates a Pulse Per Second (PPS) signal with a configurable duty cycle, using a
+# WaitTimer to control the pulse duration. The module operates in a specified clock domain.
+
 class PPSGenerator(LiteXModule):
     def __init__(self, i, o,  clk_domain, clk_freq, duty_cycle=20/100):
         timer = WaitTimer(clk_freq*duty_cycle)
