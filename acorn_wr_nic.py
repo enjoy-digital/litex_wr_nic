@@ -235,6 +235,7 @@ class BaseSoC(LiteXWRNICSoC):
                 with_csr            = False,
             ))
             self.sync.wr += If(dac_refclk_load, self.refclk_controller.control.eq(dac_refclk_data))
+            self.sync.wr += If(self.refclk_controller.control == 0x8000, self.refclk_controller.control.eq(0x9000)) # Hack/FIXME.
 
              # DMTD MMCM Digital "VCXO".
             from gateware.mmcm_freq_controller import MMCMFreqController
@@ -246,13 +247,13 @@ class BaseSoC(LiteXWRNICSoC):
             self.dmtd_mmcm = dmtd_mmcm = S7MMCM()
             dmtd_mmcm.register_clkin(ClockSignal("clk_62m5_dmtd"), 62.5e6)
             dmtd_mmcm.create_clkout(self.cd_dmtd_mmcm, 62.5e6)
-            dmtd_mmcm.expose_dps(with_csr=False)
+            dmtd_mmcm.expose_dps(clk_domain="wr", with_csr=False)
             dmtd_mmcm.params.update(p_CLKOUT0_USE_FINE_PS="TRUE")
 
             # PLL (MMCM Filtering)
             self.pll_dmtd = pll_dmtd = S7PLL()
             pll_dmtd.register_clkin(self.cd_dmtd_mmcm.clk, 62.5e6)
-            pll_dmtd.create_clkout(self.cd_dmtd_pll, 62.5e6)
+            pll_dmtd.create_clkout(self.cd_dmtd_pll, 62.5e6, margin=0)
 
             self.dmtd_controller = ClockDomainsRenamer("wr")(MMCMFreqController( # CHECKME: Clk Domain.
                 mmcm                = self.dmtd_mmcm,
@@ -269,7 +270,10 @@ class BaseSoC(LiteXWRNICSoC):
                 tx_pippm_stepsize,
                 dac_refclk_load,
                 dac_refclk_data,
+                self.refclk_controller.control,
                 self.refclk_controller.fsm,
+                self.refclk_controller.overflow,
+                self.refclk_controller.acc,
 
                 # DMTD.
                 self.dmtd_mmcm.psen,
@@ -277,14 +281,16 @@ class BaseSoC(LiteXWRNICSoC):
                 self.dmtd_mmcm.psdone,
                 dac_dmtd_load,
                 dac_dmtd_data,
+                self.dmtd_controller.control,
                 self.dmtd_controller.fsm,
+                self.dmtd_controller.overflow,
             ]
             self.analyzer = LiteScopeAnalyzer(analyzer_signals,
                 depth        = 1024,
                 clock_domain = "wr",
                 samplerate   = 62.5e6,
                 register     = True,
-                csr_csv      = "analyzer.csv"
+                csr_csv      = "test/analyzer.csv"
             )
 
             # White Rabbit Core Instance.

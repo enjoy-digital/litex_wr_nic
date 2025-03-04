@@ -55,7 +55,7 @@ class MMCMFreqController(LiteXModule):
         k        = int((2**32 / phase_shift_cycles) / (neutral - 1))
         acc      = Signal(32)
         acc_last = Signal(32)
-        overflow = Signal()
+        self.overflow = overflow = Signal()
         self.sync += acc.eq(acc + (magnitude * k))
         self.sync += acc_last.eq(acc)
         self.comb += overflow.eq(acc < acc_last)

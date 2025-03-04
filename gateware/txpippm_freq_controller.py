@@ -55,9 +55,9 @@ class TXPIPPMController(LiteXModule):
         # phase shifts. It’s calculated to ensure that at maximum magnitude (neutral - 1), phase shifts
         # occur approximately every `config_cycles` clock cycles.
         k        = int((2**32 / config_cycles) / (neutral - 1))
-        acc      = Signal(32)
-        acc_last = Signal(32)
-        overflow = Signal()
+        self.acc      = acc = Signal(32)
+        self.acc_last = acc_last = Signal(32)
+        self.overflow = overflow = Signal()
         self.sync += acc.eq(acc + (magnitude * k))
         self.sync += acc_last.eq(acc)
         self.comb += overflow.eq(acc < acc_last)
