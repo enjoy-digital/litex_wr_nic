@@ -83,9 +83,9 @@ class _CRG(LiteXModule):
         pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
         self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
 
-        # DMTD PLL (62.5MHz from VCXO).
-        # -----------------------------
-        pll.create_clkout(self.cd_clk_62m5_dmtd, 125e6, margin=0)
+        # DMTD PLL (62.5MHz).
+        # -------------------
+        pll.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -227,18 +227,40 @@ class BaseSoC(LiteXWRNICSoC):
             from gateware.txpippm_freq_controller import TXPIPPMController
             tx_pippm_en       = Signal()
             tx_pippm_stepsize = Signal(5)
-            self.txpippm_controller = ClockDomainsRenamer("wr")(TXPIPPMController( # CHECKME: Clk Domain.
+            self.refclk_controller = ClockDomainsRenamer("wr")(TXPIPPMController( # CHECKME: Clk Domain.
                 tippm_en            = tx_pippm_en,
                 tippm_stepsize      = tx_pippm_stepsize,
                 config_cycles       = 5,
                 control_width       = 16,
                 with_csr            = False,
             ))
-            self.sync.wr += If(dac_refclk_load, self.txpippm_controller.control.eq(dac_refclk_data))
+            self.sync.wr += If(dac_refclk_load, self.refclk_controller.control.eq(dac_refclk_data))
 
              # DMTD MMCM Digital "VCXO".
-             # TODO.
             from gateware.mmcm_freq_controller import MMCMFreqController
+
+            self.cd_dmtd_mmcm = ClockDomain()
+            self.cd_dmtd_pll  = ClockDomain()
+
+            # MMCM (Dynamic Phase Shift).
+            self.dmtd_mmcm = dmtd_mmcm = S7MMCM()
+            dmtd_mmcm.register_clkin(ClockSignal("clk_62m5_dmtd"), 62.5e6)
+            dmtd_mmcm.create_clkout(self.cd_dmtd_mmcm, 62.5e6)
+            dmtd_mmcm.expose_dps(with_csr=False)
+            dmtd_mmcm.params.update(p_CLKOUT0_USE_FINE_PS="TRUE")
+
+            # PLL (MMCM Filtering)
+            self.pll_dmtd = pll_dmtd = S7PLL()
+            pll_dmtd.register_clkin(self.cd_dmtd_mmcm.clk, 62.5e6)
+            pll_dmtd.create_clkout(self.cd_dmtd_pll, 62.5e6)
+
+            self.dmtd_controller = MMCMFreqController(
+                mmcm                = self.dmtd_mmcm,
+                clk_freq            = sys_clk_freq,
+                phase_shift_cycles  = 13,
+                with_csr            = False
+            )
+            self.sync.wr += If(dac_dmtd_load, self.dmtd_controller.control.eq(dac_dmtd_data))
 
             # White Rabbit Core Instance.
             # ---------------------------
@@ -251,7 +273,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # Clocks/resets.
                 i_areset_n_i          = ~ResetSignal("sys"),
-                i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
+                i_clk_62m5_dmtd_i     = ClockSignal("dmtd_pll"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = 0,
                 o_clk_62m5_sys_o      = ClockSignal("wr"),
