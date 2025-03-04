@@ -482,6 +482,11 @@ class BaseSoC(LiteXWRNICSoC):
                 o_tm_time_valid_o     = tm_time_valid,
                 o_tm_tai_o            = tm_seconds,
                 o_tm_cycles_o         = tm_cycles,
+
+                # TXPI.
+                i_txpippmen       = 0,
+                i_txpippmstepsize = 0,
+
             )
             self.add_sources()
             platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")

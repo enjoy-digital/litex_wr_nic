@@ -192,6 +192,10 @@ class BaseSoC(LiteXWRNICSoC):
             self.led_pps         = led_pps         = Signal()
             self.led_link        = led_link        = Signal()
             self.led_act         = led_act         = Signal()
+            self.dac_refclk_load = dac_refclk_load = Signal()
+            self.dac_refclk_data = dac_refclk_data = Signal(16)
+            self.dac_dmtd_load   = dac_dmtd_load   = Signal()
+            self.dac_dmtd_data   = dac_dmtd_data   = Signal(16)
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -216,6 +220,26 @@ class BaseSoC(LiteXWRNICSoC):
                 cd_to   = "wr",
             )
 
+            # White Rabbit RefClk / DMTD Digital "VCXOs".
+            # -------------------------------------------
+
+            # RefClk TXPI Digital "VCXO".
+            from gateware.txpippm_freq_controller import TXPIPPMController
+            tx_pippm_en       = Signal()
+            tx_pippm_stepsize = Signal(5)
+            self.txpippm_controller = ClockDomainsRenamer("wr")(TXPIPPMController( # CHECKME: Clk Domain.
+                tippm_en            = tx_pippm_en,
+                tippm_stepsize      = tx_pippm_stepsize,
+                config_cycles       = 5,
+                control_width       = 16,
+                with_csr            = False,
+            ))
+            self.sync.wr += If(dac_refclk_load, self.txpippm_controller.control.eq(dac_refclk_data))
+
+             # DMTD MMCM Digital "VCXO".
+             # TODO.
+            from gateware.mmcm_freq_controller import MMCMFreqController
+
             # White Rabbit Core Instance.
             # ---------------------------
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
@@ -234,12 +258,12 @@ class BaseSoC(LiteXWRNICSoC):
                 o_rst_62m5_sys_o      = ResetSignal("wr"),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_load     = Open(),
-                o_dac_refclk_data     = Open(),
+                o_dac_refclk_load     = dac_refclk_load,
+                o_dac_refclk_data     = dac_refclk_data,
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_load       = Open(),
-                o_dac_dmtd_data       = Open(),
+                o_dac_dmtd_load       = dac_dmtd_load,
+                o_dac_dmtd_data       = dac_dmtd_data,
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
@@ -326,6 +350,10 @@ class BaseSoC(LiteXWRNICSoC):
                 o_tm_time_valid_o     = Open(),
                 o_tm_tai_o            = Open(),
                 o_tm_cycles_o         = Open(),
+
+                # TXPI.
+                i_txpippmen       = tx_pippm_en,
+                i_txpippmstepsize = tx_pippm_stepsize,
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
@@ -365,10 +393,10 @@ class BaseSoC(LiteXWRNICSoC):
             )
 
             # Connect White Rabbit Time Interface to TimeGenerator's Sync Interface.
-            self.comb += [
-                self.time_generator.time_sync.eq(pps_out_pulse),
-                self.time_generator.time_seconds.eq(tm_seconds),
-            ]
+            #self.comb += [
+            #    self.time_generator.time_sync.eq(pps_out_pulse),
+            #    self.time_generator.time_seconds.eq(tm_seconds),
+            #]
 
             # Connect TimeGenerator's Time to PCIe PTM.
             self.comb += [

@@ -167,7 +167,10 @@ entity xwrc_board_spec_a7_wrapper is
     gt0_ext_qpll_reset   : out std_logic;
     gt0_ext_qpll_clk     : in  std_logic;
     gt0_ext_qpll_refclk  : in  std_logic;
-    gt0_ext_qpll_lock    : in  std_logic
+    gt0_ext_qpll_lock    : in  std_logic;
+
+    txpippmen       : in std_logic;
+    txpippmstepsize : in std_logic_vector(4 downto 0)
   );
 end xwrc_board_spec_a7_wrapper;
 
@@ -309,7 +312,9 @@ begin
       GT0_EXT_QPLL_RESET   => gt0_ext_qpll_reset,
       GT0_EXT_QPLL_CLK     => gt0_ext_qpll_clk,
       GT0_EXT_QPLL_REFCLK  => gt0_ext_qpll_refclk,
-      GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock
+      GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock,
+      txpippmen            => txpippmen,
+      txpippmstepsize      => txpippmstepsize
     );
 
 end architecture;
