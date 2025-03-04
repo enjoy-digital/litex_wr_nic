@@ -254,13 +254,38 @@ class BaseSoC(LiteXWRNICSoC):
             pll_dmtd.register_clkin(self.cd_dmtd_mmcm.clk, 62.5e6)
             pll_dmtd.create_clkout(self.cd_dmtd_pll, 62.5e6)
 
-            self.dmtd_controller = MMCMFreqController(
+            self.dmtd_controller = ClockDomainsRenamer("wr")(MMCMFreqController( # CHECKME: Clk Domain.
                 mmcm                = self.dmtd_mmcm,
-                clk_freq            = sys_clk_freq,
+                clk_freq            = 62.5e6,
                 phase_shift_cycles  = 13,
                 with_csr            = False
-            )
+            ))
             self.sync.wr += If(dac_dmtd_load, self.dmtd_controller.control.eq(dac_dmtd_data))
+
+            from litescope import LiteScopeAnalyzer
+            analyzer_signals = [
+                # RefClk.
+                tx_pippm_en,
+                tx_pippm_stepsize,
+                dac_refclk_load,
+                dac_refclk_data,
+                self.refclk_controller.fsm,
+
+                # DMTD.
+                self.dmtd_mmcm.psen,
+                self.dmtd_mmcm.psincdec,
+                self.dmtd_mmcm.psdone,
+                dac_dmtd_load,
+                dac_dmtd_data,
+                self.dmtd_controller.fsm,
+            ]
+            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                depth        = 1024,
+                clock_domain = "wr",
+                samplerate   = 62.5e6,
+                register     = True,
+                csr_csv      = "analyzer.csv"
+            )
 
             # White Rabbit Core Instance.
             # ---------------------------
