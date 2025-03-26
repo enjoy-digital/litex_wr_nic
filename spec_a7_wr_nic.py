@@ -500,7 +500,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # PPS Out Valid.
             # --------------
-            # PPS is considered inactive if not PPS pulse from WR for 2s.
+            # PPS is considered inactive if no PPS pulse from WR for 2s.
             pps_out_active_timer = WaitTimer(2.0*62.5e6)
             pps_out_active_timer = ClockDomainsRenamer("wr")(pps_out_active_timer)
             self.submodules += pps_out_active_timer
@@ -541,7 +541,7 @@ class BaseSoC(LiteXWRNICSoC):
             clk10m_out_coarse_delay = Signal()
             self.clk10m_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
-                i   = clk10m_out_gen  & Replicate(pps_out_valid, 8),
+                i   = clk10m_out_gen,
                 o   = clk10m_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 8, # 64-taps.
@@ -612,7 +612,7 @@ class BaseSoC(LiteXWRNICSoC):
             # FrontPanel Leds.
             # ----------------
             self.comb += [
-                platform.request("clk10m_out_led").eq(pps_out_valid),
+                platform.request("clk10m_out_led").eq(1),
                 platform.request("pps_out_led").eq(pps_out_gen & pps_out_valid),
                 platform.request("act_out_led").eq(led_link & ~led_act)
             ]
