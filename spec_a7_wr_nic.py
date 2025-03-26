@@ -498,6 +498,11 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit Sync-Out ----------------------------------------------------------------
 
+            # PPS Free-Running.
+            # -----------------
+            self.pps_freerun = ClockDomainsRenamer("wr")(WaitTimer(int(62.5e6 - 1)))
+            self.comb += self.pps_freerun.wait.eq(~self.pps_freerun.done)
+
             # PPS Out Valid.
             # --------------
             # PPS is considered inactive if no PPS pulse from WR for 2s.
@@ -507,6 +512,19 @@ class BaseSoC(LiteXWRNICSoC):
             self.comb += [
                 pps_out_active_timer.wait.eq(~pps_out),
                 pps_out_valid.eq(~pps_out_active_timer.done),
+            ]
+
+            # PPS WR / Free-Running Selection.
+            # --------------------------------
+            pps_out_pulse_sel = Signal()
+            self.comb += [
+                # Use PPS from WR when active.
+                If(pps_out_valid,
+                    pps_out_pulse_sel.eq(pps_out_pulse)
+                # Else Switch back to Free-Running PPS.
+                ).Else(
+                    pps_out_pulse_sel.eq(self.pps_freerun.done)
+                )
             ]
 
             # Sync-Out PLL.
@@ -523,7 +541,7 @@ class BaseSoC(LiteXWRNICSoC):
             # Clk10M Macro Delay.
             clk10m_out_macro_delay = Signal()
             self.clk10m_macro_delay = MacroDelay(
-                pulse_i = pps_out_pulse,
+                pulse_i = pps_out_pulse_sel,
                 pulse_o = clk10m_out_macro_delay,
                 clk_domain    = "wr",
                 default_delay = clk10m_out_macro_delay_default,
@@ -562,7 +580,7 @@ class BaseSoC(LiteXWRNICSoC):
             # PPS Macro Delay.
             pps_out_macro_delay = Signal()
             self.pps_out_macro_delay = MacroDelay(
-                pulse_i = pps_out_pulse,
+                pulse_i = pps_out_pulse_sel,
                 pulse_o = pps_out_macro_delay,
                 clk_domain    = "wr",
                 default_delay = pps_out_macro_delay_default,
@@ -582,7 +600,7 @@ class BaseSoC(LiteXWRNICSoC):
             pps_out_coarse_delay   = Signal()
             self.pps_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
-                i   = pps_out_gen & pps_out_valid,
+                i   = pps_out_gen,
                 o   = pps_out_coarse_delay,
                 clk_domain = "wr",
                 clk_cycles = 8, # 64-taps.
@@ -613,7 +631,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ----------------
             self.comb += [
                 platform.request("clk10m_out_led").eq(1),
-                platform.request("pps_out_led").eq(pps_out_gen & pps_out_valid),
+                platform.request("pps_out_led").eq(pps_out_gen),
                 platform.request("act_out_led").eq(led_link & ~led_act)
             ]
 
