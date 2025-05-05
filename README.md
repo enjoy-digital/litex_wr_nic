@@ -13,6 +13,8 @@
 [> Intro
 --------
 
+![](doc/spec_a7.jpg)
+
 This project implements a LiteX-based White Rabbit NIC, combining networking and synchronization
 features with support for PCIe Precision Time Measurement (PTM). The design enables White Rabbit
 (WR) synchronization to be propagated to the host and other PTM-compatible systems while providing
