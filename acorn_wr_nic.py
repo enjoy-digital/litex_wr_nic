@@ -77,15 +77,37 @@ class _CRG(LiteXModule):
         pll.register_clkin(clk200, 200e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
 
+        if with_white_rabbit:
+            from gateware.tunning_mmcm import TunningMMCM
+            self.cd_wr = ClockDomain("wr")
+            self.cd_clk200m = ClockDomain("clk200m")
+            self.comb += ClockSignal("clk200m").eq(pll.clkin)
 
-        # RefClk Input (125MHz).
-        # ----------------------
-        pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
-        self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+            self.main_tunning_mmcm = TunningMMCM(
+                    cd_psclk = "clk200m",
+                    cd_sys = "wr",
+                    )
+            self.comb += self.main_tunning_mmcm.reset.eq(self.rst)
+            self.main_tunning_mmcm.register_clkin(ClockSignal("clk200m"), 200e6)
+            self.main_tunning_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
 
-        # DMTD PLL (62.5MHz).
-        # -------------------
-        pll.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
+            self.dmtd_tunning_mmcm = TunningMMCM(
+                    cd_psclk = "clk200m",
+                    cd_sys = "wr",
+                    )
+            self.comb += self.dmtd_tunning_mmcm.reset.eq(self.rst)
+            self.dmtd_tunning_mmcm.register_clkin(ClockSignal("clk200m"), 200e6)
+            self.dmtd_tunning_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
+        else:
+            # RefClk Input (125MHz).
+            # ----------------------
+            pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+
+            # DMTD PLL (62.5MHz).
+            # -------------------
+            pll.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -177,9 +199,6 @@ class BaseSoC(LiteXWRNICSoC):
         # White Rabbit -----------------------------------------------------------------------------
 
         if with_white_rabbit:
-            # Clks.
-            # -----
-            self.cd_wr = ClockDomain("wr")
 
             # Pads.
             # -----
@@ -192,10 +211,6 @@ class BaseSoC(LiteXWRNICSoC):
             self.led_pps         = led_pps         = Signal()
             self.led_link        = led_link        = Signal()
             self.led_act         = led_act         = Signal()
-            self.dac_refclk_load = dac_refclk_load = Signal()
-            self.dac_refclk_data = dac_refclk_data = Signal(16)
-            self.dac_dmtd_load   = dac_dmtd_load   = Signal()
-            self.dac_dmtd_data   = dac_dmtd_data   = Signal(16)
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -220,103 +235,31 @@ class BaseSoC(LiteXWRNICSoC):
                 cd_to   = "wr",
             )
 
-            # White Rabbit RefClk / DMTD Digital "VCXOs".
-            # -------------------------------------------
-
-            # RefClk TXPI Digital "VCXO".
-            from gateware.txpippm_freq_controller import TXPIPPMController
-            tx_pippm_en       = Signal()
-            tx_pippm_stepsize = Signal(5)
-            self.refclk_controller = ClockDomainsRenamer("wr")(TXPIPPMController( # CHECKME: Clk Domain.
-                tippm_en            = tx_pippm_en,
-                tippm_stepsize      = tx_pippm_stepsize,
-                config_cycles       = 5,
-                control_width       = 16,
-                with_csr            = False,
-            ))
-            self.sync.wr += If(dac_refclk_load, self.refclk_controller.control.eq(dac_refclk_data))
-            self.sync.wr += If(self.refclk_controller.control == 0x8000, self.refclk_controller.control.eq(0x9000)) # Hack/FIXME.
-
-             # DMTD MMCM Digital "VCXO".
-            from gateware.mmcm_freq_controller import MMCMFreqController
-
-            self.cd_dmtd_mmcm = ClockDomain()
-            self.cd_dmtd_pll  = ClockDomain()
-
-            # MMCM (Dynamic Phase Shift).
-            self.dmtd_mmcm = dmtd_mmcm = S7MMCM()
-            dmtd_mmcm.register_clkin(ClockSignal("clk_62m5_dmtd"), 62.5e6)
-            dmtd_mmcm.create_clkout(self.cd_dmtd_mmcm, 62.5e6)
-            dmtd_mmcm.expose_dps(clk_domain="wr", with_csr=False)
-            dmtd_mmcm.params.update(p_CLKOUT0_USE_FINE_PS="TRUE")
-
-            # PLL (MMCM Filtering)
-            self.pll_dmtd = pll_dmtd = S7PLL()
-            pll_dmtd.register_clkin(self.cd_dmtd_mmcm.clk, 62.5e6)
-            pll_dmtd.create_clkout(self.cd_dmtd_pll, 62.5e6, margin=0)
-
-            self.dmtd_controller = ClockDomainsRenamer("wr")(MMCMFreqController( # CHECKME: Clk Domain.
-                mmcm                = self.dmtd_mmcm,
-                clk_freq            = 62.5e6,
-                phase_shift_cycles  = 13,
-                with_csr            = False
-            ))
-            self.sync.wr += If(dac_dmtd_load, self.dmtd_controller.control.eq(dac_dmtd_data))
-
-            from litescope import LiteScopeAnalyzer
-            analyzer_signals = [
-                # RefClk.
-                tx_pippm_en,
-                tx_pippm_stepsize,
-                dac_refclk_load,
-                dac_refclk_data,
-                self.refclk_controller.control,
-                self.refclk_controller.fsm,
-                self.refclk_controller.overflow,
-                self.refclk_controller.acc,
-
-                # DMTD.
-                self.dmtd_mmcm.psen,
-                self.dmtd_mmcm.psincdec,
-                self.dmtd_mmcm.psdone,
-                dac_dmtd_load,
-                dac_dmtd_data,
-                self.dmtd_controller.control,
-                self.dmtd_controller.fsm,
-                self.dmtd_controller.overflow,
-            ]
-            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                depth        = 1024,
-                clock_domain = "wr",
-                samplerate   = 62.5e6,
-                register     = True,
-                csr_csv      = "test/analyzer.csv"
-            )
-
             # White Rabbit Core Instance.
             # ---------------------------
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = os.path.abspath(white_rabbit_cpu_firmware),
-                p_g_dpram_size        = 131072/4,
+                p_g_with_external_clock_input = "FALSE",
+                p_g_dpram_size        = 131072//4,
                 p_txpolarity          = 0, # Inverted on Acorn and on baseboard.
                 p_rxpolarity          = 1, # Inverted on Acorn.
 
                 # Clocks/resets.
                 i_areset_n_i          = ~ResetSignal("sys"),
-                i_clk_62m5_dmtd_i     = ClockSignal("dmtd_pll"),
+                i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
                 i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
                 i_clk_10m_ext_i       = 0,
                 o_clk_62m5_sys_o      = ClockSignal("wr"),
                 o_rst_62m5_sys_o      = ResetSignal("wr"),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_load     = dac_refclk_load,
-                o_dac_refclk_data     = dac_refclk_data,
+                o_dac_refclk_load     = self.crg.main_tunning_mmcm.ctrl_load,
+                o_dac_refclk_data     = self.crg.main_tunning_mmcm.ctrl_data,
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_load       = dac_dmtd_load,
-                o_dac_dmtd_data       = dac_dmtd_data,
+                o_dac_dmtd_load       = self.crg.dmtd_tunning_mmcm.ctrl_load,
+                o_dac_dmtd_data       = self.crg.dmtd_tunning_mmcm.ctrl_data,
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
@@ -405,8 +348,8 @@ class BaseSoC(LiteXWRNICSoC):
                 o_tm_cycles_o         = Open(),
 
                 # TXPI.
-                i_txpippmen       = tx_pippm_en,
-                i_txpippmstepsize = tx_pippm_stepsize,
+                i_txpippmen       = 0, # tx_pippm_en,
+                i_txpippmstepsize = 0, # tx_pippm_stepsize,
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             self.add_sources()
