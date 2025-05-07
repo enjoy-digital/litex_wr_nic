@@ -462,7 +462,7 @@ def main():
     # ---------------
     if args.build:
         print("Building firmware...")
-        r = os.system("cd firmware && ./build.py")
+        r = os.system("cd firmware && ./build.py --target acorn")
         if r != 0:
             raise RuntimeError("Firmware build failed.")
 
