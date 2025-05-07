@@ -8,9 +8,11 @@
 import os
 import subprocess
 
+from litex.build import tools
+
 # WR Core Init -------------------------------------------------------------------------------------
 
-WR_CORES_URL    = "https://ohwr.org/project/wr-cores.git"
+WR_CORES_URL    = "https://gitlab.com/ohwr/project/wr-cores.git"
 WR_CORES_BRANCH = "wrpc-v5"
 WR_CORES_SHA1   = "39825ec55291cb12492090093f27a50f9d0b73d9"
 
@@ -20,6 +22,8 @@ def wr_core_init():
     os.chdir("wr-cores")
     print("Checking out the specified commit...")
     subprocess.run(["git", "checkout", WR_CORES_SHA1, "-b", WR_CORES_BRANCH])
+    print("Fixing submodules URL...")
+    tools.replace_in_file(".gitmodules", "ohwr.org", "gitlab.com/ohwr")
     print("Updating submodules...")
     subprocess.run(["git", "submodule", "update", "--init"])
     print("wr-cores initialization complete.")
