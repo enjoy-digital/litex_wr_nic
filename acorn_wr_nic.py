@@ -192,6 +192,8 @@ class BaseSoC(LiteXWRNICSoC):
             self.led_pps         = led_pps         = Signal()
             self.led_link        = led_link        = Signal()
             self.led_act         = led_act         = Signal()
+            self.pps_out_pulse   = pps_out_pulse   = Signal()
+            self.tm_seconds      = tm_seconds      = Signal(40)
 
             # White Rabbit Fabric Interface.
             # ------------------------------
@@ -270,7 +272,7 @@ class BaseSoC(LiteXWRNICSoC):
                 # PPS / Leds.
                 o_pps_valid_o         = Open(),
                 i_pps_ext_i           = 0,
-                o_pps_csync_o         = Open(),
+                o_pps_csync_o         = pps_out_pulse,
                 o_pps_p_o             = Open(),
                 o_pps_led_o           = led_pps,
                 o_led_link_o          = led_link,
@@ -324,7 +326,7 @@ class BaseSoC(LiteXWRNICSoC):
                 # Time.
                 o_tm_link_up_o        = Open(),
                 o_tm_time_valid_o     = Open(),
-                o_tm_tai_o            = Open(),
+                o_tm_tai_o            = tm_seconds,
                 o_tm_cycles_o         = Open(),
             )
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
