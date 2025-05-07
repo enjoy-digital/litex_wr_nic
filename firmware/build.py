@@ -14,11 +14,11 @@ import subprocess
 
 # Toolchain and firmware variables -----------------------------------------------------------------
 
-TOOLCHAIN_URL     = "https://ohwr.org/project/wrpc-sw/wikis/uploads/9f9224d2249848ed3e854636de9c08dc/riscv-11.2-small.tgz"
+TOOLCHAIN_URL     = "https://gitlab.com/ohwr/project/wrpc-sw/-/wikis/uploads/9f9224d2249848ed3e854636de9c08dc/riscv-11.2-small.tgz"
 TOOLCHAIN_ARCHIVE = "riscv-11.2-small.tgz"
 TOOLCHAIN_DIR     = "riscv-11.2-small"
 
-REPO_URL          = "https://ohwr.org/project/wrpc-sw.git"
+REPO_URL          = "https://gitlab.com/ohwr/project/wrpc-sw.git"
 CLONE_DIR         = "wrpc-sw"
 
 COMMIT_HASH       = "5ac04dd53a16f3931c3cb8361dc0d6bdbbf82dc6"
