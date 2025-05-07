@@ -204,10 +204,10 @@ class BaseSoC(LiteXWRNICSoC):
             # -----
             sfp_pads     = platform.request("sfp",     white_rabbit_sfp_connector)
             sfp_i2c_pads = platform.request("sfp_i2c", white_rabbit_sfp_connector)
-            serial_pads  = platform.request("serial")
 
             # Signals.
             # --------
+            self.pps             = pps             = Signal()
             self.led_pps         = led_pps         = Signal()
             self.led_link        = led_link        = Signal()
             self.led_act         = led_act         = Signal()
@@ -291,7 +291,7 @@ class BaseSoC(LiteXWRNICSoC):
                 o_pps_valid_o         = Open(),
                 i_pps_ext_i           = 0,
                 o_pps_csync_o         = Open(),
-                o_pps_p_o             = Open(),
+                o_pps_p_o             = pps,
                 o_pps_led_o           = led_pps,
                 o_led_link_o          = led_link,
                 o_led_act_o           = led_act,
@@ -362,6 +362,10 @@ class BaseSoC(LiteXWRNICSoC):
                 platform.request("user_led", 1).eq(~led_act),
                 platform.request("user_led", 2).eq(~led_pps),
             ]
+
+            self.comb += platform.request("debug", 0).eq(
+                    Cat(pps, 0, ClockSignal("wr"), 0)
+                    )
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 

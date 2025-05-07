@@ -4,7 +4,7 @@ from litex.gen import *
 from litex.soc.cores.clock import S7PLL, S7MMCM
 
 class TunningMMCM(S7MMCM):
-    def __init__(self, cd_psclk, cd_sys, ctrl_size=16, mult=1, div=1, speedgrade=-3):
+    def __init__(self, cd_psclk, cd_sys, ctrl_size=16, mult=7, div=16, speedgrade=-3):
         self.ctrl_data = Signal(ctrl_size)
         self.ctrl_load = Signal()
         super().__init__(speedgrade)
