@@ -7,10 +7,13 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import argparse
 import os
 import shutil
 import tarfile
 import subprocess
+
+from litex.build import tools
 
 # Toolchain and firmware variables -----------------------------------------------------------------
 
@@ -64,9 +67,16 @@ def clone_repository():
     if not os.path.exists(CLONE_DIR):
         run_command(f"git clone {REPO_URL} --recursive")
 
-def checkout_commit():
+def checkout_commit(target="spec_a7"):
     """Checkout the specific commit in the repository."""
+    # Ensure no kp/ki modifications.
+    run_command(f"git checkout softpll/spll_main.c", cwd=CLONE_DIR)
     run_command(f"git checkout {COMMIT_HASH}", cwd=CLONE_DIR)
+
+    # For Acorn: adapts kp/ki.
+    if target != "spec_a7":
+        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.kp = -1100;", "s->pi.kp = -150;")
+        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.ki = -30;", "s->pi.ki = -2;")
 
 def copy_config_file():
     """Copy the configuration file to the repository."""
@@ -108,10 +118,14 @@ def build_sdbfs():
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
+    parser = argparse.ArgumentParser(description="LiteX-WR-NIC on Acorn Baseboard Mini.")
+    parser.add_argument("--target", default="spec_a7", help="Target Board.", choices=["spec_a7", "acorn"])
+    args = parser.parse_args()
+
     init_riscv_toolchain()
     check_riscv_toolchain()
     clone_repository()
-    checkout_commit()
+    checkout_commit(args.target)
     copy_config_file()
     build_firmware()
     copy_firmware()

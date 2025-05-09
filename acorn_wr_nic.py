@@ -77,15 +77,41 @@ class _CRG(LiteXModule):
         pll.register_clkin(clk200, 200e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
 
+        if with_white_rabbit:
+            from gateware.tunning_mmcm import TunningMMCM
+            self.cd_wr      = ClockDomain("wr")
+            self.cd_clk200m = ClockDomain("clk200m")
+            self.comb += ClockSignal("clk200m").eq(pll.clkin)
 
-        # RefClk Input (125MHz).
-        # ----------------------
-        pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
-        self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+            # RefClk Input (125MHz).
+            # ----------------------
+            self.main_tunning_mmcm = TunningMMCM(
+                cd_psclk = "clk200m",
+                cd_sys   = "wr",
+            )
+            self.comb += self.main_tunning_mmcm.reset.eq(self.rst)
+            self.main_tunning_mmcm.register_clkin(ClockSignal("clk200m"), 200e6)
+            self.main_tunning_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
 
-        # DMTD PLL (62.5MHz from VCXO).
-        # -----------------------------
-        pll.create_clkout(self.cd_clk_62m5_dmtd, 125e6, margin=0)
+            # DMTD PLL (62.5MHz).
+            # -------------------
+            self.dmtd_tunning_mmcm = TunningMMCM(
+                cd_psclk = "clk200m",
+                cd_sys   = "wr",
+            )
+            self.comb += self.dmtd_tunning_mmcm.reset.eq(self.rst)
+            self.dmtd_tunning_mmcm.register_clkin(ClockSignal("clk200m"), 200e6)
+            self.dmtd_tunning_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
+        else:
+            # RefClk Input (125MHz).
+            # ----------------------
+            pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+
+            # DMTD PLL (62.5MHz).
+            # -------------------
+            pll.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -106,6 +132,10 @@ class BaseSoC(LiteXWRNICSoC):
 
         platform = sqrl_acorn.Platform()
         platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
+        platform.add_extension([
+            ("pps_out",    0, Pins("H5"), IOStandard("LVCMOS33")),
+            ("wr_clk_out", 0, Pins("J5"), IOStandard("LVCMOS33")),
+        ])
 
         # Clocking ---------------------------------------------------------------------------------
 
@@ -177,10 +207,6 @@ class BaseSoC(LiteXWRNICSoC):
         # White Rabbit -----------------------------------------------------------------------------
 
         if with_white_rabbit:
-            # Clks.
-            # -----
-            self.cd_wr = ClockDomain("wr")
-
             # Pads.
             # -----
             sfp_pads     = platform.request("sfp",     white_rabbit_sfp_connector)
@@ -189,6 +215,7 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Signals.
             # --------
+            self.pps             = pps             = Signal()
             self.led_pps         = led_pps         = Signal()
             self.led_link        = led_link        = Signal()
             self.led_act         = led_act         = Signal()
@@ -223,7 +250,8 @@ class BaseSoC(LiteXWRNICSoC):
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
                 # Parameters.
                 p_g_dpram_initf       = os.path.abspath(white_rabbit_cpu_firmware),
-                p_g_dpram_size        = 131072/4,
+                p_g_with_external_clock_input = "FALSE",
+                p_g_dpram_size        = 131072//4,
                 p_txpolarity          = 0, # Inverted on Acorn and on baseboard.
                 p_rxpolarity          = 1, # Inverted on Acorn.
 
@@ -236,12 +264,12 @@ class BaseSoC(LiteXWRNICSoC):
                 o_rst_62m5_sys_o      = ResetSignal("wr"),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_load     = Open(),
-                o_dac_refclk_data     = Open(),
+                o_dac_refclk_load     = self.crg.main_tunning_mmcm.ctrl_load,
+                o_dac_refclk_data     = self.crg.main_tunning_mmcm.ctrl_data,
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_load       = Open(),
-                o_dac_dmtd_data       = Open(),
+                o_dac_dmtd_load       = self.crg.dmtd_tunning_mmcm.ctrl_load,
+                o_dac_dmtd_data       = self.crg.dmtd_tunning_mmcm.ctrl_data,
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
@@ -273,7 +301,7 @@ class BaseSoC(LiteXWRNICSoC):
                 o_pps_valid_o         = Open(),
                 i_pps_ext_i           = 0,
                 o_pps_csync_o         = pps_out_pulse,
-                o_pps_p_o             = Open(),
+                o_pps_p_o             = pps,
                 o_pps_led_o           = led_pps,
                 o_led_link_o          = led_link,
                 o_led_act_o           = led_act,
@@ -334,12 +362,17 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
 
-            # Leds Output.
             self.comb += [
+                # Leds Output.
                 platform.request("user_led", 0).eq(~led_link),
                 platform.request("user_led", 1).eq(~led_act),
                 platform.request("user_led", 2).eq(~led_pps),
+
+                # PPS/Clk Output.
+                platform.request("pps_out").eq(pps),
+                platform.request("wr_clk_out").eq(ClockSignal("wr")),
             ]
+
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 
@@ -429,7 +462,7 @@ def main():
     # ---------------
     if args.build:
         print("Building firmware...")
-        r = os.system("cd firmware && ./build.py")
+        r = os.system("cd firmware && ./build.py --target acorn")
         if r != 0:
             raise RuntimeError("Firmware build failed.")
 
