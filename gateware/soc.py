@@ -232,6 +232,24 @@ class LiteXWRNICSoC(SoCMini):
             sys_clk_freq     = self.sys_clk_freq,
         )
 
+        # Sniffer Post-Synthesis connections.
+        # -----------------------------------
+        pcie_ptm_sniffer_connections = []
+        for n in range(2):
+            pcie_ptm_sniffer_connections.append((
+                f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_k_wire_filter[{n}]", # Src.
+                f"sniffer_tap/rx_ctl_in[{n}]",                               # Dst.
+            ))
+        for n in range(16):
+            pcie_ptm_sniffer_connections.append((
+                f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_wire_filter[{n}]", # Src.
+                f"sniffer_tap/rx_data_in[{n}]",                            # Dst.
+            ))
+        for _from, _to in pcie_ptm_sniffer_connections:
+            self.platform.toolchain.pre_optimize_commands.append(f"set pin_driver [get_nets -of [get_pins {_to}]]")
+            self.platform.toolchain.pre_optimize_commands.append(f"disconnect_net -net $pin_driver -objects {_to}")
+            self.platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net {_from} -objects {_to}")
+
     # Add Sources ----------------------------------------------------------------------------------
 
     def add_sources(self):
