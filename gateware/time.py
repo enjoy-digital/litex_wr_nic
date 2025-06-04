@@ -21,6 +21,7 @@ class TimeGenerator(LiteXModule):
         self.sync_enable = Signal()
         self.write       = Signal()
         self.write_time  = Signal(64)
+        self.time_inc    = Signal(32, reset=int(1e9/clk_freq) << 24)
 
         # Time Sync Interface.
         self.time_sync    = Signal()
@@ -30,6 +31,7 @@ class TimeGenerator(LiteXModule):
 
         # Time Signals.
         self.time = time = Signal(64)
+        self.frac = frac = Signal(24)
 
         # Time Clk Domain.
         self.cd_time = ClockDomain()
@@ -43,15 +45,18 @@ class TimeGenerator(LiteXModule):
             # Disable: Reset Time to 0.
             If(~self.enable,
                 time.eq(0),
+                frac.eq(0),
             # Software Write.
             ).Elif(self.write,
                 time.eq(self.write_time),
+                frac.eq(0),
             # Time Sync.
             ).Elif(self.sync_enable & self.time_sync,
                 time.eq(((self.time_seconds + 1)* int(1e9))),
+                frac.eq(0),
             # Increment.
             ).Else(
-                time.eq(time + int(1e9/clk_freq)),
+                Cat(frac, time).eq(Cat(frac, time) + self.time_inc),
             )
         ]
 
@@ -74,6 +79,7 @@ class TimeGenerator(LiteXModule):
         ])
         self._read_time  = CSRStatus(64,  description="Read Time  (ns) (FPGA Time -> SW).")
         self._write_time = CSRStorage(64, description="Write Time (ns) (SW Time -> FPGA).")
+        self._time_inc   = CSRStorage(32, reset=self.time_inc.reset, description="Time Increment in ns per tick (Q8.24 format).")
 
         # # #
 
@@ -97,3 +103,6 @@ class TimeGenerator(LiteXModule):
         self.submodules += time_write_ps
         self.comb += time_write_ps.i.eq(self._control.fields.write)
         self.comb += self.write.eq(time_write_ps.o)
+
+        # Time Increment.
+        self.specials += MultiReg(self._time_inc.storage, self.time_inc, "time")
