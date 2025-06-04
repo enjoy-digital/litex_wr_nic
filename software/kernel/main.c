@@ -886,11 +886,29 @@ static int litepcie_ptp_settime(struct ptp_clock_info *ptp, const struct timespe
 }
 
 /* PTP clock operation: Adjust the frequency by scaled parts per million */
-/* Currently not supported, returns error if scaled_ppm is non-zero */
 static int litepcie_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
-	if (scaled_ppm != 0)
-		return -EOPNOTSUPP;
+	struct litepcie_device *dev = container_of(ptp, struct litepcie_device,
+							   ptp_caps);
+    unsigned long flags;
+
+    /* Acquire lock to prevent concurrent access */
+    spin_lock_irqsave(&dev->tmreg_lock, flags);
+
+    /* Convert scaled_ppm (Q16.16) → Signed ppb */
+    int64_t ppb = (scaled_ppm * 1000LL) >> 16; /* *1000 / 65536 */
+
+    /* Nominal step = 8 ns << 24 */
+    uint32_t add_nom = 0x08000000U;
+
+    /* Compute add_new = add_nom * (1 + ppb / 1e9) */
+    uint64_t add_new = div64_u64((uint64_t)add_nom * (1000000000LL + ppb), 1000000000LL);
+
+    /* Update Step with add_new */
+    litepcie_writel(dev, CSR_TIME_GENERATOR_TIME_INC_ADDR, (uint32_t) add_new);
+
+    /* Release lock */
+    spin_unlock_irqrestore(&dev->tmreg_lock, flags);
 
     return 0;
 }
