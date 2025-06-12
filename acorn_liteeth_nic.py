@@ -87,7 +87,10 @@ class BaseSoC(LiteXWRNICSoC):
 
         # SoCMini ----------------------------------------------------------------------------------
 
-        SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Acorn CLE-101/215(+)", ident_version=True)
+        SoCMini.__init__(self, platform, sys_clk_freq,
+            ident         = "LitePCIe/LiteEth NIC with LiteX Acorn Baseboard Mini",
+            ident_version = True,
+        )
 
         # JTAGBone ---------------------------------------------------------------------------------
 
@@ -112,7 +115,7 @@ class BaseSoC(LiteXWRNICSoC):
         platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
         platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
-        # Ethernet ---------------------------------------------------------------------------------
+        # Ethernet 0 -------------------------------------------------------------------------------
 
         self.ethphy0 = A7_1000BASEX(
             qpll_channel = self.qpll.get_channel("eth"),
@@ -124,6 +127,8 @@ class BaseSoC(LiteXWRNICSoC):
         self.platform.add_period_constraint(self.ethphy0.txoutclk, 1e9/62.5e6)
         self.platform.add_period_constraint(self.ethphy0.rxoutclk, 1e9/62.5e6)
         platform.add_false_path_constraints(self.ethphy0.txoutclk, self.ethphy0.rxoutclk, self.crg.cd_sys.clk)
+
+        # Ethernet 1 -------------------------------------------------------------------------------
 
         self.ethphy1 = A7_1000BASEX(
             qpll_channel = self.qpll.get_channel("eth"),
