@@ -52,6 +52,7 @@ from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
 from gateware.pps               import PPSGenerator
 from gateware.clk10m            import Clk10MGenerator
 from gateware.nic.phy           import LiteEthPHYWRGMII
+from gateware.tunning_mmcm      import TunningMMCM
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -59,6 +60,7 @@ class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, with_white_rabbit=True):
         self.rst              = Signal()
         self.cd_sys           = ClockDomain()
+        self.cd_clk200        = ClockDomain()
         self.cd_refclk_pcie   = ClockDomain()
         self.cd_refclk_eth    = ClockDomain()
         self.cd_clk_125m_gtp  = ClockDomain()
@@ -76,33 +78,31 @@ class _CRG(LiteXModule):
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200, 200e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
+        self.comb += self.cd_clk200.clk.eq(pll.clkin)
 
         if with_white_rabbit:
-            from gateware.tunning_mmcm import TunningMMCM
-            self.cd_wr      = ClockDomain("wr")
-            self.cd_clk200m = ClockDomain("clk200m")
-            self.comb += ClockSignal("clk200m").eq(pll.clkin)
+            self.cd_wr = ClockDomain("wr")
 
-            # RefClk Input (125MHz).
-            # ----------------------
-            self.main_tunning_mmcm = TunningMMCM(
-                cd_psclk = "clk200m",
+            # RefClk MMCM (125MHz).
+            # ---------------------
+            self.refclk_mmcm = TunningMMCM(
+                cd_psclk = "clk200",
                 cd_sys   = "wr",
             )
-            self.comb += self.main_tunning_mmcm.reset.eq(self.rst)
-            self.main_tunning_mmcm.register_clkin(ClockSignal("clk200m"), 200e6)
-            self.main_tunning_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+            self.comb += self.refclk_mmcm.reset.eq(self.rst)
+            self.refclk_mmcm.register_clkin(clk200, 200e6)
+            self.refclk_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
             self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
 
-            # DMTD PLL (62.5MHz).
-            # -------------------
-            self.dmtd_tunning_mmcm = TunningMMCM(
-                cd_psclk = "clk200m",
+            # DMTD MMCM (62.5MHz).
+            # --------------------
+            self.dmtd_mmcm = TunningMMCM(
+                cd_psclk = "clk200",
                 cd_sys   = "wr",
             )
-            self.comb += self.dmtd_tunning_mmcm.reset.eq(self.rst)
-            self.dmtd_tunning_mmcm.register_clkin(ClockSignal("clk200m"), 200e6)
-            self.dmtd_tunning_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
+            self.comb += self.dmtd_mmcm.reset.eq(self.rst)
+            self.dmtd_mmcm.register_clkin(clk200, 200e6)
+            self.dmtd_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
         else:
             # RefClk Input (125MHz).
             # ----------------------
@@ -264,12 +264,12 @@ class BaseSoC(LiteXWRNICSoC):
                 o_rst_62m5_sys_o      = ResetSignal("wr"),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_load     = self.crg.main_tunning_mmcm.ctrl_load,
-                o_dac_refclk_data     = self.crg.main_tunning_mmcm.ctrl_data,
+                o_dac_refclk_load     = self.crg.refclk_mmcm.ctrl_load,
+                o_dac_refclk_data     = self.crg.refclk_mmcm.ctrl_data,
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_load       = self.crg.dmtd_tunning_mmcm.ctrl_load,
-                o_dac_dmtd_data       = self.crg.dmtd_tunning_mmcm.ctrl_data,
+                o_dac_dmtd_load       = self.crg.dmtd_mmcm.ctrl_load,
+                o_dac_dmtd_data       = self.crg.dmtd_mmcm.ctrl_data,
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
