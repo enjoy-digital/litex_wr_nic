@@ -52,7 +52,6 @@ from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
 from gateware.pps               import PPSGenerator
 from gateware.clk10m            import Clk10MGenerator
 from gateware.nic.phy           import LiteEthPHYWRGMII
-from gateware.tunning_mmcm      import TunningMMCM
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -80,30 +79,24 @@ class _CRG(LiteXModule):
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
         self.comb += self.cd_clk200.clk.eq(pll.clkin)
 
-        if with_white_rabbit:
-            # RefClk MMCM (125MHz).
-            # ---------------------
-            self.refclk_mmcm = TunningMMCM(speedgrade=-3)
-            self.comb += self.refclk_mmcm.reset.eq(self.rst)
-            self.refclk_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
-            self.refclk_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
-            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
+        # RefClk MMCM (125MHz).
+        # ---------------------
+        self.refclk_mmcm = S7MMCM(speedgrade=-3)
+        self.comb += self.refclk_mmcm.reset.eq(self.rst)
+        self.refclk_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
+        self.refclk_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
+        self.refclk_mmcm.expose_dps("clk200", with_csr=False)
+        self.refclk_mmcm.params.update(p_CLKOUT0_USE_FINE_PS="TRUE")
+        self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
 
-            # DMTD MMCM (62.5MHz).
-            # --------------------
-            self.dmtd_mmcm = TunningMMCM(speedgrade=-3)
-            self.comb += self.dmtd_mmcm.reset.eq(self.rst)
-            self.dmtd_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
-            self.dmtd_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
-        else:
-            # RefClk Input (125MHz).
-            # ----------------------
-            pll.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
-            self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
-
-            # DMTD PLL (62.5MHz).
-            # -------------------
-            pll.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
+        # DMTD MMCM (62.5MHz).
+        # --------------------
+        self.dmtd_mmcm = S7MMCM(speedgrade=-3)
+        self.comb += self.dmtd_mmcm.reset.eq(self.rst)
+        self.dmtd_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
+        self.dmtd_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
+        self.dmtd_mmcm.expose_dps("clk200", with_csr=False)
+        self.dmtd_mmcm.params.update(p_CLKOUT0_USE_FINE_PS="TRUE")
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -215,6 +208,10 @@ class BaseSoC(LiteXWRNICSoC):
             self.led_pps         = led_pps         = Signal()
             self.led_link        = led_link        = Signal()
             self.led_act         = led_act         = Signal()
+            self.dac_refclk_load = dac_refclk_load = Signal()
+            self.dac_refclk_data = dac_refclk_data = Signal(16)
+            self.dac_dmtd_load   = dac_dmtd_load   = Signal()
+            self.dac_dmtd_data   = dac_dmtd_data   = Signal(16)
             self.pps_out_pulse   = pps_out_pulse   = Signal()
             self.tm_seconds      = tm_seconds      = Signal(40)
 
@@ -241,6 +238,41 @@ class BaseSoC(LiteXWRNICSoC):
                 cd_to   = "wr",
             )
 
+            # White Rabbit RefClk / DMTD MMCM Phase Shift.
+            # --------------------------------------------
+
+            # RefClk MMCM Phase Shift.
+            self.refclk_mmcm_ps_gen = Instance("ps_gen",
+                p_WIDTH       = 16,
+                p_DIV         = 16,
+                p_MULT        = 7,
+
+                i_pswidth     = dac_refclk_data,
+                i_pswidth_set = dac_refclk_load,
+                i_pswidth_clk = ClockSignal("wr"),
+
+                i_psclk       = ClockSignal("clk200"),
+                i_psdone      = self.crg.refclk_mmcm.psdone,
+                o_psen        = self.crg.refclk_mmcm.psen,
+                o_psincdec    = self.crg.refclk_mmcm.psincdec,
+            )
+
+            # DMTD MMCM Phase Shift.
+            self.dac_mmcm_ps_gen = Instance("ps_gen",
+                p_WIDTH       = 16,
+                p_DIV         = 16,
+                p_MULT        = 7,
+
+                i_pswidth     = dac_dmtd_data,
+                i_pswidth_set = dac_dmtd_load,
+                i_pswidth_clk = ClockSignal("wr"),
+
+                i_psclk       = ClockSignal("clk200"),
+                i_psdone      = self.crg.dmtd_mmcm.psdone,
+                o_psen        = self.crg.dmtd_mmcm.psen,
+                o_psincdec    = self.crg.dmtd_mmcm.psincdec,
+            )
+
             # White Rabbit Core Instance.
             # ---------------------------
             self.specials += Instance("xwrc_board_spec_a7_wrapper",
@@ -260,12 +292,12 @@ class BaseSoC(LiteXWRNICSoC):
                 o_rst_62m5_sys_o      = ResetSignal("wr"),
 
                 # DAC RefClk Interface.
-                o_dac_refclk_load     = self.crg.refclk_mmcm.ctrl_load,
-                o_dac_refclk_data     = self.crg.refclk_mmcm.ctrl_data,
+                o_dac_refclk_load     = dac_refclk_load,
+                o_dac_refclk_data     = dac_refclk_data,
 
                 # DAC DMTD Interface.
-                o_dac_dmtd_load       = self.crg.dmtd_mmcm.ctrl_load,
-                o_dac_dmtd_data       = self.crg.dmtd_mmcm.ctrl_data,
+                o_dac_dmtd_load       = dac_dmtd_load,
+                o_dac_dmtd_data       = dac_dmtd_data,
 
                 # SFP Interface.
                 o_sfp_txp_o           = sfp_pads.txp,
