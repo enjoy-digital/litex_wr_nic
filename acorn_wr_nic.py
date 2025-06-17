@@ -81,27 +81,19 @@ class _CRG(LiteXModule):
         self.comb += self.cd_clk200.clk.eq(pll.clkin)
 
         if with_white_rabbit:
-            self.cd_wr = ClockDomain("wr")
-
             # RefClk MMCM (125MHz).
             # ---------------------
-            self.refclk_mmcm = TunningMMCM(
-                cd_psclk = "clk200",
-                cd_sys   = "wr",
-            )
+            self.refclk_mmcm = TunningMMCM(speedgrade=-3)
             self.comb += self.refclk_mmcm.reset.eq(self.rst)
-            self.refclk_mmcm.register_clkin(clk200, 200e6)
+            self.refclk_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
             self.refclk_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
             self.comb += self.cd_refclk_eth.clk.eq(self.cd_clk_125m_gtp.clk)
 
             # DMTD MMCM (62.5MHz).
             # --------------------
-            self.dmtd_mmcm = TunningMMCM(
-                cd_psclk = "clk200",
-                cd_sys   = "wr",
-            )
+            self.dmtd_mmcm = TunningMMCM(speedgrade=-3)
             self.comb += self.dmtd_mmcm.reset.eq(self.rst)
-            self.dmtd_mmcm.register_clkin(clk200, 200e6)
+            self.dmtd_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
             self.dmtd_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
         else:
             # RefClk Input (125MHz).
@@ -207,6 +199,10 @@ class BaseSoC(LiteXWRNICSoC):
         # White Rabbit -----------------------------------------------------------------------------
 
         if with_white_rabbit:
+            # Clks.
+            # -----
+            self.cd_wr = ClockDomain("wr")
+
             # Pads.
             # -----
             sfp_pads     = platform.request("sfp",     white_rabbit_sfp_connector)
