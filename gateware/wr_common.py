@@ -246,6 +246,8 @@ wr_core_files = [
     # WR Board.
     "gateware/wr-cores/board/spec_a7/xwrc_board_spec_a7.vhd",
     "gateware/wr-cores/board/spec_a7/xwrc_board_spec_a7_wrapper.vhd",
+    "gateware/wr-cores/board/hyvision/xwrc_board_hyvision.vhd",
+    "gateware/wr-cores/board/hyvision/xwrc_board_hyvision_wrapper.vhd",
 
     # WR MMCM phase shift
     "gateware/wr-cores/modules/ps_gen/ps_gen.vhdl"
