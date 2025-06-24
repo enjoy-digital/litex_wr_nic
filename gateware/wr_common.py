@@ -222,6 +222,10 @@ wr_core_files = [
     "wr-cores/platform/xilinx/wr_gtp_phy/gtp_bitslide.vhd",
     "wr-cores/platform/xilinx/wr_xilinx_pkg.vhd",
 
+    # WR PHY Modules for Kintex / GTX.
+    "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtx/whiterabbit_gtxe2_channel_wrapper_gt.vhd",
+    "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtx/wr_gtx_phy_family7.vhd",
+
     # LiteX-WR NIC adapted files.
     # ----------------------------------------------------------------------------------------------
 
