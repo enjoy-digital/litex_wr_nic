@@ -277,9 +277,6 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit Fabric Interface.
             # ------------------------------
-            wrf_src = wishbone.Interface(data_width=16, address_width=2, adressing="byte")
-            wrf_snk = wishbone.Interface(data_width=16, address_width=2, adressing="byte")
-
             self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(  cd_to="wr")
             self.wrf_wb2stream = wrf_wb2stream = Wishbone2Stream(cd_from="wr")
 
