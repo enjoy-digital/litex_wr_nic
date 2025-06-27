@@ -51,6 +51,10 @@ entity xwrc_board_litex_wr_nic is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean              := TRUE;
+    -- Board name
+    g_board_name                : string               := "NA  ";
+    -- FPGA family
+    g_fpga_family               : string               := "";
     -- Number of aux clocks syntonized by WRPC to WR timebase
     g_aux_clks                  : integer              := 0;
     -- plain     = expose WRC fabric interface
@@ -298,7 +302,7 @@ begin  -- architecture struct
 
   cmp_xwrc_platform : entity work.xwrc_platform_xilinx
     generic map (
-      g_fpga_family               => "artix7",
+      g_fpga_family               => g_fpga_family,
       g_direct_dmtd               => TRUE,
       g_with_external_clock_input => g_with_external_clock_input,
       g_use_default_plls          => TRUE,
@@ -386,7 +390,7 @@ begin  -- architecture struct
     generic map (
       g_simulation                => 0,
       g_with_external_clock_input => g_with_external_clock_input,
-      g_board_name                => "SPA7",
+      g_board_name                => g_board_name,
       g_phys_uart                 => TRUE,
       g_virtual_uart              => TRUE,
       g_aux_clks                  => g_aux_clks,

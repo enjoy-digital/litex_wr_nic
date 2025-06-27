@@ -26,6 +26,10 @@ entity xwrc_board_litex_wr_nic_wrapper is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean := TRUE;
+    -- Board name
+    g_board_name                : string  := "NA  ";
+    -- FPGA family
+    g_fpga_family               : string  := "artix7";
     -- Number of aux clocks syntonized by WRPC to WR timebase
     g_aux_clks                  : integer := 0;
     -- plain                    = expose WRC fabric interface
@@ -230,6 +234,8 @@ begin
   u_xwrc_board_litex_wr_nic : entity work.xwrc_board_litex_wr_nic
     generic map (
       g_with_external_clock_input => g_with_external_clock_input,
+      g_board_name                => g_board_name,
+      g_fpga_family               => g_fpga_family,
       g_aux_clks                  => g_aux_clks,
       g_fabric_iface              => PLAIN,
       g_streamers_op_mode         => TX_AND_RX,
