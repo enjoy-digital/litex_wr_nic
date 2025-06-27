@@ -81,9 +81,12 @@ class LiteXWRNICSoC(SoCMini):
         # CPU.
         cpu_firmware,
 
+        # Board name.
+        board_name  = "NA  ",
+
         # SFP.
-        sfp_pads,
-        sfp_i2c_pads,
+        sfp_pads         = None,
+        sfp_i2c_pads     = None,
         sfp_tx_polarity  = 0,
         sfp_rx_polarity  = 0,
         sfp_disable_pads = None,
@@ -178,13 +181,15 @@ class LiteXWRNICSoC(SoCMini):
 
         # White Rabbit Core Instance.
         # ---------------------------
-        self.specials += Instance("xwrc_board_spec_a7_wrapper",
+        self.specials += Instance("xwrc_board_litex_wr_nic_wrapper",
             # Parameters.
             p_g_dpram_initf               = os.path.abspath(cpu_firmware),
             p_g_dpram_size                = 131072//4,
             p_txpolarity                  = sfp_tx_polarity,
             p_rxpolarity                  = sfp_rx_polarity,
             p_g_with_external_clock_input = str(with_ext_clk).upper(),
+            p_g_fpga_family               = {True: "artix7", False: "kintex7"}[self.platform.device.startswith("xc7a")],
+            p_g_board_name                = board_name,
 
             # Clocks/resets.
             i_areset_n_i          = ~ResetSignal("sys"),

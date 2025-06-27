@@ -22,10 +22,14 @@ use work.streamers_pkg.all;
 use work.wr_xilinx_pkg.all;
 use work.wr_board_pkg.all;
 
-entity xwrc_board_spec_a7_wrapper is
+entity xwrc_board_litex_wr_nic_wrapper is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean := TRUE;
+    -- Board name
+    g_board_name                : string  := "NA  ";
+    -- FPGA family
+    g_fpga_family               : string  := "artix7";
     -- Number of aux clocks syntonized by WRPC to WR timebase
     g_aux_clks                  : integer := 0;
     -- plain                    = expose WRC fabric interface
@@ -169,9 +173,9 @@ entity xwrc_board_spec_a7_wrapper is
     gt0_ext_qpll_refclk  : in  std_logic;
     gt0_ext_qpll_lock    : in  std_logic
   );
-end xwrc_board_spec_a7_wrapper;
+end xwrc_board_litex_wr_nic_wrapper;
 
-architecture wrapper of xwrc_board_spec_a7_wrapper is
+architecture wrapper of xwrc_board_litex_wr_nic_wrapper is
 
   signal wrf_src_o : t_wrf_source_out;
   signal wrf_src_i : t_wrf_source_in := c_dummy_src_in;
@@ -226,10 +230,12 @@ begin
   wb_slave_rty    <= wb_slave_o.rty;
   wb_slave_stall  <= wb_slave_o.stall;
 
-  -- xwrc_board_spec_a7 Instance.
-  u_xwrc_board_spec_a7 : entity work.xwrc_board_spec_a7
+  -- xwrc_board_litex_wr_nic Instance.
+  u_xwrc_board_litex_wr_nic : entity work.xwrc_board_litex_wr_nic
     generic map (
       g_with_external_clock_input => g_with_external_clock_input,
+      g_board_name                => g_board_name,
+      g_fpga_family               => g_fpga_family,
       g_aux_clks                  => g_aux_clks,
       g_fabric_iface              => PLAIN,
       g_streamers_op_mode         => TX_AND_RX,

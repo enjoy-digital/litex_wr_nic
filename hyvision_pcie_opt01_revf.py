@@ -1,24 +1,27 @@
 #!/usr/bin/env python3
 
 #
-# This file is part of LiteX-WR-NIC.
+# This file is part of LiteX-Boards.
 #
-# Copyright (c) 2024 Warsaw University of Technology
-# Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
+# Copyright (c) 2025 Hans Baier <foss@hans-baier.de>
 # SPDX-License-Identifier: BSD-2-Clause
+# Since this board has no uart, you want to build with JTAG UART:
+# python litex_boards/targets/hyvision_pcie_opt01_revf.py --build --uart-name=jtag_uart
+#
+# JTAG Connectors: j11 or j13
+# Pinout:
+#
+# | Pins |  1  |  2  |  3  |  4  |  5  |  6  |
+# |------|-----|-----|-----|-----|-----|-----|
+# | Pins | TMS | TDI | TDO | TCK | GND | VCC |
 
-import argparse
-
-from migen.genlib.cdc import MultiReg
+from migen import *
 
 from litex.gen import *
-from litex.gen.genlib.misc import WaitTimer
 
-from litex_boards.platforms import sqrl_acorn
+from litex_boards.platforms import hyvision_pcie_opt01_revf
 
 from litex.build.generic_platform import *
-from litex.build.io               import DifferentialInput, DifferentialOutput
-from litex.build.openfpgaloader   import OpenFPGALoader
 
 from litex.soc.interconnect.csr     import *
 from litex.soc.interconnect         import stream
@@ -27,14 +30,10 @@ from litex.soc.interconnect         import wishbone
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
-from litex.soc.cores.clock          import S7PLL, S7MMCM
-from litex.soc.cores.led            import LedChaser
-from litex.soc.cores.spi.spi_master import SPIMaster
+from litex.soc.cores.clock import *
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
-from litepcie.software      import generate_litepcie_software_headers
-
-from litescope import LiteScopeAnalyzer
+from litepcie.software import generate_litepcie_software_headers
 
 from gateware.uart              import UARTShared
 from gateware.soc               import LiteXWRNICSoC
@@ -51,7 +50,7 @@ from gateware.nic.phy           import LiteEthPHYWRGMII
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq, with_white_rabbit=True):
+    def __init__(self, platform, sys_clk_freq):
         self.rst              = Signal()
         self.cd_sys           = ClockDomain()
         self.cd_clk200        = ClockDomain()
@@ -65,10 +64,10 @@ class _CRG(LiteXModule):
         # # #
 
         # Sys PLL (Free-Running from clk200).
-        # ----------------------------------
+        # -----------------------------------
         clk200 = platform.request("clk200")
 
-        self.pll = pll = S7PLL(speedgrade=-3)
+        self.pll = pll = S7PLL(speedgrade=-1)
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200, 200e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
@@ -106,45 +105,32 @@ class BaseSoC(LiteXWRNICSoC):
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
         white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
-
     ):
         # Platform ---------------------------------------------------------------------------------
 
-        platform = sqrl_acorn.Platform()
-        platform.add_extension(sqrl_acorn._litex_acorn_baseboard_mini_io, prepend=True)
+        platform = hyvision_pcie_opt01_revf.Platform()
         platform.add_extension([
-            ("pps_out",    0, Pins("H5"), IOStandard("LVCMOS33")),
-            ("wr_clk_out", 0, Pins("J5"), IOStandard("LVCMOS33")),
+            # White Rabbit
+            ("pps_out",    0, Pins("U20"), IOStandard("LVCMOS33")), # DVP.LVAL
+            ("wr_clk_out", 0, Pins("T18"), IOStandard("LVCMOS33")), # DVP.FVAL
+
+            # Serial
+            ("serial", 0,
+                Subsignal("tx", Pins("T19")), # DVP.DTX
+                Subsignal("rx", Pins("U19")), # DVP.DRX
+                IOStandard("LVCMOS33")
+            ),
         ])
 
         # Clocking ---------------------------------------------------------------------------------
-
-        # General / WR.
-        self.crg = _CRG(platform,
-            sys_clk_freq      = sys_clk_freq,
-            with_white_rabbit = with_white_rabbit,
-        )
-
-        # Shared QPLL.
-        self.qpll = SharedQPLL(platform,
-            with_pcie           = True, # Always True even when PCIe is disabled for correct WR Clocking.
-            with_eth            = with_white_rabbit,
-            eth_refclk_freq     = 125e6,
-            eth_refclk_from_pll = True,
-        )
-        self.qpll.enable_pll_refclk()
+        self.crg = _CRG(platform, sys_clk_freq)
 
         # SoCMini ----------------------------------------------------------------------------------
-
         SoCMini.__init__(self, platform,
             clk_freq      = sys_clk_freq,
-            ident         = "LiteX-WR-NIC on Acorn Baseboard Mini.",
-            ident_version = True,
+            ident         = "LiteX-WR-NIC on HVS HyVision PCIe OPT01 revF.",
+            ident_version = True
         )
-
-        # UART -------------------------------------------------------------------------------------
-
-        self.uart = UARTShared(pads=platform.request("serial"), sys_clk_freq=sys_clk_freq)
 
         # JTAGBone ---------------------------------------------------------------------------------
 
@@ -153,10 +139,9 @@ class BaseSoC(LiteXWRNICSoC):
         platform.add_false_path_constraints(self.jtagbone_phy.cd_jtag.clk, self.crg.cd_sys.clk)
 
         # PCIe PHY ---------------------------------------------------------------------------------
-
         if with_pcie:
-            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
-                data_width  = 64,
+            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x4"),
+                data_width  = 128,
                 bar0_size   = 0x20000,
                 with_ptm    = True,
                 refclk_freq = 100e6,
@@ -168,10 +153,7 @@ class BaseSoC(LiteXWRNICSoC):
                 "Class_Code_Sub"           : "00",
             })
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
-            self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
-            platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
-            platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y7 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
             # PCIe <-> Sys-Clk false paths.
             false_paths = [
@@ -187,28 +169,33 @@ class BaseSoC(LiteXWRNICSoC):
         # White Rabbit -----------------------------------------------------------------------------
 
         if with_white_rabbit:
+            sfp_pads = platform.request("sfp", white_rabbit_sfp_connector)
             # Core Instance.
             # --------------
             self.add_wr_core(
                 # CPU.
-                cpu_firmware    = white_rabbit_cpu_firmware,
+                cpu_firmware        = white_rabbit_cpu_firmware,
 
-                # Board name.
-                board_name       = "SAWR",
+                # Configuration.
+                board_name       = "HYVF",
 
                 # SFP.
-                sfp_pads        = platform.request("sfp",     white_rabbit_sfp_connector),
-                sfp_i2c_pads    = platform.request("sfp_i2c", white_rabbit_sfp_connector),
-                sfp_tx_polarity = 0, # Inverted on Acorn and on baseboard.
-                sfp_rx_polarity = 1, # Inverted on Acorn.
+                sfp_pads         = sfp_pads,
+                sfp_i2c_pads     = sfp_pads, # FIXME: unlike acorn i2c is included in sfp resources
+                sfp_tx_polarity  = 0,
+                sfp_rx_polarity  = 0,
+                sfp_det_pads     = platform.request("sfp_rs1",        white_rabbit_sfp_connector),
+                sfp_los_pads     = platform.request("sfp_los",        white_rabbit_sfp_connector),
+                sfp_disable_pads = platform.request("sfp_tx_disable", white_rabbit_sfp_connector),
+                sfp_fault_pads   = platform.request("sfp_tx_fault",   white_rabbit_sfp_connector),
 
-                # QPLL.
-                qpll            = self.qpll,
-                with_ext_clk    = False,
+                # Clocking.
+                with_ext_clk     = False,
 
                 # Serial.
-                serial_pads     = self.uart.shared_pads,
-            )
+                serial_pads      = platform.request("serial"),
+             )
+
             self.add_sources()
 
             # RefClk MMCM Phase Shift.
@@ -248,8 +235,9 @@ class BaseSoC(LiteXWRNICSoC):
             # Timings Constraints.
             # --------------------
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
-            platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
-            platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
+            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
+            platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *GTXE2_CHANNEL/TXOUTCLK]")
+            platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *GTXE2_CHANNEL/RXOUTCLK]")
 
             # Leds.
             # -----
@@ -266,6 +254,9 @@ class BaseSoC(LiteXWRNICSoC):
                 # PPS/Clk Output.
                 platform.request("pps_out").eq(self.pps),
                 platform.request("wr_clk_out").eq(ClockSignal("wr")),
+
+                # SFP.
+                platform.request("sfp_rs0", white_rabbit_sfp_connector).eq(1)
             ]
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
@@ -335,9 +326,8 @@ class BaseSoC(LiteXWRNICSoC):
         })
 
 # Build --------------------------------------------------------------------------------------------
-
 def main():
-    parser = argparse.ArgumentParser(description="LiteX-WR-NIC on Acorn Baseboard Mini.")
+    parser = argparse.ArgumentParser(description="LiteX-WR-NIC on HVS HyVision PCIe OPT01 RevF.")
 
     # Build/Load/Flash Arguments.
     # ---------------------------

@@ -222,6 +222,10 @@ wr_core_files = [
     "wr-cores/platform/xilinx/wr_gtp_phy/gtp_bitslide.vhd",
     "wr-cores/platform/xilinx/wr_xilinx_pkg.vhd",
 
+    # WR PHY Modules for Kintex / GTX.
+    "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtx/whiterabbit_gtxe2_channel_wrapper_gt.vhd",
+    "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtx/wr_gtx_phy_family7.vhd",
+
     # LiteX-WR NIC adapted files.
     # ----------------------------------------------------------------------------------------------
 
@@ -240,8 +244,8 @@ wr_core_files = [
     "gateware/wr-cores/platform/xilinx/xwrc_platform_vivado.vhd",
 
     # WR Board.
-    "gateware/wr-cores/board/spec_a7/xwrc_board_spec_a7.vhd",
-    "gateware/wr-cores/board/spec_a7/xwrc_board_spec_a7_wrapper.vhd",
+    "gateware/wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic.vhd",
+    "gateware/wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic_wrapper.vhd",
 
     # WR MMCM phase shift
     "gateware/wr-cores/modules/ps_gen/ps_gen.vhdl"

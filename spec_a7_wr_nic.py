@@ -211,6 +211,9 @@ class BaseSoC(LiteXWRNICSoC):
                 # CPU.
                 cpu_firmware     = white_rabbit_cpu_firmware,
 
+                # Board name.
+                board_name       = "SPA7",
+
                 # SFP.
                 sfp_pads         = platform.request("sfp",     white_rabbit_sfp_connector),
                 sfp_i2c_pads     = platform.request("sfp_i2c", white_rabbit_sfp_connector),
