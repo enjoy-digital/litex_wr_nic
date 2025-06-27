@@ -47,7 +47,7 @@ use work.wr_board_pkg.all;
 library unisim;
 use unisim.vcomponents.all;
 
-entity xwrc_board_spec_a7 is
+entity xwrc_board_litex_wr_nic is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean              := TRUE;
@@ -241,9 +241,9 @@ entity xwrc_board_spec_a7 is
     GT0_EXT_QPLL_LOCK   : in  std_logic
     );
 
-end entity xwrc_board_spec_a7;
+end entity xwrc_board_litex_wr_nic;
 
-architecture struct of xwrc_board_spec_a7 is
+architecture struct of xwrc_board_litex_wr_nic is
 
   -----------------------------------------------------------------------------
   -- Signals

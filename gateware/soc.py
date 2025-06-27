@@ -178,7 +178,7 @@ class LiteXWRNICSoC(SoCMini):
 
         # White Rabbit Core Instance.
         # ---------------------------
-        self.specials += Instance("xwrc_board_spec_a7_wrapper",
+        self.specials += Instance("xwrc_board_litex_wr_nic_wrapper",
             # Parameters.
             p_g_dpram_initf               = os.path.abspath(cpu_firmware),
             p_g_dpram_size                = 131072//4,
