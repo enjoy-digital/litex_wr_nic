@@ -751,6 +751,7 @@ static int liteeth_init(struct litepcie_device *litepcie_dev, int index)
 /* -----------------------------------------------------------------------------------------------*/
 /*                                       PTP/PTM                                                  */
 /* -----------------------------------------------------------------------------------------------*/
+#ifdef CSR_PTM_REQUESTER_BASE
 
 /* Time Control Register Addresses */
 /* Write Time Low and High Addresses */
@@ -1039,6 +1040,7 @@ static struct ptp_clock_info litepcie_ptp_info = {
 	.getcrosststamp = litepcie_ptp_getcrosststamp,
 	.enable         = litepcie_ptp_enable,
 };
+#endif
 
 /* -----------------------------------------------------------------------------------------------*/
 /*                            LitePCIe Probe / Remove / Module                                    */
@@ -1056,7 +1058,9 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 #ifdef CSR_UART_XOVER_RXTX_ADDR
 	struct resource *tty_res = NULL;
 #endif
+#ifdef CSR_PTM_REQUESTER_BASE
 	int count = 100;
+#endif
 
 	dev_info(&dev->dev, "\e[1m[Probing device]\e[0m\n");
 
@@ -1194,6 +1198,7 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 #endif
 
 	/* PTP */
+#ifdef CSR_PTM_REQUESTER_BASE
 	litepcie_dev->ptp_caps = litepcie_ptp_info;
 	litepcie_dev->litepcie_ptp_clock = ptp_clock_register(&litepcie_dev->ptp_caps, &dev->dev);
 	if (IS_ERR(litepcie_dev->litepcie_ptp_clock)) {
@@ -1224,6 +1229,7 @@ static int litepcie_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 		litepcie_readl(litepcie_dev, PTM_T1_TIME_H));
 
 	spin_lock_init(&litepcie_dev->tmreg_lock);
+#endif
 
 	return 0;
 
