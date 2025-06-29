@@ -990,7 +990,12 @@ static int litepcie_phc_get_syncdevicetime(ktime_t *device,
 
 #if IS_ENABLED(CONFIG_X86_TSC) && !defined(CONFIG_UML)
 	/* Convert ART (Absolute Reference Time) to TSC (Time Stamp Counter) */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0)
 	*system = convert_art_ns_to_tsc(ptm_master_time);
+#else
+	system->cycles = ptm_master_time;
+	system->cs_id = CSID_X86_ART;
+#endif
 #else
     *system = (struct system_counterval_t) { };
 #endif

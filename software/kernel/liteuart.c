@@ -65,6 +65,8 @@ struct liteuart_port {
 	struct uart_port port;
 	struct timer_list timer;
 	u32 id;
+	struct workqueue_struct *workqueue;
+	struct work_struct work;
 };
 
 #define to_liteuart_port(port)	container_of(port, struct liteuart_port, port)
@@ -91,6 +93,27 @@ static struct uart_driver liteuart_driver = {
 #endif
 };
 
+static void liteuart_work(struct work_struct *w)
+{
+	struct liteuart_port *uart = container_of(w, struct liteuart_port, work);
+	struct uart_port *port = &uart->port;
+	unsigned char __iomem *membase = port->membase;
+	unsigned int flg = TTY_NORMAL;
+	int ch;
+	unsigned long status;
+
+	while ((status = !litex_read8(membase + OFF_RXEMPTY)) == 1) {
+		ch = litex_read8(membase + OFF_RXTX);
+		port->icount.rx++;
+
+		/* no overflow bits in status */
+		if (!(uart_handle_sysrq_char(port, ch)))
+			uart_insert_char(port, status, 0, ch, flg);
+
+		tty_flip_buffer_push(&port->state->port);
+	}
+}
+
 static void liteuart_timer(struct timer_list *t)
 {
 	struct liteuart_port *uart = from_timer(uart, t, timer);
@@ -99,8 +122,15 @@ static void liteuart_timer(struct timer_list *t)
 	unsigned int flg = TTY_NORMAL;
 	int ch;
 	unsigned long status;
+	uint16_t length = 0;
 
 	while ((status = !litex_read8(membase + OFF_RXEMPTY)) == 1) {
+		/* stop blocking this callback: delegate to a workqueue */
+		if (length > 256) {
+			queue_work(uart->workqueue, &uart->work);
+			break;
+		}
+		length++;
 		ch = litex_read8(membase + OFF_RXTX);
 		port->icount.rx++;
 
@@ -147,23 +177,38 @@ static void liteuart_stop_tx(struct uart_port *port)
 
 static void liteuart_start_tx(struct uart_port *port)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	struct circ_buf *xmit = &port->state->xmit;
+#else
+	struct tty_port *tport = &port->state->port;
+#endif
 	unsigned char ch;
 
 	if (unlikely(port->x_char)) {
 		litex_write8(port->membase + OFF_RXTX, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	} else if (!uart_circ_empty(xmit)) {
 		while (xmit->head != xmit->tail) {
 			ch = xmit->buf[xmit->tail];
 			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 			port->icount.tx++;
+#else
+	} else if (!kfifo_is_empty(&tport->xmit_fifo)) {
+		while(1) {
+			if (!uart_fifo_get(port, &ch))
+				break;
+#endif
 			liteuart_putchar(port, ch);
 		}
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+#else
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
+#endif
 		uart_write_wakeup(port);
 }
 
@@ -183,9 +228,18 @@ static void liteuart_break_ctl(struct uart_port *port, int break_state)
 static int liteuart_startup(struct uart_port *port)
 {
 	struct liteuart_port *uart = to_liteuart_port(port);
+	char b[12];
 
 	/* disable events */
 	litex_write8(port->membase + OFF_EV_ENABLE, 0);
+
+	sprintf(b, "liteuart%d", uart->id);
+	uart->workqueue = create_freezable_workqueue(b);
+	if (!uart->workqueue) {
+		printk("cannot create workqueue\n");
+		return -EBUSY;
+	}
+	INIT_WORK(&uart->work, liteuart_work);
 
 	/* prepare timer for polling */
 	timer_setup(&uart->timer, liteuart_timer, 0);
@@ -196,6 +250,11 @@ static int liteuart_startup(struct uart_port *port)
 
 static void liteuart_shutdown(struct uart_port *port)
 {
+	struct liteuart_port *uart = to_liteuart_port(port);
+	if (uart->workqueue) {
+		destroy_workqueue(uart->workqueue);
+		uart->workqueue = NULL;
+	}
 }
 
 static void liteuart_set_termios(struct uart_port *port, struct ktermios *new,
@@ -337,7 +396,11 @@ err_erase_id:
 	return ret;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 static int liteuart_remove(struct platform_device *pdev)
+#else
+static void liteuart_remove(struct platform_device *pdev)
+#endif
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct liteuart_port *uart = to_liteuart_port(port);
@@ -345,7 +408,9 @@ static int liteuart_remove(struct platform_device *pdev)
 	uart_remove_one_port(&liteuart_driver, port);
 	xa_erase(&liteuart_array, uart->id);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 	return 0;
+#endif
 }
 
 static const struct of_device_id liteuart_of_match[] = {
