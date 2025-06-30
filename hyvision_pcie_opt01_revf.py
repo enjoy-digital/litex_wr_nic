@@ -31,6 +31,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
 from litex.soc.cores.clock import *
+from litex.soc.cores.uart  import UARTPads
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
 from litepcie.software import generate_litepcie_software_headers
@@ -38,13 +39,8 @@ from litepcie.software import generate_litepcie_software_headers
 from gateware.uart              import UARTShared
 from gateware.soc               import LiteXWRNICSoC
 from gateware.time              import TimeGenerator
-from gateware.qpll              import SharedQPLL
-from gateware.ad5683r.core      import AD5683RDAC
-from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
-from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
 from gateware.pps               import PPSGenerator
-from gateware.clk10m            import Clk10MGenerator
 from gateware.nic.phy           import LiteEthPHYWRGMII
 
 # CRG ----------------------------------------------------------------------------------------------
@@ -59,7 +55,6 @@ class _CRG(LiteXModule):
         self.cd_clk_125m_gtp  = ClockDomain()
         self.cd_clk_62m5_dmtd = ClockDomain()
         self.cd_clk10m_in     = ClockDomain()
-        self.cd_clk62m5_in    = ClockDomain()
 
         # # #
 
@@ -306,7 +301,6 @@ class BaseSoC(LiteXWRNICSoC):
             self.crg.cd_clk_62m5_dmtd.clk,
             self.crg.cd_clk_125m_gtp.clk,
             self.crg.cd_clk10m_in.clk,
-            self.crg.cd_clk62m5_in.clk,
             "wr_txoutclk",
             "wr_rxoutclk",
         ]
@@ -322,7 +316,6 @@ class BaseSoC(LiteXWRNICSoC):
             "clk1" : ClockSignal("clk_62m5_dmtd"),
             "clk2" : ClockSignal("clk_125m_gtp"),
             "clk3" : ClockSignal("clk10m_in"),
-            "clk4" : ClockSignal("clk62m5_in"),
         })
 
 # Build --------------------------------------------------------------------------------------------
