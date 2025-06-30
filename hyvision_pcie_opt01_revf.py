@@ -235,8 +235,8 @@ class BaseSoC(LiteXWRNICSoC):
             # --------------------
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
-            platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *GTXE2_CHANNEL/TXOUTCLK]")
-            platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *GTXE2_CHANNEL/RXOUTCLK]")
+            platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *gtxe2_i/TXOUTCLK]")
+            platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *gtxe2_i/RXOUTCLK]")
 
             # Leds.
             # -----
