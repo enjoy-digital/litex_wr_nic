@@ -31,6 +31,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 
 from litex.soc.cores.clock import *
+from litex.soc.cores.uart  import UARTPads
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
 from litepcie.software import generate_litepcie_software_headers
@@ -38,13 +39,8 @@ from litepcie.software import generate_litepcie_software_headers
 from gateware.uart              import UARTShared
 from gateware.soc               import LiteXWRNICSoC
 from gateware.time              import TimeGenerator
-from gateware.qpll              import SharedQPLL
-from gateware.ad5683r.core      import AD5683RDAC
-from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from gateware.measurement       import MultiClkMeasurement
-from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
 from gateware.pps               import PPSGenerator
-from gateware.clk10m            import Clk10MGenerator
 from gateware.nic.phy           import LiteEthPHYWRGMII
 
 # CRG ----------------------------------------------------------------------------------------------
@@ -59,7 +55,6 @@ class _CRG(LiteXModule):
         self.cd_clk_125m_gtp  = ClockDomain()
         self.cd_clk_62m5_dmtd = ClockDomain()
         self.cd_clk10m_in     = ClockDomain()
-        self.cd_clk62m5_in    = ClockDomain()
 
         # # #
 
@@ -132,6 +127,10 @@ class BaseSoC(LiteXWRNICSoC):
             ident_version = True
         )
 
+        # UART -------------------------------------------------------------------------------------
+
+        self.uart = UARTShared(pads=platform.request("serial"), sys_clk_freq = sys_clk_freq)
+
         # JTAGBone ---------------------------------------------------------------------------------
 
         self.add_jtagbone()
@@ -140,8 +139,8 @@ class BaseSoC(LiteXWRNICSoC):
 
         # PCIe PHY ---------------------------------------------------------------------------------
         if with_pcie:
-            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x4"),
-                data_width  = 128,
+            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
+                data_width  = 64,
                 bar0_size   = 0x20000,
                 with_ptm    = True,
                 refclk_freq = 100e6,
@@ -193,7 +192,7 @@ class BaseSoC(LiteXWRNICSoC):
                 with_ext_clk     = False,
 
                 # Serial.
-                serial_pads      = platform.request("serial"),
+                serial_pads      = self.uart.shared_pads,
              )
 
             self.add_sources()
@@ -236,8 +235,8 @@ class BaseSoC(LiteXWRNICSoC):
             # --------------------
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-123]") # FIXME: Add 10MHz Ext Clk.
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
-            platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *GTXE2_CHANNEL/TXOUTCLK]")
-            platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *GTXE2_CHANNEL/RXOUTCLK]")
+            platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *gtxe2_i/TXOUTCLK]")
+            platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *gtxe2_i/RXOUTCLK]")
 
             # Leds.
             # -----
@@ -306,7 +305,6 @@ class BaseSoC(LiteXWRNICSoC):
             self.crg.cd_clk_62m5_dmtd.clk,
             self.crg.cd_clk_125m_gtp.clk,
             self.crg.cd_clk10m_in.clk,
-            self.crg.cd_clk62m5_in.clk,
             "wr_txoutclk",
             "wr_rxoutclk",
         ]
@@ -322,7 +320,6 @@ class BaseSoC(LiteXWRNICSoC):
             "clk1" : ClockSignal("clk_62m5_dmtd"),
             "clk2" : ClockSignal("clk_125m_gtp"),
             "clk3" : ClockSignal("clk10m_in"),
-            "clk4" : ClockSignal("clk62m5_in"),
         })
 
 # Build --------------------------------------------------------------------------------------------
