@@ -127,6 +127,10 @@ class BaseSoC(LiteXWRNICSoC):
             ident_version = True
         )
 
+        # UART -------------------------------------------------------------------------------------
+
+        self.uart = UARTShared(pads=platform.request("serial"), sys_clk_freq = sys_clk_freq)
+
         # JTAGBone ---------------------------------------------------------------------------------
 
         self.add_jtagbone()
@@ -188,7 +192,7 @@ class BaseSoC(LiteXWRNICSoC):
                 with_ext_clk     = False,
 
                 # Serial.
-                serial_pads      = platform.request("serial"),
+                serial_pads      = self.uart.shared_pads,
              )
 
             self.add_sources()
