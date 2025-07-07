@@ -31,10 +31,11 @@ def wr_core_init():
 
 # WR Core Files ------------------------------------------------------------------------------------
 
-wr_core_files = [
+wr_core_files = []
+
     # WR Unmodified files.
     # ----------------------------------------------------------------------------------------------
-
+wr_core_files += [
     # Common Packages.
     "wr-cores/board/common/wr_board_pkg.vhd",
     "wr-cores/board/common/xwrc_board_common.vhd",
@@ -225,28 +226,30 @@ wr_core_files = [
     # WR PHY Modules for Kintex / GTX.
     "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtx/whiterabbit_gtxe2_channel_wrapper_gt.vhd",
     "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtx/wr_gtx_phy_family7.vhd",
+]
 
     # LiteX-WR NIC adapted files.
     # ----------------------------------------------------------------------------------------------
-
+cdir          = os.path.abspath(os.path.dirname(__file__))
+wr_core_files += [
     # WR PHY Modules.
-    "litex_wr_nic/gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd",
-    "litex_wr_nic/gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
-    "litex_wr_nic/gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd",
+    os.path.join(cdir, "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd"),
+    os.path.join(cdir, "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd"),
+    os.path.join(cdir, "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd"),
 
     # WR Fabric Modules.
-    "litex_wr_nic/gateware/wr-cores/modules/fabric/xwrf_mux.vhd",
+    os.path.join(cdir, "wr-cores/modules/fabric/xwrf_mux.vhd"),
 
     # WR Core Modules.
-    "litex_wr_nic/gateware/wr-cores/modules/wrc_core/wr_core.vhd",
+    os.path.join(cdir, "wr-cores/modules/wrc_core/wr_core.vhd"),
 
     # WR Platform.
-    "litex_wr_nic/gateware/wr-cores/platform/xilinx/xwrc_platform_vivado.vhd",
+    os.path.join(cdir, "wr-cores/platform/xilinx/xwrc_platform_vivado.vhd"),
 
     # WR Board.
-    "litex_wr_nic/gateware/wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic.vhd",
-    "litex_wr_nic/gateware/wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic_wrapper.vhd",
+    os.path.join(cdir, "wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic.vhd"),
+    os.path.join(cdir, "wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic_wrapper.vhd"),
 
     # WR MMCM phase shift
-    "litex_wr_nic/gateware/wr-cores/modules/ps_gen/ps_gen.vhdl"
+    os.path.join(cdir, "wr-cores/modules/ps_gen/ps_gen.vhdl"),
 ]
