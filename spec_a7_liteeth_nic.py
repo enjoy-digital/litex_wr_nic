@@ -31,8 +31,8 @@ from liteeth.phy.a7_1000basex import A7_1000BASEX
 
 from litepcie.software import generate_litepcie_software
 
-from gateware.qpll import SharedQPLL
-from gateware.soc  import LiteXWRNICSoC
+from litex_wr_nic.gateware.qpll import SharedQPLL
+from litex_wr_nic.gateware.soc  import LiteXWRNICSoC
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -156,12 +156,12 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "software/kernel")
+    generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
 
     # Generate Bitstream.
     # -------------------
     if args.load or args.flash:
-        os.system("python3 gateware/xilinx-bitstream.py {bit_file} {bin_file}".format(
+        os.system("python3 litex_wr_nic/gateware/xilinx-bitstream.py {bit_file} {bin_file}".format(
             bit_file = builder.get_bitstream_filename(mode="sram"),
             bin_file = builder.get_bitstream_filename(mode="flash"),
         ))

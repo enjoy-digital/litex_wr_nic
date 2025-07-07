@@ -5,6 +5,8 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
+
 import math
 
 from migen import *
@@ -111,4 +113,5 @@ class FineDelay(LiteXModule):
         self.add_sources()
 
     def add_sources(self):
-        self.platform.add_source("gateware/delay/fine_delay_ctrl.vhd")
+        cdir  = os.path.abspath(os.path.dirname(__file__))
+        self.platform.add_source(os.path.join(cdir, "fine_delay_ctrl.vhd"))

@@ -230,23 +230,23 @@ wr_core_files = [
     # ----------------------------------------------------------------------------------------------
 
     # WR PHY Modules.
-    "gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd",
-    "gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
-    "gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd",
+    "litex_wr_nic/gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd",
+    "litex_wr_nic/gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
+    "litex_wr_nic/gateware/wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd",
 
     # WR Fabric Modules.
-    "gateware/wr-cores/modules/fabric/xwrf_mux.vhd",
+    "litex_wr_nic/gateware/wr-cores/modules/fabric/xwrf_mux.vhd",
 
     # WR Core Modules.
-    "gateware/wr-cores/modules/wrc_core/wr_core.vhd",
+    "litex_wr_nic/gateware/wr-cores/modules/wrc_core/wr_core.vhd",
 
     # WR Platform.
-    "gateware/wr-cores/platform/xilinx/xwrc_platform_vivado.vhd",
+    "litex_wr_nic/gateware/wr-cores/platform/xilinx/xwrc_platform_vivado.vhd",
 
     # WR Board.
-    "gateware/wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic.vhd",
-    "gateware/wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic_wrapper.vhd",
+    "litex_wr_nic/gateware/wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic.vhd",
+    "litex_wr_nic/gateware/wr-cores/board/litex_wr_nic/xwrc_board_litex_wr_nic_wrapper.vhd",
 
     # WR MMCM phase shift
-    "gateware/wr-cores/modules/ps_gen/ps_gen.vhdl"
+    "litex_wr_nic/gateware/wr-cores/modules/ps_gen/ps_gen.vhdl"
 ]

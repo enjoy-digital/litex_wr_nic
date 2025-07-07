@@ -36,17 +36,17 @@ from litepcie.software      import generate_litepcie_software_headers
 
 from litescope import LiteScopeAnalyzer
 
-from gateware.uart              import UARTShared
-from gateware.soc               import LiteXWRNICSoC
-from gateware.time              import TimeGenerator
-from gateware.qpll              import SharedQPLL
-from gateware.ad5683r.core      import AD5683RDAC
-from gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
-from gateware.measurement       import MultiClkMeasurement
-from gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
-from gateware.pps               import PPSGenerator
-from gateware.clk10m            import Clk10MGenerator
-from gateware.nic.phy           import LiteEthPHYWRGMII
+from litex_wr_nic.gateware.uart              import UARTShared
+from litex_wr_nic.gateware.soc               import LiteXWRNICSoC
+from litex_wr_nic.gateware.time              import TimeGenerator
+from litex_wr_nic.gateware.qpll              import SharedQPLL
+from litex_wr_nic.gateware.ad5683r.core      import AD5683RDAC
+from litex_wr_nic.gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
+from litex_wr_nic.gateware.measurement       import MultiClkMeasurement
+from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
+from litex_wr_nic.gateware.pps               import PPSGenerator
+from litex_wr_nic.gateware.clk10m            import Clk10MGenerator
+from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -104,7 +104,7 @@ class BaseSoC(LiteXWRNICSoC):
         # ------------------------
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
-        white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
+        white_rabbit_cpu_firmware  = "litex_wr_nic/firmware/spec_a7_wrc.bram",
 
         # Sync-In Parameters.
         # -------------------
@@ -574,7 +574,7 @@ def main():
     # ---------------
     if args.build:
         print("Building firmware...")
-        r = os.system("cd firmware && ./build.py")
+        r = os.system("cd litex_wr_nic/firmware && ./build.py")
         if r != 0:
             raise RuntimeError("Firmware build failed.")
 
@@ -594,12 +594,12 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "software/kernel")
+    generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
 
     # Generate Bitstream.
     # -------------------
     if args.load or args.flash:
-        os.system("python3 gateware/xilinx-bitstream.py {bit_file} {bin_file}".format(
+        os.system("python3 litex_wr_nic/gateware/xilinx-bitstream.py {bit_file} {bin_file}".format(
             bit_file = builder.get_bitstream_filename(mode="sram"),
             bin_file = builder.get_bitstream_filename(mode="flash"),
         ))

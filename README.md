@@ -261,7 +261,7 @@ rebuilt or manually reloaded.
 To rebuild the firmware, use the following commands:
 
 ```sh
-cd firmware
+cd litex_wr_nic/firmware
 ./build.py
 ```
 

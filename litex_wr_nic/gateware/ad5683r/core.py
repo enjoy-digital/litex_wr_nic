@@ -5,6 +5,8 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
+
 from migen import *
 
 from litex.gen import *
@@ -61,5 +63,6 @@ class AD5683RDAC(LiteXModule):
         self.add_sources(platform)
 
     def add_sources(self, platform):
-       platform.add_source("gateware/ad5683r/serial_dac.vhd")
-       platform.add_source("gateware/ad5683r/serial_dac_arb.vhd")
+       cdir = os.path.abspath(os.path.dirname(__file__))
+       platform.add_source(os.path.join(cdir, "serial_dac.vhd"))
+       platform.add_source(os.path.join(cdir, "serial_dac_arb.vhd"))

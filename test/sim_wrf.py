@@ -10,8 +10,8 @@ from litex.tools.litex_sim import *
 
 sys.path.append("..")
 
-from gateware.wrf_wb2stream import Wishbone2Stream
-from gateware.wrf_stream2wb import Stream2Wishbone
+from litex_wr_nic.gateware.wrf_wb2stream import Wishbone2Stream
+from litex_wr_nic.gateware.wrf_stream2wb import Stream2Wishbone
 
 # Packer Streamer ----------------------------------------------------------------------------------
 

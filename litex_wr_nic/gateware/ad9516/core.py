@@ -117,8 +117,9 @@ class AD9516PLL(LiteXModule):
         platform.add_source("wr-cores/ip_cores/general-cores/modules/wishbone/wb_spi/xwb_spi.vhd")
 
         # WR PLL Ctrl Sources.
-        platform.add_source(f"gateware/ad9516/wr_pll_ctrl_{name}_pkg.vhd")
-        platform.add_source(f"gateware/ad9516/wr_pll_ctrl_{name}.vhd")
+        cdir = os.path.abspath(os.path.dirname(__file__))
+        platform.add_source(os.path.join(cdir, f"wr_pll_ctrl_{name}_pkg.vhd"))
+        platform.add_source(os.path.join(cdir, f"wr_pll_ctrl_{name}.vhd"))
 
     def generate_vhdl_package(self, config, name):
         """Generate the VHDL package for wr_pll_ctrl."""
@@ -150,9 +151,7 @@ end wr_pll_ctrl_{name}_pkg;
             data_array = data_array_str,
             name       = name,
         )
-
-        output_dir = os.path.join(os.getcwd(), "gateware/ad9516")
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir  = os.path.abspath(os.path.dirname(__file__))
         output_file = os.path.join(output_dir, f"wr_pll_ctrl_{name}_pkg.vhd")
 
         with open(output_file, "w") as f:

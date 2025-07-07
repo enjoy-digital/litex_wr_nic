@@ -36,12 +36,12 @@ from litex.soc.cores.uart  import UARTPads
 from litepcie.phy.s7pciephy import S7PCIEPHY
 from litepcie.software import generate_litepcie_software_headers
 
-from gateware.uart              import UARTShared
-from gateware.soc               import LiteXWRNICSoC
-from gateware.time              import TimeGenerator
-from gateware.measurement       import MultiClkMeasurement
-from gateware.pps               import PPSGenerator
-from gateware.nic.phy           import LiteEthPHYWRGMII
+from litex_wr_nic.gateware.uart              import UARTShared
+from litex_wr_nic.gateware.soc               import LiteXWRNICSoC
+from litex_wr_nic.gateware.time              import TimeGenerator
+from litex_wr_nic.gateware.measurement       import MultiClkMeasurement
+from litex_wr_nic.gateware.pps               import PPSGenerator
+from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -99,7 +99,7 @@ class BaseSoC(LiteXWRNICSoC):
         # ------------------------
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
-        white_rabbit_cpu_firmware  = "firmware/spec_a7_wrc.bram",
+        white_rabbit_cpu_firmware  = "litex_wr_nic/firmware/spec_a7_wrc.bram",
     ):
         # Platform ---------------------------------------------------------------------------------
 
@@ -345,7 +345,7 @@ def main():
     # ---------------
     if args.build:
         print("Building firmware...")
-        r = os.system("cd firmware && ./build.py --target acorn")
+        r = os.system("cd litex_wr_nic/firmware && ./build.py --target acorn")
         if r != 0:
             raise RuntimeError("Firmware build failed.")
 
@@ -365,7 +365,7 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "software/kernel")
+    generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
 
     # Load FPGA.
     # ----------

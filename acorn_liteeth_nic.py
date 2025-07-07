@@ -31,8 +31,8 @@ from liteeth.phy.a7_1000basex import A7_1000BASEX
 
 from litepcie.software import generate_litepcie_software
 
-from gateware.qpll import SharedQPLL
-from gateware.soc  import LiteXWRNICSoC
+from litex_wr_nic.gateware.qpll import SharedQPLL
+from litex_wr_nic.gateware.soc  import LiteXWRNICSoC
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -175,7 +175,7 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "software/kernel")
+    generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
 
     # Load FPGA.
     # ----------

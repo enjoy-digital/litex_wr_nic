@@ -26,14 +26,14 @@ from litescope import LiteScopeAnalyzer
 from litepcie.frontend.ptm  import PCIePTMSniffer
 from litepcie.frontend.ptm  import PTMCapabilities, PTMRequester
 
-from gateware.nic import sram
+from litex_wr_nic.gateware.nic import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
-from gateware.nic.dma import LitePCIe2WishboneDMA
+from litex_wr_nic.gateware.nic.dma import LitePCIe2WishboneDMA
 
-from gateware.wr_common         import wr_core_init, wr_core_files
-from gateware.wrf_stream2wb     import Stream2Wishbone
-from gateware.wrf_wb2stream     import Wishbone2Stream
-from gateware.wb_clock_crossing import WishboneClockCrossing
+from litex_wr_nic.gateware.wr_common         import wr_core_init, wr_core_files
+from litex_wr_nic.gateware.wrf_stream2wb     import Stream2Wishbone
+from litex_wr_nic.gateware.wrf_wb2stream     import Wishbone2Stream
+from litex_wr_nic.gateware.wb_clock_crossing import WishboneClockCrossing
 
 # LiteX WR NIC SoC ---------------------------------------------------------------------------------
 
