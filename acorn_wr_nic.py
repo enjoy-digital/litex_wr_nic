@@ -213,37 +213,27 @@ class BaseSoC(LiteXWRNICSoC):
 
             # RefClk MMCM Phase Shift.
             # ------------------------
-            self.refclk_mmcm_ps_gen = Instance("ps_gen",
-                p_WIDTH       = 16,
-                p_DIV         = 16,
-                p_MULT        = 7,
-
-                i_pswidth     = self.dac_refclk_data,
-                i_pswidth_set = self.dac_refclk_load,
-                i_pswidth_clk = ClockSignal("wr"),
-
-                i_psclk       = ClockSignal("clk200"),
-                i_psdone      = self.crg.refclk_mmcm.psdone,
-                o_psen        = self.crg.refclk_mmcm.psen,
-                o_psincdec    = self.crg.refclk_mmcm.psincdec,
-            )
+            self.refclk_mmcm_ps_gen = PSGen(
+                 cd_psclk    = "clk200",
+                 cd_sys      = "wr",
+                 ctrl_size   = 16,
+                 )
+            self.comb += self.refclk_mmcm_ps_gen.ctrl_data.eq(self.dac_refclk_data)
+            self.comb += self.refclk_mmcm_ps_gen.ctrl_load.eq(self.dac_refclk_load)
+            self.comb += self.crg.refclk_mmcm.psen.eq(self.refclk_mmcm_ps_gen.psen)
+            self.comb += self.crg.refclk_mmcm.psincdec.eq(self.refclk_mmcm_ps_gen.psincdec)
 
             # DMTD MMCM Phase Shift.
             # ----------------------
-            self.dac_mmcm_ps_gen = Instance("ps_gen",
-                p_WIDTH       = 16,
-                p_DIV         = 16,
-                p_MULT        = 7,
-
-                i_pswidth     = self.dac_dmtd_data,
-                i_pswidth_set = self.dac_dmtd_load,
-                i_pswidth_clk = ClockSignal("wr"),
-
-                i_psclk       = ClockSignal("clk200"),
-                i_psdone      = self.crg.dmtd_mmcm.psdone,
-                o_psen        = self.crg.dmtd_mmcm.psen,
-                o_psincdec    = self.crg.dmtd_mmcm.psincdec,
-            )
+            self.dmtd_mmcm_ps_gen = PSGen(
+                 cd_psclk    = "clk200",
+                 cd_sys      = "wr",
+                 ctrl_size   = 16,
+                 )
+            self.comb += self.dmtd_mmcm_ps_gen.ctrl_data.eq(self.dac_dmtd_data)
+            self.comb += self.dmtd_mmcm_ps_gen.ctrl_load.eq(self.dac_dmtd_load)
+            self.comb += self.crg.dmtd_mmcm.psen.eq(self.dmtd_mmcm_ps_gen.psen)
+            self.comb += self.crg.dmtd_mmcm.psincdec.eq(self.dmtd_mmcm_ps_gen.psincdec)
 
             # Timings Constraints.
             # --------------------
