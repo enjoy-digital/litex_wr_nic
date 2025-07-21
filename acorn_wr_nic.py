@@ -47,6 +47,7 @@ from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, Fin
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.clk10m            import Clk10MGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
+from litex_wr_nic.gateware.ps_gen            import PSGen
 
 # CRG ----------------------------------------------------------------------------------------------
 
