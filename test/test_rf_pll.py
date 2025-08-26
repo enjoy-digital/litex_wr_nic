@@ -62,6 +62,7 @@ class LMX2572:
                 value = data & 0xFFFF
                 self.write_reg(addr, value)
                 time.sleep(0.01)
+                print(".", end="", flush=True)
         else:
             with open(config_file, "r") as f:
                 for line in f:
