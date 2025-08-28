@@ -50,10 +50,10 @@ class PSGen(LiteXModule):
         # Absolute scaled command for phase shift direction.
         self.scaled_cmd_abs = Signal(self.scaled_cmd_size - 1)
         sync_sys += If(self.scaled_cmd >= scaled_neutral,
-            self.psincdec.eq(1),
+            self.psincdec.eq(0), # decrement the phase -> speed up
             self.scaled_cmd_abs.eq(self.scaled_cmd - scaled_neutral)
         ).Else(
-            self.psincdec.eq(0),
+            self.psincdec.eq(1), # increment the phase -> slow down
             self.scaled_cmd_abs.eq(scaled_neutral - self.scaled_cmd)
         )
 
