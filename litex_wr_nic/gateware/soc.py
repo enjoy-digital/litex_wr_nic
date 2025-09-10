@@ -106,6 +106,10 @@ class LiteXWRNICSoC(SoCMini):
 
         # Temp 1Wire.
         temp_1wire_pads = None,
+
+        # Wishbone Slave.
+        wb_slave_origin = 0x2000_0000,
+        wb_slave_size   = 0x0100_0000,
     ):
 
         # Clks.
@@ -141,8 +145,8 @@ class LiteXWRNICSoC(SoCMini):
         self.wb_slave_sys = wb_slave_sys = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
         self.wb_slave_wr  = wb_slave_wr  = wishbone.Interface(data_width=32, address_width=32, adressing="byte")
         self.bus.add_slave(name="wr_wb_slave", slave=wb_slave_sys, region=SoCRegion(
-             origin = 0x2000_0000,
-             size   = 0x0100_0000,
+             origin = wb_slave_origin,
+             size   = wb_slave_size,
          ))
         self.submodules += WishboneClockCrossing(self.platform,
             wb_from = wb_slave_sys,
