@@ -112,6 +112,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Sync-Out Parameters.
         # --------------------
+        with_pps_out_freerunning     = False,
         # PPS Out (Adjusted over JTAGBone with test/test_delay.py).
         pps_out_macro_delay_default  = 62499998, # 16ns taps (Up to 2**32-1 taps).
         pps_out_coarse_delay_default =        1, #  2ns taps (64 taps).
@@ -360,7 +361,7 @@ class BaseSoC(LiteXWRNICSoC):
             pps_out_pulse_sel = Signal()
             self.comb += [
                 # Use PPS from WR when active.
-                If(pps_out_valid,
+                If(pps_out_valid | (~with_pps_out_freerunning),
                     pps_out_pulse_sel.eq(self.pps_out_pulse)
                 # Else Switch back to Free-Running PPS.
                 ).Else(
