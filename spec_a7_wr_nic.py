@@ -112,6 +112,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Sync-Out Parameters.
         # --------------------
+        bypass_pps_out_coarse_delay  = False,
         # PPS Out (Adjusted over JTAGBone with test/test_delay.py).
         pps_out_macro_delay_default  = 62499998, # 16ns taps (Up to 2**32-1 taps).
         pps_out_coarse_delay_default =        1, #  2ns taps (64 taps).
@@ -451,7 +452,7 @@ class BaseSoC(LiteXWRNICSoC):
             # PPS Out.
             pps_out_pads = platform.request("pps_out")
             self.specials += DifferentialOutput(
-                i   = pps_out_coarse_delay,
+                i   = pps_out_gen if bypass_pps_out_coarse_delay else pps_out_coarse_delay,
                 o_p = pps_out_pads.p,
                 o_n = pps_out_pads.n,
             )
