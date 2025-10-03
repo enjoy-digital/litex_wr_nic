@@ -380,7 +380,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ---------------
 
             # Clk10M Macro Delay.
-            clk10m_out_macro_delay = Signal()
+            clk10m_out_macro_delay  = Signal()
             self.clk10m_macro_delay = MacroDelay(
                 pulse_i = pps_out_pulse_sel,
                 pulse_o = clk10m_out_macro_delay,
@@ -389,7 +389,7 @@ class BaseSoC(LiteXWRNICSoC):
             )
 
             # Clk10M Generator.
-            clk10m_out_gen = Signal(8)
+            clk10m_out_gen  = Signal(8)
             self.clk10m_gen = Clk10MGenerator(
                 pulse_i  = clk10m_out_macro_delay,
                 clk10m_o = clk10m_out_gen,
@@ -397,7 +397,7 @@ class BaseSoC(LiteXWRNICSoC):
             )
 
             # Clk10M Coarse Delay.
-            clk10m_out_coarse_delay = Signal()
+            clk10m_out_coarse_delay      = Signal()
             self.clk10m_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
                 i   = clk10m_out_gen,
@@ -419,7 +419,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ------------
 
             # PPS Macro Delay.
-            pps_out_macro_delay = Signal()
+            pps_out_macro_delay      = Signal()
             self.pps_out_macro_delay = MacroDelay(
                 pulse_i = pps_out_pulse_sel,
                 pulse_o = pps_out_macro_delay,
@@ -438,7 +438,7 @@ class BaseSoC(LiteXWRNICSoC):
             )
 
             # PPS Coarse Delay.
-            pps_out_coarse_delay   = Signal()
+            pps_out_coarse_delay      = Signal()
             self.pps_out_coarse_delay = CoarseDelay(
                 rst = ~syncout_pll.locked,
                 i   = pps_out_gen,
