@@ -440,14 +440,15 @@ class BaseSoC(LiteXWRNICSoC):
 
             # PPS Coarse Delay.
             pps_out_coarse_delay      = Signal()
-            self.pps_out_coarse_delay = CoarseDelay(
-                rst = ~syncout_pll.locked,
-                i   = pps_out_gen,
-                o   = pps_out_coarse_delay,
-                clk_domain = "wr",
-                clk_cycles = 8, # 64-taps.
-                default_delay = pps_out_coarse_delay_default,
-            )
+            if not bypass_pps_out_coarse_delay:
+                self.pps_out_coarse_delay = CoarseDelay(
+                    rst = ~syncout_pll.locked,
+                    i   = pps_out_gen,
+                    o   = pps_out_coarse_delay,
+                    clk_domain = "wr",
+                    clk_cycles = 8, # 64-taps.
+                    default_delay = pps_out_coarse_delay_default,
+                )
 
             # PPS Out.
             pps_out_pads = platform.request("pps_out")
