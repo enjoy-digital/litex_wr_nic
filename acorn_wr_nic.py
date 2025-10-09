@@ -259,7 +259,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ------
             self.comb += [
                 # PPS/Clk Output.
-                platform.request("pps_out").eq(self.pps),
+                platform.request("pps_out").eq(self.pps_out),
                 platform.request("wr_clk_out").eq(ClockSignal("wr")),
             ]
 

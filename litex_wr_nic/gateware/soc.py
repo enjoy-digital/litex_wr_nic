@@ -125,7 +125,6 @@ class LiteXWRNICSoC(SoCMini):
         self.dac_refclk_data = Signal(16)
         self.dac_dmtd_load   = Signal()
         self.dac_dmtd_data   = Signal(16)
-        self.pps             = Signal()
         self.pps_in          = Signal()
         self.pps_out_valid   = Signal()
         self.pps_out         = Signal()
@@ -239,10 +238,10 @@ class LiteXWRNICSoC(SoCMini):
             i_spi_miso_i          = 0      if flash_pads is None else flash_pads.miso,
 
             # PPS / Leds.
-            o_pps_valid_o         = Open(),
             i_pps_ext_i           = self.pps_in,
+            o_pps_valid_o         = self.pps_out_valid,
             o_pps_csync_o         = self.pps_out_pulse,
-            o_pps_p_o             = self.pps,
+            o_pps_p_o             = self.pps_out,
             o_pps_led_o           = self.led_pps,
             o_led_link_o          = self.led_link,
             o_led_act_o           = self.led_act,
