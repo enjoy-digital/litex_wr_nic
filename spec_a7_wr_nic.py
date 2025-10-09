@@ -112,7 +112,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Sync-Out Parameters.
         # --------------------
-        bypass_pps_out_coarse_delay  = False,
+        bypass_pps_out_macro_coarse_delays = True,
         # PPS Out (Adjusted over JTAGBone with test/test_delay.py).
         pps_out_macro_delay_default  = 62499998, # 16ns taps (Up to 2**32-1 taps).
         pps_out_coarse_delay_default =        1, #  2ns taps (64 taps).
@@ -419,28 +419,30 @@ class BaseSoC(LiteXWRNICSoC):
             # PPS SMA Out.
             # ------------
 
-            # PPS Macro Delay.
-            pps_out_macro_delay      = Signal()
-            self.pps_out_macro_delay = MacroDelay(
-                pulse_i = pps_out_pulse_sel,
-                pulse_o = pps_out_macro_delay,
-                clk_domain    = "wr",
-                default_delay = pps_out_macro_delay_default,
-            )
+            # PPS from WR Core + configurable Macro/Coarse delays.
+            if not bypass_pps_out_macro_coarse_delays:
 
-            # PPS Generator.
-            pps_out_gen = Signal()
-            self.pps_out_gen = PPSGenerator(
-                i = pps_out_macro_delay,
-                o = pps_out_gen,
-                clk_domain = "wr",
-                clk_freq   = int(62.5e6),
-                duty_cycle = 20/100, # 20% High / 80% Low PPS.
-            )
+                # PPS Macro Delay.
+                pps_out_macro_delay      = Signal()
+                self.pps_out_macro_delay = MacroDelay(
+                    pulse_i = pps_out_pulse_sel,
+                    pulse_o = pps_out_macro_delay,
+                    clk_domain    = "wr",
+                    default_delay = pps_out_macro_delay_default,
+                )
 
-            # PPS Coarse Delay.
-            pps_out_coarse_delay      = Signal()
-            if not bypass_pps_out_coarse_delay:
+                # PPS Generator.
+                pps_out_gen      = Signal()
+                self.pps_out_gen = PPSGenerator(
+                    i = pps_out_macro_delay,
+                    o = pps_out_gen,
+                    clk_domain = "wr",
+                    clk_freq   = int(62.5e6),
+                    duty_cycle = 20/100, # 20% High / 80% Low PPS.
+                )
+
+                # PPS Coarse Delay.
+                pps_out_coarse_delay = Signal()
                 self.pps_out_coarse_delay = CoarseDelay(
                     rst = ~syncout_pll.locked,
                     i   = pps_out_gen,
@@ -450,14 +452,18 @@ class BaseSoC(LiteXWRNICSoC):
                     default_delay = pps_out_coarse_delay_default,
                 )
 
+            # PPS from WR Core.
+            else:
+                pps_out_gen  = Signal()
+                self.comb += pps_out_gen.eq(self.pps_out)
+
             # PPS Out.
             pps_out_pads = platform.request("pps_out")
             self.specials += DifferentialOutput(
-                i   = pps_out_gen if bypass_pps_out_coarse_delay else pps_out_coarse_delay,
+                i   = pps_out_gen,
                 o_p = pps_out_pads.p,
                 o_n = pps_out_pads.n,
             )
-
 
             # Fine Delay (Clk10M & PPS Out).
             # ------------------------------
@@ -467,7 +473,7 @@ class BaseSoC(LiteXWRNICSoC):
                 default_delays = [
                     clk10m_out_fine_delay_default,
                     pps_out_fine_delay_default,
-                ],
+                ]
             )
 
             # FrontPanel Leds.
