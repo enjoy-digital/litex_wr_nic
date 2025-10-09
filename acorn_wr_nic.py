@@ -219,10 +219,12 @@ class BaseSoC(LiteXWRNICSoC):
                  cd_sys      = "wr",
                  ctrl_size   = 16,
                  )
-            self.comb += self.refclk_mmcm_ps_gen.ctrl_data.eq(self.dac_refclk_data)
-            self.comb += self.refclk_mmcm_ps_gen.ctrl_load.eq(self.dac_refclk_load)
-            self.comb += self.crg.refclk_mmcm.psen.eq(self.refclk_mmcm_ps_gen.psen)
-            self.comb += self.crg.refclk_mmcm.psincdec.eq(self.refclk_mmcm_ps_gen.psincdec)
+            self.comb += [
+                self.refclk_mmcm_ps_gen.ctrl_data.eq(self.dac_refclk_data),
+                self.refclk_mmcm_ps_gen.ctrl_load.eq(self.dac_refclk_load),
+                self.crg.refclk_mmcm.psen.eq(self.refclk_mmcm_ps_gen.psen),
+                self.crg.refclk_mmcm.psincdec.eq(self.refclk_mmcm_ps_gen.psincdec),
+            ]
 
             # DMTD MMCM Phase Shift.
             # ----------------------
@@ -231,10 +233,12 @@ class BaseSoC(LiteXWRNICSoC):
                  cd_sys      = "wr",
                  ctrl_size   = 16,
                  )
-            self.comb += self.dmtd_mmcm_ps_gen.ctrl_data.eq(self.dac_dmtd_data)
-            self.comb += self.dmtd_mmcm_ps_gen.ctrl_load.eq(self.dac_dmtd_load)
-            self.comb += self.crg.dmtd_mmcm.psen.eq(self.dmtd_mmcm_ps_gen.psen)
-            self.comb += self.crg.dmtd_mmcm.psincdec.eq(self.dmtd_mmcm_ps_gen.psincdec)
+            self.comb += [
+                self.dmtd_mmcm_ps_gen.ctrl_data.eq(self.dac_dmtd_data),
+                self.dmtd_mmcm_ps_gen.ctrl_load.eq(self.dac_dmtd_load),
+                self.crg.dmtd_mmcm.psen.eq(self.dmtd_mmcm_ps_gen.psen),
+                self.crg.dmtd_mmcm.psincdec.eq(self.dmtd_mmcm_ps_gen.psincdec),
+            ]
 
             # Timings Constraints.
             # --------------------
