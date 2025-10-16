@@ -98,7 +98,7 @@ def main():
 
     # Build firmware
     if args.build_firmware:
-        os.system("cd ../firmware && ./build.py")
+        os.system("cd ../litex_wr_nic/firmware && ./build.py")
 
     # Load firmware command
     if args.load_firmware:
