@@ -20,6 +20,7 @@ CPU_RST_REG = 0x0
 CPU_ADR_REG = 0x4
 CPU_DAT_REG = 0x8
 DEFAULT_DUMP_LENGTH = 128 * 1024  # Default dump length: 128 KB
+DEFAULT_BIND_PORT = 1234          # Default TCP port on host: 1234
 
 # CPU ----------------------------------------------------------------------------------------------
 
@@ -83,12 +84,14 @@ def main():
     parser.add_argument("--load-firmware", metavar="FILE", help="Path to firmware binary for loading.")
     parser.add_argument("--dump-firmware", metavar="FILE", help="Filename to save dumped firmware.")
     parser.add_argument("--dump-length", type=int, default=DEFAULT_DUMP_LENGTH, help="Dump length in bytes.")
+    parser.add_argument("--bind-port", type=int, default=DEFAULT_BIND_PORT, help="Host bind port.")
     args = parser.parse_args()
 
-    bus = RemoteClient()
-    bus.open()
+    if not args.build_firmware:
+        bus = RemoteClient(port=str(args.bind_port))
+        bus.open()
 
-    cpu = CPU(bus=bus)
+        cpu = CPU(bus=bus)
 
     # Reset command
     if args.reset:
@@ -113,7 +116,8 @@ def main():
         write_firmware_file(args.dump_firmware, firmware_data)
 
     # Close the bus connection
-    bus.close()
+    if not args.build_firmware:
+        bus.close()
 
 if __name__ == "__main__":
     main()
