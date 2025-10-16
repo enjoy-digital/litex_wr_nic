@@ -87,8 +87,8 @@ def main():
     parser.add_argument("--bind-port", type=int, default=DEFAULT_BIND_PORT, help="Host bind port.")
     args = parser.parse_args()
 
-    if !args.build_firmware:
-        bus = RemoteClient(args.bind-port)
+    if not args.build_firmware:
+        bus = RemoteClient(port=str(args.bind_port))
         bus.open()
 
         cpu = CPU(bus=bus)
@@ -116,7 +116,7 @@ def main():
         write_firmware_file(args.dump_firmware, firmware_data)
 
     # Close the bus connection
-    if !args.build_firmware:
+    if not args.build_firmware:
         bus.close()
 
 if __name__ == "__main__":
