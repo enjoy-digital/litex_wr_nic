@@ -110,6 +110,8 @@ class LiteXWRNICSoC(SoCMini):
         # Wishbone Slave.
         wb_slave_origin = 0x2000_0000,
         wb_slave_size   = 0x0100_0000,
+
+        dac_bits      = 16
     ):
 
         # Clks.
@@ -122,9 +124,9 @@ class LiteXWRNICSoC(SoCMini):
         self.led_link        = Signal()
         self.led_act         = Signal()
         self.dac_refclk_load = Signal()
-        self.dac_refclk_data = Signal(16)
+        self.dac_refclk_data = Signal(dac_bits)
         self.dac_dmtd_load   = Signal()
-        self.dac_dmtd_data   = Signal(16)
+        self.dac_dmtd_data   = Signal(dac_bits)
         self.pps_in          = Signal()
         self.pps_out_valid   = Signal()
         self.pps_out         = Signal()
@@ -188,12 +190,13 @@ class LiteXWRNICSoC(SoCMini):
         self.specials += Instance("xwrc_board_litex_wr_nic_wrapper",
             # Parameters.
             p_g_dpram_initf               = os.path.abspath(cpu_firmware),
-            p_g_dpram_size                = 131072//4,
+            p_g_dpram_size                = 262144//4,
             p_txpolarity                  = sfp_tx_polarity,
             p_rxpolarity                  = sfp_rx_polarity,
             p_g_with_external_clock_input = str(with_ext_clk).upper(),
             p_g_fpga_family               = {True: "artix7", False: "kintex7"}[self.platform.device.startswith("xc7a")],
             p_g_board_name                = board_name,
+            p_g_dac_bits                  = dac_bits,
 
             # Clocks/resets.
             i_areset_n_i          = ~ResetSignal("sys"),

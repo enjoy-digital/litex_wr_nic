@@ -32,6 +32,7 @@ entity xwrc_board_litex_wr_nic_wrapper is
     g_fpga_family               : string  := "artix7";
     -- Number of aux clocks syntonized by WRPC to WR timebase
     g_aux_clks                  : integer := 0;
+    g_dac_bits                  : integer := 16;
     -- plain                    = expose WRC fabric interface
     -- streamers                = attach WRC streamers to fabric interface
     -- etherbone                = attach Etherbone slave to fabric interface
@@ -63,10 +64,10 @@ entity xwrc_board_litex_wr_nic_wrapper is
 
     -- Serial DACs
     dac_refclk_load      : out std_logic;
-    dac_refclk_data      : out std_logic_vector(15 downto 0);
+    dac_refclk_data      : out std_logic_vector(g_dac_bits-1 downto 0);
 
     dac_dmtd_load        : out std_logic;
-    dac_dmtd_data        : out std_logic_vector(15 downto 0);
+    dac_dmtd_data        : out std_logic_vector(g_dac_bits-1 downto 0);
 
     -- SFP I/O for transceiver and SFP management info
     sfp_txp_o            : out std_logic;
@@ -237,6 +238,7 @@ begin
       g_board_name                => g_board_name,
       g_fpga_family               => g_fpga_family,
       g_aux_clks                  => g_aux_clks,
+      g_dac_bits                  => g_dac_bits,
       g_fabric_iface              => PLAIN,
       g_streamers_op_mode         => TX_AND_RX,
       g_tx_streamer_params        => c_tx_streamer_params_defaut,
