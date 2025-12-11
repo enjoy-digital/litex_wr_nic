@@ -77,7 +77,8 @@ entity xwrc_board_litex_wr_nic is
     -- GTPE2_CHANNEL TX Polarity Control Ports
     txpolarity                  : bit                  := '0';
     -- GTPE2_CHANNEL RX Polarity Control Ports
-    rxpolarity                  : bit                  := '1'
+    rxpolarity                  : bit                  := '1';
+    g_dac_bits                  : integer              := 16
     );
   port (
     ---------------------------------------------------------------------------
@@ -103,10 +104,10 @@ entity xwrc_board_litex_wr_nic is
     -- Serial DACs
     ---------------------------------------------------------------------------
     dac_refclk_load     : out std_logic;
-    dac_refclk_data     : out std_logic_vector(15 downto 0);
+    dac_refclk_data     : out std_logic_vector(g_dac_bits-1 downto 0);
 
     dac_dmtd_load       : out std_logic;
-    dac_dmtd_data       : out std_logic_vector(15 downto 0);
+    dac_dmtd_data       : out std_logic_vector(g_dac_bits-1 downto 0);
 
     ---------------------------------------------------------------------------
     -- SFP I/O for transceiver and SFP management info
@@ -394,6 +395,7 @@ begin  -- architecture struct
       g_phys_uart                 => TRUE,
       g_virtual_uart              => TRUE,
       g_aux_clks                  => g_aux_clks,
+      g_dac_bits                  => g_dac_bits,
       g_ep_rxbuf_size             => 1024,
       g_tx_runt_padding           => TRUE,
       g_dpram_initf               => g_dpram_initf,
