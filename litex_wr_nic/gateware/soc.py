@@ -190,7 +190,7 @@ class LiteXWRNICSoC(SoCMini):
         self.specials += Instance("xwrc_board_litex_wr_nic_wrapper",
             # Parameters.
             p_g_dpram_initf               = os.path.abspath(cpu_firmware),
-            p_g_dpram_size                = 262144//4,
+            p_g_dpram_size                = 131072//4,
             p_txpolarity                  = sfp_tx_polarity,
             p_rxpolarity                  = sfp_rx_polarity,
             p_g_with_external_clock_input = str(with_ext_clk).upper(),
