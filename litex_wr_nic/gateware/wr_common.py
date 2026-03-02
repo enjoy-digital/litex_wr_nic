@@ -15,6 +15,7 @@ from litex.build import tools
 WR_CORES_URL    = "https://gitlab.com/ohwr/project/wr-cores.git"
 WR_CORES_BRANCH = "master"
 WR_CORES_SHA1   = "c3f828881f5fd496966f1f04723dc85992d526fa"
+WR_SUBSYSTEM_VHD = "wr-cores/modules/wrc_core/xwr_subsystem.vhd"
 
 def wr_core_init():
     print("Cloning wr-cores repository...")
@@ -28,6 +29,14 @@ def wr_core_init():
     subprocess.run(["git", "submodule", "update", "--init"])
     print("wr-cores initialization complete.")
     os.chdir("..")
+
+def patch_wr_subsystem_mux_class():
+    # Keep upstream xwr_subsystem and patch only the class mask needed by LiteX-WR-NIC.
+    tools.replace_in_file(
+        WR_SUBSYSTEM_VHD,
+        'mux_class_i(1) => x"f0");',
+        'mux_class_i(1) => x"ff");'
+    )
 
 # WR Core Files ------------------------------------------------------------------------------------
 
