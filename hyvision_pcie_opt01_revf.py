@@ -70,7 +70,7 @@ class _CRG(LiteXModule):
 
         # RefClk MMCM (125MHz).
         # ---------------------
-        self.refclk_mmcm = S7MMCM(speedgrade=-3)
+        self.refclk_mmcm = S7MMCM(speedgrade=-1)
         self.comb += self.refclk_mmcm.reset.eq(self.rst)
         self.refclk_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
         self.refclk_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
@@ -80,7 +80,7 @@ class _CRG(LiteXModule):
 
         # DMTD MMCM (62.5MHz).
         # --------------------
-        self.dmtd_mmcm = S7MMCM(speedgrade=-3)
+        self.dmtd_mmcm = S7MMCM(speedgrade=-1)
         self.comb += self.dmtd_mmcm.reset.eq(self.rst)
         self.dmtd_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
         self.dmtd_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
@@ -140,10 +140,11 @@ class BaseSoC(LiteXWRNICSoC):
         # PCIe PHY ---------------------------------------------------------------------------------
         if with_pcie:
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
-                data_width  = 64,
-                bar0_size   = 0x20000,
-                with_ptm    = True,
-                refclk_freq = 100e6,
+                data_width      = 64,
+                bar0_size       = 0x20000,
+                with_ptm        = True,
+                refclk_freq     = 100e6,
+                mmcm_speedgrade = -1,
             )
             self.pcie_phy.update_config({
                 "Base_Class_Menu"          : "Network_controller",
