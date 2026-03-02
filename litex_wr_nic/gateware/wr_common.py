@@ -13,8 +13,8 @@ from litex.build import tools
 # WR Core Init -------------------------------------------------------------------------------------
 
 WR_CORES_URL    = "https://gitlab.com/ohwr/project/wr-cores.git"
-WR_CORES_BRANCH = "wrpc-v5"
-WR_CORES_SHA1   = "39825ec55291cb12492090093f27a50f9d0b73d9"
+WR_CORES_BRANCH = "master"
+WR_CORES_SHA1   = "c3f828881f5fd496966f1f04723dc85992d526fa"
 
 def wr_core_init():
     print("Cloning wr-cores repository...")
@@ -93,6 +93,9 @@ wr_core_files += [
     "wr-cores/ip_cores/general-cores/modules/wishbone/wbgen2/wbgen2_fifo_sync.vhd",
     "wr-cores/ip_cores/general-cores/modules/wishbone/wbgen2/wbgen2_pkg.vhd",
     "wr-cores/ip_cores/general-cores/modules/wishbone/wishbone_pkg.vhd",
+    "wr-cores/ip_cores/general-cores/modules/wishbone/wb_vuart/xwb_vuart.vhd",
+    "wr-cores/ip_cores/general-cores/modules/wishbone/wb_vuart/vuart_board_map.vhd",
+    "wr-cores/ip_cores/general-cores/modules/wishbone/wb_vuart/vuart_host_map.vhd",
 
     # uRV CPU Modules.
     "wr-cores/ip_cores/urv-core/rtl/urv_cpu.v",
@@ -125,6 +128,13 @@ wr_core_files += [
     "wr-cores/modules/timing/dmtd_with_deglitcher.vhd",
     "wr-cores/modules/timing/pulse_stamper.vhd",
     "wr-cores/modules/timing/pulse_stamper_sync.vhd",
+    "wr-cores/modules/wr_timecodes/wr_timecode_pkg.vhd",
+    "wr-cores/modules/wr_timecodes/wr_timecodes.vhd",
+    "wr-cores/modules/wr_timecodes/timecode_regs.vhd",
+    "wr-cores/modules/wr_timecodes/utc2bcd.vhd",
+    "wr-cores/modules/wr_timecodes/hex2bcd.vhd",
+    "wr-cores/modules/wr_timecodes/utc_timecode.vhd",
+
 
     # WR Endpoint Modules.
     "wr-cores/modules/wr_endpoint/endpoint_pkg.vhd",
@@ -165,8 +175,7 @@ wr_core_files += [
 
     # WR Mini NIC Modules.
     "wr-cores/modules/wr_endpoint/xwr_endpoint.vhd",
-    "wr-cores/modules/wr_mini_nic/minic_wb_slave.vhd",
-    "wr-cores/modules/wr_mini_nic/minic_wbgen2_pkg.vhd",
+    "wr-cores/modules/wr_mini_nic/wr_mini_nic_map.vhd",
     "wr-cores/modules/wr_mini_nic/wr_mini_nic.vhd",
     "wr-cores/modules/wr_mini_nic/xwr_mini_nic.vhd",
 
@@ -180,7 +189,6 @@ wr_core_files += [
     "wr-cores/modules/wr_softpll_ng/spll_aligner.vhd",
     "wr-cores/modules/wr_softpll_ng/spll_wb_slave.vhd",
     "wr-cores/modules/wr_softpll_ng/spll_wbgen2_pkg.vhd",
-    "wr-cores/modules/wr_softpll_ng/wr_softpll_ng.vhd",
     "wr-cores/modules/wr_softpll_ng/xwr_softpll_ng.vhd",
 
     # WR Streamers Modules.
@@ -205,27 +213,28 @@ wr_core_files += [
 
     # WR Core Modules.
     #"wr-cores/modules/wrc_core/wr_core.vhd",
-    "wr-cores/modules/wrc_core/wrc_cpu_csr_wb.vhd",
-    "wr-cores/modules/wrc_core/wrc_cpu_csr_wbgen2_pkg.vhd",
+    "wr-cores/modules/wrc_core/wrc_cpu_csr.vhd",
     "wr-cores/modules/wrc_core/wrc_diags_dpram.vhd",
-    "wr-cores/modules/wrc_core/wrc_periph.vhd",
-    "wr-cores/modules/wrc_core/wrc_syscon_pkg.vhd",
-    "wr-cores/modules/wrc_core/wrc_syscon_wb.vhd",
+    "wr-cores/modules/wrc_core/wrc_syscon.vhd",
+    "wr-cores/modules/wrc_core/wrc_syscon_map.vhd",
     "wr-cores/modules/wrc_core/wrc_urv_wrapper.vhd",
     "wr-cores/modules/wrc_core/wrcore_pkg.vhd",
     "wr-cores/modules/wrc_core/xwr_core.vhd",
+    "wr-cores/modules/wrc_core/xwr_subsystem.vhd",
+    "wr-cores/modules/wrc_core/wrc_host_map.vhd",
+    "wr-cores/modules/wrc_core/wrc_devices_map.vhd",
 
     # WR PHY Modules.
-    #"wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd",
-    #"wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gt.vhd",
-    #"wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/wr_gtp_phy_family7.vhd",
-    "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
-    "wr-cores/platform/xilinx/wr_gtp_phy/gtp_bitslide.vhd",
+    # in a future version : "wr-cores/platform/xilinx/7Series/GTP-7/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
+    "wr-cores/platform/xilinx/7Series/GTPE2/whiterabbit_gtpe2_channel_wrapper_gtrxreset_seq.vhd",
+    "wr-cores/platform/xilinx/common/gtp_bitslide.vhd",
     "wr-cores/platform/xilinx/wr_xilinx_pkg.vhd",
 
     # WR PHY Modules for Kintex / GTX.
-    "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtx/whiterabbit_gtxe2_channel_wrapper_gt.vhd",
-    "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtx/wr_gtx_phy_family7.vhd",
+    # in a future version : "wr-cores/platform/xilinx/7Series/GTX-7/whiterabbit_gtxe2_channel_wrapper_gt.vhd",
+    # in a future version : "wr-cores/platform/xilinx/7Series/GTX-7/wr_gtx_phy_family7.vhd",
+    "wr-cores/platform/xilinx/7Series/GTXE2/whiterabbit_gtxe2_channel_wrapper_gt.vhd",
+    "wr-cores/platform/xilinx/7Series/GTXE2/wr_gtx_phy_family7.vhd",
 ]
 
     # LiteX-WR NIC adapted files.
