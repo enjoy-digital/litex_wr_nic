@@ -184,6 +184,11 @@ class LiteXWRNICSoC(SoCMini):
                 i_USRDONEO  = 1,
                 i_USRDONETS = 1,
             )
+            # Keep optional WP#/HOLD# lines deasserted in 1-bit SPI mode.
+            if hasattr(flash_pads, "wp"):
+                self.comb += flash_pads.wp.eq(1)
+            if hasattr(flash_pads, "hold"):
+                self.comb += flash_pads.hold.eq(1)
 
         # White Rabbit Core Instance.
         # ---------------------------
