@@ -116,6 +116,15 @@ class BaseSoC(LiteXWRNICSoC):
         platform.add_extension([
             ("pps_out",    0, Pins("H5"), IOStandard("LVCMOS33")),
             ("wr_clk_out", 0, Pins("J5"), IOStandard("LVCMOS33")),
+            # SPIFlash.
+            ("flash", 1,
+                Subsignal("cs_n", Pins("T19")),
+                Subsignal("mosi", Pins("P22")),
+                Subsignal("miso", Pins("R22")),
+                Subsignal("wp",   Pins("P21")),
+                Subsignal("hold", Pins("R21")),
+                IOStandard("LVCMOS33")
+            ),
         ])
 
         # Clocking ---------------------------------------------------------------------------------
@@ -209,6 +218,9 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # Serial.
                 serial_pads     = self.uart.shared_pads,
+
+                # Flash.
+                flash_pads      = platform.request("flash", 1),
             )
             self.add_sources()
 
