@@ -197,6 +197,10 @@ entity xwrc_board_litex_wr_nic is
     tm_dac_wr_o          : out std_logic_vector(g_aux_clks-1 downto 0);
     tm_clk_aux_lock_en_i : in  std_logic_vector(g_aux_clks-1 downto 0) := (others => '0');
     tm_clk_aux_locked_o  : out std_logic_vector(g_aux_clks-1 downto 0);
+    clk_aux_i            : in  std_logic_vector(g_aux_clks-1 downto 0) := (others => '0'); -- aux clks feedback
+    -- LockSweep signals
+    lock_sweep_i         : in std_logic := '0';
+    lock_sweep_phase_i   : in std_logic_vector(15 downto 0) := (others => '0');
 
     ---------------------------------------------------------------------------
     -- External Tx Timestamping I/F
@@ -239,7 +243,6 @@ entity xwrc_board_litex_wr_nic is
     pps_led_o   : out std_logic;
     -- Link ok indication
     link_ok_o  : out std_logic;
-
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
@@ -419,7 +422,7 @@ begin  -- architecture struct
       clk_sys_i            => clk_pll_62m5,
       clk_dmtd_i           => clk_dmtd,
       clk_ref_i            => clk_ref_62m5,
-      clk_aux_i            => (0 downto 0 => '0'),
+      clk_aux_i            => clk_aux_i,
       clk_10m_ext_i        => clk_10m_ext,
       clk_ext_mul_i        => ext_ref_mul,
       clk_ext_mul_locked_i => ext_ref_mul_locked,
@@ -497,6 +500,9 @@ begin  -- architecture struct
       pps_csync_o          => pps_csync_o,
       pps_p_o              => pps_p_o,
       pps_led_o            => pps_led_o,
+      lock_sweep_i         => lock_sweep_i,
+      lock_sweep_phase_i   => lock_sweep_phase_i,
+
       link_ok_o            => link_ok_o);
 
   onewire_oen_o <= onewire_en(0);

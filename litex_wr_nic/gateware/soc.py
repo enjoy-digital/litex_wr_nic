@@ -190,9 +190,10 @@ class LiteXWRNICSoC(SoCMini):
             if hasattr(flash_pads, "hold"):
                 self.comb += flash_pads.hold.eq(1)
 
-        # White Rabbit Core Instance.
+        # White Rabbit Core Parameters.
         # ---------------------------
-        self.specials += Instance("xwrc_board_litex_wr_nic_wrapper",
+        self.wr_params = {}
+        self.wr_params.update(
             # Parameters.
             p_g_dpram_initf               = os.path.abspath(cpu_firmware),
             p_g_dpram_size                = 131072//4,
@@ -640,3 +641,45 @@ class LiteXWRNICSoC(SoCMini):
             register     = True,
             csr_csv      = "test/analyzer.csv"
         )
+
+    def add_aux_clock(self,
+                      clk_fb,
+                      dac_aux_load,
+                      dac_aux_data,
+                      lock_en=True,
+                      locked=None,
+                      lock_sweep = None, # only one auxpll can use locksweep for now
+                      lock_sweep_phase = None
+                      ):
+        i = 0 # aux clk index
+        if 'p_g_aux_clk' in self.wr_params.keys():
+            i = self.wr_params['p_g_aux_clks']
+            self.wr_params['p_g_aux_clks'] = i + 1
+        else :
+            self.wr_params['p_g_aux_clks'] = 1
+
+        if i != 0:
+            self.comb += dac_aux_data.eq(self.wr_params['o_tm_dac_value_o'])
+
+            clk_fb        = Cat(self.wr_params['i_clk_aux_i'], clk_fb)
+            dac_aux_load  = Cat(self.wr_params['o_tm_dac_wr_o'], dac_aux_load)
+            lock_en       = Cat(self.wr_params['i_tm_clk_lock_en_i'], lock_en)
+            locked        = Cat(self.wr_params['o_tm_dac_value_o'], locked)
+        else :
+            self.wr_params['o_tm_dac_value_o'] = dac_aux_data
+
+        self.wr_params.update(
+                i_clk_aux_i            = clk_fb,
+                o_tm_dac_wr_o          = dac_aux_load,
+                i_tm_clk_aux_lock_en_i = lock_en,
+                o_tm_clk_aux_locked_o  = locked,
+                )
+        if lock_sweep_phase is not None:
+            self.wr_params.update(
+                    i_lock_sweep_i       = lock_sweep,
+                    i_lock_sweep_phase_i = lock_sweep_phase,
+                    )
+
+    def do_finalize(self):
+        self.specials += Instance("xwrc_board_litex_wr_nic_wrapper", **self.wr_params)
+ 

@@ -142,6 +142,10 @@ entity xwrc_board_litex_wr_nic_wrapper is
     tm_dac_wr_o          : out std_logic_vector(g_aux_clks-1 downto 0);
     tm_clk_aux_lock_en_i : in  std_logic_vector(g_aux_clks-1 downto 0);
     tm_clk_aux_locked_o  : out std_logic_vector(g_aux_clks-1 downto 0);
+    clk_aux_i            : in  std_logic_vector(g_aux_clks-1 downto 0); -- aux clks feedback
+    -- LockSweep signals
+    lock_sweep_i         : in std_logic := '0';
+    lock_sweep_phase_i   : in std_logic_vector(15 downto 0) := (others => '0');
 
     -- External Tx Timestamping I/F
     timestamps_o         : out t_txtsu_timestamp;
@@ -297,6 +301,9 @@ begin
       tm_dac_wr_o          => tm_dac_wr_o,
       tm_clk_aux_lock_en_i => tm_clk_aux_lock_en_i,
       tm_clk_aux_locked_o  => tm_clk_aux_locked_o,
+      clk_aux_i            => clk_aux_i,
+      lock_sweep_i         => lock_sweep_i,
+      lock_sweep_phase_i   => lock_sweep_phase_i,
       timestamps_o         => timestamps_o,
       timestamps_ack_i     => timestamps_ack_i,
       fc_tx_pause_req_i    => fc_tx_pause_req_i,
