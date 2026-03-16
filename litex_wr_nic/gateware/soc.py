@@ -663,8 +663,8 @@ class LiteXWRNICSoC(SoCMini):
 
             clk_fb        = Cat(self.wr_params['i_clk_aux_i'], clk_fb)
             dac_aux_load  = Cat(self.wr_params['o_tm_dac_wr_o'], dac_aux_load)
-            lock_en       = Cat(self.wr_params['i_tm_clk_lock_en_i'], lock_en)
-            locked        = Cat(self.wr_params['o_tm_dac_value_o'], locked)
+            lock_en       = Cat(self.wr_params['i_tm_clk_aux_lock_en_i'], lock_en)
+            locked        = Cat(self.wr_params['o_tm_clk_aux_locked_o'], locked)
         else :
             self.wr_params['o_tm_dac_value_o'] = dac_aux_data
 
