@@ -172,7 +172,8 @@ entity xwrc_board_litex_wr_nic_wrapper is
     gt0_ext_qpll_reset   : out std_logic;
     gt0_ext_qpll_clk     : in  std_logic;
     gt0_ext_qpll_refclk  : in  std_logic;
-    gt0_ext_qpll_lock    : in  std_logic
+    gt0_ext_qpll_lock    : in  std_logic;
+    txpippmstepsize_i   : in   std_logic_vector(4 downto 0)
   );
 end xwrc_board_litex_wr_nic_wrapper;
 
@@ -317,7 +318,8 @@ begin
       GT0_EXT_QPLL_RESET   => gt0_ext_qpll_reset,
       GT0_EXT_QPLL_CLK     => gt0_ext_qpll_clk,
       GT0_EXT_QPLL_REFCLK  => gt0_ext_qpll_refclk,
-      GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock
+      GT0_EXT_QPLL_LOCK    => gt0_ext_qpll_lock,
+      txpippmstepsize_i    => txpippmstepsize_i
     );
 
 end architecture;

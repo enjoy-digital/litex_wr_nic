@@ -239,11 +239,11 @@ entity xwrc_board_litex_wr_nic is
     pps_led_o   : out std_logic;
     -- Link ok indication
     link_ok_o  : out std_logic;
-
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
-    GT0_EXT_QPLL_LOCK   : in  std_logic
+    GT0_EXT_QPLL_LOCK   : in  std_logic;
+    txpippmstepsize_i   : in   std_logic_vector(4 downto 0)
     );
 
 end entity xwrc_board_litex_wr_nic;
@@ -340,7 +340,8 @@ begin  -- architecture struct
       GT0_EXT_QPLL_RESET    => GT0_EXT_QPLL_RESET,
       GT0_EXT_QPLL_CLK      => GT0_EXT_QPLL_CLK,
       GT0_EXT_QPLL_REFCLK   => GT0_EXT_QPLL_REFCLK,
-      GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK
+      GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK,
+      txpippmstepsize_i     => txpippmstepsize_i
     );
 
   clk_62m5_sys_o <= clk_ref_62m5;
