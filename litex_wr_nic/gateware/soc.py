@@ -135,6 +135,7 @@ class LiteXWRNICSoC(SoCMini):
         self.tm_time_valid   = Signal()
         self.tm_seconds      = Signal(40)
         self.tm_cycles       = Signal(28)
+        self.txpippmstepsize = Signal(5)
 
         # White Rabbit Fabric Interface.
         # ------------------------------
@@ -304,6 +305,8 @@ class LiteXWRNICSoC(SoCMini):
             o_tm_time_valid_o     = self.tm_time_valid,
             o_tm_tai_o            = self.tm_seconds,
             o_tm_cycles_o         = self.tm_cycles,
+
+            i_txpippmstepsize_i   = self.txpippmstepsize,
         )
 
     # Add PCIe NIC ---------------------------------------------------------------------------------

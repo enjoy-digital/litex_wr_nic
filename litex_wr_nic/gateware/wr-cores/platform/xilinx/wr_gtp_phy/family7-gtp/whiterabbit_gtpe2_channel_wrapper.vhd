@@ -164,7 +164,9 @@ port
     GT0_PLL1PD_IN                           : in   std_logic;
 
     GT0_EXT_QPLL_CLK                        : in  std_logic;
-    GT0_EXT_QPLL_REFCLK                     : in  std_logic
+    GT0_EXT_QPLL_REFCLK                     : in  std_logic;
+
+    txpippmstepsize_i                       : in   std_logic_vector(4 downto 0)
 );
 
 
@@ -286,9 +288,10 @@ port
     ------------- Transmit Ports - TX Initialization and Reset Ports -----------
     TXRESETDONE_OUT                         : out  std_logic;
     ------------------ Transmit Ports - pattern Generator Ports ----------------
-    TXPRBSSEL_IN                            : in   std_logic_vector(2 downto 0)
+    TXPRBSSEL_IN                            : in   std_logic_vector(2 downto 0);
 
 
+    txpippmstepsize_i                       : in   std_logic_vector(4 downto 0)
 );
 end component;
 
@@ -398,7 +401,8 @@ begin
         ------------- Transmit Ports - TX Initialization and Reset Ports -----------
         TXRESETDONE_OUT                 =>      GT0_TXRESETDONE_OUT,
         ------------------ Transmit Ports - pattern Generator Ports ----------------
-        TXPRBSSEL_IN                    =>      GT0_TXPRBSSEL_IN
+        TXPRBSSEL_IN                    =>      GT0_TXPRBSSEL_IN,
+    	txpippmstepsize_i               =>      txpippmstepsize_i
     );
 
 
