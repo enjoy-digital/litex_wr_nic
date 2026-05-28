@@ -16,6 +16,8 @@ from liteeth.phy.a7_gtp import QPLLSettings, QPLL
 class SharedQPLL(LiteXModule):
     def __init__(self, platform, with_pcie=False, with_eth=False, eth_refclk_freq=125e6, eth_refclk_from_pll=True):
         self.platform = platform
+        self.uses_gtgrefclk = False
+
         # PCIe QPLL Settings.
         qpll_pcie_settings = QPLLSettings(
             refclksel  = 0b001,
@@ -25,8 +27,15 @@ class SharedQPLL(LiteXModule):
         )
 
         # Ethernet QPLL Settings.
+        if eth_refclk_from_pll:
+            eth_refclksel = 0b111
+            self.uses_gtgrefclk = True
+        else:
+            # With PCIe enabled, GTREFCLK0 is already used by PCIe and the
+            # Ethernet reference is routed on GTREFCLK1.
+            eth_refclksel = 0b010 if with_pcie else 0b001
         qpll_eth_settings = QPLLSettings(
-            refclksel  = {True: 0b111, False: 0b001}[eth_refclk_from_pll],
+            refclksel  = eth_refclksel,
             fbdiv      = 4,
             fbdiv_45   = {125e6: 5, 156.25e6 : 4}[eth_refclk_freq],
             refclk_div = 1,
@@ -83,7 +92,8 @@ class SharedQPLL(LiteXModule):
             self.channel_map[config_items[1][0]] = 1
 
     def enable_pll_refclk(self):
-        self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+        if self.uses_gtgrefclk:
+            self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
     @staticmethod
     def get_gt_refclks(config):
