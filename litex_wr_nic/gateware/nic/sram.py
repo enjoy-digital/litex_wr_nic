@@ -20,7 +20,7 @@ from litex.soc.interconnect.csr_eventmanager import *
 # MAC SRAM Writer ----------------------------------------------------------------------------------
 
 class LiteEthMACSRAMWriter(LiteXModule):
-    def __init__(self, dw, depth, nslots=2, endianness="big", timestamp=None, with_eth_pcie=True):
+    def __init__(self, dw, depth, nslots=2, endianness="big", timestamp=None, with_eth_pcie=True, eth_mtu=eth_mtu_default):
         # Endpoint / Signals.
         self.sink      = sink = stream.Endpoint(eth_phy_description(dw))
         self.crc_error = Signal()
@@ -234,7 +234,7 @@ class LiteEthMACSRAMWriter(LiteXModule):
 # MAC SRAM Reader ----------------------------------------------------------------------------------
 
 class LiteEthMACSRAMReader(LiteXModule):
-    def __init__(self, dw, depth, nslots=2, endianness="big", timestamp=None, with_eth_pcie=True):
+    def __init__(self, dw, depth, nslots=2, endianness="big", timestamp=None, with_eth_pcie=True, eth_mtu=eth_mtu_default):
         # Endpoint / Signals.
         self.source = source = stream.Endpoint(eth_phy_description(dw))
 
@@ -409,8 +409,8 @@ class LiteEthMACSRAMReader(LiteXModule):
 # MAC SRAM -----------------------------------------------------------------------------------------
 
 class LiteEthMACSRAM(LiteXModule):
-    def __init__(self, dw, depth, nrxslots, ntxslots, endianness, timestamp=None):
-        self.writer = LiteEthMACSRAMWriter(dw, depth, nrxslots, endianness, timestamp)
-        self.reader = LiteEthMACSRAMReader(dw, depth, ntxslots, endianness, timestamp)
+    def __init__(self, dw, depth, nrxslots, ntxslots, endianness, timestamp=None, eth_mtu=eth_mtu_default):
+        self.writer = LiteEthMACSRAMWriter(dw, depth, nrxslots, endianness, timestamp, eth_mtu=eth_mtu)
+        self.reader = LiteEthMACSRAMReader(dw, depth, ntxslots, endianness, timestamp, eth_mtu=eth_mtu)
         self.ev     = SharedIRQ(self.writer.ev, self.reader.ev)
         self.sink, self.source = self.writer.sink, self.reader.source
