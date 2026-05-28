@@ -142,7 +142,8 @@ architecture structure of wr_gtp_phy_family7 is
   
   type state_type is (init, count, count_done, wait_reset);
   signal state : state_type;
-  
+
+  signal clk_gtp_fabric     : std_logic;
   signal rst_synced         : std_logic;
   signal rst_int            : std_logic;
   signal rx_rec_clk         : std_logic;
@@ -222,19 +223,24 @@ architecture structure of wr_gtp_phy_family7 is
 
 begin
 
+  U_BUF_GtpFabricClk: BUFG
+    port map(
+      I => clk_gtp_i,
+      O => clk_gtp_fabric);
+
   U_EdgeDet_rst_i : gc_sync_ffs port map (
-    clk_i    => clk_gtp_i,
+    clk_i    => clk_gtp_fabric,
     rst_n_i    => '1',
     data_i    => rst_i,
     ppulse_o  => rst_synced);
-  
-  p_reset_pulse : process(clk_gtp_i, rst_synced)
+
+  p_reset_pulse : process(clk_gtp_fabric, rst_synced)
     variable reset_cnt      : integer range 0 to c_reset_cnt_max;
   begin
     if(rst_synced = '1') then
       reset_cnt := 0;
       rst_int <= '1';
-    elsif rising_edge(clk_gtp_i) then
+    elsif rising_edge(clk_gtp_fabric) then
       if reset_cnt /= c_reset_cnt_max then
         reset_cnt := reset_cnt + 1;
         rst_int <= '1';
@@ -242,16 +248,16 @@ begin
         rst_int <= '0';
       end if;
     end if;
-  end process;  
+  end process;
 
   -- ug482 "GTP Transceiver TX/RX Reset in Response to Completion of Configuration"
   --   1. Wait a minimum of 500 ns after configuration is complete
-  process(clk_gtp_i, rst_int) is
+  process(clk_gtp_fabric, rst_int) is
     variable reset_counter : integer range 0 to TOTAL_DELAY := 0;
   begin
     if rst_int = '1' then
       state <= init;
-    elsif rising_edge(clk_gtp_i) then
+    elsif rising_edge(clk_gtp_fabric) then
       case state is
         when init =>
           reset_counter := 0;
@@ -331,7 +337,7 @@ begin
     GT0_DRP_BUSY_OUT         =>  open,
     ---------------------------- Channel - DRP Ports  --------------------------
     GT0_DRPADDR_IN           =>  (others => '0'),
-    GT0_DRPCLK_IN            =>  clk_gtp_i,
+    GT0_DRPCLK_IN            =>  clk_gtp_fabric,
     GT0_DRPDI_IN             =>  (others => '0'),
     GT0_DRPDO_OUT            =>  open,
     GT0_DRPEN_IN             =>  '0',
