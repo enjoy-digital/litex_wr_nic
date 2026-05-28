@@ -30,7 +30,13 @@ from litex_wr_nic.gateware.nic import sram
 sys.modules["liteeth.mac.sram"] = sram #  Replace Liteeth SRAM with our custom implementation.
 from litex_wr_nic.gateware.nic.dma import LitePCIe2WishboneDMA
 
-from litex_wr_nic.gateware.wr_common         import wr_core_init, wr_core_files, patch_wr_subsystem_mux_class
+from litex_wr_nic.gateware.wr_common         import (
+    wr_core_init,
+    wr_core_files,
+    patch_wr_subsystem_mux_class,
+    patch_wr_pps_gen_iob,
+    patch_wr_clock_monitor_presc_cdc,
+)
 from litex_wr_nic.gateware.wrf_stream2wb     import Stream2Wishbone
 from litex_wr_nic.gateware.wrf_wb2stream     import Wishbone2Stream
 from litex_wr_nic.gateware.wb_clock_crossing import WishboneClockCrossing
@@ -167,6 +173,7 @@ class LiteXWRNICSoC(SoCMini):
                 o  = Constant(0b0, 1),
                 oe = ~temp_1wire_oe_n,
                 i  = temp_1wire_i,
+                clk = ClockSignal("wr"),
             )
 
         # Flash Logic.
@@ -491,6 +498,8 @@ class LiteXWRNICSoC(SoCMini):
         if not os.path.exists("wr-cores"):
             wr_core_init()
         patch_wr_subsystem_mux_class()
+        patch_wr_pps_gen_iob()
+        patch_wr_clock_monitor_presc_cdc()
         for file in wr_core_files:
             self.platform.add_source(file)
 

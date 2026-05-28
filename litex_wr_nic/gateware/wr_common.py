@@ -16,6 +16,8 @@ WR_CORES_URL    = "https://gitlab.com/ohwr/project/wr-cores.git"
 WR_CORES_BRANCH = "master"
 WR_CORES_SHA1   = "c3f828881f5fd496966f1f04723dc85992d526fa"
 WR_SUBSYSTEM_VHD = "wr-cores/modules/wrc_core/xwr_subsystem.vhd"
+WR_PPS_GEN_VHD   = "wr-cores/modules/wr_pps_gen/xwr_pps_gen.vhd"
+WR_CLOCK_MONITOR_VHD = "wr-cores/ip_cores/general-cores/modules/wishbone/wb_clock_monitor/xwb_clock_monitor.vhd"
 
 def wr_core_init():
     print("Cloning wr-cores repository...")
@@ -36,6 +38,73 @@ def patch_wr_subsystem_mux_class():
         WR_SUBSYSTEM_VHD,
         'mux_class_i(1) => x"f0");',
         'mux_class_i(1) => x"ff");'
+    )
+
+def patch_wr_pps_gen_iob():
+    # Keep the existing WR PPS register but ask Vivado to pack it into the output IOB.
+    tools.replace_in_file(
+        WR_PPS_GEN_VHD,
+        """  signal pps_out_int   : std_logic;
+  signal pps_in_refclk : std_logic;""",
+        """  signal pps_out_int   : std_logic;
+  signal pps_out_reg   : std_logic;
+  signal pps_in_refclk : std_logic;
+
+  attribute IOB : string;
+  attribute IOB of pps_out_reg : signal is "TRUE";"""
+    )
+    tools.replace_in_file(
+        WR_PPS_GEN_VHD,
+        """begin  -- behavioral
+  U_Sync_pps_refclk""",
+        """begin  -- behavioral
+  pps_out_o <= pps_out_reg;
+
+  U_Sync_pps_refclk"""
+    )
+    tools.replace_in_file(
+        WR_PPS_GEN_VHD,
+        "        pps_out_o <= '0';",
+        "        pps_out_reg <= '0';"
+    )
+    tools.replace_in_file(
+        WR_PPS_GEN_VHD,
+        "        pps_out_o <= pps_out_int;",
+        "        pps_out_reg <= pps_out_int;"
+    )
+
+def patch_wr_clock_monitor_presc_cdc():
+    # cr_presc_o is written on clk_sys_i; synchronize it before using it in each measured clock domain.
+    tools.replace_in_file(
+        WR_CLOCK_MONITOR_VHD,
+        """    presc_cnt  : unsigned(4 downto 0);
+    clk_in     : std_logic;""",
+        """    presc_cnt   : unsigned(4 downto 0);
+    presc_value : std_logic_vector(7 downto 0);
+    clk_in      : std_logic;"""
+    )
+    tools.replace_in_file(
+        WR_CLOCK_MONITOR_VHD,
+        """  gen2 : for i in 0 to g_num_clocks generate
+
+    p_clk_prescaler""",
+        """  gen2 : for i in 0 to g_num_clocks generate
+
+    U_Sync_Presc : gc_sync_register
+      generic map (
+        g_width => 8)
+      port map (
+        clk_i     => clks(i).clk_in,
+        rst_n_a_i => rst_n_a,
+        d_i       => regs_out.cr_presc_o,
+        q_o       => clks(i).presc_value);
+
+    p_clk_prescaler"""
+    )
+    tools.replace_in_file(
+        WR_CLOCK_MONITOR_VHD,
+        "        if(clks(i).presc_cnt = unsigned(regs_out.cr_presc_o)) then",
+        "        if(clks(i).presc_cnt = unsigned(clks(i).presc_value(4 downto 0))) then"
     )
 
 # WR Core Files ------------------------------------------------------------------------------------
