@@ -8,6 +8,7 @@
 from litex.gen import *
 
 from litex.soc.interconnect.csr import *
+from migen.genlib.cdc import MultiReg
 
 # BitSlip ------------------------------------------------------------------------------------------
 
@@ -33,8 +34,11 @@ class CoarseDelay(LiteXModule):
 
         # # #
 
+        value = Signal(8)
+        self.specials += MultiReg(self._value.storage, value, clk_domain)
+
         # BitSlip for fine-grained 1/8 cycle delays.
-        bitslip = BitSlip(dw=8, value=self._value.storage, cycles=clk_cycles)
+        bitslip = BitSlip(dw=8, value=value, cycles=clk_cycles)
         bitslip = ClockDomainsRenamer(clk_domain)(bitslip)
         self.add_module(name="bitslip", module=bitslip)
 
