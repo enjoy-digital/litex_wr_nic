@@ -9,7 +9,7 @@
 
 import argparse
 
-from migen.genlib.cdc import MultiReg
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -90,7 +90,12 @@ class _CRG(LiteXModule):
         # DMTD PLL (62.5MHz from VCXO).
         # -----------------------------
         clk62m5_dmtd_pads = platform.request("clk62m5_dmtd")
-        self.comb += self.cd_clk_62m5_dmtd.clk.eq(clk62m5_dmtd_pads)
+        clk62m5_dmtd = Signal()
+        self.specials += Instance("BUFG",
+            i_I = clk62m5_dmtd_pads,
+            o_O = clk62m5_dmtd,
+        )
+        self.comb += self.cd_clk_62m5_dmtd.clk.eq(clk62m5_dmtd)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -149,7 +154,7 @@ class BaseSoC(LiteXWRNICSoC):
             with_pcie           = True, # Always True even when PCIe is disabled for correct WR Clocking.
             with_eth            = with_white_rabbit,
             eth_refclk_freq     = 125e6,
-            eth_refclk_from_pll = True,
+            eth_refclk_from_pll = False, # Use SPEC-A7 dedicated MGTREFCLK1, not GTGREFCLK.
         )
         self.qpll.enable_pll_refclk()
 
@@ -175,10 +180,11 @@ class BaseSoC(LiteXWRNICSoC):
 
         if with_pcie:
             self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
-                data_width  = 64,
-                bar0_size   = 0x20000,
-                with_ptm    = True,
-                refclk_freq = 100e6,
+                data_width                = 64,
+                bar0_size                 = 0x20000,
+                with_ptm                  = True,
+                refclk_freq               = 100e6,
+                pclk_mux_direct_from_mmcm = True,
             )
             self.pcie_phy.update_config({
                 "Base_Class_Menu"          : "Network_controller",
@@ -193,15 +199,14 @@ class BaseSoC(LiteXWRNICSoC):
             platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y0 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
             # PCIe <-> Sys-Clk false paths.
-            false_paths = [
-                ("{{*s7pciephy_clkout0}}", "sys_clk"),
-                ("{{*s7pciephy_clkout1}}", "sys_clk"),
-                ("{{*s7pciephy_clkout3}}", "sys_clk"),
-                ("{{*s7pciephy_clkout0}}", "{{*s7pciephy_clkout1}}")
-            ]
-            for clk0, clk1 in false_paths:
-                platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk0}] -to [get_clocks {clk1}]")
-                platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk1}] -to [get_clocks {clk0}]")
+            platform.toolchain.pre_placement_commands.append(
+                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout*}}] -to [get_clocks -quiet sys_clk]")
+            platform.toolchain.pre_placement_commands.append(
+                "set_false_path -quiet -from [get_clocks -quiet sys_clk] -to [get_clocks -quiet {{*s7pciephy_clkout*}}]")
+            platform.toolchain.pre_placement_commands.append(
+                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout0}}] -to [get_clocks -quiet {{*s7pciephy_clkout1}}]")
+            platform.toolchain.pre_placement_commands.append(
+                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout1}}] -to [get_clocks -quiet {{*s7pciephy_clkout0}}]")
 
         # White Rabbit -----------------------------------------------------------------------------
 
@@ -291,17 +296,27 @@ class BaseSoC(LiteXWRNICSoC):
                 )
 
             # Clk10m In Logic.
+            clk10m_in = Signal()
             self.specials += DifferentialInput(
                 i_p = clk10m_in_pads.p,
                 i_n = clk10m_in_pads.n,
-                o   = self.crg.cd_clk10m_in.clk,
+                o   = clk10m_in,
+            )
+            self.specials += Instance("BUFG",
+                i_I = clk10m_in,
+                o_O = self.crg.cd_clk10m_in.clk,
             )
 
             # Clk62m5 In Logic.
+            clk62m5_in = Signal()
             self.specials += DifferentialInput(
                 i_p = clk62m5_in_pads.p,
                 i_n = clk62m5_in_pads.n,
-                o   = self.crg.cd_clk62m5_in.clk,
+                o   = clk62m5_in,
+            )
+            self.specials += Instance("BUFG",
+                i_I = clk62m5_in,
+                o_O = self.crg.cd_clk62m5_in.clk,
             )
 
             # White Rabbit PPS-In and Macro Delay.
@@ -329,6 +344,9 @@ class BaseSoC(LiteXWRNICSoC):
             # --------------------
             platform.add_platform_command("create_clock -name wr_txoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/TXOUTCLK]")
             platform.add_platform_command("create_clock -name wr_rxoutclk -period 16.000 [get_pins -hierarchical *gtpe2_i/RXOUTCLK]")
+            platform.toolchain.pre_placement_commands.append("set_false_path -from [get_clocks clk_sys] -to [get_clocks clk10m_in_p]")
+            platform.toolchain.pre_placement_commands.append("set_false_path -from [get_clocks clk10m_in_p] -to [get_clocks clk_sys]")
+            platform.toolchain.pre_placement_commands.append("set_false_path -quiet -to [get_pins -hierarchical -filter {{NAME =~ *U_Sampler/*clk_i_d0_reg/D}}]")
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 
@@ -371,11 +389,13 @@ class BaseSoC(LiteXWRNICSoC):
 
             # Sync-Out PLL.
             # -------------
-            self.cd_wr8x     = ClockDomain()
+            self.cd_wr_syncout   = ClockDomain()
+            self.cd_wr_syncout8x = ClockDomain()
             self.syncout_pll = syncout_pll = S7MMCM(speedgrade=-2)
             self.comb += syncout_pll.reset.eq(ResetSignal("wr"))
             syncout_pll.register_clkin(ClockSignal("wr"), 62.5e6)
-            syncout_pll.create_clkout(self.cd_wr8x, 500e6, margin=0, phase=0)
+            syncout_pll.create_clkout(self.cd_wr_syncout,   62.5e6, margin=0, phase=0)
+            syncout_pll.create_clkout(self.cd_wr_syncout8x, 500e6,  margin=0, phase=0)
 
             # Clk10M SMA Out.
             # ---------------
@@ -388,13 +408,16 @@ class BaseSoC(LiteXWRNICSoC):
                 clk_domain    = "wr",
                 default_delay = clk10m_out_macro_delay_default,
             )
+            clk10m_out_macro_delay_sync = PulseSynchronizer("wr", "wr_syncout")
+            self.submodules += clk10m_out_macro_delay_sync
+            self.comb += clk10m_out_macro_delay_sync.i.eq(clk10m_out_macro_delay)
 
             # Clk10M Generator.
             clk10m_out_gen  = Signal(8)
             self.clk10m_gen = Clk10MGenerator(
-                pulse_i  = clk10m_out_macro_delay,
+                pulse_i  = clk10m_out_macro_delay_sync.o,
                 clk10m_o = clk10m_out_gen,
-                clk_domain = "wr",
+                clk_domain = "wr_syncout",
             )
 
             # Clk10M Coarse Delay.
@@ -403,7 +426,7 @@ class BaseSoC(LiteXWRNICSoC):
                 rst = ~syncout_pll.locked,
                 i   = clk10m_out_gen,
                 o   = clk10m_out_coarse_delay,
-                clk_domain = "wr",
+                clk_domain = "wr_syncout",
                 clk_cycles = 8, # 64-taps.
                 default_delay = clk10m_out_coarse_delay_default,
             )
@@ -418,6 +441,18 @@ class BaseSoC(LiteXWRNICSoC):
 
             # PPS SMA Out.
             # ------------
+
+            pps_out_led_timer = ClockDomainsRenamer("wr")(WaitTimer(int(0.1*62.5e6)))
+            self.submodules += pps_out_led_timer
+            pps_out_led = Signal()
+            self.sync.wr += [
+                If(pps_out_pulse_sel,
+                    pps_out_led.eq(1)
+                ).Elif(pps_out_led_timer.done,
+                    pps_out_led.eq(0)
+                )
+            ]
+            self.comb += pps_out_led_timer.wait.eq(pps_out_led)
 
             # PPS from WR Core + configurable Macro/Coarse delays.
             if not bypass_pps_out_macro_coarse_delays:
@@ -442,7 +477,7 @@ class BaseSoC(LiteXWRNICSoC):
                 )
 
                 # PPS Coarse Delay.
-                pps_out_coarse_delay = Signal()
+                pps_out_coarse_delay = Signal(attr={("IOB", "TRUE")})
                 self.pps_out_coarse_delay = CoarseDelay(
                     rst = ~syncout_pll.locked,
                     i   = pps_out_gen,
@@ -451,16 +486,16 @@ class BaseSoC(LiteXWRNICSoC):
                     clk_cycles = 8, # 64-taps.
                     default_delay = pps_out_coarse_delay_default,
                 )
+                pps_out_sma = pps_out_coarse_delay
 
             # PPS from WR Core.
             else:
-                pps_out_gen  = Signal()
-                self.comb += pps_out_gen.eq(self.pps_out)
+                pps_out_sma = self.pps_out
 
             # PPS Out.
             pps_out_pads = platform.request("pps_out")
             self.specials += DifferentialOutput(
-                i   = pps_out_gen,
+                i   = pps_out_sma,
                 o_p = pps_out_pads.p,
                 o_n = pps_out_pads.n,
             )
@@ -480,7 +515,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ----------------
             self.comb += [
                 platform.request("clk10m_out_led").eq(1),
-                platform.request("pps_out_led").eq(pps_out_gen),
+                platform.request("pps_out_led").eq(pps_out_led),
                 platform.request("act_out_led").eq(self.led_link & ~self.led_act)
             ]
 
@@ -539,7 +574,6 @@ class BaseSoC(LiteXWRNICSoC):
             self.crg.cd_clk_125m_gtp.clk,
             self.crg.cd_clk10m_in.clk,
             self.crg.cd_clk62m5_in.clk,
-            self.cd_wr8x.clk,
             "wr_txoutclk",
             "wr_rxoutclk",
         ]
@@ -598,7 +632,12 @@ def main():
     if args.with_time_pps_probe:
         soc.add_time_pps_probe()
     builder = Builder(soc, csr_csv="test/csr.csv")
-    builder.build(run=args.build)
+    builder.build(
+        run=args.build,
+        vivado_place_directive="Explore",
+        vivado_route_directive="Explore",
+        vivado_post_route_phys_opt_directive="Explore",
+    )
 
     # Generate PCIe C Headers.
     # ------------------------
