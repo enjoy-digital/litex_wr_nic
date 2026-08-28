@@ -17,7 +17,7 @@ from litex.soc.interconnect import stream
 # This module is a simple/minimal clock crossing module for Wishbone transactions.
 
 class WishboneClockCrossing(LiteXModule):
-    def __init__(self, platform, wb_from, cd_from, wb_to, cd_to):
+    def __init__(self, platform, wb_from, cd_from, wb_to, cd_to, timeout_cycles=64):
         # S2M CDC (cd_from -> cd_to).
         # ---------------------------
         self.cdc_s2m = cdc_s2m = stream.ClockDomainCrossing(
@@ -74,7 +74,7 @@ class WishboneClockCrossing(LiteXModule):
         # Access FSM.
         # -----------
         self.access_fsm   = access_fsm = ClockDomainsRenamer(cd_to)(FSM(reset_state="IDLE"))
-        self.access_timer = access_timer = ClockDomainsRenamer(cd_to)(WaitTimer(64))
+        self.access_timer = access_timer = ClockDomainsRenamer(cd_to)(WaitTimer(timeout_cycles))
         access_fsm.act("IDLE",
             If(cdc_s2m.source.valid,
                 NextState("ACCESS")
@@ -89,7 +89,7 @@ class WishboneClockCrossing(LiteXModule):
             wb_to.adr.eq(cdc_s2m.source.adr),
             wb_to.sel.eq(cdc_s2m.source.sel),
             wb_to.dat_w.eq(cdc_s2m.source.dat_w),
-            If(wb_to.ack | access_timer.done,
+            If(wb_to.ack | wb_to.err | access_timer.done,
                 # Send response back through CDC.
                 cdc_s2m.source.ready.eq(1),
                 cdc_m2s.sink.valid.eq(1),

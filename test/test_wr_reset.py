@@ -1,6 +1,7 @@
 """Simulate the board reset circuit with GHDL and the pinned wr-cores checkout."""
 
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
@@ -24,6 +25,8 @@ def test_wr_reset_survives_phy_pll_unlock(tmp_path):
     start = board.index("  cmp_arst_edge:")
     end = board.index("  rst_62m5_n <= rstlogic_rst_out(0);")
     reset_logic = board[start:end] + "  rst_62m5_n <= rstlogic_rst_out(0);\n"
+    clock_exports = "\n".join(re.findall(
+        r"^  (?:clk|rst)_62m5_(?:sys|ref)_o <= .*;$", board, re.MULTILINE))
     testbench = tmp_path / "wr_reset_tb.vhd"
     testbench.write_text("""
 library ieee;
@@ -38,11 +41,26 @@ architecture test of wr_reset_tb is
   signal areset_edge_n_i : std_logic := '0';
   signal areset_edge_ppulse, rstlogic_arst_n, rst_62m5_n : std_logic;
   signal rstlogic_clk_in, rstlogic_rst_out : std_logic_vector(1 downto 0);
+  signal clk_62m5_sys_o, rst_62m5_sys_o, clk_62m5_ref_o, rst_62m5_ref_o : std_logic;
 begin
   clk_pll_62m5 <= not clk_pll_62m5 after 8 ns;
   clk_62m5_dmtd_i <= not clk_62m5_dmtd_i after 8.1 ns;
   clk_ref_62m5 <= not clk_ref_62m5 after 8 ns when clk_ref_locked = '1' else '0';
-""" + reset_logic + """
+""" + reset_logic + clock_exports + """
+  check_exports : postponed process(all)
+  begin
+    if now > 0 ns then
+    assert clk_62m5_sys_o = clk_pll_62m5
+      report "WR system clock must keep running when the PHY clock stops" severity failure;
+    assert clk_62m5_ref_o = clk_ref_62m5
+      report "PPS reference clock must come from the PHY" severity failure;
+    assert rst_62m5_sys_o = not rstlogic_rst_out(0)
+      report "WR system reset must use the synchronized board reset" severity failure;
+    assert rst_62m5_ref_o = not rstlogic_rst_out(1)
+      report "PPS reference reset must use its own synchronizer" severity failure;
+    end if;
+  end process;
+
   stimulus : process
     procedure expect_reset(value : std_logic; cycles : positive) is
     begin

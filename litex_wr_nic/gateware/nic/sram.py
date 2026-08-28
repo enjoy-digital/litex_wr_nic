@@ -409,7 +409,10 @@ class LiteEthMACSRAMReader(LiteXModule):
 # MAC SRAM -----------------------------------------------------------------------------------------
 
 class LiteEthMACSRAM(LiteXModule):
-    def __init__(self, dw, depth, nrxslots, ntxslots, endianness, timestamp=None, eth_mtu=eth_mtu_default):
+    def __init__(self, dw, depth, nrxslots, ntxslots, endianness, timestamp=None,
+        eth_mtu=eth_mtu_default, rx_drop_when_disabled=True):
+        # Keep compatibility with LiteEth's upstream SRAM interface. This
+        # PCIe-oriented writer already accepts and drops input while disabled.
         self.writer = LiteEthMACSRAMWriter(dw, depth, nrxslots, endianness, timestamp, eth_mtu=eth_mtu)
         self.reader = LiteEthMACSRAMReader(dw, depth, ntxslots, endianness, timestamp, eth_mtu=eth_mtu)
         self.ev     = SharedIRQ(self.writer.ev, self.reader.ev)

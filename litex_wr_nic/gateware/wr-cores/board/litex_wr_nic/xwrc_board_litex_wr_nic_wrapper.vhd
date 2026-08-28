@@ -40,6 +40,7 @@ entity xwrc_board_litex_wr_nic_wrapper is
     -- memory initialization file for embedded CPU
     g_dpram_initf               : string  := "default_xilinx";
     g_dpram_size                : integer := 131072/4;
+    g_external_cpu_memory       : boolean := false;
     -- identification (id and ver) of the layout of words in the generic diag interface
     g_diag_id                   : integer := 0;
     g_diag_ver                  : integer := 0;
@@ -61,6 +62,8 @@ entity xwrc_board_litex_wr_nic_wrapper is
     pps_ext_i            : in  std_logic := '0';
     clk_62m5_sys_o       : out std_logic;
     rst_62m5_sys_o       : out std_logic;
+    clk_62m5_ref_o       : out std_logic;
+    rst_62m5_ref_o       : out std_logic;
 
     -- Serial DACs
     dac_refclk_load      : out std_logic;
@@ -94,6 +97,20 @@ entity xwrc_board_litex_wr_nic_wrapper is
     spi_ncs_o            : out std_logic;
     spi_mosi_o           : out std_logic;
     spi_miso_i           : in  std_logic := '0';
+
+    -- Optional external WR CPU memory Wishbone master.
+    cpu_mem_cyc_o        : out std_logic;
+    cpu_mem_stb_o        : out std_logic;
+    cpu_mem_we_o         : out std_logic;
+    cpu_mem_adr_o        : out std_logic_vector(31 downto 0);
+    cpu_mem_sel_o        : out std_logic_vector(3 downto 0);
+    cpu_mem_dat_o        : out std_logic_vector(31 downto 0);
+    cpu_mem_dat_i        : in  std_logic_vector(31 downto 0) := (others => '0');
+    cpu_mem_ack_i        : in  std_logic := '0';
+    cpu_mem_err_i        : in  std_logic := '0';
+    cpu_mem_rty_i        : in  std_logic := '0';
+    cpu_mem_stall_i      : in  std_logic := '0';
+    cpu_mem_ready_i      : in  std_logic := '1';
 
     -- WRF
     wrf_src_adr          : out std_logic_vector(1 downto 0);
@@ -186,6 +203,9 @@ architecture wrapper of xwrc_board_litex_wr_nic_wrapper is
   signal wb_slave_i : t_wishbone_slave_in  := cc_dummy_slave_in;
   signal wb_slave_o : t_wishbone_slave_out;
 
+  signal cpu_mem_out : t_wishbone_master_out;
+  signal cpu_mem_in  : t_wishbone_master_in := cc_dummy_master_in;
+
 begin
 
   -- wrf_src Record -> Signals.
@@ -231,6 +251,19 @@ begin
   wb_slave_rty    <= wb_slave_o.rty;
   wb_slave_stall  <= wb_slave_o.stall;
 
+  -- CPU-memory Record <-> Signals.
+  cpu_mem_cyc_o   <= cpu_mem_out.cyc;
+  cpu_mem_stb_o   <= cpu_mem_out.stb;
+  cpu_mem_we_o    <= cpu_mem_out.we;
+  cpu_mem_adr_o   <= cpu_mem_out.adr;
+  cpu_mem_sel_o   <= cpu_mem_out.sel;
+  cpu_mem_dat_o   <= cpu_mem_out.dat;
+  cpu_mem_in.dat  <= cpu_mem_dat_i;
+  cpu_mem_in.ack  <= cpu_mem_ack_i;
+  cpu_mem_in.err  <= cpu_mem_err_i;
+  cpu_mem_in.rty  <= cpu_mem_rty_i;
+  cpu_mem_in.stall <= cpu_mem_stall_i;
+
   -- xwrc_board_litex_wr_nic Instance.
   u_xwrc_board_litex_wr_nic : entity work.xwrc_board_litex_wr_nic
     generic map (
@@ -245,6 +278,7 @@ begin
       g_rx_streamer_params        => c_rx_streamer_params_defaut,
       g_dpram_initf               => g_dpram_initf,
       g_dpram_size                => g_dpram_size,
+      g_external_cpu_memory       => g_external_cpu_memory,
       g_diag_id                   => g_diag_id,
       g_diag_ver                  => g_diag_ver,
       g_diag_ro_size              => g_diag_ro_size,
@@ -261,6 +295,8 @@ begin
       pps_ext_i            => pps_ext_i,
       clk_62m5_sys_o       => clk_62m5_sys_o,
       rst_62m5_sys_o       => rst_62m5_sys_o,
+      clk_62m5_ref_o       => clk_62m5_ref_o,
+      rst_62m5_ref_o       => rst_62m5_ref_o,
       dac_refclk_load      => dac_refclk_load,
       dac_refclk_data      => dac_refclk_data,
       dac_dmtd_load        => dac_dmtd_load,
@@ -283,6 +319,9 @@ begin
       spi_ncs_o            => spi_ncs_o,
       spi_mosi_o           => spi_mosi_o,
       spi_miso_i           => spi_miso_i,
+      cpu_mem_o            => cpu_mem_out,
+      cpu_mem_i            => cpu_mem_in,
+      cpu_mem_ready_i      => cpu_mem_ready_i,
 
       wrf_src_o            => wrf_src_o,
       wrf_src_i            => wrf_src_i,

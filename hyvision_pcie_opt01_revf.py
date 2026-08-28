@@ -15,6 +15,9 @@
 # |------|-----|-----|-----|-----|-----|-----|
 # | Pins | TMS | TDI | TDO | TCK | GND | VCC |
 
+import argparse
+import os
+
 from migen import *
 
 from litex.gen import *
@@ -29,6 +32,8 @@ from litex.soc.interconnect         import wishbone
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
+from litex.soc.integration.common   import get_mem_data
+from litex.soc.integration.soc      import SoCRegion
 
 from litex.soc.cores.clock import *
 from litex.soc.cores.uart  import UARTPads
@@ -42,6 +47,7 @@ from litex_wr_nic.gateware.time              import TimeGenerator
 from litex_wr_nic.gateware.measurement       import MultiClkMeasurement
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
+from litex_wr_nic.gateware.wr_cpu            import WR_CPU_MEMORY_ORIGIN, WR_CPU_MEMORY_SIZE
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -100,6 +106,8 @@ class BaseSoC(LiteXWRNICSoC):
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
         white_rabbit_cpu_firmware  = "litex_wr_nic/firmware/spec_a7_wrc.bram",
+        white_rabbit_cpu_binary    = "litex_wr_nic/firmware/spec_a7_wrc.bin",
+        wr_cpu_memory              = "private",
     ):
         # Platform ---------------------------------------------------------------------------------
 
@@ -126,6 +134,20 @@ class BaseSoC(LiteXWRNICSoC):
             ident         = "LiteX-WR-NIC on HVS HyVision PCIe OPT01 revF.",
             ident_version = True
         )
+
+        if wr_cpu_memory not in ("private", "integrated"):
+            raise ValueError(f"Unsupported WR CPU memory mode: {wr_cpu_memory}")
+        if not with_white_rabbit and wr_cpu_memory != "private":
+            raise ValueError("External WR CPU memory requires White Rabbit support.")
+        wr_cpu_region = None
+        if wr_cpu_memory == "integrated":
+            if not os.path.isfile(white_rabbit_cpu_binary):
+                raise FileNotFoundError(
+                    f"WR CPU binary not found: {white_rabbit_cpu_binary}; build the firmware first.")
+            contents = get_mem_data(white_rabbit_cpu_binary,
+                data_width=32, endianness="little", mem_size=WR_CPU_MEMORY_SIZE)
+            self.add_ram("wr_cpu_mem", WR_CPU_MEMORY_ORIGIN, WR_CPU_MEMORY_SIZE, contents=contents)
+            wr_cpu_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN, size=WR_CPU_MEMORY_SIZE, mode="rwx")
 
         # UART -------------------------------------------------------------------------------------
 
@@ -175,6 +197,7 @@ class BaseSoC(LiteXWRNICSoC):
             self.add_wr_core(
                 # CPU.
                 cpu_firmware        = white_rabbit_cpu_firmware,
+                cpu_memory_region   = wr_cpu_region,
 
                 # Configuration.
                 board_name       = "HYVF",
@@ -332,6 +355,9 @@ def main():
     parser.add_argument("--build", action="store_true", help="Build bitstream.")
     parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
+    parser.add_argument("--wr-cpu-memory", default="private", choices=["private", "integrated"],
+        help="WR CPU memory implementation (default: private).")
+    parser.add_argument("--output-dir", default=None, help="Build directory.")
 
     # Probes.
     # -------
@@ -352,7 +378,7 @@ def main():
 
     # Build SoC/Gateware (with integrated Firmware).
     # ----------------------------------------------
-    soc = BaseSoC()
+    soc = BaseSoC(wr_cpu_memory=args.wr_cpu_memory)
     if args.with_wishbone_fabric_interface_probe:
         soc.add_wishbone_fabric_interface_probe()
     if args.with_wishbone_slave_probe:
@@ -361,7 +387,8 @@ def main():
         soc.add_dac_vcxo_probe()
     if args.with_time_pps_probe:
         soc.add_time_pps_probe()
-    builder = Builder(soc, csr_csv="test/csr.csv")
+    builder = Builder(soc, csr_csv="test/csr.csv", **(
+        {} if args.output_dir is None else {"output_dir": args.output_dir}))
     builder.build(run=args.build)
 
     # Generate PCIe C Headers.

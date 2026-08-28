@@ -12,8 +12,15 @@ import os
 import shutil
 import tarfile
 import subprocess
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from litex.build import tools
+from litex_wr_nic.wr_boot import write_boot_image
 
 # Toolchain and firmware variables -----------------------------------------------------------------
 
@@ -27,8 +34,11 @@ CLONE_DIR         = "wrpc-sw"
 COMMIT_HASH       = "baf7749610b2880bf243b38a9a1608af8e0e688d"
 CONFIG_SRC        = "spec_a7_defconfig"
 
-FIRMWARE_SRC      = os.path.join(CLONE_DIR, "wrc.bram")
-FIRMWARE_DEST     = "spec_a7_wrc.bram"
+FIRMWARE_SRC       = os.path.join(CLONE_DIR, "wrc.bram")
+FIRMWARE_DEST      = "spec_a7_wrc.bram"
+FIRMWARE_BIN_SRC   = os.path.join(CLONE_DIR, "wrc.bin")
+FIRMWARE_BIN_DEST  = "spec_a7_wrc.bin"
+FIRMWARE_BOOT_DEST = "spec_a7_wrc.boot"
 
 SDBFS_DEST        = "sdb-wrpc.bin"
 SDBFS_SRC         = "sdbfs"
@@ -97,6 +107,11 @@ def copy_firmware():
         print(f"Error: Firmware file {FIRMWARE_SRC} does not exist.")
         exit(1)
     shutil.copy(FIRMWARE_SRC, FIRMWARE_DEST)
+    if not os.path.exists(FIRMWARE_BIN_SRC):
+        print(f"Error: Firmware file {FIRMWARE_BIN_SRC} does not exist.")
+        exit(1)
+    shutil.copy(FIRMWARE_BIN_SRC, FIRMWARE_BIN_DEST)
+    write_boot_image(FIRMWARE_BIN_DEST, FIRMWARE_BOOT_DEST)
 
 def build_sdbfs():
     """Build the SDB filesystem."""
@@ -118,6 +133,9 @@ def build_sdbfs():
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
+    # Keep all historical relative paths stable when this script is invoked
+    # from the repository root (for example by the resource-matrix helper).
+    os.chdir(Path(__file__).resolve().parent)
     parser = argparse.ArgumentParser(description="LiteX-WR-NIC on Acorn Baseboard Mini.")
     parser.add_argument("--target", default="spec_a7", help="Target Board.", choices=["spec_a7", "acorn"])
     args = parser.parse_args()

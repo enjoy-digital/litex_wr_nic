@@ -294,6 +294,15 @@ class Platform(Xilinx7SeriesPlatform):
         Xilinx7SeriesPlatform.__init__(self, f"{variant}csg325-2", _io,  _connectors, toolchain=toolchain)
 
         self.toolchain.bitstream_commands = [
+            # Post-route phys_opt can leave newly created nets unrouted.
+            # Preserve completed routing and finish these nets before bitgen;
+            # refresh the checkpoint/reports so they describe the final design.
+            "route_design -preserve",
+            "write_checkpoint -force {build_name}_route.dcp",
+            "report_route_status -file {build_name}_route_status.rpt",
+            "report_drc -file {build_name}_drc.rpt",
+            "report_timing_summary -datasheet -max_paths 10 -file {build_name}_timing.rpt",
+            "report_power -file {build_name}_power.rpt",
             "set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 1 [current_design]",
             "set_property BITSTREAM.CONFIG.CONFIGRATE 16 [current_design]",
             "set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]",
