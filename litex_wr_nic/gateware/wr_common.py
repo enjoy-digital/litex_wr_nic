@@ -109,22 +109,34 @@ def patch_wr_clock_monitor_presc_cdc():
         "        if(clks(i).presc_cnt = unsigned(clks(i).presc_value(4 downto 0))) then"
     )
 
-def _replace_once(path, before, after):
-    """Apply a pinned-source patch once and fail clearly on signature drift."""
+def _replace_once(path, before, after, intermediate=None):
+    """Apply a pinned-source patch once and fail clearly on signature drift.
+
+    ``intermediate`` lets a checkout whose ignored wr-cores tree was already
+    patched by the CPU-memory branch migrate to the combined CPU patch.
+    """
     with open(path, "r", encoding="utf-8") as f:
         contents = f.read()
     if after in contents:
         return
-    if contents.count(before) != 1:
+    candidates = [before]
+    if intermediate is not None:
+        candidates.append(intermediate)
+    matches = [candidate for candidate in candidates if contents.count(candidate) == 1]
+    if len(matches) != 1:
         raise RuntimeError(f"WR-core patch signature mismatch in {path}: {before[:80]!r}")
     with open(path, "w", encoding="utf-8") as f:
-        f.write(contents.replace(before, after, 1))
+        f.write(contents.replace(matches[0], after, 1))
 
 def patch_wr_external_cpu_memory():
-    """Propagate the optional WR CPU-memory Wishbone master through wr-cores."""
+    """Propagate optional external WR CPU interfaces through wr-cores."""
     _replace_once(
         WR_CORE_VHD,
         """    g_dpram_size                : integer                        := 131072/4;  --in 32-bit words
+    g_use_platform_specific_dpram""",
+        """    g_dpram_size                : integer                        := 131072/4;  --in 32-bit words
+    g_external_cpu_memory        : boolean                        := false;
+    g_external_cpu               : boolean                        := false;
     g_use_platform_specific_dpram""",
         """    g_dpram_size                : integer                        := 131072/4;  --in 32-bit words
     g_external_cpu_memory        : boolean                        := false;
@@ -133,6 +145,18 @@ def patch_wr_external_cpu_memory():
     _replace_once(
         WR_CORE_VHD,
         """    aux_diag_o    : out t_generic_word_array(g_diag_rw_size-1 downto 0);
+
+    link_ok_o : out std_logic""",
+        """    aux_diag_o    : out t_generic_word_array(g_diag_rw_size-1 downto 0);
+
+    cpu_mem_o       : out t_wishbone_master_out;
+    cpu_mem_i       : in  t_wishbone_master_in := cc_dummy_master_in;
+    cpu_mem_ready_i : in  std_logic := '1';
+
+    cpu_ext_master_i : in  t_wishbone_master_out := cc_dummy_master_out;
+    cpu_ext_master_o : out t_wishbone_master_in;
+    cpu_ext_irq_o    : out std_logic;
+    cpu_ext_reset_o  : out std_logic;
 
     link_ok_o : out std_logic""",
         """    aux_diag_o    : out t_generic_word_array(g_diag_rw_size-1 downto 0);
@@ -160,6 +184,63 @@ def patch_wr_external_cpu_memory():
       host_slave_i => cpu_csr_wb_in,
       host_slave_o => cpu_csr_wb_out
       );""",
+        """  cpu_ext_master_o <= cpu_dwb_in;
+  cpu_ext_irq_o    <= softpll_irq;
+
+  assert not (g_external_cpu and not g_external_cpu_memory)
+    report "External WR CPU requires external CPU memory"
+    severity failure;
+
+  gen_private_cpu_memory : if not g_external_cpu and not g_external_cpu_memory generate
+    cpu_mem_o       <= cc_dummy_master_out;
+    cpu_ext_reset_o <= '0';
+
+    U_CPU_PRIVATE: entity work.wrc_urv_wrapper
+      generic map (
+        g_IRAM_SIZE => g_dpram_size,
+        g_IRAM_INIT => g_dpram_initf,
+        g_CPU_ID => 0)
+      port map (
+        clk_sys_i    => clk_sys_i,
+        rst_n_i      => rst_n_i,
+        irq_i        => softpll_irq,
+        dwb_o        => cpu_dwb_out,
+        dwb_i        => cpu_dwb_in,
+        host_slave_i => cpu_csr_wb_in,
+        host_slave_o => cpu_csr_wb_out);
+  end generate;
+
+  gen_external_cpu_memory : if not g_external_cpu and g_external_cpu_memory generate
+    cpu_ext_reset_o <= '0';
+
+    U_CPU_EXTERNAL: entity work.wrc_urv_external_memory
+      generic map (
+        g_CPU_ID => 0)
+      port map (
+        clk_sys_i      => clk_sys_i,
+        rst_n_i        => rst_n_i,
+        irq_i          => softpll_irq,
+        memory_ready_i => cpu_mem_ready_i,
+        cpu_mem_o      => cpu_mem_o,
+        cpu_mem_i      => cpu_mem_i,
+        dwb_o          => cpu_dwb_out,
+        dwb_i          => cpu_dwb_in,
+        host_slave_i   => cpu_csr_wb_in,
+        host_slave_o   => cpu_csr_wb_out);
+  end generate;
+
+  gen_external_cpu : if g_external_cpu generate
+    cpu_mem_o   <= cc_dummy_master_out;
+    cpu_dwb_out <= cpu_ext_master_i;
+
+    U_CPU_CONTROL: entity work.wrc_external_cpu_control
+      port map (
+        clk_sys_i    => clk_sys_i,
+        rst_n_i      => rst_n_i,
+        reset_o      => cpu_ext_reset_o,
+        host_slave_i => cpu_csr_wb_in,
+        host_slave_o => cpu_csr_wb_out);
+  end generate;""",
         """  gen_private_cpu_memory : if not g_external_cpu_memory generate
     cpu_mem_o <= cc_dummy_master_out;
 
@@ -202,11 +283,27 @@ def patch_wr_external_cpu_memory():
     g_interface_mode""",
         """    g_dpram_size                : integer                        := 131072/4;
     g_external_cpu_memory        : boolean                        := false;
+    g_external_cpu               : boolean                        := false;
+    g_interface_mode""",
+        """    g_dpram_size                : integer                        := 131072/4;
+    g_external_cpu_memory        : boolean                        := false;
     g_interface_mode"""
     )
     _replace_once(
         WR_BOARD_VHD,
         """    link_ok_o : out std_logic;
+
+    aux_timing_serdes_locked_i""",
+        """    link_ok_o : out std_logic;
+
+    cpu_mem_o       : out t_wishbone_master_out;
+    cpu_mem_i       : in  t_wishbone_master_in := cc_dummy_master_in;
+    cpu_mem_ready_i : in  std_logic := '1';
+
+    cpu_ext_master_i : in  t_wishbone_master_out := cc_dummy_master_out;
+    cpu_ext_master_o : out t_wishbone_master_in;
+    cpu_ext_irq_o    : out std_logic;
+    cpu_ext_reset_o  : out std_logic;
 
     aux_timing_serdes_locked_i""",
         """    link_ok_o : out std_logic;
@@ -223,11 +320,24 @@ def patch_wr_external_cpu_memory():
       g_interface_mode""",
         """      g_dpram_size                => g_dpram_size,
       g_external_cpu_memory        => g_external_cpu_memory,
+      g_external_cpu               => g_external_cpu,
+      g_interface_mode""",
+        """      g_dpram_size                => g_dpram_size,
+      g_external_cpu_memory        => g_external_cpu_memory,
       g_interface_mode"""
     )
     _replace_once(
         WR_BOARD_VHD,
         """      aux_diag_o                  => aux_diag_out,
+      link_ok_o                   => link_ok);""",
+        """      aux_diag_o                  => aux_diag_out,
+      cpu_mem_o                   => cpu_mem_o,
+      cpu_mem_i                   => cpu_mem_i,
+      cpu_mem_ready_i             => cpu_mem_ready_i,
+      cpu_ext_master_i            => cpu_ext_master_i,
+      cpu_ext_master_o            => cpu_ext_master_o,
+      cpu_ext_irq_o               => cpu_ext_irq_o,
+      cpu_ext_reset_o             => cpu_ext_reset_o,
       link_ok_o                   => link_ok);""",
         """      aux_diag_o                  => aux_diag_out,
       cpu_mem_o                   => cpu_mem_o,
@@ -427,6 +537,7 @@ wr_core_files += [
     "wr-cores/modules/wrc_core/wrc_syscon_map.vhd",
     "wr-cores/modules/wrc_core/wrc_urv_wrapper.vhd",
     os.path.join(cdir, "wr-cores/modules/wrc_core/wrc_urv_external_memory.vhd"),
+    os.path.join(cdir, "wr-cores/modules/wrc_core/wrc_external_cpu_control.vhd"),
     "wr-cores/modules/wrc_core/wrcore_pkg.vhd",
     "wr-cores/modules/wrc_core/xwr_core.vhd",
     "wr-cores/modules/wrc_core/xwr_subsystem.vhd",

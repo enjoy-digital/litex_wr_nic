@@ -39,7 +39,13 @@ from litex_wr_nic.gateware.wr_common         import (
     patch_wr_clock_monitor_presc_cdc,
     patch_wr_external_cpu_memory,
 )
-from litex_wr_nic.gateware.wr_cpu            import WRCPUMemoryBridge, wr_cpu_word_bus
+from litex_wr_nic.gateware.wr_cpu            import (
+    WRCPUMemoryBridge,
+    WRCPUMemoryMonitor,
+    WRLiteXCPU,
+    resolve_wr_cpu_variant,
+    wr_cpu_word_bus,
+)
 from litex_wr_nic.gateware.wrf_stream2wb     import Stream2Wishbone
 from litex_wr_nic.gateware.wrf_wb2stream     import Wishbone2Stream
 from litex_wr_nic.gateware.wb_clock_crossing import WishboneClockCrossing
@@ -92,6 +98,8 @@ class LiteXWRNICSoC(SoCMini):
     def add_wr_core(self,
         # CPU.
         cpu_firmware,
+        cpu_type          = "urv",
+        cpu_variant       = None,
         cpu_memory_region = None,
         cpu_memory_ready  = 1,
         cpu_boot_loader   = None,
@@ -156,13 +164,40 @@ class LiteXWRNICSoC(SoCMini):
 
         # Optional WR CPU Memory Master.
         # ------------------------------
+        cpu_variant         = resolve_wr_cpu_variant(cpu_type, cpu_variant)
+        external_cpu        = cpu_type != "urv"
         external_cpu_memory = cpu_memory_region is not None
-        memory_ready_wr     = Signal(reset=not external_cpu_memory)
+        if external_cpu and not external_cpu_memory:
+            raise ValueError(f"WR CPU type {cpu_type} requires external CPU memory.")
+
+        memory_ready_wr   = Signal(reset=not external_cpu_memory)
+        wr_cpu_bridge     = None
+        wr_cpu_peripheral = None
+        wr_cpu_irq        = Signal()
+        wr_cpu_reset      = Signal()
         if external_cpu_memory:
-            wr_cpu_bus_sys = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
-            self.wr_cpu_bridge = wr_cpu_bridge = WRCPUMemoryBridge(monitor_bus=wr_cpu_bus_sys)
+            if external_cpu:
+                self.wr_cpu = WRLiteXCPU(self.platform,
+                    cpu_type       = cpu_type,
+                    variant        = cpu_variant,
+                    irq            = wr_cpu_irq,
+                    software_reset = wr_cpu_reset,
+                    memory_ready   = memory_ready_wr,
+                )
+                wr_cpu_bus_wr     = self.wr_cpu.memory_bus
+                wr_cpu_bus_sys    = wishbone.Interface.like(wr_cpu_bus_wr)
+                wr_cpu_peripheral = self.wr_cpu.peripheral_bridge
+                self.wr_cpu_bridge = wr_cpu_bridge = WRCPUMemoryMonitor(monitor_bus=wr_cpu_bus_sys)
+            else:
+                wr_cpu_bus_sys = wishbone.Interface(
+                    data_width    = 32,
+                    address_width = 32,
+                    addressing    = "byte",
+                )
+                self.wr_cpu_bridge = wr_cpu_bridge = WRCPUMemoryBridge(monitor_bus=wr_cpu_bus_sys)
+                wr_cpu_bus_wr = wr_cpu_bridge.bus
             self.submodules.wr_cpu_memory_cdc = WishboneClockCrossing(self.platform,
-                wb_from        = wr_cpu_bridge.bus,
+                wb_from        = wr_cpu_bus_wr,
                 cd_from        = "wr_sys",
                 wb_to          = wr_cpu_bus_sys,
                 cd_to          = "sys",
@@ -257,6 +292,7 @@ class LiteXWRNICSoC(SoCMini):
             # Vivado binds quoted "FALSE" to true across the Verilog/VHDL
             # boundary; use a numeric boolean for deterministic elaboration.
             p_g_external_cpu_memory       = int(external_cpu_memory),
+            p_g_external_cpu              = int(external_cpu),
             p_txpolarity                  = sfp_tx_polarity,
             p_rxpolarity                  = sfp_rx_polarity,
             p_g_with_external_clock_input = str(with_ext_clk).upper(),
@@ -309,18 +345,34 @@ class LiteXWRNICSoC(SoCMini):
             i_spi_miso_i          = 0      if flash_pads is None else flash_pads.miso,
 
             # Optional WR CPU Memory Master.
-            o_cpu_mem_cyc_o       = Open() if not external_cpu_memory else wr_cpu_bridge.cyc,
-            o_cpu_mem_stb_o       = Open() if not external_cpu_memory else wr_cpu_bridge.stb,
-            o_cpu_mem_we_o        = Open() if not external_cpu_memory else wr_cpu_bridge.we,
-            o_cpu_mem_adr_o       = Open() if not external_cpu_memory else wr_cpu_bridge.adr,
-            o_cpu_mem_sel_o       = Open() if not external_cpu_memory else wr_cpu_bridge.sel,
-            o_cpu_mem_dat_o       = Open() if not external_cpu_memory else wr_cpu_bridge.dat_w,
-            i_cpu_mem_dat_i       = 0      if not external_cpu_memory else wr_cpu_bridge.dat_r,
-            i_cpu_mem_ack_i       = 0      if not external_cpu_memory else wr_cpu_bridge.ack,
-            i_cpu_mem_err_i       = 0      if not external_cpu_memory else wr_cpu_bridge.err,
-            i_cpu_mem_rty_i       = 0      if not external_cpu_memory else wr_cpu_bridge.rty,
-            i_cpu_mem_stall_i     = 0      if not external_cpu_memory else wr_cpu_bridge.stall,
+            o_cpu_mem_cyc_o       = Open() if not external_cpu_memory or external_cpu else wr_cpu_bridge.cyc,
+            o_cpu_mem_stb_o       = Open() if not external_cpu_memory or external_cpu else wr_cpu_bridge.stb,
+            o_cpu_mem_we_o        = Open() if not external_cpu_memory or external_cpu else wr_cpu_bridge.we,
+            o_cpu_mem_adr_o       = Open() if not external_cpu_memory or external_cpu else wr_cpu_bridge.adr,
+            o_cpu_mem_sel_o       = Open() if not external_cpu_memory or external_cpu else wr_cpu_bridge.sel,
+            o_cpu_mem_dat_o       = Open() if not external_cpu_memory or external_cpu else wr_cpu_bridge.dat_w,
+            i_cpu_mem_dat_i       = 0      if not external_cpu_memory or external_cpu else wr_cpu_bridge.dat_r,
+            i_cpu_mem_ack_i       = 0      if not external_cpu_memory or external_cpu else wr_cpu_bridge.ack,
+            i_cpu_mem_err_i       = 0      if not external_cpu_memory or external_cpu else wr_cpu_bridge.err,
+            i_cpu_mem_rty_i       = 0      if not external_cpu_memory or external_cpu else wr_cpu_bridge.rty,
+            i_cpu_mem_stall_i     = 0      if not external_cpu_memory or external_cpu else wr_cpu_bridge.stall,
             i_cpu_mem_ready_i     = 1      if not external_cpu_memory else memory_ready_wr,
+
+            # Optional LiteX WR CPU peripheral master, interrupt and reset.
+            i_cpu_ext_cyc_i       = 0 if not external_cpu else wr_cpu_peripheral.cyc,
+            i_cpu_ext_stb_i       = 0 if not external_cpu else wr_cpu_peripheral.stb,
+            i_cpu_ext_we_i        = 0 if not external_cpu else wr_cpu_peripheral.we,
+            i_cpu_ext_adr_i       = 0 if not external_cpu else Cat(
+                Constant(0, 2), wr_cpu_peripheral.adr),
+            i_cpu_ext_sel_i       = 0 if not external_cpu else wr_cpu_peripheral.sel,
+            i_cpu_ext_dat_i       = 0 if not external_cpu else wr_cpu_peripheral.dat_w,
+            o_cpu_ext_dat_o       = Open() if not external_cpu else wr_cpu_peripheral.dat_r,
+            o_cpu_ext_ack_o       = Open() if not external_cpu else wr_cpu_peripheral.ack,
+            o_cpu_ext_err_o       = Open() if not external_cpu else wr_cpu_peripheral.err,
+            o_cpu_ext_rty_o       = Open() if not external_cpu else wr_cpu_peripheral.rty,
+            o_cpu_ext_stall_o     = Open() if not external_cpu else wr_cpu_peripheral.stall,
+            o_cpu_ext_irq_o       = Open() if not external_cpu else wr_cpu_irq,
+            o_cpu_ext_reset_o     = Open() if not external_cpu else wr_cpu_reset,
 
             # PPS / Leds.
             i_pps_ext_i           = self.pps_in,

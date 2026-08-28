@@ -69,6 +69,7 @@ entity xwrc_board_litex_wr_nic is
     g_dpram_initf               : string               := "default_xilinx";
     g_dpram_size                : integer              := 131072/4;
     g_external_cpu_memory       : boolean              := false;
+    g_external_cpu              : boolean              := false;
     -- identification (id and ver) of the layout of words in the generic diag interface
     g_diag_id                   : integer              := 0;
     g_diag_ver                  : integer              := 0;
@@ -248,6 +249,12 @@ entity xwrc_board_litex_wr_nic is
     cpu_mem_i       : in  t_wishbone_master_in := cc_dummy_master_in;
     cpu_mem_ready_i : in  std_logic := '1';
 
+    -- Optional CPU instantiated outside the WR core.
+    cpu_ext_master_i : in  t_wishbone_master_out := cc_dummy_master_out;
+    cpu_ext_master_o : out t_wishbone_master_in;
+    cpu_ext_irq_o    : out std_logic;
+    cpu_ext_reset_o  : out std_logic;
+
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
@@ -417,6 +424,7 @@ begin  -- architecture struct
       g_dpram_initf               => g_dpram_initf,
       g_dpram_size                => g_dpram_size,
       g_external_cpu_memory       => g_external_cpu_memory,
+      g_external_cpu              => g_external_cpu,
       g_interface_mode            => PIPELINED,
       g_address_granularity       => BYTE,
       g_aux_sdb                   => c_wrc_periph3_sdb,
@@ -494,6 +502,10 @@ begin  -- architecture struct
       cpu_mem_o            => cpu_mem_o,
       cpu_mem_i            => cpu_mem_i,
       cpu_mem_ready_i      => cpu_mem_ready_i,
+      cpu_ext_master_i     => cpu_ext_master_i,
+      cpu_ext_master_o     => cpu_ext_master_o,
+      cpu_ext_irq_o        => cpu_ext_irq_o,
+      cpu_ext_reset_o      => cpu_ext_reset_o,
       tm_dac_value_o       => tm_dac_value_o,
       tm_dac_wr_o          => tm_dac_wr_o,
       tm_clk_aux_lock_en_i => tm_clk_aux_lock_en_i,
