@@ -56,8 +56,10 @@ requiring precise timing and basic networking functionality.
 - [> White Rabbit / PTM Demonstration](#-white-rabbit--ptm-demonstration)
 - [> Build and test designs](#-build-and-test-designs)
 - [> Build the WR RISC-V firmware](#-build-the-wr-risc-v-firmware)
+- [> Select the WR CPU](#-select-the-wr-cpu)
 - [> Select the WR CPU memory](#-select-the-wr-cpu-memory)
 - [> Compare WR CPU memory resources](#-compare-wr-cpu-memory-resources)
+- [> Compare WR CPU resources](#-compare-wr-cpu-resources)
 - [> Configure Flash Data Base (SDB)](#-configure-flash-data-base-sdb)
 - [> Use LiteX Server and LiteScope](#-use-litex-server-and-litescope)
 - [> JTAGBone Tests](#-jtagbone-tests)
@@ -267,6 +269,10 @@ cd litex_wr_nic/firmware
 ./build.py
 ```
 
+Pass `--wr-cpu-type vexriscv` to build the LiteX VexRiscv-compatible profile. It creates distinct
+`spec_a7_wrc_vexriscv.bin`, `.bram`, and `.boot` artifacts, so switching CPU types cannot silently
+reuse firmware built for the other core.
+
 The build.py script compiles the firmware using a specific RISC-V toolchain as recommended in the WRPC User Manual ([Section 2.2]
 (https://ohwr.org/project/wr-cores/wikis/uploads/7cf8d2161b6e5fa86348455bbd022196/wrpc-user-manual-v5.0.pdf)).
 If the toolchain is not already installed, build.py will automatically download and use it.
@@ -298,15 +304,39 @@ Loading firmware from ../firmware/wrpc-sw/wrc.bin...
 Loading firmware: 100%|██████████████████████████████████| 30270/30270 [00:00<00:00,
 ```
 
+[> Select the WR CPU
+--------------------
+
+The embedded WR-core uRV remains the default. A LiteX-managed VexRiscv `lite` core can instead run
+the same WRPC firmware from the SoC memory path:
+
+```sh
+./spec_a7_wr_nic.py --build --wr-cpu-type vexriscv --wr-cpu-memory integrated
+./spec_a7_wr_nic.py --build --wr-cpu-type vexriscv --wr-cpu-memory hyperram
+./acorn_wr_nic.py --build --wr-cpu-type vexriscv --wr-cpu-memory integrated
+./hyvision_pcie_opt01_revf.py --build --wr-cpu-type vexriscv --wr-cpu-memory integrated
+```
+
+The VexRiscv core runs in the existing 62.5 MHz WR clock domain. Its instruction and low-memory
+data buses share the selected LiteX memory, while accesses at and above `0x00100000` are routed
+directly to the WR-core peripheral bus. WR's interrupt and software-reset signals are connected to
+the LiteX CPU. The firmware profile initializes VexRiscv's trap vector and external-interrupt mask.
+
+Only the `lite` VexRiscv variant is qualified initially; select it explicitly with
+`--wr-cpu-variant lite`, or omit the variant to use that default. LiteX CPU mode requires
+`integrated` or `hyperram` memory because the CPU is outside the WR core. The WR CPU reset CSR and
+host memory-loading path remain available, but uRV instruction-upload/debug CSR fields read as zero
+and ignore writes in this mode.
+
 [> Select the WR CPU memory
 ---------------------------
 
-The WR uRV CPU keeps its 128 KiB logical memory window in all configurations. The implementation is
+The WR CPU keeps its 128 KiB logical memory window in all configurations. The implementation is
 selected at gateware build time:
 
 | Mode | Boards | Firmware source | FPGA memory cost |
 |---|---|---|---|
-| `private` | All | WR-core private dual-port RAM initialized from `spec_a7_wrc.bram` | 128 KiB private BRAM |
+| `private` | All, uRV only | WR-core private dual-port RAM initialized from `spec_a7_wrc.bram` | 128 KiB private BRAM |
 | `integrated` | All | LiteX `wr_cpu_mem` initialized from `spec_a7_wrc.bin` | 128 KiB SoC BRAM |
 | `hyperram` | SPEC-A7 | SPI-flash boot image copied automatically to HyperRAM | 8 KiB write-back cache plus HyperRAM controller |
 
@@ -323,15 +353,16 @@ different implementation with:
 In the external modes, instruction and low-memory data accesses cross from the 62.5 MHz WR clock
 domain to the LiteX system bus. Existing WR peripheral accesses at and above 1 MiB remain on the
 WR-core Wishbone bus. The LiteX region is named `wr_cpu_mem` and is mapped at `0x40000000` for host
-access; the uRV still sees it starting at address zero.
+access; the selected WR CPU still sees it starting at address zero.
 
 The integrated mode embeds the raw binary in SoC RAM. The HyperRAM mode holds the WR CPU in reset
-while an FPGA boot loader reads `spec_a7_wrc.boot` from SPI flash offset `0x002f0000`, validates its
-magic, version, aligned length, and CRC32, and copies it to HyperRAM. It then releases the CPU and
-returns the flash pins to WRPC. A write-back 8 KiB cache fronts the controller, which uses its 4:1
-mode to generate a conservative 31.25 MHz HyperRAM clock from the 125 MHz system clock. The existing
-64 KiB WR SDB slot remains at `0x002e0000`. The packaged image zero-fills the complete 128 KiB CPU
-window so its initial contents match the private and integrated modes.
+while an FPGA boot loader reads the selected profile (`spec_a7_wrc.boot` or
+`spec_a7_wrc_vexriscv.boot`) from SPI flash offset `0x002f0000`, validates its magic, version,
+aligned length, and CRC32, and copies it to HyperRAM. It then releases the CPU and returns the flash
+pins to WRPC. A write-back 8 KiB cache fronts the controller, which uses its 4:1 mode to generate a
+conservative 31.25 MHz HyperRAM clock from the 125 MHz system clock. The existing 64 KiB WR SDB slot
+remains at `0x002e0000`. The packaged image zero-fills the complete 128 KiB CPU window so its initial
+contents match the private and integrated modes.
 
 The firmware build creates both the raw binary and the packaged boot image:
 
@@ -366,6 +397,24 @@ already completed builds without rebuilding:
 ```sh
 python3 tools/compare_wr_cpu_resources.py build/wr_cpu_resources \
     --firmware litex_wr_nic/firmware/spec_a7_wrc.bin
+```
+
+[> Compare WR CPU resources
+---------------------------
+
+Build matched uRV and VexRiscv-lite SPEC-A7 designs with both integrated RAM and HyperRAM:
+
+```sh
+python3 tools/build_wr_cpu_type_matrix.py
+```
+
+The four placed designs use identical Vivado directives and CPU clock constraints. Results and
+VexRiscv-minus-uRV deltas are written to `doc/wr_cpu_type_resource_comparison.md`, `.json`, and
+`.csv`. Existing build reports can be parsed again without synthesis:
+
+```sh
+python3 tools/compare_wr_cpu_types.py build/wr_cpu_types \
+    --firmware-dir litex_wr_nic/firmware
 ```
 
 [> Configure Flash Data Base (SDB)
