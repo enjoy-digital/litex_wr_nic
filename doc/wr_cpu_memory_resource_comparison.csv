@@ -1,0 +1,4 @@
+mode,slice_luts,logic_luts,lut_memory,ffs,ramb36,ramb18,bram18_equivalent,dsps,wns_ns,tns_ns,whs_ns,ths_ns,bit_bytes,build_seconds
+private,12346,11961,385,14855,65,16,146,8,0.052,0.0,0.028,0.0,1792872,419.92
+integrated,12370,11911,459,15141,65,16,146,8,-0.045,-0.412,0.028,0.0,1863912,425.327
+hyperram,12978,12499,479,15933,34,21,89,8,0.0,0.0,0.028,0.0,1593740,467.467

@@ -1,0 +1,296 @@
+{
+  "metadata": {
+    "git_sha": "cee1cb39fa171af9c3981647d81ae95c62f688f3",
+    "git_dirty": true,
+    "firmware_sha256": "ca79808b467881257f3df500c400dae7302cde619fc0ca252dba14939b996727",
+    "target": "spec_a7_wr_nic",
+    "device": "xc7a50tcsg325-2",
+    "tool_version": "Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024",
+    "cache_size_bytes": 8192,
+    "hyperram_clk_ratio": "4:1",
+    "hyperram_clk_hz": 31250000,
+    "directives": {
+      "place": "Explore",
+      "route": "Explore",
+      "post_route_phys_opt": "Explore"
+    }
+  },
+  "modes": {
+    "private": {
+      "slice_luts": 12346,
+      "logic_luts": 11961,
+      "lut_memory": 385,
+      "lutram": 372,
+      "srls": 13,
+      "ffs": 14855,
+      "ramb36": 65,
+      "ramb18": 16,
+      "dsps": 8,
+      "bram18_equivalent": 146,
+      "tool_version": "Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024",
+      "device": "xc7a50tcsg325-2",
+      "wns_ns": 0.052,
+      "tns_ns": 0.0,
+      "setup_failing_endpoints": 0,
+      "whs_ns": 0.028,
+      "ths_ns": 0.0,
+      "hold_failing_endpoints": 0,
+      "hierarchy": [
+        {
+          "instance": "gen_private_cpu_memory.U_CPU_PRIVATE",
+          "module": "wrc_urv_wrapper",
+          "total_luts": 2144,
+          "logic_luts": 2144,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 1229,
+          "ramb36": 32,
+          "ramb18": 2,
+          "dsps": 4
+        },
+        {
+          "instance": "(gen_private_cpu_memory.U_CPU_PRIVATE)",
+          "module": "wrc_urv_wrapper",
+          "total_luts": 266,
+          "logic_luts": 266,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 234,
+          "ramb36": 0,
+          "ramb18": 0,
+          "dsps": 0
+        }
+      ],
+      "reports": {
+        "utilization": "gateware/spec_a7_wr_nic_utilization_place.rpt",
+        "timing": "gateware/spec_a7_wr_nic_timing.rpt",
+        "hierarchy": "gateware/spec_a7_wr_nic_utilization_hierarchical_place.rpt"
+      },
+      "bit_bytes": 1792872,
+      "bin_bytes": null,
+      "build_seconds": 419.92,
+      "delta_vs_private": {
+        "slice_luts": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "logic_luts": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "lut_memory": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "ffs": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "ramb36": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "ramb18": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "bram18_equivalent": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "dsps": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "bit_bytes": {
+          "absolute": 0,
+          "percent": 0.0
+        }
+      }
+    },
+    "integrated": {
+      "slice_luts": 12370,
+      "logic_luts": 11911,
+      "lut_memory": 459,
+      "lutram": 446,
+      "srls": 13,
+      "ffs": 15141,
+      "ramb36": 65,
+      "ramb18": 16,
+      "dsps": 8,
+      "bram18_equivalent": 146,
+      "tool_version": "Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024",
+      "device": "xc7a50tcsg325-2",
+      "wns_ns": -0.045,
+      "tns_ns": -0.412,
+      "setup_failing_endpoints": 19,
+      "whs_ns": 0.028,
+      "ths_ns": 0.0,
+      "hold_failing_endpoints": 0,
+      "hierarchy": [
+        {
+          "instance": "gen_external_cpu_memory.U_CPU_EXTERNAL",
+          "module": "wrc_urv_external_memory",
+          "total_luts": 1915,
+          "logic_luts": 1915,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 1256,
+          "ramb36": 0,
+          "ramb18": 2,
+          "dsps": 4
+        },
+        {
+          "instance": "(gen_external_cpu_memory.U_CPU_EXTERNAL)",
+          "module": "wrc_urv_external_memory",
+          "total_luts": 309,
+          "logic_luts": 309,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 259,
+          "ramb36": 0,
+          "ramb18": 0,
+          "dsps": 0
+        }
+      ],
+      "reports": {
+        "utilization": "gateware/spec_a7_wr_nic_utilization_place.rpt",
+        "timing": "gateware/spec_a7_wr_nic_timing.rpt",
+        "hierarchy": "gateware/spec_a7_wr_nic_utilization_hierarchical_place.rpt"
+      },
+      "bit_bytes": 1863912,
+      "bin_bytes": null,
+      "build_seconds": 425.327,
+      "delta_vs_private": {
+        "slice_luts": {
+          "absolute": 24,
+          "percent": 0.19439494573141097
+        },
+        "logic_luts": {
+          "absolute": -50,
+          "percent": -0.418025248725023
+        },
+        "lut_memory": {
+          "absolute": 74,
+          "percent": 19.22077922077922
+        },
+        "ffs": {
+          "absolute": 286,
+          "percent": 1.9252776842813868
+        },
+        "ramb36": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "ramb18": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "bram18_equivalent": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "dsps": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "bit_bytes": {
+          "absolute": 71040,
+          "percent": 3.9623576027736505
+        }
+      }
+    },
+    "hyperram": {
+      "slice_luts": 12978,
+      "logic_luts": 12499,
+      "lut_memory": 479,
+      "lutram": 466,
+      "srls": 13,
+      "ffs": 15933,
+      "ramb36": 34,
+      "ramb18": 21,
+      "dsps": 8,
+      "bram18_equivalent": 89,
+      "tool_version": "Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024",
+      "device": "xc7a50tcsg325-2",
+      "wns_ns": 0.0,
+      "tns_ns": 0.0,
+      "setup_failing_endpoints": 0,
+      "whs_ns": 0.028,
+      "ths_ns": 0.0,
+      "hold_failing_endpoints": 0,
+      "hierarchy": [
+        {
+          "instance": "gen_external_cpu_memory.U_CPU_EXTERNAL",
+          "module": "wrc_urv_external_memory",
+          "total_luts": 1918,
+          "logic_luts": 1918,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 1256,
+          "ramb36": 0,
+          "ramb18": 2,
+          "dsps": 4
+        },
+        {
+          "instance": "(gen_external_cpu_memory.U_CPU_EXTERNAL)",
+          "module": "wrc_urv_external_memory",
+          "total_luts": 311,
+          "logic_luts": 311,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 259,
+          "ramb36": 0,
+          "ramb18": 0,
+          "dsps": 0
+        }
+      ],
+      "reports": {
+        "utilization": "gateware/spec_a7_wr_nic_utilization_place.rpt",
+        "timing": "gateware/spec_a7_wr_nic_timing.rpt",
+        "hierarchy": "gateware/spec_a7_wr_nic_utilization_hierarchical_place.rpt"
+      },
+      "bit_bytes": 1593740,
+      "bin_bytes": null,
+      "build_seconds": 467.467,
+      "delta_vs_private": {
+        "slice_luts": {
+          "absolute": 632,
+          "percent": 5.119066904260489
+        },
+        "logic_luts": {
+          "absolute": 538,
+          "percent": 4.4979516762812475
+        },
+        "lut_memory": {
+          "absolute": 94,
+          "percent": 24.415584415584416
+        },
+        "ffs": {
+          "absolute": 1078,
+          "percent": 7.256815886906765
+        },
+        "ramb36": {
+          "absolute": -31,
+          "percent": -47.69230769230769
+        },
+        "ramb18": {
+          "absolute": 5,
+          "percent": 31.25
+        },
+        "bram18_equivalent": {
+          "absolute": -57,
+          "percent": -39.04109589041096
+        },
+        "dsps": {
+          "absolute": 0,
+          "percent": 0.0
+        },
+        "bit_bytes": {
+          "absolute": -199132,
+          "percent": -11.10687210241445
+        }
+      }
+    }
+  }
+}

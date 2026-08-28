@@ -56,6 +56,8 @@ requiring precise timing and basic networking functionality.
 - [> White Rabbit / PTM Demonstration](#-white-rabbit--ptm-demonstration)
 - [> Build and test designs](#-build-and-test-designs)
 - [> Build the WR RISC-V firmware](#-build-the-wr-risc-v-firmware)
+- [> Select the WR CPU memory](#-select-the-wr-cpu-memory)
+- [> Compare WR CPU memory resources](#-compare-wr-cpu-memory-resources)
 - [> Configure Flash Data Base (SDB)](#-configure-flash-data-base-sdb)
 - [> Use LiteX Server and LiteScope](#-use-litex-server-and-litescope)
 - [> JTAGBone Tests](#-jtagbone-tests)
@@ -279,12 +281,10 @@ server over a UDP connection, use:
 litex_server --udp
 ```
 
-With the LiteX server running, navigate to the test directory and use the test_wb_cpu.py script to
-load the new firmware onto the CPU.
+With the LiteX server running, use `test/test_cpu.py` to load the new firmware onto the CPU.
 
 ```sh
-cd test
-./test_wb_cpu.py --build-firmware --load-firmware ../firmware/wrpc-sw/wrc.bin
+python3 test/test_cpu.py --load-firmware litex_wr_nic/firmware/spec_a7_wrc.bin
 ```
 
 This command will:
@@ -296,6 +296,76 @@ The script will display a progress bar while loading the firmware, like this:
 ```sh
 Loading firmware from ../firmware/wrpc-sw/wrc.bin...
 Loading firmware: 100%|██████████████████████████████████| 30270/30270 [00:00<00:00,
+```
+
+[> Select the WR CPU memory
+---------------------------
+
+The WR uRV CPU keeps its 128 KiB logical memory window in all configurations. The implementation is
+selected at gateware build time:
+
+| Mode | Boards | Firmware source | FPGA memory cost |
+|---|---|---|---|
+| `private` | All | WR-core private dual-port RAM initialized from `spec_a7_wrc.bram` | 128 KiB private BRAM |
+| `integrated` | All | LiteX `wr_cpu_mem` initialized from `spec_a7_wrc.bin` | 128 KiB SoC BRAM |
+| `hyperram` | SPEC-A7 | SPI-flash boot image copied automatically to HyperRAM | 8 KiB write-back cache plus HyperRAM controller |
+
+`private` remains the default and is compatible with existing bitstreams and host tools. Select a
+different implementation with:
+
+```sh
+./spec_a7_wr_nic.py --build --wr-cpu-memory integrated
+./spec_a7_wr_nic.py --build --wr-cpu-memory hyperram
+./acorn_wr_nic.py --build --wr-cpu-memory integrated
+./hyvision_pcie_opt01_revf.py --build --wr-cpu-memory integrated
+```
+
+In the external modes, instruction and low-memory data accesses cross from the 62.5 MHz WR clock
+domain to the LiteX system bus. Existing WR peripheral accesses at and above 1 MiB remain on the
+WR-core Wishbone bus. The LiteX region is named `wr_cpu_mem` and is mapped at `0x40000000` for host
+access; the uRV still sees it starting at address zero.
+
+The integrated mode embeds the raw binary in SoC RAM. The HyperRAM mode holds the WR CPU in reset
+while an FPGA boot loader reads `spec_a7_wrc.boot` from SPI flash offset `0x002f0000`, validates its
+magic, version, aligned length, and CRC32, and copies it to HyperRAM. It then releases the CPU and
+returns the flash pins to WRPC. A write-back 8 KiB cache fronts the controller, which uses its 4:1
+mode to generate a conservative 31.25 MHz HyperRAM clock from the 125 MHz system clock. The existing
+64 KiB WR SDB slot remains at `0x002e0000`. The packaged image zero-fills the complete 128 KiB CPU
+window so its initial contents match the private and integrated modes.
+
+The firmware build creates both the raw binary and the packaged boot image:
+
+```sh
+cd litex_wr_nic/firmware
+./build.py
+```
+
+`--flash --wr-cpu-memory hyperram` validates that the bitstream, SDB, and boot image fit without
+overlap before programming them. Loader progress, CRC values, and error status are exposed in the
+`wr_cpu_boot` CSRs. Error codes are: 1 magic, 2 version, 3 length, 4 CRC, 5 Wishbone error, and 6
+Wishbone timeout. External-memory bus errors and their last address are exposed in
+`wr_cpu_bridge`.
+
+`test/test_cpu.py` detects `wr_cpu_mem` automatically. Use `--memory-mode private` or
+`--memory-mode external` to override detection when manually loading or dumping firmware.
+
+[> Compare WR CPU memory resources
+----------------------------------
+
+The PR resource comparison builds all three SPEC-A7 configurations with identical Vivado
+directives and firmware, then extracts placed utilization, final timing, image sizes, build time,
+tool version, and relevant hierarchy rows:
+
+```sh
+python3 tools/build_wr_cpu_resource_matrix.py
+```
+
+Results are written to `doc/wr_cpu_memory_resource_comparison.md`, `.json`, and `.csv`. To parse
+already completed builds without rebuilding:
+
+```sh
+python3 tools/compare_wr_cpu_resources.py build/wr_cpu_resources \
+    --firmware litex_wr_nic/firmware/spec_a7_wrc.bin
 ```
 
 [> Configure Flash Data Base (SDB)
