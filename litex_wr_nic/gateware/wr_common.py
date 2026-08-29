@@ -21,14 +21,14 @@ WR_CLOCK_MONITOR_VHD = "wr-cores/ip_cores/general-cores/modules/wishbone/wb_cloc
 
 def wr_core_init():
     print("Cloning wr-cores repository...")
-    subprocess.run(["git", "clone", WR_CORES_URL])
+    subprocess.run(["git", "clone", WR_CORES_URL], check=True)
     os.chdir("wr-cores")
     print("Checking out the specified commit...")
-    subprocess.run(["git", "checkout", WR_CORES_SHA1, "-b", WR_CORES_BRANCH])
+    subprocess.run(["git", "checkout", "-B", WR_CORES_BRANCH, WR_CORES_SHA1], check=True)
     print("Fixing submodules URL...")
     tools.replace_in_file(".gitmodules", "ohwr.org", "gitlab.com/ohwr")
     print("Updating submodules...")
-    subprocess.run(["git", "submodule", "update", "--init"])
+    subprocess.run(["git", "submodule", "update", "--init"], check=True)
     print("wr-cores initialization complete.")
     os.chdir("..")
 
