@@ -228,7 +228,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ------------------------
             self.refclk_mmcm_ps_gen = PSGen(
                  cd_psclk    = "clk200",
-                 cd_sys      = "wr",
+                 cd_sys      = "wr_sys",
                  ctrl_size   = 16,
                  )
             self.comb += [
@@ -242,7 +242,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ----------------------
             self.dmtd_mmcm_ps_gen = PSGen(
                  cd_psclk    = "clk200",
-                 cd_sys      = "wr",
+                 cd_sys      = "wr_sys",
                  ctrl_size   = 16,
                  )
             self.comb += [

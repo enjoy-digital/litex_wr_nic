@@ -272,6 +272,7 @@ class BaseSoC(LiteXWRNICSoC):
                 load  = self.dac_refclk_load,
                 value = self.dac_refclk_data,
                 gain  = 2, # 2 for 0-3V range to be able to accelerate enough RefClk, not working with 1.
+                clk_domain = "wr_sys",
             )
 
             # DMTD DAC.
@@ -280,6 +281,7 @@ class BaseSoC(LiteXWRNICSoC):
                 load  = self.dac_dmtd_load,
                 value = self.dac_dmtd_data,
                 gain  = 1,
+                clk_domain = "wr_sys",
             )
 
             # White Rabbit Clk-In.
