@@ -47,7 +47,7 @@ class AD5683RDAC(LiteXModule):
             p_g_invert_sclk    = 0,
             p_g_num_data_bits  = 16,
             p_g_num_extra_bits = 8,
-            p_g_x2_gain        = {1: 0, 2: 1}[gain],
+            p_g_enable_x2_gain = {1: 0, 2: 1}[gain],
 
             i_clk_i        = ClockSignal(clk_domain),
             i_rst_n_i      = ~ResetSignal(clk_domain),
