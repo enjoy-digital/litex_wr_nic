@@ -122,7 +122,10 @@ class LiteXWRNICSoC(SoCMini):
 
         # Clks.
         # -----
-        self.cd_wr = ClockDomain("wr")
+        # Keep PPS/timecode in the PHY reference domain. The WR CPU, fabric,
+        # Wishbone and DAC commands run on the independent WR system clock.
+        self.cd_wr     = ClockDomain("wr")
+        self.cd_wr_sys = ClockDomain("wr_sys")
 
         # Signals.
         # --------
@@ -144,8 +147,8 @@ class LiteXWRNICSoC(SoCMini):
 
         # White Rabbit Fabric Interface.
         # ------------------------------
-        self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(  cd_to="wr")
-        self.wrf_wb2stream = wrf_wb2stream = Wishbone2Stream(cd_from="wr")
+        self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(  cd_to="wr_sys")
+        self.wrf_wb2stream = wrf_wb2stream = Wishbone2Stream(cd_from="wr_sys")
 
         # White Rabbit Slave Interface.
         # -----------------------------
@@ -160,7 +163,7 @@ class LiteXWRNICSoC(SoCMini):
             wb_from = wb_slave_sys,
             cd_from = "sys",
             wb_to   = wb_slave_wr,
-            cd_to   = "wr",
+            cd_to   = "wr_sys",
         )
 
         # Temp 1-Wire Logic.
@@ -173,7 +176,7 @@ class LiteXWRNICSoC(SoCMini):
                 o  = Constant(0b0, 1),
                 oe = ~temp_1wire_oe_n,
                 i  = temp_1wire_i,
-                clk = ClockSignal("wr"),
+                clk = ClockSignal("wr_sys"),
             )
 
         # Flash Logic.
@@ -215,8 +218,10 @@ class LiteXWRNICSoC(SoCMini):
             i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
             i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
             i_clk_10m_ext_i       = ClockSignal("clk10m_in"),
-            o_clk_62m5_sys_o      = ClockSignal("wr"),
-            o_rst_62m5_sys_o      = ResetSignal("wr"),
+            o_clk_62m5_sys_o      = ClockSignal("wr_sys"),
+            o_rst_62m5_sys_o      = ResetSignal("wr_sys"),
+            o_clk_62m5_ref_o      = ClockSignal("wr"),
+            o_rst_62m5_ref_o      = ResetSignal("wr"),
 
             # DAC RefClk Interface.
             o_dac_refclk_load     = self.dac_refclk_load,

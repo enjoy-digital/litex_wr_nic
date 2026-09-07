@@ -16,7 +16,7 @@ from litex.soc.interconnect.csr import *
 # AD5683R DAC --------------------------------------------------------------------------------------
 
 class AD5683RDAC(LiteXModule):
-    def __init__(self, platform, pads, load, value, gain=1):
+    def __init__(self, platform, pads, load, value, gain=1, clk_domain="wr"):
         assert gain in [1, 2]
         self._force   = CSRStorage()
         self._load    = CSRStorage(1)
@@ -30,7 +30,8 @@ class AD5683RDAC(LiteXModule):
         value_i = Signal(16)
 
         # Force/Load.
-        self.sync.wr += [
+        sync = getattr(self.sync, clk_domain)
+        sync += [
             If(self._force.storage,
                 load_i.eq(self._load.storage),
                 value_i.eq(self._value.storage),
@@ -46,10 +47,10 @@ class AD5683RDAC(LiteXModule):
             p_g_invert_sclk    = 0,
             p_g_num_data_bits  = 16,
             p_g_num_extra_bits = 8,
-            p_g_x2_gain        = {1: 0, 2: 1}[gain],
+            p_g_enable_x2_gain = {1: 0, 2: 1}[gain],
 
-            i_clk_i        = ClockSignal("wr"),
-            i_rst_n_i      = ~ResetSignal("wr"),
+            i_clk_i        = ClockSignal(clk_domain),
+            i_rst_n_i      = ~ResetSignal(clk_domain),
 
             i_val_i        = value_i,
             i_load_i       = load_i,

@@ -203,10 +203,12 @@ class BaseSoC(LiteXWRNICSoC):
                 "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout*}}] -to [get_clocks -quiet sys_clk]")
             platform.toolchain.pre_placement_commands.append(
                 "set_false_path -quiet -from [get_clocks -quiet sys_clk] -to [get_clocks -quiet {{*s7pciephy_clkout*}}]")
+            # With pclk_mux_direct_from_mmcm, CLKOUT4/5 drive the mutually
+            # exclusive 125/250 MHz inputs of the PIPE clock's BUFGCTRL.
             platform.toolchain.pre_placement_commands.append(
-                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout0}}] -to [get_clocks -quiet {{*s7pciephy_clkout1}}]")
-            platform.toolchain.pre_placement_commands.append(
-                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout1}}] -to [get_clocks -quiet {{*s7pciephy_clkout0}}]")
+                "set_clock_groups -logically_exclusive "
+                "-group [get_clocks {{*s7pciephy_clkout4}}] "
+                "-group [get_clocks {{*s7pciephy_clkout5}}]")
 
         # White Rabbit -----------------------------------------------------------------------------
 
@@ -272,6 +274,7 @@ class BaseSoC(LiteXWRNICSoC):
                 load  = self.dac_refclk_load,
                 value = self.dac_refclk_data,
                 gain  = 2, # 2 for 0-3V range to be able to accelerate enough RefClk, not working with 1.
+                clk_domain = "wr_sys",
             )
 
             # DMTD DAC.
@@ -280,6 +283,7 @@ class BaseSoC(LiteXWRNICSoC):
                 load  = self.dac_dmtd_load,
                 value = self.dac_dmtd_data,
                 gain  = 1,
+                clk_domain = "wr_sys",
             )
 
             # White Rabbit Clk-In.
@@ -579,6 +583,8 @@ class BaseSoC(LiteXWRNICSoC):
         ]
         if with_white_rabbit:
             asynchronous_clk_domains += [self.fine_delay.cd_fine_delay.clk]
+            # Host/WR register and fabric traffic crosses asynchronous FIFOs.
+            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_wr_sys.clk)
 
         platform.add_false_path_constraints(*asynchronous_clk_domains)
 

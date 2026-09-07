@@ -228,7 +228,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ------------------------
             self.refclk_mmcm_ps_gen = PSGen(
                  cd_psclk    = "clk200",
-                 cd_sys      = "wr",
+                 cd_sys      = "wr_sys",
                  ctrl_size   = 16,
                  )
             self.comb += [
@@ -242,7 +242,7 @@ class BaseSoC(LiteXWRNICSoC):
             # ----------------------
             self.dmtd_mmcm_ps_gen = PSGen(
                  cd_psclk    = "clk200",
-                 cd_sys      = "wr",
+                 cd_sys      = "wr_sys",
                  ctrl_size   = 16,
                  )
             self.comb += [
@@ -327,7 +327,8 @@ class BaseSoC(LiteXWRNICSoC):
             "wr_rxoutclk",
         ]
         if with_white_rabbit:
-            asynchronous_clk_domains += []
+            # Host/WR register and fabric traffic crosses asynchronous FIFOs.
+            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_wr_sys.clk)
 
         platform.add_false_path_constraints(*asynchronous_clk_domains)
 

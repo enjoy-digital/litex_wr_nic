@@ -61,6 +61,8 @@ entity xwrc_board_litex_wr_nic_wrapper is
     pps_ext_i            : in  std_logic := '0';
     clk_62m5_sys_o       : out std_logic;
     rst_62m5_sys_o       : out std_logic;
+    clk_62m5_ref_o       : out std_logic;
+    rst_62m5_ref_o       : out std_logic;
 
     -- Serial DACs
     dac_refclk_load      : out std_logic;
@@ -261,6 +263,8 @@ begin
       pps_ext_i            => pps_ext_i,
       clk_62m5_sys_o       => clk_62m5_sys_o,
       rst_62m5_sys_o       => rst_62m5_sys_o,
+      clk_62m5_ref_o       => clk_62m5_ref_o,
+      rst_62m5_ref_o       => rst_62m5_ref_o,
       dac_refclk_load      => dac_refclk_load,
       dac_refclk_data      => dac_refclk_data,
       dac_dmtd_load        => dac_dmtd_load,

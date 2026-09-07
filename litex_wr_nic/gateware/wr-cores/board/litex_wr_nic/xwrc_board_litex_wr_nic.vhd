@@ -99,6 +99,8 @@ entity xwrc_board_litex_wr_nic is
 
     clk_62m5_sys_o      : out std_logic;
     rst_62m5_sys_o      : out std_logic;
+    clk_62m5_ref_o      : out std_logic;
+    rst_62m5_ref_o      : out std_logic;
 
     ---------------------------------------------------------------------------
     -- Serial DACs
@@ -344,8 +346,13 @@ begin  -- architecture struct
       GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK
     );
 
-  clk_62m5_sys_o <= clk_ref_62m5;
-  rst_62m5_sys_o <= not pll_locked;
+  -- Wishbone, fabric and SoftPLL DAC commands use the system clock. PPS and
+  -- timecode use the PHY reference clock; these clocks can have different
+  -- phases and the PHY clock can stop during endpoint initialization.
+  clk_62m5_sys_o <= clk_pll_62m5;
+  rst_62m5_sys_o <= not rstlogic_rst_out(0);
+  clk_62m5_ref_o <= clk_ref_62m5;
+  rst_62m5_ref_o <= not rstlogic_rst_out(1);
 
   -----------------------------------------------------------------------------
   -- Reset logic
