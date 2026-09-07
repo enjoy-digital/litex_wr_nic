@@ -203,10 +203,12 @@ class BaseSoC(LiteXWRNICSoC):
                 "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout*}}] -to [get_clocks -quiet sys_clk]")
             platform.toolchain.pre_placement_commands.append(
                 "set_false_path -quiet -from [get_clocks -quiet sys_clk] -to [get_clocks -quiet {{*s7pciephy_clkout*}}]")
+            # With pclk_mux_direct_from_mmcm, CLKOUT4/5 drive the mutually
+            # exclusive 125/250 MHz inputs of the PIPE clock's BUFGCTRL.
             platform.toolchain.pre_placement_commands.append(
-                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout0}}] -to [get_clocks -quiet {{*s7pciephy_clkout1}}]")
-            platform.toolchain.pre_placement_commands.append(
-                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout1}}] -to [get_clocks -quiet {{*s7pciephy_clkout0}}]")
+                "set_clock_groups -logically_exclusive "
+                "-group [get_clocks {{*s7pciephy_clkout4}}] "
+                "-group [get_clocks {{*s7pciephy_clkout5}}]")
 
         # White Rabbit -----------------------------------------------------------------------------
 
