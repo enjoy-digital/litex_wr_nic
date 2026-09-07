@@ -260,7 +260,6 @@ architecture struct of xwrc_board_litex_wr_nic is
   -- PLLs, clocks
   signal clk_pll_62m5   : std_logic;
   signal clk_ref_62m5   : std_logic;
-  signal clk_ref_locked : std_logic;
   signal pll_locked     : std_logic;
   signal clk_10m_ext    : std_logic;
 
@@ -329,7 +328,7 @@ begin  -- architecture struct
       sfp_tx_disable_o      => sfp_tx_disable_o,
       clk_62m5_sys_o        => clk_pll_62m5,
       clk_125m_ref_o        => clk_ref_62m5,  -- Note: This is a 62m5 Clock for 16 bit PHYs!
-      clk_ref_locked_o      => clk_ref_locked,
+      clk_ref_locked_o      => open,
       clk_62m5_dmtd_o       => clk_dmtd,
       pll_locked_o          => pll_locked,
       clk_10m_ext_o         => clk_10m_ext,
@@ -364,8 +363,10 @@ begin  -- architecture struct
       data_i   => areset_edge_n_i,
       ppulse_o => areset_edge_ppulse);
 
-  -- logic AND of all async reset sources (active low)
-  rstlogic_arst_n <= pll_locked and clk_ref_locked and areset_n_i and (not areset_edge_ppulse);
+  -- Keep the WR core reset independent of the transceiver PLL lock: firmware
+  -- resets the PHY during endpoint initialization, which drops that lock.
+  -- Including it here would reset the CPU and repeat initialization forever.
+  rstlogic_arst_n <= pll_locked and areset_n_i and (not areset_edge_ppulse);
 
   -- concatenation of all clocks required to have synced resets
   rstlogic_clk_in(0) <= clk_pll_62m5;
