@@ -581,6 +581,8 @@ class BaseSoC(LiteXWRNICSoC):
         ]
         if with_white_rabbit:
             asynchronous_clk_domains += [self.fine_delay.cd_fine_delay.clk]
+            # Host/WR register and fabric traffic crosses asynchronous FIFOs.
+            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_wr_sys.clk)
 
         platform.add_false_path_constraints(*asynchronous_clk_domains)
 
