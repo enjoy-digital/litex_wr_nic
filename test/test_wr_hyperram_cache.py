@@ -10,11 +10,12 @@ from migen.fhdl.simplify import FullMemoryWE
 from litex.gen import LiteXModule
 from litex.soc.interconnect import wishbone
 
+# HyperRAM Cache Tests -----------------------------------------------------------------------------
 
 def test_local_cache_addresses_preserve_region_data_across_eviction():
-    dut = LiteXModule()
-    host = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-    local = wishbone.Interface(data_width=32, address_width=17, addressing="word")
+    dut    = LiteXModule()
+    host   = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+    local  = wishbone.Interface(data_width=32, address_width=17, addressing="word")
     memory = wishbone.Interface(data_width=32, address_width=17, addressing="word")
     dut.comb += host.connect(local)
     dut.cache = FullMemoryWE()(wishbone.Cache(cachesize=32, master=local, slave=memory))
@@ -29,7 +30,7 @@ def test_local_cache_addresses_preserve_region_data_across_eviction():
             if (yield memory.cyc) and (yield memory.stb):
                 address = yield memory.adr
                 assert 0 <= address < 128*1024//4
-                data = yield memory.dat_w
+                data  = yield memory.dat_w
                 write = yield memory.we
                 for _ in range(3):
                     yield
@@ -54,4 +55,5 @@ def test_local_cache_addresses_preserve_region_data_across_eviction():
         yield from host.read((0x40000000 + 0x2000)//4)
         value = yield from host.read(0x40000000//4)
         assert value == (expected[0] & 0xff0000ff) | 0x00112200
+
     run_simulation(dut, [check(), ram()])

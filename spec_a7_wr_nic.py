@@ -286,9 +286,11 @@ class BaseSoC(LiteXWRNICSoC):
 
             # PCIe <-> Sys-Clk false paths.
             platform.toolchain.pre_placement_commands.append(
-                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout*}}] -to [get_clocks -of_objects [get_nets sys_clk]]")
+                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout*}}] "
+                "-to [get_clocks -of_objects [get_nets sys_clk]]")
             platform.toolchain.pre_placement_commands.append(
-                "set_false_path -quiet -from [get_clocks -of_objects [get_nets sys_clk]] -to [get_clocks -quiet {{*s7pciephy_clkout*}}]")
+                "set_false_path -quiet -from [get_clocks -of_objects [get_nets sys_clk]] "
+                "-to [get_clocks -quiet {{*s7pciephy_clkout*}}]")
             platform.toolchain.pre_placement_commands.append(
                 "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout0}}] -to [get_clocks -quiet {{*s7pciephy_clkout1}}]")
             platform.toolchain.pre_placement_commands.append(
