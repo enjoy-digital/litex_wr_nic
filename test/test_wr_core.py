@@ -96,7 +96,7 @@ def test_compatibility_adapter_registers_memory_and_csrs_once(platform):
     assert slaves["region"].origin == 0x20000000
     assert slaves["region"].size == 0x01000000
     banks = CSRBankArray(soc, lambda name, memory: 5)
-    assert [name for name, *_ in banks.banks] == ["wr_cpu_bridge"]
+    assert [name for name, *_ in banks.banks] == ["wr_cpu_bridge", "wr_info"]
     assert [csr.name for csr in banks.banks[0][1]] == [
         "status", "error_count", "last_error_address",
     ]
