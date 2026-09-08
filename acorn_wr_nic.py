@@ -107,6 +107,11 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(LiteXWRNICSoC):
+    # Use the oscillator-control slots for this board's MMCM backends.
+    csr_map = {name: location for name, location in LiteXWRNICSoC.csr_map.items()
+        if name not in ("refclk_dac", "dmtd_dac")}
+    csr_map.update({"refclk_mmcm_ps_gen": 21, "dmtd_mmcm_ps_gen": 22})
+
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
         # ----------------
@@ -265,29 +270,31 @@ class BaseSoC(LiteXWRNICSoC):
             # RefClk MMCM Phase Shift.
             # ------------------------
             self.refclk_mmcm_ps_gen = PSGen(
-                 cd_psclk    = "clk200",
-                 cd_sys      = "wr_sys",
-                 ctrl_size   = 16,
-                 )
+                cd_psclk  = "clk200",
+                cd_sys    = "wr_sys",
+                ctrl_size = 16,
+            )
             self.comb += [
                 self.refclk_mmcm_ps_gen.ctrl_data.eq(self.dac_refclk_data),
                 self.refclk_mmcm_ps_gen.ctrl_load.eq(self.dac_refclk_load),
                 self.crg.refclk_mmcm.psen.eq(self.refclk_mmcm_ps_gen.psen),
                 self.crg.refclk_mmcm.psincdec.eq(self.refclk_mmcm_ps_gen.psincdec),
+                self.refclk_mmcm_ps_gen.psdone.eq(self.crg.refclk_mmcm.psdone),
             ]
 
             # DMTD MMCM Phase Shift.
             # ----------------------
             self.dmtd_mmcm_ps_gen = PSGen(
-                 cd_psclk    = "clk200",
-                 cd_sys      = "wr_sys",
-                 ctrl_size   = 16,
-                 )
+                cd_psclk  = "clk200",
+                cd_sys    = "wr_sys",
+                ctrl_size = 16,
+            )
             self.comb += [
                 self.dmtd_mmcm_ps_gen.ctrl_data.eq(self.dac_dmtd_data),
                 self.dmtd_mmcm_ps_gen.ctrl_load.eq(self.dac_dmtd_load),
                 self.crg.dmtd_mmcm.psen.eq(self.dmtd_mmcm_ps_gen.psen),
                 self.crg.dmtd_mmcm.psincdec.eq(self.dmtd_mmcm_ps_gen.psincdec),
+                self.dmtd_mmcm_ps_gen.psdone.eq(self.crg.dmtd_mmcm.psdone),
             ]
 
             # Timings Constraints.

@@ -14,6 +14,7 @@ from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
 
+from litex_wr_nic.gateware.wr_clock import WRTuningInterface
 from litex.build.io import SDRTristate
 
 from litex.soc.interconnect import wishbone
@@ -111,10 +112,12 @@ class WhiteRabbitCore(LiteXModule):
         self.led_pps         = Signal()
         self.led_link        = Signal()
         self.led_act         = Signal()
-        self.dac_refclk_load = Signal()
-        self.dac_refclk_data = Signal(dac_bits)
-        self.dac_dmtd_load   = Signal()
-        self.dac_dmtd_data   = Signal(dac_bits)
+        self.refclk_tuning   = WRTuningInterface(dac_bits, name="refclk_tuning")
+        self.dmtd_tuning     = WRTuningInterface(dac_bits, name="dmtd_tuning")
+        self.dac_refclk_load = self.refclk_tuning.load
+        self.dac_refclk_data = self.refclk_tuning.data
+        self.dac_dmtd_load   = self.dmtd_tuning.load
+        self.dac_dmtd_data   = self.dmtd_tuning.data
         self.pps_in          = Signal()
         self.pps_out_valid   = Signal()
         self.pps_out         = Signal()

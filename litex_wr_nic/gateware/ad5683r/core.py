@@ -2,16 +2,19 @@
 # This file is part of LiteX-WR-NIC.
 #
 # Copyright (c) 2024 Warsaw University of Technology
-# Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
+# Copyright (c) 2024-2026 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
 from migen import *
+from migen.genlib.cdc import BusSynchronizer
 
 from litex.gen import *
 
 from litex.soc.interconnect.csr import *
+
+from litex_wr_nic.gateware.wr_clock import WRTuningCDC
 
 # AD5683R DAC --------------------------------------------------------------------------------------
 
@@ -25,32 +28,45 @@ class AD5683RDAC(LiteXModule):
 
         # # #
 
-        # Signals.
-        load_i  = Signal()
-        value_i = Signal(16)
-
-        # Force/Load.
-        sync = getattr(self.sync, clk_domain)
-        sync += [
-            If(self._force.storage,
-                load_i.eq(self._load.storage),
-                value_i.eq(self._value.storage),
-            ).Else(
-                load_i.eq(load),
-                value_i.eq(value),
-            )
+        # Transfer each host command as one coherent value/mode/load record.
+        # The WR tuning interface is already synchronous to clk_domain.
+        self.host_cdc = host_cdc = WRTuningCDC(18, "sys", clk_domain)
+        driver_cd = host_cdc.output_cd
+        forced       = Signal()
+        manual_value = Signal(16)
+        manual_load  = Signal()
+        load_i       = Signal()
+        value_i      = Signal(16)
+        self.comb += [
+            host_cdc.sink.load.eq(self._force.re | (self._load.re & self._load.storage)),
+            host_cdc.sink.data.eq(Cat(self._value.storage, self._force.storage,
+                self._load.re & self._load.storage)),
+            load_i.eq(Mux(forced, manual_load, load)),
+            value_i.eq(Mux(forced, manual_value, value)),
         ]
-        self.comb += self._current.status.eq(value_i)
+        sync = getattr(self.sync, driver_cd)
+        sync += [
+            manual_load.eq(0),
+            If(host_cdc.source.load,
+                forced.eq(host_cdc.source.data[16]),
+                If(host_cdc.source.data[17],
+                    manual_value.eq(host_cdc.source.data[:16]),
+                    manual_load.eq(host_cdc.source.data[16]),
+                ),
+            ),
+        ]
+        self.current_cdc = BusSynchronizer(16, driver_cd, "sys")
+        self.comb += [self.current_cdc.i.eq(value_i), self._current.status.eq(self.current_cdc.o)]
 
         # DAC Driver Instance.
         self.specials += Instance("serial_dac_arb",
             p_g_invert_sclk    = 0,
             p_g_num_data_bits  = 16,
             p_g_num_extra_bits = 8,
-            p_g_x2_gain        = {1: 0, 2: 1}[gain],
+            p_g_enable_x2_gain = {1: 0, 2: 1}[gain],
 
-            i_clk_i        = ClockSignal(clk_domain),
-            i_rst_n_i      = ~ResetSignal(clk_domain),
+            i_clk_i        = ClockSignal(driver_cd),
+            i_rst_n_i      = ~ResetSignal(driver_cd),
 
             i_val_i        = value_i,
             i_load_i       = load_i,
@@ -64,6 +80,6 @@ class AD5683RDAC(LiteXModule):
         self.add_sources(platform)
 
     def add_sources(self, platform):
-       cdir = os.path.abspath(os.path.dirname(__file__))
-       platform.add_source(os.path.join(cdir, "serial_dac.vhd"))
-       platform.add_source(os.path.join(cdir, "serial_dac_arb.vhd"))
+        cdir = os.path.abspath(os.path.dirname(__file__))
+        platform.add_source(os.path.join(cdir, "serial_dac.vhd"))
+        platform.add_source(os.path.join(cdir, "serial_dac_arb.vhd"))
