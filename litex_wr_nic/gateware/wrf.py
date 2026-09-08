@@ -8,6 +8,7 @@ from migen import *
 from migen.genlib.cdc import BusSynchronizer
 
 from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import CSRStatus
 

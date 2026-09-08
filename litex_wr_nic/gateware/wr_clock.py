@@ -8,7 +8,8 @@ from migen import *
 from migen.genlib.cdc import BusSynchronizer
 
 from litex.gen import *
-from litex.soc.interconnect.csr import CSRStatus
+
+from litex.soc.interconnect.csr import CSRField, CSRStatus
 
 from litex_wr_nic.gateware.wr_cdc import WRClockCrossing
 
@@ -68,6 +69,7 @@ class WRTuningCDC(LiteXModule):
     def __init__(self, width=16, cd_from="wr_sys", cd_to="sys", depth=4):
         self.sink   = sink   = WRTuningInterface(width, name="sink")
         self.source = source = WRTuningInterface(width, name="source")
+
         self.superseded = Signal(32)
 
         # # #
@@ -124,7 +126,10 @@ class WRMMCMBackend(LiteXModule):
 
         self.cdc = cdc = WRTuningCDC(width, cd_command, cd_psclk)
         self.calibration = calibrated = WRTuningCalibration(width, cdc.input_cd, **calibration)
-        self.comb += [self.command.connect(calibrated.sink), calibrated.source.connect(cdc.sink)]
+        self.comb += [
+            self.command.connect(calibrated.sink),
+            calibrated.source.connect(cdc.sink),
+        ]
 
         # Nominal rate: |code - center| / 2**(width+div_n+3) shifts per PSCLK.
         # Reset residual phase on every new command.
@@ -173,13 +178,17 @@ class WRMMCMBackend(LiteXModule):
         ]
 
         self.status_cdc = BusSynchronizer(34, cdc.output_cd, "sys")
-        self._status = CSRStatus(2, description="Bit 0: busy; bit 1: completion timeout (reset required).")
-        self._steps  = CSRStatus(32, description="Completed MMCM phase shifts, wrapping at 32 bits.")
+        self._status = CSRStatus(fields=[
+            CSRField("busy",  size=1, description="An MMCM phase shift is pending."),
+            CSRField("fault", size=1, description="Completion timeout; reset the backend and MMCM."),
+        ])
+        self._steps      = CSRStatus(32, description="Completed MMCM phase shifts, wrapping at 32 bits.")
         self._superseded = CSRStatus(32, description="Commands replaced while the tuning FIFO was full.")
         self.superseded_cdc = BusSynchronizer(32, cdc.input_cd, "sys")
         self.comb += [
             self.status_cdc.i.eq(Cat(self.busy, self.fault, self.steps)),
-            self._status.status.eq(self.status_cdc.o[:2]),
+            self._status.fields.busy.eq(self.status_cdc.o[0]),
+            self._status.fields.fault.eq(self.status_cdc.o[1]),
             self._steps.status.eq(self.status_cdc.o[2:]),
             self.superseded_cdc.i.eq(cdc.superseded),
             self._superseded.status.eq(self.superseded_cdc.o),

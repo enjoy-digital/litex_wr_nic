@@ -21,17 +21,17 @@ from litex_wr_nic.gateware.wr_clock import WRTuningCDC
 class AD5683RDAC(LiteXModule):
     def __init__(self, platform, pads, load, value, gain=1, clk_domain="wr"):
         assert gain in [1, 2]
-        self._force   = CSRStorage()
-        self._load    = CSRStorage(1)
-        self._value   = CSRStorage(16)
-        self._current = CSRStatus(16)
+        self._force   = CSRStorage(description="Override WR tuning with host DAC commands.")
+        self._load    = CSRStorage(1,  description="Write 1 to load the host DAC value.")
+        self._value   = CSRStorage(16, description="Host DAC tuning value.")
+        self._current = CSRStatus(16,  description="Current DAC tuning value.")
 
         # # #
 
         # Transfer each host command as one coherent value/mode/load record.
         # The WR tuning interface is already synchronous to clk_domain.
         self.host_cdc = host_cdc = WRTuningCDC(18, "sys", clk_domain)
-        driver_cd = host_cdc.output_cd
+        driver_cd    = host_cdc.output_cd
         forced       = Signal()
         manual_value = Signal(16)
         manual_load  = Signal()
@@ -56,7 +56,10 @@ class AD5683RDAC(LiteXModule):
             ),
         ]
         self.current_cdc = BusSynchronizer(16, driver_cd, "sys")
-        self.comb += [self.current_cdc.i.eq(value_i), self._current.status.eq(self.current_cdc.o)]
+        self.comb += [
+            self.current_cdc.i.eq(value_i),
+            self._current.status.eq(self.current_cdc.o),
+        ]
 
         # DAC Driver Instance.
         self.specials += Instance("serial_dac_arb",
@@ -65,11 +68,11 @@ class AD5683RDAC(LiteXModule):
             p_g_num_extra_bits = 8,
             p_g_enable_x2_gain = {1: 0, 2: 1}[gain],
 
-            i_clk_i        = ClockSignal(driver_cd),
-            i_rst_n_i      = ~ResetSignal(driver_cd),
+            i_clk_i       = ClockSignal(driver_cd),
+            i_rst_n_i     = ~ResetSignal(driver_cd),
 
-            i_val_i        = value_i,
-            i_load_i       = load_i,
+            i_val_i       = value_i,
+            i_load_i      = load_i,
 
             o_dac_ldac_n_o = pads.ldac_n,
             o_dac_clr_n_o  = Open(),

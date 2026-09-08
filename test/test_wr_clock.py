@@ -14,13 +14,14 @@ from migen.fhdl.structure import _Assign
 from litex_wr_nic.gateware.ad5683r.core import AD5683RDAC
 from litex_wr_nic.gateware.wr_clock import WRTuningCalibration, WRTuningCDC, WRMMCMBackend
 
+# Simulation Helpers -------------------------------------------------------------------------------
 
 def simulate(dut, generators, clocks=None):
     dut.cd_sys = ClockDomain("sys")
     dut.cd_wr  = ClockDomain("wr")
     dut.cd_ps  = ClockDomain("ps")
     fragment = dut.get_fragment()
-    clocks = dict(clocks or {"sys": 10, "wr": 16, "ps": 6})
+    clocks   = dict(clocks or {"sys": 10, "wr": 16, "ps": 6})
     for statement in fragment.comb:
         if isinstance(statement, _Assign) and isinstance(statement.r, ClockSignal):
             if statement.r.cd in clocks:
@@ -29,6 +30,7 @@ def simulate(dut, generators, clocks=None):
                         clocks[domain.name] = clocks[statement.r.cd]
     run_simulation(fragment, generators, clocks=clocks)
 
+# Clock Tuning Tests -------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("calibration,values", [
     ({}, [(0, 0, 0), (32768, 32768, 0), (65535, 65535, 0)]),
@@ -102,8 +104,8 @@ def test_mmcm_starts_neutral_and_holds_direction_until_completion():
                 yield
 
     def mmcm():
-        remaining = 0
-        direction = None
+        remaining     = 0
+        direction     = None
         previous_psen = 0
         for tick in range(1500):
             psen = yield dut.psen
@@ -119,7 +121,7 @@ def test_mmcm_starts_neutral_and_holds_direction_until_completion():
                 direction = yield dut.psincdec
                 directions.append(direction)
                 issued.append(tick)
-                remaining = 23  # Slower than the requested maximum rate.
+                remaining = 23 # Slower than the requested maximum rate.
             yield dut.psdone.eq(remaining == 1)
             if tick > 1300:
                 assert not psen, "Neutral command did not stop phase shifts"

@@ -8,6 +8,7 @@ from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
+
 from litex.soc.interconnect import stream
 
 # WR Clock Crossing -------------------------------------------------------------------------------
@@ -20,6 +21,9 @@ class WRClockCrossing(LiteXModule, DUID):
         self.cd_output = ClockDomain(f"wr_cdc_out{self.duid}")
         self.input_cd  = self.cd_input.name
         self.output_cd = self.cd_output.name
+
+        # # #
+
         reset = ResetSignal(cd_from) | ResetSignal(cd_to)
         self.comb += [
             self.cd_input.clk.eq(ClockSignal(cd_from)),
