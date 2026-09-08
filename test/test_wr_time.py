@@ -14,6 +14,7 @@ from litex_wr_nic.gateware.wr_time import (
     WR_TIME_INVALID, WR_TIME_VALID, WR_TIME_HOLDOVER,
 )
 
+# Simulation Helpers -------------------------------------------------------------------------------
 
 def simulate(dut, generators):
     clocks = {"sys": 10, "wr": 16}
@@ -29,11 +30,12 @@ def simulate(dut, generators):
                         clocks[domain.name] = clocks[statement.r.cd]
     run_simulation(fragment, generators, clocks=clocks)
 
+# Application Time Tests ---------------------------------------------------------------------------
 
 def test_link_loss_policy_is_explicit():
     for holdover in (False, True):
         valid = Signal(reset=1)
-        link = Signal(reset=1)
+        link  = Signal(reset=1)
         dut = WRApplicationTime(1, 2, valid, link, allow_holdover=holdover, with_csr=False)
 
         def check():
@@ -56,13 +58,16 @@ def test_link_loss_policy_is_explicit():
 def test_snapshot_is_coherent_at_seconds_rollover_and_stable_until_recapture():
     dut = LiteXModule()
     dut.cd_sys = ClockDomain("sys")
-    dut.cd_wr = ClockDomain("wr")
+    dut.cd_wr  = ClockDomain("wr")
     seconds = Signal(40, reset=9)
-    cycles = Signal(28, reset=62_499_995)
+    cycles  = Signal(28, reset=62_499_995)
     dut.time = WRApplicationTime(seconds, cycles, 1, 1)
     dut.sync.wr += If(cycles == 62_499_999,
-        cycles.eq(0), seconds.eq(seconds + 1),
-    ).Else(cycles.eq(cycles + 1))
+        cycles.eq(0),
+        seconds.eq(seconds + 1),
+    ).Else(
+        cycles.eq(cycles + 1),
+    )
     observed = []
 
     @passive
@@ -135,7 +140,11 @@ def test_event_queue_preserves_flags_and_reports_loss_under_backpressure():
         yield dut.source.ready.eq(1)
         for _ in range(350):
             if (yield dut.source.valid) and (yield dut.source.ready):
-                received.append(((yield dut.source.tag), (yield dut.source.cycles), (yield dut.source.time_valid)))
+                received.append((
+                    (yield dut.source.tag),
+                    (yield dut.source.cycles),
+                    (yield dut.source.time_valid),
+                ))
                 assert (yield dut.source.first) and (yield dut.source.last)
             yield
 

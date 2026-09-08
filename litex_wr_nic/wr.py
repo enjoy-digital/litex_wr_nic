@@ -207,8 +207,10 @@ class WRClient:
         self.regs[prefix + "capture"].write(1)
         self.wait(lambda: self.regs[prefix + "done"].read(),
             "WR time snapshot timed out; check the PHY reference clock.")
-        return {name: self.regs[prefix + name].read()
-            for name in ("seconds", "cycles", "time_valid", "link_up", "state")}
+        return {
+            name: self.regs[prefix + name].read()
+            for name in ("seconds", "cycles", "time_valid", "link_up", "state")
+        }
 
 # Console ------------------------------------------------------------------------------------------
 

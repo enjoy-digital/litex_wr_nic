@@ -8,6 +8,7 @@ from migen import *
 from migen.genlib.cdc import MultiReg, BusSynchronizer
 
 from litex.gen import *
+
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import CSR, CSRStatus
 
@@ -16,7 +17,15 @@ from litex.soc.interconnect.csr import CSR, CSRStatus
 WR_TIME_INVALID  = 0
 WR_TIME_VALID    = 1
 WR_TIME_HOLDOVER = 2
-WR_TIME_LAYOUT  = [("seconds", 40), ("cycles", 28), ("time_valid", 1), ("link_up", 1), ("state", 2)]
+
+WR_TIME_LAYOUT = [
+    ("seconds",    40),
+    ("cycles",     28),
+    ("time_valid",  1),
+    ("link_up",     1),
+    ("state",       2),
+]
+
 WR_TICKS_PER_SECOND = 62_500_000
 
 
@@ -54,18 +63,20 @@ class WRApplicationTime(LiteXModule):
             self.add_csr(cd_time)
 
     def add_csr(self, cd_time):
-        self._capture = CSR() # Write to request a coherent WR time snapshot.
-        self._busy    = CSRStatus()
-        self._done    = CSRStatus()
-        self._seconds = CSRStatus(40)
-        self._cycles  = CSRStatus(28)
-        self._time_valid   = CSRStatus()
-        self._link_up = CSRStatus()
-        self._state   = CSRStatus(2)
+        self._capture    = CSR() # Write to request a coherent WR time snapshot.
+        self._busy       = CSRStatus(description="A snapshot request is pending.")
+        self._done       = CSRStatus(description="The snapshot is ready; cleared on recapture or reset.")
+        self._seconds    = CSRStatus(40, description="Captured WR TAI seconds.")
+        self._cycles     = CSRStatus(28, description="Captured 16 ns cycles within the second.")
+        self._time_valid = CSRStatus(description="Captured time validity after applying link-loss policy.")
+        self._link_up    = CSRStatus(description="Captured WR link status.")
+        self._state      = CSRStatus(2, description="Captured state: 0 = invalid, 1 = valid, 2 = holdover.")
 
-        request = Signal()
-        pending = Signal()
-        captured = Record(WR_TIME_LAYOUT)
+        # # #
+
+        request   = Signal()
+        pending   = Signal()
+        captured  = Record(WR_TIME_LAYOUT)
         reset_sys = Signal()
         self.specials += MultiReg(ResetSignal(cd_time), reset_sys)
         self.request_cdc = stream.ClockDomainCrossing([("data", 1)],
@@ -121,8 +132,8 @@ class WREventTimestamp(LiteXModule):
     Invalid timestamps are delivered with valid=0, not silently discarded.
     """
     def __init__(self, time, tag_width=8, depth=16, cd_time="wr", cd_out="sys"):
-        self.event = Signal()
-        self.tag   = Signal(tag_width)
+        self.event   = Signal()
+        self.tag     = Signal(tag_width)
         self.dropped = Signal(32)
         self.source = stream.Endpoint(WR_TIME_LAYOUT + [("tag", tag_width)])
 
@@ -144,7 +155,8 @@ class WREventTimestamp(LiteXModule):
         ]
         sync_time = getattr(self.sync, cd_time)
         sync_time += If(self.event & ~self.queue.sink.ready, self.dropped.eq(self.dropped + 1))
-        self._dropped = CSRStatus(32)
+        self._dropped = CSRStatus(32,
+            description="Events dropped while the timestamp queue was full, wrapping at 32 bits.")
         self.dropped_cdc = BusSynchronizer(32, cd_time, "sys")
         self.comb += [
             self.dropped_cdc.i.eq(self.dropped),
@@ -169,9 +181,9 @@ class WRTimeTrigger(LiteXModule):
 
         # # #
 
-        target   = Signal(68)
-        previous = Signal(68)
-        now = Cat(time.cycles, time.seconds)
+        target    = Signal(68)
+        previous  = Signal(68)
+        now       = Cat(time.cycles, time.seconds)
         requested = Cat(self.sink.cycles, self.sink.seconds)
         self.comb += [
             self.sink.ready.eq(~self.pending),
