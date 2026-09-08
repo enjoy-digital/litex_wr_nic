@@ -33,10 +33,15 @@ self.refclk_dac = AD5683RDAC(platform, pads,
 
 SPEC-A7 uses this backend for both DACs. The AD5683R `gain` argument controls
 the physical DAC gain independently of the digital calibration above. The
-driver now passes the correct VHDL generic, `g_enable_x2_gain`: previously
-the misspelled generic left the VHDL default gain enabled. The requested
-SPEC-A7 gains are x2 for RefClk and x1 for DMTD. Recheck the DMTD tuning range
-and WR servo behavior on a connected link when qualifying this correction.
+driver passes the correct VHDL generic, `g_enable_x2_gain`: previously
+the misspelled generic was ignored and both DACs used the VHDL default x2
+gain, including the DMTD DAC whose Python argument said `gain=1`.
+SPEC-A7 now explicitly selects **x2 for both DACs**, and the driver defaults
+to x2, preserving that effective configuration. `gain=1` is an explicit
+opt-in to a different analog range and requires board/servo qualification.
+
+The default digital calibration is identity: no gain, polarity or offset
+change. This series does not retune the WR firmware PI coefficients.
 
 Host override retains the `force`, `value`, `load` and `current` CSRs. Write
 `force=1`, set `value`, then write `load=1` for each update; `load` now causes
@@ -51,9 +56,12 @@ sample playback. An integration needing every sample needs a paced DAC API.
 `WRMMCMBackend(cd_psclk, cd_command="wr_sys", width=16, div_n=0, ...)`
 exposes `command`, `psen`, `psincdec` and **input `psdone`**. Connect all three
 phase-shift signals to the MMCM and use its PSCLK domain for `cd_psclk`.
-The Acorn target connects `PSDONE` for both MMCMs. `PSGen` remains a
-compatibility constructor with `ctrl_data`/`ctrl_load` aliases; external
-users must add the `psdone` connection when upgrading.
+The Acorn and M2SDR targets explicitly instantiate this backend and connect
+`PSDONE` for both MMCMs. The original `PSGen` implementation and its
+`ctrl_data`/`ctrl_load` interface are unchanged: existing integrations do not
+gain a new completion-input requirement just by updating the dependency.
+An integration adopting `WRMMCMBackend` must connect `psdone` and use the
+WR system domain for its command source.
 
 The nominal rate is `abs(code - center) / 2**(width + div_n + 3)` phase shifts
 per PSCLK cycle. A code below center requests phase increment; a code above
@@ -88,5 +96,11 @@ PSCLK; do not derive the control path from a clock it is trying to recover.
 `pytest -q test/test_wr_clock.py` checks full-range calibration, saturation,
 coherent command bursts and replacement accounting, neutral startup,
 completion backpressure, stable direction, timeout/reset behavior, and DAC
-host override pulse semantics. CPU/console tests on SPEC-A7 exercise the DAC
-integration; analog tuning range and closed-loop WR operation need a WR peer.
+host override pulse semantics. Compatibility tests compare the default WR DAC
+command stream with the previous registered path, decode the actual VHDL
+driver's SPI initialization/update words, and check the MMCM's nominal rate
+and polarity against the previous accumulator law. The legacy code-zero
+magnitude overflow, non-neutral startup and unsafe overlapping requests are
+not compatibility requirements; the corrected backend handles these cases.
+CPU/console tests on SPEC-A7 exercise the DAC integration; analog tuning range
+and closed-loop WR operation need a WR peer.

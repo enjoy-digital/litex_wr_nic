@@ -19,7 +19,7 @@ from litex_wr_nic.gateware.wr_clock import WRTuningCDC
 # AD5683R DAC --------------------------------------------------------------------------------------
 
 class AD5683RDAC(LiteXModule):
-    def __init__(self, platform, pads, load, value, gain=1, clk_domain="wr"):
+    def __init__(self, platform, pads, load, value, gain=2, clk_domain="wr"):
         assert gain in [1, 2]
         self._force   = CSRStorage(description="Override WR tuning with host DAC commands.")
         self._load    = CSRStorage(1,  description="Write 1 to load the host DAC value.")

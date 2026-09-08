@@ -356,7 +356,7 @@ class BaseSoC(LiteXWRNICSoC):
                 pads  = dac_dmtd_pads,
                 load  = self.dmtd_tuning.load,
                 value = self.dmtd_tuning.value,
-                gain  = 1,
+                gain  = 2, # Preserve the effective gain used before g_enable_x2_gain was connected.
                 clk_domain = "wr_sys",
             )
 

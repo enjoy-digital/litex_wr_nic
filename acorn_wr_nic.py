@@ -50,7 +50,7 @@ from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, Fin
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.clk10m            import Clk10MGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
-from litex_wr_nic.gateware.ps_gen            import PSGen
+from litex_wr_nic.gateware.wr_clock          import WRMMCMBackend
 from litex_wr_nic.gateware.wr_cpu            import (
     WR_CPU_MEMORY_ORIGIN,
     WR_CPU_MEMORY_SIZE,
@@ -269,31 +269,29 @@ class BaseSoC(LiteXWRNICSoC):
 
             # RefClk MMCM Phase Shift.
             # ------------------------
-            self.refclk_mmcm_ps_gen = PSGen(
-                cd_psclk  = "clk200",
-                cd_sys    = "wr_sys",
-                ctrl_size = 16,
+            self.refclk_mmcm_ps_gen = WRMMCMBackend(
+                cd_psclk   = "clk200",
+                cd_command = "wr_sys",
+                width      = 16,
             )
             self.comb += [
-                self.refclk_mmcm_ps_gen.ctrl_data.eq(self.dac_refclk_data),
-                self.refclk_mmcm_ps_gen.ctrl_load.eq(self.dac_refclk_load),
-                self.crg.refclk_mmcm.psen.eq(self.refclk_mmcm_ps_gen.psen),
-                self.crg.refclk_mmcm.psincdec.eq(self.refclk_mmcm_ps_gen.psincdec),
+                self.wr_core.refclk_tuning.connect(self.refclk_mmcm_ps_gen.command),
+                self.crg.refclk_mmcm.psen.eq(     self.refclk_mmcm_ps_gen.psen),
+                self.crg.refclk_mmcm.psincdec.eq( self.refclk_mmcm_ps_gen.psincdec),
                 self.refclk_mmcm_ps_gen.psdone.eq(self.crg.refclk_mmcm.psdone),
             ]
 
             # DMTD MMCM Phase Shift.
             # ----------------------
-            self.dmtd_mmcm_ps_gen = PSGen(
-                cd_psclk  = "clk200",
-                cd_sys    = "wr_sys",
-                ctrl_size = 16,
+            self.dmtd_mmcm_ps_gen = WRMMCMBackend(
+                cd_psclk   = "clk200",
+                cd_command = "wr_sys",
+                width      = 16,
             )
             self.comb += [
-                self.dmtd_mmcm_ps_gen.ctrl_data.eq(self.dac_dmtd_data),
-                self.dmtd_mmcm_ps_gen.ctrl_load.eq(self.dac_dmtd_load),
-                self.crg.dmtd_mmcm.psen.eq(self.dmtd_mmcm_ps_gen.psen),
-                self.crg.dmtd_mmcm.psincdec.eq(self.dmtd_mmcm_ps_gen.psincdec),
+                self.wr_core.dmtd_tuning.connect(self.dmtd_mmcm_ps_gen.command),
+                self.crg.dmtd_mmcm.psen.eq(     self.dmtd_mmcm_ps_gen.psen),
+                self.crg.dmtd_mmcm.psincdec.eq( self.dmtd_mmcm_ps_gen.psincdec),
                 self.dmtd_mmcm_ps_gen.psdone.eq(self.crg.dmtd_mmcm.psdone),
             ]
 
