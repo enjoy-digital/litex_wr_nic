@@ -17,10 +17,10 @@ from pathlib import Path
 # Constants ----------------------------------------------------------------------------------------
 
 CONFIGS = {
-    "urv-integrated"           :             ("urv",       None,   "integrated"),
-    "vexriscv-lite-integrated" :   ("vexriscv", "lite", "integrated"),
-    "urv-hyperram"             :               ("urv",       None,   "hyperram"),
-    "vexriscv-lite-hyperram"   :     ("vexriscv", "lite", "hyperram"),
+    "urv-integrated"          : ("urv",      None,   "integrated"),
+    "vexriscv-lite-integrated" : ("vexriscv", "lite", "integrated"),
+    "urv-hyperram"            : ("urv",      None,   "hyperram"),
+    "vexriscv-lite-hyperram"   : ("vexriscv", "lite", "hyperram"),
 }
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

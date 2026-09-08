@@ -81,8 +81,8 @@ def make_comparison(root, firmware_dir=None):
 
     deltas = {}
     for memory, (urv_name, vex_name) in PAIRS.items():
-        urv            = configs[urv_name]
-        vex            = configs[vex_name]
+        urv           = configs[urv_name]
+        vex           = configs[vex_name]
         deltas[memory] = {key: _delta(vex[key], urv[key]) for key in DELTA_KEYS}
         deltas[memory].update({
             "wns_ns"        :        vex["wns_ns"] - urv["wns_ns"],
@@ -125,7 +125,7 @@ def make_comparison(root, firmware_dir=None):
                 "post_route_phys_opt" : "Explore",
             },
         },
-        "configs"               : configs,
+        "configs"              : configs,
         "vexriscv_delta_vs_urv" : deltas,
     }
 
