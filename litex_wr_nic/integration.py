@@ -78,11 +78,11 @@ def _get_available_sfps_for_variant(variant, baseboard_io):
     })
 
 
-def _resolve_firmware_output_path(wr_nic_dir, wr_firmware):
+def _resolve_firmware_output_path(wr_nic_dir, wr_firmware, cpu_type="urv"):
     if wr_firmware:
         return os.path.abspath(wr_firmware)
     if wr_nic_dir:
-        return os.path.join(wr_nic_dir, WR_FIRMWARE_IMAGE_REL)
+        return os.path.join(wr_nic_dir, _firmware_image(cpu_type))
     return None
 
 
@@ -117,7 +117,12 @@ def _normalize_wr_nic_dir(wr_nic_dir):
 # Public API ---------------------------------------------------------------------------------------
 
 
-def resolve_wr_paths(root_dir, wr_nic_dir=None, wr_firmware=None):
+def _firmware_image(cpu_type):
+    from litex_wr_nic.gateware.wr_cpu import wr_cpu_firmware_filename
+    return os.path.join("firmware", wr_cpu_firmware_filename(cpu_type, "bram"))
+
+
+def resolve_wr_paths(root_dir, wr_nic_dir=None, wr_firmware=None, cpu_type="urv"):
     wr_nic_dir = _normalize_wr_nic_dir(wr_nic_dir)
 
     if wr_nic_dir is None:
@@ -128,25 +133,27 @@ def resolve_wr_paths(root_dir, wr_nic_dir=None, wr_firmware=None):
                 break
 
     if wr_firmware is None and wr_nic_dir:
-        candidate = os.path.join(wr_nic_dir, WR_FIRMWARE_IMAGE_REL)
+        candidate = os.path.join(wr_nic_dir, _firmware_image(cpu_type))
         if os.path.isfile(candidate):
             wr_firmware = candidate
 
     return wr_nic_dir, wr_firmware
 
 
-def build_wr_firmware(wr_nic_dir, wr_firmware, wr_firmware_target, enforce_fresh=True):
+def build_wr_firmware(wr_nic_dir, wr_firmware, wr_firmware_target, enforce_fresh=True, cpu_type="urv"):
     if wr_nic_dir is None and wr_firmware is None:
         raise ValueError(ERR_NO_WR_FIRMWARE_PATH)
 
     firmware_dir = os.path.dirname(os.path.abspath(wr_firmware)) if wr_firmware else os.path.join(wr_nic_dir, "firmware")
     build_script = os.path.join(firmware_dir, os.path.basename(WR_FIRMWARE_BUILD_SCRIPT_REL))
-    firmware_out = _resolve_firmware_output_path(wr_nic_dir, wr_firmware)
+    firmware_out = _resolve_firmware_output_path(wr_nic_dir, wr_firmware, cpu_type)
 
     before = _fingerprint_file(firmware_out) if firmware_out else _fingerprint_file("")
 
     print(f"Building White Rabbit firmware in {firmware_dir}...")
-    result = subprocess.run([build_script, "--target", wr_firmware_target], cwd=firmware_dir)
+    result = subprocess.run([
+        build_script, "--target", wr_firmware_target, "--wr-cpu-type", cpu_type,
+    ], cwd=firmware_dir)
     if result.returncode != 0:
         raise RuntimeError(ERR_WR_FIRMWARE_BUILD_FAIL)
 
@@ -291,8 +298,14 @@ def prepare_wr_environment(*,
     wr_firmware_target,
     build,
     status,
+    wr_cpu_type    = "urv",
+    wr_cpu_variant = None,
+    wr_cpu_memory  = "private",
 ):
+    from litex_wr_nic.gateware.wr_cpu import validate_wr_cpu_config
+    wr_cpu_variant = validate_wr_cpu_config(wr_cpu_type, wr_cpu_variant, wr_cpu_memory)
     wr_nic_dir, wr_firmware = resolve_wr_paths(
+        cpu_type    = wr_cpu_type,
         root_dir    = root_dir,
         wr_nic_dir  = wr_nic_dir,
         wr_firmware = wr_firmware,
@@ -320,9 +333,11 @@ def prepare_wr_environment(*,
                 wr_nic_dir         = wr_nic_dir,
                 wr_firmware        = wr_firmware,
                 wr_firmware_target = wr_firmware_target,
+                cpu_type           = wr_cpu_type,
                 enforce_fresh      = False,
             )
             _, wr_firmware = resolve_wr_paths(
+                cpu_type    = wr_cpu_type,
                 root_dir    = root_dir,
                 wr_nic_dir  = wr_nic_dir,
                 wr_firmware = wr_firmware,
@@ -333,6 +348,7 @@ def prepare_wr_environment(*,
                 wr_nic_dir         = wr_nic_dir,
                 wr_firmware        = wr_firmware,
                 wr_firmware_target = wr_firmware_target,
+                cpu_type           = wr_cpu_type,
                 enforce_fresh      = True,
             )
 
@@ -368,6 +384,9 @@ def prepare_wr_environment(*,
         )
 
     return {
+        "wr_cpu_type"    : wr_cpu_type,
+        "wr_cpu_variant" : wr_cpu_variant,
+        "wr_cpu_memory"  : wr_cpu_memory,
         "wr_nic_dir"     : wr_nic_dir,
         "wr_firmware"    : wr_firmware,
         "wr_sfp"         : resolved_wr_sfp,
