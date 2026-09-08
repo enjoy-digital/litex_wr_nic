@@ -18,6 +18,8 @@ WR_CORES_SHA1   = "c3f828881f5fd496966f1f04723dc85992d526fa"
 WR_SUBSYSTEM_VHD = "wr-cores/modules/wrc_core/xwr_subsystem.vhd"
 WR_PPS_GEN_VHD   = "wr-cores/modules/wr_pps_gen/xwr_pps_gen.vhd"
 WR_CLOCK_MONITOR_VHD = "wr-cores/ip_cores/general-cores/modules/wishbone/wb_clock_monitor/xwb_clock_monitor.vhd"
+WR_CORE_VHD      = "wr-cores/modules/wrc_core/xwr_core.vhd"
+WR_BOARD_VHD     = "wr-cores/board/common/xwrc_board_common.vhd"
 
 def wr_core_init():
     print("Cloning wr-cores repository...")
@@ -107,8 +109,136 @@ def patch_wr_clock_monitor_presc_cdc():
         "        if(clks(i).presc_cnt = unsigned(clks(i).presc_value(4 downto 0))) then"
     )
 
+def _replace_once(path, before, after):
+    """Apply a pinned-source patch once and fail clearly on signature drift."""
+    with open(path, "r", encoding="utf-8") as f:
+        contents = f.read()
+    if after in contents:
+        return
+    if contents.count(before) != 1:
+        raise RuntimeError(f"WR-core patch signature mismatch in {path}: {before[:80]!r}")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(contents.replace(before, after, 1))
+
+def patch_wr_external_cpu_memory():
+    """Propagate the optional WR CPU-memory Wishbone master through wr-cores."""
+    _replace_once(
+        WR_CORE_VHD,
+        """    g_dpram_size                : integer                        := 131072/4;  --in 32-bit words
+    g_use_platform_specific_dpram""",
+        """    g_dpram_size                : integer                        := 131072/4;  --in 32-bit words
+    g_external_cpu_memory        : boolean                        := false;
+    g_use_platform_specific_dpram"""
+    )
+    _replace_once(
+        WR_CORE_VHD,
+        """    aux_diag_o    : out t_generic_word_array(g_diag_rw_size-1 downto 0);
+
+    link_ok_o : out std_logic""",
+        """    aux_diag_o    : out t_generic_word_array(g_diag_rw_size-1 downto 0);
+
+    cpu_mem_o       : out t_wishbone_master_out;
+    cpu_mem_i       : in  t_wishbone_master_in := cc_dummy_master_in;
+    cpu_mem_ready_i : in  std_logic := '1';
+
+    link_ok_o : out std_logic"""
+    )
+    _replace_once(
+        WR_CORE_VHD,
+        """  U_CPU: entity work.wrc_urv_wrapper
+    generic map (
+      g_IRAM_SIZE => g_dpram_size,
+      g_IRAM_INIT => g_dpram_initf,
+      g_CPU_ID => 0
+      )
+    port map (
+      clk_sys_i    => clk_sys_i,
+      rst_n_i      => rst_n_i,
+      irq_i        => softpll_irq,
+      dwb_o        => cpu_dwb_out,
+      dwb_i        => cpu_dwb_in,
+      host_slave_i => cpu_csr_wb_in,
+      host_slave_o => cpu_csr_wb_out
+      );""",
+        """  gen_private_cpu_memory : if not g_external_cpu_memory generate
+    cpu_mem_o <= cc_dummy_master_out;
+
+    U_CPU_PRIVATE: entity work.wrc_urv_wrapper
+      generic map (
+        g_IRAM_SIZE => g_dpram_size,
+        g_IRAM_INIT => g_dpram_initf,
+        g_CPU_ID => 0)
+      port map (
+        clk_sys_i    => clk_sys_i,
+        rst_n_i      => rst_n_i,
+        irq_i        => softpll_irq,
+        dwb_o        => cpu_dwb_out,
+        dwb_i        => cpu_dwb_in,
+        host_slave_i => cpu_csr_wb_in,
+        host_slave_o => cpu_csr_wb_out);
+  end generate;
+
+  gen_external_cpu_memory : if g_external_cpu_memory generate
+    U_CPU_EXTERNAL: entity work.wrc_urv_external_memory
+      generic map (
+        g_CPU_ID => 0)
+      port map (
+        clk_sys_i      => clk_sys_i,
+        rst_n_i        => rst_n_i,
+        irq_i          => softpll_irq,
+        memory_ready_i => cpu_mem_ready_i,
+        cpu_mem_o      => cpu_mem_o,
+        cpu_mem_i      => cpu_mem_i,
+        dwb_o          => cpu_dwb_out,
+        dwb_i          => cpu_dwb_in,
+        host_slave_i   => cpu_csr_wb_in,
+        host_slave_o   => cpu_csr_wb_out);
+  end generate;"""
+    )
+
+    _replace_once(
+        WR_BOARD_VHD,
+        """    g_dpram_size                : integer                        := 131072/4;
+    g_interface_mode""",
+        """    g_dpram_size                : integer                        := 131072/4;
+    g_external_cpu_memory        : boolean                        := false;
+    g_interface_mode"""
+    )
+    _replace_once(
+        WR_BOARD_VHD,
+        """    link_ok_o : out std_logic;
+
+    aux_timing_serdes_locked_i""",
+        """    link_ok_o : out std_logic;
+
+    cpu_mem_o       : out t_wishbone_master_out;
+    cpu_mem_i       : in  t_wishbone_master_in := cc_dummy_master_in;
+    cpu_mem_ready_i : in  std_logic := '1';
+
+    aux_timing_serdes_locked_i"""
+    )
+    _replace_once(
+        WR_BOARD_VHD,
+        """      g_dpram_size                => g_dpram_size,
+      g_interface_mode""",
+        """      g_dpram_size                => g_dpram_size,
+      g_external_cpu_memory        => g_external_cpu_memory,
+      g_interface_mode"""
+    )
+    _replace_once(
+        WR_BOARD_VHD,
+        """      aux_diag_o                  => aux_diag_out,
+      link_ok_o                   => link_ok);""",
+        """      aux_diag_o                  => aux_diag_out,
+      cpu_mem_o                   => cpu_mem_o,
+      cpu_mem_i                   => cpu_mem_i,
+      cpu_mem_ready_i             => cpu_mem_ready_i,
+      link_ok_o                   => link_ok);"""
+    )
+
 # WR Core Files ------------------------------------------------------------------------------------
 
+cdir = os.path.abspath(os.path.dirname(__file__))
 wr_core_files = []
 
     # WR Unmodified files.
@@ -296,6 +426,7 @@ wr_core_files += [
     "wr-cores/modules/wrc_core/wrc_syscon.vhd",
     "wr-cores/modules/wrc_core/wrc_syscon_map.vhd",
     "wr-cores/modules/wrc_core/wrc_urv_wrapper.vhd",
+    os.path.join(cdir, "wr-cores/modules/wrc_core/wrc_urv_external_memory.vhd"),
     "wr-cores/modules/wrc_core/wrcore_pkg.vhd",
     "wr-cores/modules/wrc_core/xwr_core.vhd",
     "wr-cores/modules/wrc_core/xwr_subsystem.vhd",
@@ -317,7 +448,6 @@ wr_core_files += [
 
     # LiteX-WR NIC adapted files.
     # ----------------------------------------------------------------------------------------------
-cdir          = os.path.abspath(os.path.dirname(__file__))
 wr_core_files += [
     # WR PHY Modules.
     os.path.join(cdir, "wr-cores/platform/xilinx/wr_gtp_phy/family7-gtp/whiterabbit_gtpe2_channel_wrapper.vhd"),

@@ -10,6 +10,7 @@ import os
 import sys
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 
 from litex.build    import tools
 from litex.build.io import SDRTristate, SDROutput
@@ -36,7 +37,9 @@ from litex_wr_nic.gateware.wr_common         import (
     patch_wr_subsystem_mux_class,
     patch_wr_pps_gen_iob,
     patch_wr_clock_monitor_presc_cdc,
+    patch_wr_external_cpu_memory,
 )
+from litex_wr_nic.gateware.wr_cpu            import WRCPUMemoryBridge, wr_cpu_word_bus
 from litex_wr_nic.gateware.wrf_stream2wb     import Stream2Wishbone
 from litex_wr_nic.gateware.wrf_wb2stream     import Wishbone2Stream
 from litex_wr_nic.gateware.wb_clock_crossing import WishboneClockCrossing
@@ -75,6 +78,9 @@ class LiteXWRNICSoC(SoCMini):
         "clk10m_macro_delay"      : 29,
         "clk10m_out_coarse_delay" : 30,
         "fine_delay"              : 31,
+        "wr_cpu_bridge"           : 5,
+        "wr_cpu_boot"             : 6,
+        "hyperram"                : 7,
     }
     SoCMini.mem_map = {
         "csr"      : 0x0000_0000,
@@ -86,6 +92,9 @@ class LiteXWRNICSoC(SoCMini):
     def add_wr_core(self,
         # CPU.
         cpu_firmware,
+        cpu_memory_region = None,
+        cpu_memory_ready  = 1,
+        cpu_boot_loader   = None,
 
         # Board name.
         board_name  = "NA  ",
@@ -122,7 +131,10 @@ class LiteXWRNICSoC(SoCMini):
 
         # Clks.
         # -----
-        self.cd_wr = ClockDomain("wr")
+        # Keep PPS/timecode in the PHY reference domain. The WR CPU, fabric,
+        # Wishbone and DAC commands run on the independent WR system clock.
+        self.cd_wr     = ClockDomain("wr")
+        self.cd_wr_sys = ClockDomain("wr_sys")
 
         # Signals.
         # --------
@@ -142,10 +154,30 @@ class LiteXWRNICSoC(SoCMini):
         self.tm_seconds      = Signal(40)
         self.tm_cycles       = Signal(28)
 
+        # Optional WR CPU Memory Master.
+        # ------------------------------
+        external_cpu_memory = cpu_memory_region is not None
+        memory_ready_wr     = Signal(reset=not external_cpu_memory)
+        if external_cpu_memory:
+            wr_cpu_bus_sys = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+            self.wr_cpu_bridge = wr_cpu_bridge = WRCPUMemoryBridge(monitor_bus=wr_cpu_bus_sys)
+            self.submodules.wr_cpu_memory_cdc = WishboneClockCrossing(self.platform,
+                wb_from        = wr_cpu_bridge.bus,
+                cd_from        = "wr_sys",
+                wb_to          = wr_cpu_bus_sys,
+                cd_to          = "sys",
+                timeout_cycles = 1024,
+            )
+            self.bus.add_master(name="wr_cpu",
+                master = wr_cpu_word_bus(self, wr_cpu_bus_sys),
+                region = cpu_memory_region,
+            )
+            self.specials += MultiReg(cpu_memory_ready, memory_ready_wr, "wr_sys")
+
         # White Rabbit Fabric Interface.
         # ------------------------------
-        self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(  cd_to="wr")
-        self.wrf_wb2stream = wrf_wb2stream = Wishbone2Stream(cd_from="wr")
+        self.wrf_stream2wb = wrf_stream2wb = Stream2Wishbone(  cd_to="wr_sys")
+        self.wrf_wb2stream = wrf_wb2stream = Wishbone2Stream(cd_from="wr_sys")
 
         # White Rabbit Slave Interface.
         # -----------------------------
@@ -160,7 +192,7 @@ class LiteXWRNICSoC(SoCMini):
             wb_from = wb_slave_sys,
             cd_from = "sys",
             wb_to   = wb_slave_wr,
-            cd_to   = "wr",
+            cd_to   = "wr_sys",
         )
 
         # Temp 1-Wire Logic.
@@ -173,13 +205,32 @@ class LiteXWRNICSoC(SoCMini):
                 o  = Constant(0b0, 1),
                 oe = ~temp_1wire_oe_n,
                 i  = temp_1wire_i,
-                clk = ClockSignal("wr"),
+                clk = ClockSignal("wr_sys"),
             )
 
         # Flash Logic.
         # ------------
         if flash_pads is not None:
-            flash_clk = Signal()
+            flash_clk     = Signal()
+            wr_flash_clk  = Signal()
+            wr_flash_cs   = Signal(reset=1)
+            wr_flash_mosi = Signal()
+            if cpu_boot_loader is None:
+                self.comb += [
+                    flash_clk.eq(wr_flash_clk),
+                    flash_pads.cs_n.eq(wr_flash_cs),
+                    flash_pads.mosi.eq(wr_flash_mosi),
+                ]
+            else:
+                self.comb += [
+                    cpu_boot_loader.miso.eq(flash_pads.miso),
+                    flash_clk.eq(Mux(cpu_boot_loader.owner,
+                        cpu_boot_loader.clk, wr_flash_clk)),
+                    flash_pads.cs_n.eq(Mux(cpu_boot_loader.owner,
+                        cpu_boot_loader.cs_n, wr_flash_cs)),
+                    flash_pads.mosi.eq(Mux(cpu_boot_loader.owner,
+                        cpu_boot_loader.mosi, wr_flash_mosi)),
+                ]
             self.specials += Instance("STARTUPE2",
                 i_CLK       = 0,
                 i_GSR       = 0,
@@ -203,6 +254,9 @@ class LiteXWRNICSoC(SoCMini):
             # Parameters.
             p_g_dpram_initf               = os.path.abspath(cpu_firmware),
             p_g_dpram_size                = 131072//4,
+            # Vivado binds quoted "FALSE" to true across the Verilog/VHDL
+            # boundary; use a numeric boolean for deterministic elaboration.
+            p_g_external_cpu_memory       = int(external_cpu_memory),
             p_txpolarity                  = sfp_tx_polarity,
             p_rxpolarity                  = sfp_rx_polarity,
             p_g_with_external_clock_input = str(with_ext_clk).upper(),
@@ -215,8 +269,10 @@ class LiteXWRNICSoC(SoCMini):
             i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
             i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
             i_clk_10m_ext_i       = ClockSignal("clk10m_in"),
-            o_clk_62m5_sys_o      = ClockSignal("wr"),
-            o_rst_62m5_sys_o      = ResetSignal("wr"),
+            o_clk_62m5_sys_o      = ClockSignal("wr_sys"),
+            o_rst_62m5_sys_o      = ResetSignal("wr_sys"),
+            o_clk_62m5_ref_o      = ClockSignal("wr"),
+            o_rst_62m5_ref_o      = ResetSignal("wr"),
 
             # DAC RefClk Interface.
             o_dac_refclk_load     = self.dac_refclk_load,
@@ -247,10 +303,24 @@ class LiteXWRNICSoC(SoCMini):
             o_uart_txd_o          = Open() if serial_pads is None else serial_pads.tx,
 
             # SPI Flash Interface.
-            o_spi_sclk_o          = Open() if flash_pads is None else flash_clk,
-            o_spi_ncs_o           = Open() if flash_pads is None else flash_pads.cs_n,
-            o_spi_mosi_o          = Open() if flash_pads is None else flash_pads.mosi,
+            o_spi_sclk_o          = Open() if flash_pads is None else wr_flash_clk,
+            o_spi_ncs_o           = Open() if flash_pads is None else wr_flash_cs,
+            o_spi_mosi_o          = Open() if flash_pads is None else wr_flash_mosi,
             i_spi_miso_i          = 0      if flash_pads is None else flash_pads.miso,
+
+            # Optional WR CPU Memory Master.
+            o_cpu_mem_cyc_o       = Open() if not external_cpu_memory else wr_cpu_bridge.cyc,
+            o_cpu_mem_stb_o       = Open() if not external_cpu_memory else wr_cpu_bridge.stb,
+            o_cpu_mem_we_o        = Open() if not external_cpu_memory else wr_cpu_bridge.we,
+            o_cpu_mem_adr_o       = Open() if not external_cpu_memory else wr_cpu_bridge.adr,
+            o_cpu_mem_sel_o       = Open() if not external_cpu_memory else wr_cpu_bridge.sel,
+            o_cpu_mem_dat_o       = Open() if not external_cpu_memory else wr_cpu_bridge.dat_w,
+            i_cpu_mem_dat_i       = 0      if not external_cpu_memory else wr_cpu_bridge.dat_r,
+            i_cpu_mem_ack_i       = 0      if not external_cpu_memory else wr_cpu_bridge.ack,
+            i_cpu_mem_err_i       = 0      if not external_cpu_memory else wr_cpu_bridge.err,
+            i_cpu_mem_rty_i       = 0      if not external_cpu_memory else wr_cpu_bridge.rty,
+            i_cpu_mem_stall_i     = 0      if not external_cpu_memory else wr_cpu_bridge.stall,
+            i_cpu_mem_ready_i     = 1      if not external_cpu_memory else memory_ready_wr,
 
             # PPS / Leds.
             i_pps_ext_i           = self.pps_in,
@@ -500,83 +570,9 @@ class LiteXWRNICSoC(SoCMini):
         patch_wr_subsystem_mux_class()
         patch_wr_pps_gen_iob()
         patch_wr_clock_monitor_presc_cdc()
+        patch_wr_external_cpu_memory()
         for file in wr_core_files:
             self.platform.add_source(file)
-
-    # Add Ext RAM ----------------------------------------------------------------------------------
-
-    def add_ext_ram(self, platform):
-        # CHECKME: Check if the best approach, we could also completely replace uRV and provide
-        #          a similar instance?
-        # CHECKME: When working, try to also play with drive to see if uRV core is handling it
-        #          correctly.
-        # CHECKME: When working with valid, try to replace with a Wishbone interface to allow
-        #          connecting it to a SPIFlash core or HyperRAM.
-
-        # External ROM.
-        # -------------
-        rom_init = get_mem_data("firmware/wrpc-sw/wrc.bin",
-            data_width = 32,
-            endianness = "little"
-        )
-        rom      = Memory(32, depth=131072//4, init=rom_init)
-        rom_port = rom.get_port()
-        self.specials += rom, rom_port
-
-        ext_ram_adr   = Signal(32) # /!\ Fake, will be re-connected post-synthesis /!\.
-        ext_ram_dat_r = Signal(32) # /!\ Fake, will be re-connected post-synthesis /!\.
-        self.specials += Instance("ext_ram_tap",
-            i_ext_ram_i_adr   = ext_ram_adr,
-            o_ext_ram_i_dat_r = ext_ram_dat_r,
-            o_ext_ram_o_adr   = Cat(Signal(2), rom_port.adr),
-            i_ext_ram_o_dat_r = rom_port.dat_r,
-        )
-        platform.add_source("gateware/ext_ram_tap.v")
-
-        # Connect CPU Adr -> Ext ROM Adr.
-        # ---------------------------
-        ext_ram_connections_adr = []
-        for n in range(32):
-            ext_ram_connections_adr.append((
-                f"xwrc_board_artix7_wrapper/u_xwrc_board_artix7/cmp_board_common/cmp_xwr_core/WRPC/U_CPU/im_addr[{n}]", # Src.
-                f"ext_ram_tap/ext_ram_i_adr[{n}]",                                                                      # Dst.
-            ))
-        for _from, _to in ext_ram_connections_adr:
-            # Find Src Driver.
-            #platform.toolchain.pre_optimize_commands.append(f"set_property DONT_TOUCH false [get_nets {_from}]")
-            platform.toolchain.pre_optimize_commands.append(f"set pin_driver_from [get_pins -of_objects [get_nets {_from}] -filter {{{{DIRECTION == OUT}}}}]")
-            platform.toolchain.pre_optimize_commands.append(f"disconnect_net -objects $pin_driver_from")
-
-            # Find Dst Driver and disconnect it.
-            platform.toolchain.pre_optimize_commands.append(f"set_property DONT_TOUCH false [get_nets {_to}]")
-            platform.toolchain.pre_optimize_commands.append(f"set pin_driver_to [get_pins -of_objects [get_nets {_to}] -filter {{{{DIRECTION == IN}}}}]")
-            platform.toolchain.pre_optimize_commands.append(f"disconnect_net -objects $pin_driver_to")
-
-            # Connect Src to Dst.
-            platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net $pin_driver_from -objects $pin_driver_to")
-
-
-        # Connect Ext ROM Dat -> CPU Dat.
-        # -------------------------------
-        ext_ram_connections_dat = []
-        for n in range(32):
-            ext_ram_connections_dat.append((
-                f"ext_ram_tap/ext_ram_i_dat_r[{n}]",                                                                    # Src.
-                f"xwrc_board_artix7_wrapper/u_xwrc_board_artix7/cmp_board_common/cmp_xwr_core/WRPC/U_CPU/im_data[{n}]", # Dst.
-            ))
-        for _from, _to in ext_ram_connections_dat:
-            # Find Src Driver and disconnect it.
-            platform.toolchain.pre_optimize_commands.append(f"set_property DONT_TOUCH false [get_nets {_from}]")
-            platform.toolchain.pre_optimize_commands.append(f"set pin_driver_from [get_pins -of_objects [get_nets {_from}] -filter {{{{DIRECTION == OUT}}}}]")
-            platform.toolchain.pre_optimize_commands.append(f"disconnect_net -objects $pin_driver_from")
-
-            # Find Dst Driver and disconnect it.
-            #platform.toolchain.pre_optimize_commands.append(f"set_property DONT_TOUCH false [get_nets {_to}]")
-            platform.toolchain.pre_optimize_commands.append(f"set pin_driver_to [get_pins -of_objects [get_nets {_to}] -filter {{{{DIRECTION == IN}}}}]")
-            platform.toolchain.pre_optimize_commands.append(f"disconnect_net -objects $pin_driver_to")
-
-            # Connect Src to Dst.
-            platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net $pin_driver_from -objects $pin_driver_to")
 
     # Add Probes -----------------------------------------------------------------------------------
 

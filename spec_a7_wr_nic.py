@@ -8,6 +8,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
+import os
 
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 
@@ -30,6 +31,9 @@ from litex.soc.integration.builder  import *
 from litex.soc.cores.clock          import S7PLL, S7MMCM
 from litex.soc.cores.led            import LedChaser
 from litex.soc.cores.spi.spi_master import SPIMaster
+from litex.soc.cores.hyperbus       import HyperRAM
+from litex.soc.integration.common   import get_mem_data
+from litex.soc.integration.soc      import SoCRegion
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
 from litepcie.software      import generate_litepcie_software_headers
@@ -47,6 +51,13 @@ from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, Fin
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.clk10m            import Clk10MGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
+from litex_wr_nic.gateware.wr_cpu            import (
+    WRCPUFlashBoot,
+    WR_CPU_MEMORY_ORIGIN,
+    WR_CPU_MEMORY_SIZE,
+    wr_cpu_word_bus,
+)
+from litex_wr_nic.wr_boot import WR_BOOT_FLASH_OFFSET, WR_SDB_FLASH_OFFSET, validate_flash_layout
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -110,6 +121,8 @@ class BaseSoC(LiteXWRNICSoC):
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
         white_rabbit_cpu_firmware  = "litex_wr_nic/firmware/spec_a7_wrc.bram",
+        white_rabbit_cpu_binary    = "litex_wr_nic/firmware/spec_a7_wrc.bin",
+        wr_cpu_memory              = "private",
 
         # Sync-In Parameters.
         # -------------------
@@ -166,6 +179,55 @@ class BaseSoC(LiteXWRNICSoC):
             ident_version = True,
         )
 
+        # WR CPU Memory ---------------------------------------------------------------------------
+
+        if wr_cpu_memory not in ("private", "integrated", "hyperram"):
+            raise ValueError(f"Unsupported WR CPU memory mode: {wr_cpu_memory}")
+        if not with_white_rabbit and wr_cpu_memory != "private":
+            raise ValueError("External WR CPU memory requires White Rabbit support.")
+
+        wr_cpu_region = None
+        wr_cpu_ready  = 1
+        wr_cpu_loader = None
+        if wr_cpu_memory == "integrated":
+            if not os.path.isfile(white_rabbit_cpu_binary):
+                raise FileNotFoundError(
+                    f"WR CPU binary not found: {white_rabbit_cpu_binary}; build the firmware first.")
+            contents = get_mem_data(white_rabbit_cpu_binary,
+                data_width = 32,
+                endianness = "little",
+                mem_size   = WR_CPU_MEMORY_SIZE,
+            )
+            self.add_ram("wr_cpu_mem", WR_CPU_MEMORY_ORIGIN, WR_CPU_MEMORY_SIZE, contents=contents)
+            wr_cpu_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN, size=WR_CPU_MEMORY_SIZE, mode="rwx")
+        elif wr_cpu_memory == "hyperram":
+            wr_cpu_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN, size=WR_CPU_MEMORY_SIZE, mode="rwx")
+            wr_cpu_bus    = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+            self.bus.add_slave(name="wr_cpu_mem", slave=wr_cpu_bus, region=wr_cpu_region)
+            self.wr_cpu_cache = FullMemoryWE()(wishbone.Cache(
+                cachesize = (8*KILOBYTE)//4,
+                master    = wr_cpu_bus,
+                slave     = wishbone.Interface(data_width=32, address_width=32, addressing="word"),
+            ))
+            self.hyperram = HyperRAM(
+                pads         = platform.request("hyperram"),
+                latency      = 7,
+                latency_mode = "variable",
+                sys_clk_freq = sys_clk_freq,
+                # 4:1 generates the 31.25 MHz HyperRAM clock from the 125 MHz
+                # system clock and avoids introducing a timing-critical 250 MHz
+                # FPGA domain on the Artix-7.
+                clk_ratio    = "4:1",
+            )
+            self.comb += self.wr_cpu_cache.slave.connect(self.hyperram.bus)
+            self.wr_cpu_boot = wr_cpu_loader = WRCPUFlashBoot(sys_clk_freq=sys_clk_freq)
+            self.bus.add_master(name="wr_cpu_boot",
+                master = wr_cpu_word_bus(self, wr_cpu_loader.bus),
+                region = wr_cpu_region,
+            )
+            wr_cpu_ready = wr_cpu_loader.ready
+            self.add_config("WR_CPU_CACHE_SIZE", 8*KILOBYTE)
+
         # UART -------------------------------------------------------------------------------------
 
         self.uart = UARTShared(pads=platform.request("serial"), sys_clk_freq=sys_clk_freq)
@@ -215,7 +277,10 @@ class BaseSoC(LiteXWRNICSoC):
             # ------------------
             self.add_wr_core(
                 # CPU.
-                cpu_firmware     = white_rabbit_cpu_firmware,
+                cpu_firmware      = white_rabbit_cpu_firmware,
+                cpu_memory_region = wr_cpu_region,
+                cpu_memory_ready  = wr_cpu_ready,
+                cpu_boot_loader   = wr_cpu_loader,
 
                 # Board name.
                 board_name       = "SPA7",
@@ -272,6 +337,7 @@ class BaseSoC(LiteXWRNICSoC):
                 load  = self.dac_refclk_load,
                 value = self.dac_refclk_data,
                 gain  = 2, # 2 for 0-3V range to be able to accelerate enough RefClk, not working with 1.
+                clk_domain = "wr_sys",
             )
 
             # DMTD DAC.
@@ -280,6 +346,7 @@ class BaseSoC(LiteXWRNICSoC):
                 load  = self.dac_dmtd_load,
                 value = self.dac_dmtd_data,
                 gain  = 1,
+                clk_domain = "wr_sys",
             )
 
             # White Rabbit Clk-In.
@@ -579,6 +646,8 @@ class BaseSoC(LiteXWRNICSoC):
         ]
         if with_white_rabbit:
             asynchronous_clk_domains += [self.fine_delay.cd_fine_delay.clk]
+            # Host/WR register and fabric traffic crosses asynchronous FIFOs.
+            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_wr_sys.clk)
 
         platform.add_false_path_constraints(*asynchronous_clk_domains)
 
@@ -602,6 +671,15 @@ def main():
     parser.add_argument("--build", action="store_true", help="Build bitstream.")
     parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
+    parser.add_argument("--wr-cpu-memory", default="private",
+        choices=["private", "integrated", "hyperram"],
+        help="WR CPU memory implementation (default: private).")
+    parser.add_argument("--output-dir", default=None,
+        help="Build directory (useful for resource comparisons).")
+    parser.add_argument("--skip-firmware-build", action="store_true",
+        help="Reuse existing WR firmware when building gateware.")
+    parser.add_argument("--skip-software-headers", action="store_true",
+        help=argparse.SUPPRESS)
 
     # Probes.
     # -------
@@ -614,7 +692,7 @@ def main():
 
     # Build Firmware.
     # ---------------
-    if args.build:
+    if args.build and not args.skip_firmware_build:
         print("Building firmware...")
         r = os.system("cd litex_wr_nic/firmware && ./build.py")
         if r != 0:
@@ -622,7 +700,7 @@ def main():
 
     # Build SoC/Gateware (with integrated Firmware).
     # ----------------------------------------------
-    soc = BaseSoC()
+    soc = BaseSoC(wr_cpu_memory=args.wr_cpu_memory)
     if args.with_wishbone_fabric_interface_probe:
         soc.add_wishbone_fabric_interface_probe()
     if args.with_wishbone_slave_probe:
@@ -631,7 +709,8 @@ def main():
         soc.add_dac_vcxo_probe()
     if args.with_time_pps_probe:
         soc.add_time_pps_probe()
-    builder = Builder(soc, csr_csv="test/csr.csv")
+    builder = Builder(soc, csr_csv="test/csr.csv", **(
+        {} if args.output_dir is None else {"output_dir": args.output_dir}))
     builder.build(
         run=args.build,
         vivado_place_directive="Explore",
@@ -641,7 +720,8 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
+    if not args.skip_software_headers:
+        generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
 
     # Generate Bitstream.
     # -------------------
@@ -660,9 +740,15 @@ def main():
     # Flash FPGA.
     # -----------
     if args.flash:
+        bitstream = builder.get_bitstream_filename(mode="flash")
+        sdb_image = "litex_wr_nic/firmware/sdb-wrpc.bin"
+        boot_image = "litex_wr_nic/firmware/spec_a7_wrc.boot" if args.wr_cpu_memory == "hyperram" else None
+        validate_flash_layout(bitstream, sdb_image, boot_image)
         prog = soc.platform.create_programmer()
-        prog.flash(0x0000_0000, builder.get_bitstream_filename(mode="flash"))
-        prog.flash(0x002e_0000, "firmware/sdb-wrpc.bin")
+        prog.flash(0x0000_0000, bitstream)
+        prog.flash(WR_SDB_FLASH_OFFSET, sdb_image)
+        if args.wr_cpu_memory == "hyperram":
+            prog.flash(WR_BOOT_FLASH_OFFSET, boot_image)
 
 if __name__ == "__main__":
     main()

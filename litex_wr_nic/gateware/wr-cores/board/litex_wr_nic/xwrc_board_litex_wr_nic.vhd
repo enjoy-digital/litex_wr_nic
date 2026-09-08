@@ -68,6 +68,7 @@ entity xwrc_board_litex_wr_nic is
     -- memory initialisation file for embedded CPU
     g_dpram_initf               : string               := "default_xilinx";
     g_dpram_size                : integer              := 131072/4;
+    g_external_cpu_memory       : boolean              := false;
     -- identification (id and ver) of the layout of words in the generic diag interface
     g_diag_id                   : integer              := 0;
     g_diag_ver                  : integer              := 0;
@@ -99,6 +100,8 @@ entity xwrc_board_litex_wr_nic is
 
     clk_62m5_sys_o      : out std_logic;
     rst_62m5_sys_o      : out std_logic;
+    clk_62m5_ref_o      : out std_logic;
+    rst_62m5_ref_o      : out std_logic;
 
     ---------------------------------------------------------------------------
     -- Serial DACs
@@ -240,6 +243,11 @@ entity xwrc_board_litex_wr_nic is
     -- Link ok indication
     link_ok_o  : out std_logic;
 
+    -- Optional external WR CPU memory.
+    cpu_mem_o       : out t_wishbone_master_out;
+    cpu_mem_i       : in  t_wishbone_master_in := cc_dummy_master_in;
+    cpu_mem_ready_i : in  std_logic := '1';
+
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
@@ -344,8 +352,13 @@ begin  -- architecture struct
       GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK
     );
 
-  clk_62m5_sys_o <= clk_ref_62m5;
-  rst_62m5_sys_o <= not pll_locked;
+  -- Wishbone, fabric and SoftPLL DAC commands use the system clock. PPS and
+  -- timecode use the PHY reference clock; these clocks can have different
+  -- phases and the PHY clock can stop during endpoint initialization.
+  clk_62m5_sys_o <= clk_pll_62m5;
+  rst_62m5_sys_o <= not rstlogic_rst_out(0);
+  clk_62m5_ref_o <= clk_ref_62m5;
+  rst_62m5_ref_o <= not rstlogic_rst_out(1);
 
   -----------------------------------------------------------------------------
   -- Reset logic
@@ -390,7 +403,7 @@ begin  -- architecture struct
   -- The WR PTP core with optional fabric interface attached
   -----------------------------------------------------------------------------
 
-  cmp_board_common : xwrc_board_common
+  cmp_board_common : entity work.xwrc_board_common
     generic map (
       g_simulation                => 0,
       g_with_external_clock_input => g_with_external_clock_input,
@@ -403,6 +416,7 @@ begin  -- architecture struct
       g_tx_runt_padding           => TRUE,
       g_dpram_initf               => g_dpram_initf,
       g_dpram_size                => g_dpram_size,
+      g_external_cpu_memory       => g_external_cpu_memory,
       g_interface_mode            => PIPELINED,
       g_address_granularity       => BYTE,
       g_aux_sdb                   => c_wrc_periph3_sdb,
@@ -477,6 +491,9 @@ begin  -- architecture struct
       wb_slave_o           => wb_slave_o,
       aux_diag_i           => aux_diag_i,
       aux_diag_o           => aux_diag_o,
+      cpu_mem_o            => cpu_mem_o,
+      cpu_mem_i            => cpu_mem_i,
+      cpu_mem_ready_i      => cpu_mem_ready_i,
       tm_dac_value_o       => tm_dac_value_o,
       tm_dac_wr_o          => tm_dac_wr_o,
       tm_clk_aux_lock_en_i => tm_clk_aux_lock_en_i,

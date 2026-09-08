@@ -25,8 +25,14 @@ DEFAULT_BIND_PORT = 1234          # Default TCP port on host: 1234
 # CPU ----------------------------------------------------------------------------------------------
 
 class CPU:
-    def __init__(self, bus):
+    def __init__(self, bus, memory_mode="auto"):
         self.bus = bus
+        has_external_memory = hasattr(bus.mems, "wr_cpu_mem")
+        if memory_mode == "auto":
+            memory_mode = "external" if has_external_memory else "private"
+        if memory_mode == "external" and not has_external_memory:
+            raise RuntimeError("wr_cpu_mem is not present in the loaded SoC")
+        self.memory_mode = memory_mode
 
     def write_reg(self, addr, dat):
         self.bus.write(self.bus.mems.wr_wb_slave.base + 0x20b00 + addr, dat)
@@ -38,11 +44,16 @@ class CPU:
         self.write_reg(CPU_RST_REG, value)
 
     def ram_read(self, addr):
+        if self.memory_mode == "external":
+            return self.bus.read(self.bus.mems.wr_cpu_mem.base + 4*addr)
         self.write_reg(CPU_ADR_REG, addr)
         data = self.read_reg(CPU_DAT_REG)
         return data
 
     def ram_write(self, addr, data):
+        if self.memory_mode == "external":
+            self.bus.write(self.bus.mems.wr_cpu_mem.base + 4*addr, data)
+            return
         self.write_reg(CPU_ADR_REG, addr)
         self.write_reg(CPU_DAT_REG, data)
 
@@ -50,7 +61,8 @@ class CPU:
         """Load firmware binary data into CPU RAM in 32-bit."""
         self.reset(1)  # Hold CPU in reset
         for i in tqdm(range(0, len(firmware_data), 4), desc="Loading firmware", unit="word"):
-            word = int.from_bytes(firmware_data[i:i+4], byteorder='big')
+            byteorder = "little" if self.memory_mode == "external" else "big"
+            word = int.from_bytes(firmware_data[i:i+4], byteorder=byteorder)
             self.ram_write(i // 4, word)
             time.sleep(1e-4) # CHECKME: Required over JTAG.
         self.reset(0)  # Release CPU reset
@@ -61,7 +73,8 @@ class CPU:
         data = []
         for i in tqdm(range(0, length, 4), desc="Dumping firmware", unit="word"):
             word = self.ram_read(i // 4)
-            data.extend(word.to_bytes(4, byteorder='big'))
+            byteorder = "little" if self.memory_mode == "external" else "big"
+            data.extend(word.to_bytes(4, byteorder=byteorder))
         self.reset(0)  # Release CPU reset
         return data
 
@@ -85,13 +98,15 @@ def main():
     parser.add_argument("--dump-firmware", metavar="FILE", help="Filename to save dumped firmware.")
     parser.add_argument("--dump-length", type=int, default=DEFAULT_DUMP_LENGTH, help="Dump length in bytes.")
     parser.add_argument("--bind-port", type=int, default=DEFAULT_BIND_PORT, help="Host bind port.")
+    parser.add_argument("--memory-mode", default="auto", choices=["auto", "private", "external"],
+        help="CPU-memory access path (default: detect from the SoC memory map).")
     args = parser.parse_args()
 
     if not args.build_firmware:
         bus = RemoteClient(port=str(args.bind_port))
         bus.open()
 
-        cpu = CPU(bus=bus)
+        cpu = CPU(bus=bus, memory_mode=args.memory_mode)
 
     # Reset command
     if args.reset:
