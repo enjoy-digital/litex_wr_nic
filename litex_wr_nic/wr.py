@@ -10,6 +10,7 @@ import sys
 import json
 import time
 import select
+import socket
 import termios
 import argparse
 import contextlib
@@ -37,6 +38,10 @@ class WRClient:
         timeout=5.0):
         self.bus     = bus
         self.timeout = timeout
+        if isinstance(bus, RemoteClient) and hasattr(bus, "socket"):
+            # Register write/read pairs must not wait for TCP's small-packet
+            # coalescing timer (especially during private RAM verification).
+            bus.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.region  = getattr(bus.mems, wr_region)
         self.memory  = getattr(bus.mems, memory_region, None)
         self.regs    = vars(bus.regs)
@@ -171,6 +176,10 @@ class WRClient:
         else:
             for index, word in enumerate(words):
                 self.write_word(4*index, word)
+                # Each private-RAM word uses two unacknowledged register
+                # writes. Bound the backlog here as on the SoC memory path.
+                if (index + 1) % 8 == 0:
+                    self.read_cpu(CPU_RESET)
             for index, word in enumerate(words):
                 if self.read_word(4*index) != word:
                     raise RuntimeError(
