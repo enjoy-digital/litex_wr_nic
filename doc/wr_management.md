@@ -24,6 +24,10 @@ The console selects UARTShared's crossover port while it is open and restores
 the previous selection on exit. Exit with **Ctrl-]**. Scripted commands wait
 for `wrc#`; input is paced for the WRPC polling UART. A separate UARTBone path
 must be used if the physical WR console and bridge would share the same pins.
+UARTShared now defaults to a 4096-byte receive FIFO (plus its output buffer),
+reports its occupancy for fixed-address burst reads and detects overflow.
+Older 128-byte FIFO images can lose long replies over slow transports; use
+short commands such as `uptime`/`time` or load an updated image.
 
 `status` reads the live WR configuration signature, CPU selection, memory mode,
 memory readiness, link/time-valid flags and host reset diagnostics. It also

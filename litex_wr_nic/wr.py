@@ -164,6 +164,7 @@ class WRClient:
 
 class WRConsole:
     def __init__(self, bus, prefix=None, timeout=5.0):
+        self.bus     = bus
         self.timeout = timeout
         regs = vars(bus.regs)
         candidates = [name[:-5] for name in regs if name.endswith("xover_rxtx")]
@@ -176,6 +177,8 @@ class WRConsole:
         self.full  = regs[prefix + "_txfull"]
         parent = prefix.rsplit("_xover", 1)[0]
         self.control = regs.get(parent + "_control")
+        self.level   = regs.get(parent + "_rxlevel")
+        self.overflow = regs.get(parent + "_rxoverflow")
 
     @contextlib.contextmanager
     def selected(self):
@@ -189,6 +192,13 @@ class WRConsole:
                 self.control.write(previous)
 
     def receive(self, limit=128):
+        if self.overflow and self.overflow.read():
+            raise RuntimeError("WR console RX overflow; output was lost. Reload the FPGA or increase crossover_rx_depth.")
+        if self.level:
+            count = min(limit, self.level.read())
+            if count:
+                return bytes(word & 0xff for word in self.bus.read(self.data.addr, length=count, burst="fixed"))
+            return b""
         data = bytearray()
         for _ in range(limit):
             if self.empty.read():
@@ -206,7 +216,7 @@ class WRConsole:
             self.data.write(byte)
             time.sleep(0.03) # WRPC polls its UART; pace input like typing.
 
-    def command(self, command, timeout=15.0):
+    def command(self, command, timeout=60.0):
         self.receive()
         self.send(command.encode("ascii") + b"\r")
         deadline = time.monotonic() + timeout

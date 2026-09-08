@@ -31,7 +31,8 @@ class UARTPads:
 # UART ---------------------------------------------------------------------------------------------
 
 class UARTShared(LiteXModule):
-    def __init__(self, pads, sys_clk_freq, default_sel=WR_UART_PHYSICAL_MODE, default_mode=WR_UART_AUTO_MODE):
+    def __init__(self, pads, sys_clk_freq, default_sel=WR_UART_PHYSICAL_MODE,
+        default_mode=WR_UART_AUTO_MODE, crossover_rx_depth=4096):
         # Control registers for UART mode and selection.
         self.control = CSRStorage(fields=[
             CSRField("sel", size=1, values=[
@@ -50,7 +51,13 @@ class UARTShared(LiteXModule):
 
         # UARTPHY and UART for crossover interface.
         self.xover_phy = UARTPHY(crossover_pads, clk_freq=sys_clk_freq, baudrate=115200)
-        self.xover     = UART(self.xover_phy, rx_fifo_depth=128, rx_fifo_rx_we=True)
+        self.xover     = UART(self.xover_phy, rx_fifo_depth=crossover_rx_depth, rx_fifo_rx_we=True)
+        self.rxlevel   = CSRStatus(len(Signal(max=crossover_rx_depth + 1)))
+        self.rxoverflow = CSRStatus()
+        self.comb += self.rxlevel.status.eq(self.xover.rx_fifo.level)
+        self.sync += If(self.xover.sink.valid & ~self.xover.sink.ready,
+            self.rxoverflow.status.eq(1),
+        )
 
         # Signal for the active UART selection.
         active_uart = Signal(reset=default_sel)  # Tracks the currently active port (last RX activity).

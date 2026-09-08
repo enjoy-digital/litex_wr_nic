@@ -184,3 +184,58 @@ def test_live_reset_diagnostics_cross_clock_domains():
         assert (yield dut.reset_count.status) == 2
 
     run_simulation(dut, {"wr_sys": wr(), "sys": sys()}, clocks={"wr_sys": 16, "sys": 10})
+
+
+def test_console_reads_only_buffered_bytes_in_a_fixed_burst():
+    calls = []
+    data = Register()
+    data.addr = 0x100
+    bus = SimpleNamespace(regs=SimpleNamespace(
+        uart_xover_rxtx=data, uart_xover_rxempty=Register(), uart_xover_txfull=Register(),
+        uart_rxlevel=Register(3), uart_rxoverflow=Register()),
+        read=lambda address, length, burst: calls.append((address, length, burst)) or [65, 66, 67])
+    assert WRConsole(bus).receive() == b"ABC"
+    assert calls == [(0x100, 3, "fixed")]
+    bus.regs.uart_rxoverflow.value = 1
+    with pytest.raises(RuntimeError, match="overflow"):
+        WRConsole(bus).receive()
+
+
+def test_console_fifo_level_and_overflow(monkeypatch):
+    from litex.gen import LiteXModule
+    from litex.soc.interconnect import stream
+    from litex_wr_nic.gateware.uart import UARTShared, UARTPads
+
+    class PHY(LiteXModule):
+        def __init__(self, *args, **kwargs):
+            self.source = stream.Endpoint([("data", 8)])
+            self.sink   = stream.Endpoint([("data", 8)])
+
+    monkeypatch.setattr("litex_wr_nic.gateware.uart.UARTPHY", PHY)
+    dut = UARTShared(UARTPads(), 125e6, crossover_rx_depth=8)
+
+    def check():
+        for value in range(9):
+            yield dut.xover_phy.source.valid.eq(1)
+            yield dut.xover_phy.source.data.eq(value)
+            yield
+        yield dut.xover_phy.source.valid.eq(0)
+        for _ in range(3):
+            yield
+        assert (yield dut.rxlevel.status) == 9
+        assert (yield dut.rxoverflow.status) == 0
+        # A PHY cannot apply backpressure to the remote transmitter.
+        yield dut.xover_phy.source.valid.eq(1)
+        yield
+        yield dut.xover_phy.source.valid.eq(0)
+        yield
+        assert (yield dut.rxoverflow.status) == 1
+        for value in range(9):
+            assert (yield dut.xover._rxtx.rd_data) == value
+            yield dut.xover._rxtx.rd_stb.eq(1)
+            yield
+            yield dut.xover._rxtx.rd_stb.eq(0)
+            yield
+        assert (yield dut.rxlevel.status) == 0
+
+    run_simulation(dut, check())
