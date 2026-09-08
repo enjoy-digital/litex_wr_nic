@@ -9,6 +9,7 @@ from migen.genlib.cdc import BusSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
+
 from litex.soc.interconnect import stream, wishbone
 from litex.soc.interconnect.csr import CSRStatus
 
@@ -32,6 +33,9 @@ class WRFClockCrossing(LiteXModule, DUID):
         self.cd_output = ClockDomain(f"wrf_out{self.duid}")
         self.input_cd  = self.cd_input.name
         self.output_cd = self.cd_output.name
+
+        # # #
+
         reset = ResetSignal(cd_from) | ResetSignal(cd_to)
         self.comb += [
             self.cd_input.clk.eq(ClockSignal(cd_from)),
@@ -52,11 +56,19 @@ class WRFClockCrossing(LiteXModule, DUID):
 
 class WRFCounters(LiteXModule):
     def __init__(self, cd):
-        for name in ("packets", "errors", "stalls", "overflow"):
+        for name, description in {
+            "packets"  : "Completed WR fabric packets.",
+            "errors"   : "WR fabric packets with errors.",
+            "stalls"   : "Cycles with a stalled WR fabric request.",
+            "overflow" : "WR fabric requests changed or withdrawn while stalled.",
+        }.items():
             counter = Signal(32, name=name)
-            status = CSRStatus(32, name=name)
-            cdc = BusSynchronizer(32, cd, "sys")
+            status  = CSRStatus(32, name=name, description=description + " Wraps at 32 bits.")
+            cdc     = BusSynchronizer(32, cd, "sys")
             setattr(self, name, counter)
             setattr(self, "_" + name, status)
             setattr(self, name + "_cdc", cdc)
-            self.comb += [cdc.i.eq(counter), status.status.eq(cdc.o)]
+            self.comb += [
+                cdc.i.eq(counter),
+                status.status.eq(cdc.o),
+            ]

@@ -14,10 +14,11 @@ from litex.gen import LiteXModule
 from litex_wr_nic.gateware.wrf_stream2wb import Stream2Wishbone
 from litex_wr_nic.gateware.wrf_wb2stream import Wishbone2Stream
 
+# Simulation Helpers -------------------------------------------------------------------------------
 
 def simulate(dut, generators):
     dut.cd_sys = ClockDomain("sys")
-    dut.cd_wr = ClockDomain("wr")
+    dut.cd_wr  = ClockDomain("wr")
     fragment = dut.get_fragment()
     clocks = {"sys": 8, "wr": 16}
     for statement in fragment.comb:
@@ -48,6 +49,7 @@ def send_packets(sink, packets, error_frames=()):
         yield sink.valid.eq(0)
         yield
 
+# Fabric Tests -------------------------------------------------------------------------------------
 
 def test_packet_loopback_with_backpressure_odd_lengths_and_errors():
     dut = LiteXModule()
@@ -86,13 +88,13 @@ def test_tx_retires_delayed_responses_and_keeps_request_stable_under_stall():
     accepted_ticks = []
 
     def fabric():
-        responses = []
-        words = []
-        previous_cyc = 0
+        responses       = []
+        words           = []
+        previous_cyc    = 0
         stalled_request = None
         for tick in range(5000):
-            cyc = yield dut.bus.cyc
-            stb = yield dut.bus.stb
+            cyc   = yield dut.bus.cyc
+            stb   = yield dut.bus.stb
             stall = yield dut.bus.stall
             request = ((yield dut.bus.adr), (yield dut.bus.dat_w), (yield dut.bus.sel))
             if stalled_request is not None and cyc:
@@ -293,7 +295,11 @@ def test_rx_reports_a_master_that_aborts_a_stalled_word():
             yield dut.source.ready.eq(dropped["done"])
             yield
             if (yield dut.source.valid) and (yield dut.source.ready):
-                received.append(((yield dut.source.data), (yield dut.source.last), (yield dut.source.error)))
+                received.append((
+                    (yield dut.source.data),
+                    (yield dut.source.last),
+                    (yield dut.source.error),
+                ))
 
     simulate(dut, {"wr": master(), "sys": consumer()})
     assert [data for data, _, _ in received] == dropped["accepted"]

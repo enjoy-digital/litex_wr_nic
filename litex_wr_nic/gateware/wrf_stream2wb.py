@@ -8,6 +8,7 @@
 from migen import *
 
 from litex.gen import *
+
 from litex.soc.interconnect import stream
 
 from litex_wr_nic.gateware.wrf import WRFInterface, WRFClockCrossing, WRFCounters
@@ -41,14 +42,14 @@ class Stream2Wishbone(LiteXModule):
             converter.source.connect(cdc.sink),
         ]
         self.stats = stats = WRFCounters(cdc.output_cd)
-        self.fsm = fsm = ClockDomainsRenamer(cdc.output_cd)(FSM(reset_state="IDLE"))
-        pending = Signal(max=max_pending + 1)
-        accepted = Signal()
-        response = Signal()
-        failed = Signal()
-        room = Signal()
-        frame_bad = Signal()
-        data_word = Cat(cdc.source.data[:8], cdc.source.data[9:17])
+        self.fsm   = fsm = ClockDomainsRenamer(cdc.output_cd)(FSM(reset_state="IDLE"))
+        pending    = Signal(max=max_pending + 1)
+        accepted   = Signal()
+        response   = Signal()
+        failed     = Signal()
+        room       = Signal()
+        frame_bad  = Signal()
+        data_word  = Cat(cdc.source.data[:8], cdc.source.data[9:17])
         word_error = cdc.source.data[17] | ((cdc.source.valid_token_count == 2) & cdc.source.data[8])
         self.comb += [
             accepted.eq(bus.cyc & bus.stb & ~bus.stall),
@@ -99,7 +100,11 @@ class Stream2Wishbone(LiteXModule):
             ),
             If(failed,
                 NextValue(frame_bad, 1),
-                If(accepted & cdc.source.last, NextState("END")).Else(NextState("DROP")),
+                If(accepted & cdc.source.last,
+                    NextState("END"),
+                ).Else(
+                    NextState("DROP"),
+                ),
             ),
         )
         fsm.act("ERROR_STATUS",

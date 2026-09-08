@@ -8,6 +8,7 @@
 from migen import *
 
 from litex.gen import *
+
 from litex.soc.interconnect import stream
 
 from litex_wr_nic.gateware.wrf import WRFInterface, WRFClockCrossing, WRFCounters
@@ -22,7 +23,7 @@ class Wishbone2Stream(LiteXModule):
     so final status/error words and odd byte counts reach the correct packet.
     """
     def __init__(self, cd_from="wr", depth=16):
-        self.bus    = bus = WRFInterface()
+        self.bus    = bus    = WRFInterface()
         self.source = source = stream.Endpoint([("data", 8), ("error", 1)])
 
         # # #
@@ -31,12 +32,12 @@ class Wishbone2Stream(LiteXModule):
         self.cdc = cdc = WRFClockCrossing(layout, cd_from, "sys", depth)
         self.stats = stats = WRFCounters(cdc.input_cd)
         self.input_fsm = ingress = ClockDomainsRenamer(cdc.input_cd)(FSM(reset_state="IDLE"))
-        accepted = Signal()
-        frame_bad = Signal()
-        stalled = Signal()
+        accepted     = Signal()
+        frame_bad    = Signal()
+        stalled      = Signal()
         stalled_word = Signal(21)
         request_word = Cat(bus.dat_w, bus.adr, bus.sel, bus.we)
-        violation = Signal()
+        violation    = Signal()
         self.comb += [
             accepted.eq(bus.cyc & bus.stb & ~bus.stall),
             violation.eq(stalled & (~bus.cyc | ~bus.stb | (request_word != stalled_word))),
@@ -63,7 +64,9 @@ class Wishbone2Stream(LiteXModule):
             NextValue(stalled, bus.cyc & bus.stb & bus.stall),
             NextValue(stalled_word, request_word),
             If(violation | (accepted & (~bus.we | ((bus.adr == 2) & bus.dat_w[1]) |
-                ((bus.adr == 0) & (bus.sel == 0)))), NextValue(frame_bad, 1)),
+                ((bus.adr == 0) & (bus.sel == 0)))),
+                NextValue(frame_bad, 1),
+            ),
             If(~bus.cyc,
                 NextValue(stalled, 0),
                 NextState("END"),
@@ -82,15 +85,19 @@ class Wishbone2Stream(LiteXModule):
         )
 
         # Parse the buffered records in the application clock domain.
-        word = stream.Endpoint([("data", 16), ("sel", 2), ("error", 1)])
-        data = Signal(16)
-        sel = Signal(2)
+        word  = stream.Endpoint([("data", 16), ("sel", 2), ("error", 1)])
+        data  = Signal(16)
+        sel   = Signal(2)
         first = Signal()
         error = Signal()
         self.fsm = parser = ClockDomainsRenamer(cdc.output_cd)(FSM(reset_state="EMPTY"))
         is_data = (cdc.source.adr == 0) & ~cdc.source.end & (cdc.source.sel != 0)
         status_error = ((cdc.source.adr == 2) & cdc.source.data[1]) | cdc.source.error
-        self.comb += [word.data.eq(data), word.sel.eq(sel), word.first.eq(first)]
+        self.comb += [
+            word.data.eq(data),
+            word.sel.eq(sel),
+            word.first.eq(first),
+        ]
         parser.act("EMPTY",
             cdc.source.ready.eq(1),
             If(cdc.source.valid,
@@ -132,7 +139,10 @@ class Wishbone2Stream(LiteXModule):
 
         # Serialize high byte first; SEL=10 and SEL=01 contain one byte.
         self.converter = converter = ClockDomainsRenamer(cdc.output_cd)(FSM(reset_state="HIGH"))
-        self.comb += [source.valid.eq(word.valid), source.error.eq(word.error & source.last)]
+        self.comb += [
+            source.valid.eq(word.valid),
+            source.error.eq(word.error & source.last),
+        ]
         converter.act("HIGH",
             source.data.eq(Mux(word.sel == 1, word.data[:8], word.data[8:])),
             source.first.eq(word.first),
