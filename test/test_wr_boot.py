@@ -64,3 +64,19 @@ def test_flash_layout_rejects_bitstream_overlap(tmp_path):
     sdb.write_bytes(bytes(64 * 1024))
     with pytest.raises(ValueError, match="overlaps"):
         validate_flash_layout(bitstream, sdb)
+
+
+def test_profile_metadata_and_validation():
+    from litex_wr_nic.wr_boot import inspect_boot_image
+    for cpu in ("urv", "vexriscv"):
+        image = build_boot_image(b"test", cpu_type=cpu)
+        assert len(image) == 36
+        assert inspect_boot_image(image, cpu_type=cpu) == dict(version=2, cpu_type=cpu, payload=b"test")
+        other = "urv" if cpu == "vexriscv" else "vexriscv"
+        with pytest.raises(ValueError, match="profile mismatch"):
+            parse_boot_image(image, cpu_type=other)
+    for offset, match in ((16, "profile"), (20, "ABI"), (24, "address"), (28, "address")):
+        damaged = bytearray(image)
+        damaged[offset] ^= 0x80
+        with pytest.raises(ValueError, match=match):
+            parse_boot_image(damaged)

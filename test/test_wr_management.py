@@ -54,7 +54,9 @@ class Bus:
         self.halts      = True
         self.address    = 0
 
-    def read(self, address):
+    def read(self, address, length=None):
+        if length is not None:
+            return [self.read(address + 4*index) for index in range(length)]
         self.operations.append(("read", address))
         offset = address - self.mems.wr_wb_slave.base - CPU_CSR
         if offset == CPU_HALTED:
@@ -67,6 +69,10 @@ class Bus:
         return value
 
     def write(self, address, value):
+        if isinstance(value, list):
+            for index, word in enumerate(value):
+                self.write(address + 4*index, word)
+            return
         self.operations.append(("write", address, value))
         offset = address - self.mems.wr_wb_slave.base - CPU_CSR
         if offset == 4:
@@ -258,3 +264,26 @@ def test_console_fifo_level_and_overflow(monkeypatch):
         assert (yield dut.rxlevel.status) == 0
 
     run_simulation(dut, check())
+
+
+def test_profiled_image_and_host_boot_of_a_stopped_urv():
+    from litex_wr_nic.wr_boot import build_boot_image
+    bus = Bus(external=True, info=True, cpu="urv")
+    bus.halts = False # The CPU is held by host boot and cannot enter debug.
+    bus.regs.wr_cpu_boot_host_ready = Register(0)
+    bus.regs.wr_cpu_boot_memory_ready = Register(1)
+    wr = WRClient(bus)
+    wr.load_firmware(build_boot_image(b"test", cpu_type="urv"))
+    assert bus.regs.wr_cpu_boot_host_ready.read() == 1
+    assert wr.read_cpu(CPU_RESET) == 0
+    assert not any(op[0] == "read" and op[1] == bus.mems.wr_wb_slave.base + CPU_CSR + CPU_HALTED
+        for op in bus.operations)
+
+
+def test_host_boot_rejects_upload_before_ddr_initialization():
+    bus = Bus(external=True, info=True, cpu="vexriscv")
+    bus.regs.wr_cpu_boot_host_ready = Register(0)
+    bus.regs.wr_cpu_boot_memory_ready = Register(0)
+    with pytest.raises(RuntimeError, match="memory controller"):
+        WRClient(bus).load_firmware(b"test", "vexriscv")
+    assert not any(op[0] == "write" for op in bus.operations)

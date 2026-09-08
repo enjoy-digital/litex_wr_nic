@@ -51,6 +51,7 @@ from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, Fin
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.clk10m            import Clk10MGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
+from litex_wr_nic.gateware.wr_memory         import add_wr_cpu_memory, resolve_wr_boot
 from litex_wr_nic.gateware.wr_cpu            import (
     WRCPUFlashBoot,
     WR_CPU_MEMORY_ORIGIN,
@@ -128,6 +129,7 @@ class BaseSoC(LiteXWRNICSoC):
         wr_cpu_type               = "urv",
         wr_cpu_variant            = None,
         wr_cpu_memory             = "private",
+        wr_cpu_boot               = "auto",
 
         # Sync-In Parameters.
         # -------------------
@@ -199,21 +201,9 @@ class BaseSoC(LiteXWRNICSoC):
             white_rabbit_cpu_binary = os.path.join("litex_wr_nic", "firmware",
                 wr_cpu_firmware_filename(wr_cpu_type, "bin"))
 
+        wr_cpu_boot = resolve_wr_boot(wr_cpu_memory, wr_cpu_boot)
         wr_cpu_region = None
-        wr_cpu_ready  = 1
-        wr_cpu_loader = None
-        if wr_cpu_memory == "integrated":
-            if not os.path.isfile(white_rabbit_cpu_binary):
-                raise FileNotFoundError(
-                    f"WR CPU binary not found: {white_rabbit_cpu_binary}; build the firmware first.")
-            contents = get_mem_data(white_rabbit_cpu_binary,
-                data_width = 32,
-                endianness = "little",
-                mem_size   = WR_CPU_MEMORY_SIZE,
-            )
-            self.add_ram("wr_cpu_mem", WR_CPU_MEMORY_ORIGIN, WR_CPU_MEMORY_SIZE, contents=contents)
-            wr_cpu_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN, size=WR_CPU_MEMORY_SIZE, mode="rwx")
-        elif wr_cpu_memory == "hyperram":
+        if wr_cpu_memory == "hyperram":
             wr_cpu_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN, size=WR_CPU_MEMORY_SIZE, mode="rwx")
             wr_cpu_bus    = wishbone.Interface(data_width=32, address_width=32, addressing="word")
             self.bus.add_slave(name="wr_cpu_mem", slave=wr_cpu_bus, region=wr_cpu_region)
@@ -233,13 +223,18 @@ class BaseSoC(LiteXWRNICSoC):
                 clk_ratio    = "4:1",
             )
             self.comb += self.wr_cpu_cache.slave.connect(self.hyperram.bus)
-            self.wr_cpu_boot = wr_cpu_loader = WRCPUFlashBoot(sys_clk_freq=sys_clk_freq)
-            self.bus.add_master(name="wr_cpu_boot",
-                master = wr_cpu_word_bus(self, wr_cpu_loader.bus),
-                region = wr_cpu_region,
-            )
-            wr_cpu_ready = wr_cpu_loader.ready
             self.add_config("WR_CPU_CACHE_SIZE", 8*KILOBYTE)
+        wr_memory = add_wr_cpu_memory(self,
+            cpu_type     = wr_cpu_type,
+            memory       = "region" if wr_cpu_memory == "hyperram" else wr_cpu_memory,
+            boot         = wr_cpu_boot,
+            firmware     = white_rabbit_cpu_binary,
+            region       = wr_cpu_region,
+            sys_clk_freq = sys_clk_freq,
+        )
+        wr_cpu_region = wr_memory["cpu_memory_region"]
+        wr_cpu_ready  = wr_memory["cpu_memory_ready"]
+        wr_cpu_loader = wr_memory["cpu_boot_loader"]
 
         # UART -------------------------------------------------------------------------------------
 
@@ -688,6 +683,8 @@ def main():
     parser.add_argument("--wr-cpu-memory", default="private",
         choices=["private", "integrated", "hyperram"],
         help="WR CPU memory implementation (default: private).")
+    parser.add_argument("--wr-cpu-boot", default="auto", choices=["auto", "embedded", "spi", "host"],
+        help="WR firmware source (auto: embedded for BRAM, SPI for HyperRAM).")
     parser.add_argument("--wr-cpu-type", default="urv",
         choices=WR_CPU_TYPES,
         help="WR CPU implementation (default: embedded uRV).")
@@ -724,6 +721,7 @@ def main():
         wr_cpu_type    = args.wr_cpu_type,
         wr_cpu_variant = args.wr_cpu_variant,
         wr_cpu_memory  = args.wr_cpu_memory,
+        wr_cpu_boot    = args.wr_cpu_boot,
     )
     if args.with_wishbone_fabric_interface_probe:
         soc.add_wishbone_fabric_interface_probe()
@@ -767,12 +765,12 @@ def main():
         bitstream = builder.get_bitstream_filename(mode="flash")
         sdb_image = "litex_wr_nic/firmware/sdb-wrpc.bin"
         boot_image = os.path.join("litex_wr_nic", "firmware",
-            wr_cpu_firmware_filename(args.wr_cpu_type, "boot")) if args.wr_cpu_memory == "hyperram" else None
+            wr_cpu_firmware_filename(args.wr_cpu_type, "boot")) if resolve_wr_boot(args.wr_cpu_memory, args.wr_cpu_boot) == "spi" else None
         validate_flash_layout(bitstream, sdb_image, boot_image)
         prog = soc.platform.create_programmer()
         prog.flash(0x0000_0000, bitstream)
         prog.flash(WR_SDB_FLASH_OFFSET, sdb_image)
-        if args.wr_cpu_memory == "hyperram":
+        if resolve_wr_boot(args.wr_cpu_memory, args.wr_cpu_boot) == "spi":
             prog.flash(WR_BOOT_FLASH_OFFSET, boot_image)
 
 if __name__ == "__main__":

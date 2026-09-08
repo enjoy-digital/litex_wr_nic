@@ -11,12 +11,13 @@ from litex_wr_nic.wr_boot import build_boot_image
 
 # Flash Boot Simulation ----------------------------------------------------------------------------
 
-def simulate_boot(image, startup_clocks=0, memory_latency=0):
+def simulate_boot(image, startup_clocks=0, memory_latency=0, **kwargs):
     dut = WRCPUFlashBoot(
         sys_clk_freq     = 100,
         spi_clk_freq     = 25,
         memory_wait      = 0,
         wishbone_timeout = 32,
+        **kwargs,
     )
     writes = []
     result = {}
@@ -158,3 +159,28 @@ def test_flash_boot_timeout_keeps_cpu_in_reset():
     result, writes = simulate_boot(build_boot_image(bytes(range(16))), memory_latency=100)
     assert result == {"ready": 0, "error": WRCPUFlashBoot.ERROR_WB_TIMEOUT}
     assert writes == []
+
+
+def test_profiled_flash_boot_checks_cpu_abi_before_writing():
+    payload = bytes(range(16))
+    for cpu in ("urv", "vexriscv"):
+        image = build_boot_image(payload, cpu_type=cpu)
+        result, writes = simulate_boot(image, cpu_type=cpu)
+        assert result == {"ready": 1, "error": 0}
+        assert len(writes) == 4
+        other = "urv" if cpu == "vexriscv" else "vexriscv"
+        result, writes = simulate_boot(image, cpu_type=other)
+        assert result["error"] == WRCPUFlashBoot.ERROR_PROFILE
+        assert not writes and not result["ready"]
+    for offset, error in ((20, WRCPUFlashBoot.ERROR_ABI), (24, WRCPUFlashBoot.ERROR_ADDRESS), (28, WRCPUFlashBoot.ERROR_ADDRESS)):
+        image = bytearray(build_boot_image(payload, cpu_type="urv"))
+        image[offset] ^= 2
+        result, writes = simulate_boot(image)
+        assert result["error"] == error
+        assert not writes and not result["ready"]
+
+
+def test_strict_flash_boot_rejects_legacy_image():
+    result, writes = simulate_boot(build_boot_image(bytes(range(16))), allow_legacy=False)
+    assert result["error"] == WRCPUFlashBoot.ERROR_VERSION
+    assert not writes and not result["ready"]

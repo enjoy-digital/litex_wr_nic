@@ -159,7 +159,7 @@ def copy_firmware(cpu_type):
         print(f"Error: Firmware file {FIRMWARE_BIN_SRC} does not exist.")
         exit(1)
     shutil.copy(FIRMWARE_BIN_SRC, firmware_bin_dest)
-    write_boot_image(firmware_bin_dest, firmware_boot_dest)
+    write_boot_image(firmware_bin_dest, firmware_boot_dest, cpu_type=cpu_type)
 
 def build_sdbfs():
     """Build the SDB filesystem."""

@@ -17,6 +17,8 @@ from pathlib import Path
 
 from litex import RemoteClient
 
+from litex_wr_nic.wr_boot import WR_BOOT_MAGIC, inspect_boot_image
+
 # Constants ----------------------------------------------------------------------------------------
 
 WR_INFO_MAGIC = 0x57524331
@@ -56,6 +58,10 @@ class WRClient:
             cpu_type = detected
         elif cpu_type is None and self.memory is None:
             cpu_type = "urv"
+        self.host_ready = next((reg for name, reg in self.regs.items()
+            if name.endswith("wr_cpu_boot_host_ready")), None)
+        self.memory_ready = next((reg for name, reg in self.regs.items()
+            if name.endswith("wr_cpu_boot_memory_ready")), None)
         self.cpu_type = cpu_type
         self.size     = min(self.memory.size if self.memory else 128*1024, 128*1024)
 
@@ -80,7 +86,7 @@ class WRClient:
             raise ValueError("This older image needs --cpu-type urv or --cpu-type vexriscv.")
         if self.read_cpu(CPU_RESET) & 1:
             return
-        if self.cpu_type == "urv":
+        if self.cpu_type == "urv" and not (self.host_ready and not self.host_ready.read()):
             # Drain the pipeline before reset. Direct early resets on the
             # upstream private-memory uRV wrapper can otherwise hang.
             previous = self.read_cpu(CPU_HALT)
@@ -99,6 +105,12 @@ class WRClient:
         time.sleep(0.05)
 
     def start(self):
+        if self.host_ready:
+            if not self.memory_ready.read():
+                raise RuntimeError("The memory controller is not ready; CPU remains in reset.")
+            self.host_ready.write(1)
+            if self.info:
+                self.wait(lambda: self.reg("status").read() & 1, "Host boot readiness did not reach the CPU.")
         if self.info and not self.reg("status").read() & 1:
             raise RuntimeError("WR memory is not ready; CPU remains in reset.")
         self.write_cpu(CPU_RESET, 0)
@@ -122,21 +134,40 @@ class WRClient:
             self.write_cpu(CPU_ADDRESS, offset // 4)
             self.write_cpu(CPU_DATA, value)
 
-    def load_firmware(self, data, firmware_cpu):
+    def load_firmware(self, data, firmware_cpu=None):
+        if data.startswith(WR_BOOT_MAGIC):
+            image = inspect_boot_image(data, max_payload=self.size, cpu_type=self.cpu_type)
+            if firmware_cpu and image["cpu_type"] and firmware_cpu != image["cpu_type"]:
+                raise ValueError("Declared firmware CPU disagrees with boot image metadata.")
+            firmware_cpu = image["cpu_type"] or firmware_cpu
+            data = image["payload"]
+        if firmware_cpu is None:
+            raise ValueError("Raw and legacy images require --firmware-cpu.")
         if firmware_cpu != self.cpu_type:
             raise ValueError("Firmware CPU profile does not match the loaded hardware.")
         if not data or len(data) > self.size:
             raise ValueError("Firmware must fit in the reserved WR CPU memory.")
+        if self.memory_ready and not self.memory_ready.read():
+            raise RuntimeError("The memory controller is not ready for firmware upload.")
         data  = data.ljust(self.size, b"\x00")
         order = "little" if self.memory else "big"
         self.stop()
         # Use the shared SoC memory path, including any HyperRAM cache.
-        for offset in range(0, len(data), 4):
-            self.write_word(offset, int.from_bytes(data[offset:offset+4], order))
-        for offset in range(0, len(data), 4):
-            expected = int.from_bytes(data[offset:offset+4], order)
-            if self.read_word(offset) != expected:
-                raise RuntimeError(f"Firmware verification failed at 0x{offset:08x}; CPU remains in reset.")
+        words = [int.from_bytes(data[offset:offset+4], order) for offset in range(0, len(data), 4)]
+        if self.memory:
+            for index in range(0, len(words), 64):
+                self.bus.write(self.memory.base + 4*index, words[index:index+64])
+            for index in range(0, len(words), 64):
+                expected = words[index:index+64]
+                actual = self.bus.read(self.memory.base + 4*index, length=len(expected))
+                if actual != expected:
+                    raise RuntimeError(f"Firmware verification failed near 0x{4*index:08x}; CPU remains in reset.")
+        else:
+            for index, word in enumerate(words):
+                self.write_word(4*index, word)
+            for index, word in enumerate(words):
+                if self.read_word(4*index) != word:
+                    raise RuntimeError(f"Firmware verification failed at 0x{4*index:08x}; CPU remains in reset.")
         self.start()
 
     def status(self):
@@ -275,7 +306,7 @@ def main():
     console.add_argument("--command", dest="console_command")
     load = commands.add_parser("load-firmware")
     load.add_argument("file", type=Path)
-    load.add_argument("--firmware-cpu", choices=tuple(CPU_TYPES.values()), required=True)
+    load.add_argument("--firmware-cpu", choices=tuple(CPU_TYPES.values()), help="Required for raw/legacy images.")
     args = parser.parse_args()
     bus = RemoteClient(
         host             = args.host,
