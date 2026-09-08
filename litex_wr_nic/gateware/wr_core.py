@@ -44,6 +44,7 @@ class WhiteRabbitCore(LiteXModule):
     application Ethernet bytes in ``sys``. Control/fabric/DAC signals use
     ``wr_sys``; PPS and timecode use ``wr`` (the PHY reference clock).
     The caller supplies board pads and clocks and registers the bus regions.
+    HDL sources are registered automatically during finalization.
     """
 
     def __init__(self, platform,
@@ -166,7 +167,8 @@ class WhiteRabbitCore(LiteXModule):
 
         # White Rabbit Slave Interface.
         # -----------------------------
-        wb_slave_mask = (wb_slave_size - 1)
+        # The host bus uses word addresses; the region size is in bytes.
+        wb_slave_mask = (wb_slave_size // 4) - 1
         self.wb_slave_sys = wb_slave_sys = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.wb_slave_wr  = wb_slave_wr  = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.bus    = wb_slave_sys
@@ -384,8 +386,15 @@ class WhiteRabbitCore(LiteXModule):
             o_tm_cycles_o         = self.tm_cycles,
         )
 
+    def do_finalize(self):
+        self.add_sources(self.platform)
+
     @staticmethod
     def add_sources(platform):
+        # Keep explicit calls from older integrations harmless when the core
+        # subsequently registers its sources during finalization.
+        if getattr(platform, "_wr_core_sources_added", False):
+            return
         if not os.path.exists("wr-cores"):
             wr_core_init()
         patch_wr_subsystem_mux_class()
@@ -394,31 +403,34 @@ class WhiteRabbitCore(LiteXModule):
         patch_wr_external_cpu_memory()
         for filename in wr_core_files:
             platform.add_source(filename)
+        platform._wr_core_sources_added = True
 
 # SoC Integration ---------------------------------------------------------------------------------
 
 def add_white_rabbit(soc, cpu_firmware, cpu_memory_region=None,
-    wb_slave_origin=0x2000_0000, wb_slave_size=0x0100_0000, **kwargs):
+    wb_slave_origin=0x2000_0000, wb_slave_size=0x0100_0000, wb_slave_region=None, **kwargs):
     """Attach the standalone core, preserving the original target attributes.
 
     New integrations can instantiate WhiteRabbitCore directly to choose their
     own hierarchy and CSR names. This adapter retains the existing names used
     by the NIC targets and their host software.
+
+    wb_slave_region supplies the host mapping and overrides the legacy
+    wb_slave_origin/wb_slave_size arguments when provided.
     """
     from litex.soc.integration.soc import SoCRegion
 
     if hasattr(soc, "wr_core"):
         raise ValueError("White Rabbit is already attached to this SoC.")
+    if wb_slave_region is None:
+        wb_slave_region = SoCRegion(origin=wb_slave_origin, size=wb_slave_size)
     soc.wr_core = core = WhiteRabbitCore(soc.platform,
         cpu_firmware    = cpu_firmware,
         with_cpu_memory = cpu_memory_region is not None,
-        wb_slave_size   = wb_slave_size,
+        wb_slave_size   = wb_slave_region.size_pow2,
         **kwargs,
     )
-    soc.bus.add_slave(name="wr_wb_slave", slave=core.bus, region=SoCRegion(
-        origin = wb_slave_origin,
-        size   = wb_slave_size,
-    ))
+    soc.bus.add_slave(name="wr_wb_slave", slave=core.bus, region=wb_slave_region)
     if core.cpu_bus is not None:
         soc.bus.add_master(name="wr_cpu", master=core.cpu_bus, region=cpu_memory_region)
 

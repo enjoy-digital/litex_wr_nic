@@ -237,8 +237,6 @@ class BaseSoC(LiteXWRNICSoC):
                 serial_pads      = self.uart.shared_pads,
              )
 
-            self.add_sources()
-
             # RefClk MMCM Phase Shift.
             # ------------------------
             self.refclk_mmcm_ps_gen = Instance("ps_gen",
