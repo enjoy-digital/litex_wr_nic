@@ -155,8 +155,13 @@ class WRClient:
         # Use the shared SoC memory path, including any HyperRAM cache.
         words = [int.from_bytes(data[offset:offset+4], order) for offset in range(0, len(data), 4)]
         if self.memory:
-            for index in range(0, len(words), 64):
-                self.bus.write(self.memory.base + 4*index, words[index:index+64])
+            for index in range(0, len(words), 16):
+                chunk = words[index:index+16]
+                self.bus.write(self.memory.base + 4*index, chunk)
+                # RemoteClient writes have no response. Fence each batch so a
+                # slow transport cannot accumulate the entire image ahead of
+                # the first read and exceed its response timeout.
+                self.bus.read(self.memory.base + 4*(index + len(chunk) - 1))
             for index in range(0, len(words), 64):
                 expected = words[index:index+64]
                 actual = self.bus.read(self.memory.base + 4*index, length=len(expected))

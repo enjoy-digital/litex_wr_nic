@@ -287,3 +287,33 @@ def test_host_boot_rejects_upload_before_ddr_initialization():
     with pytest.raises(RuntimeError, match="memory controller"):
         WRClient(bus).load_firmware(b"test", "vexriscv")
     assert not any(op[0] == "write" for op in bus.operations)
+
+
+def test_upload_fences_writes_and_detects_memory_aliasing():
+    class QueuedBus(Bus):
+        def __init__(self, alias=False):
+            super().__init__(external=True, info=True, cpu="vexriscv")
+            self.mems.wr_cpu_mem.size = 512
+            self.queued = 0
+            self.alias = alias
+
+        def write(self, address, value):
+            if address >= 0x50000000 and not isinstance(value, list):
+                self.queued += 1
+                assert self.queued <= 16, "Host queued writes without waiting for the transport"
+                if self.alias:
+                    address = 0x50000000 + (address - 0x50000000) % 64
+            super().write(address, value)
+
+        def read(self, address, length=None):
+            self.queued = 0
+            if self.alias and length is None and address >= 0x50000000:
+                address = 0x50000000 + (address - 0x50000000) % 64
+            return super().read(address, length)
+
+    image = bytes(range(256)) + bytes(256)
+    WRClient(QueuedBus()).load_firmware(image, "vexriscv")
+    bus = QueuedBus(alias=True)
+    with pytest.raises(RuntimeError, match="verification failed"):
+        WRClient(bus).load_firmware(image, "vexriscv")
+    assert WRClient(bus).read_cpu(CPU_RESET) == 1
