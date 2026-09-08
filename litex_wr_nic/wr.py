@@ -164,15 +164,17 @@ class WRClient:
                 self.bus.read(self.memory.base + 4*(index + len(chunk) - 1))
             for index in range(0, len(words), 64):
                 expected = words[index:index+64]
-                actual = self.bus.read(self.memory.base + 4*index, length=len(expected))
+                actual   = self.bus.read(self.memory.base + 4*index, length=len(expected))
                 if actual != expected:
-                    raise RuntimeError(f"Firmware verification failed near 0x{4*index:08x}; CPU remains in reset.")
+                    raise RuntimeError(
+                        f"Firmware verification failed near 0x{4*index:08x}; CPU remains in reset.")
         else:
             for index, word in enumerate(words):
                 self.write_word(4*index, word)
             for index, word in enumerate(words):
                 if self.read_word(4*index) != word:
-                    raise RuntimeError(f"Firmware verification failed at 0x{4*index:08x}; CPU remains in reset.")
+                    raise RuntimeError(
+                        f"Firmware verification failed at 0x{4*index:08x}; CPU remains in reset.")
         self.start()
 
     def status(self):

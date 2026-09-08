@@ -9,15 +9,17 @@ from types import SimpleNamespace
 import pytest
 
 from migen import Signal, run_simulation
+
 from litex.gen import LiteXModule
 from litex.soc.integration.soc import SoCRegion
 
 from litex_wr_nic.gateware.wr_memory import WRCPUHostBoot, add_wr_cpu_memory, resolve_wr_boot
 
+# Memory and Boot Policy Tests ---------------------------------------------------------------------
 
 def test_host_boot_waits_for_host_and_memory_controller():
     ready = Signal()
-    dut = WRCPUHostBoot(ready)
+    dut   = WRCPUHostBoot(ready)
 
     def check():
         assert (yield dut.ready) == 0
@@ -38,8 +40,8 @@ def test_memory_and_boot_are_independent(tmp_path):
     binary = tmp_path / "firmware.bin"
     binary.write_bytes(bytes.fromhex("12345678"))
     for boot in ("embedded", "host", "spi"):
-        soc = LiteXModule()
-        rams = []
+        soc     = LiteXModule()
+        rams    = []
         masters = []
         soc.add_ram = lambda *args, **kwargs: rams.append((args, kwargs))
         soc.bus = SimpleNamespace(add_master=lambda **kwargs: masters.append(kwargs))
@@ -52,8 +54,8 @@ def test_memory_and_boot_are_independent(tmp_path):
 
 
 def test_reserved_ddr_region_and_invalid_configuration():
-    soc = LiteXModule()
-    region = SoCRegion(origin=0x51000000, size=128*1024)
+    soc     = LiteXModule()
+    region  = SoCRegion(origin=0x51000000, size=128*1024)
     regions = {"main_ram": SoCRegion(origin=0x50000000, size=32*1024*1024)}
     soc.bus = SimpleNamespace(regions=regions,
         add_region=lambda name, region: regions.update({name: region}))

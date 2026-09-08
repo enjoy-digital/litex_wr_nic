@@ -172,7 +172,11 @@ def test_profiled_flash_boot_checks_cpu_abi_before_writing():
         result, writes = simulate_boot(image, cpu_type=other)
         assert result["error"] == WRCPUFlashBoot.ERROR_PROFILE
         assert not writes and not result["ready"]
-    for offset, error in ((20, WRCPUFlashBoot.ERROR_ABI), (24, WRCPUFlashBoot.ERROR_ADDRESS), (28, WRCPUFlashBoot.ERROR_ADDRESS)):
+    for offset, error in (
+        (20, WRCPUFlashBoot.ERROR_ABI),
+        (24, WRCPUFlashBoot.ERROR_ADDRESS),
+        (28, WRCPUFlashBoot.ERROR_ADDRESS),
+    ):
         image = bytearray(build_boot_image(payload, cpu_type="urv"))
         image[offset] ^= 2
         result, writes = simulate_boot(image)

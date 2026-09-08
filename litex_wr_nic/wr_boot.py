@@ -13,18 +13,18 @@ from pathlib import Path
 
 # Constants ----------------------------------------------------------------------------------------
 
-WR_BOOT_MAGIC        = b"WRCB"
-WR_BOOT_VERSION      = 1
+WR_BOOT_MAGIC           = b"WRCB"
+WR_BOOT_VERSION         = 1
 WR_BOOT_PROFILE_VERSION = 2
 WR_BOOT_PROFILE_HEADER  = struct.Struct("<4sIIIIIII")
 WR_BOOT_CPU_IDS         = {"urv": 0, "vexriscv": 1}
 WR_BOOT_ABI             = 1 # WRPC RV32, little-endian, reset vector zero.
-WR_BOOT_HEADER       = struct.Struct("<4sIII")
-WR_BOOT_MAX_PAYLOAD  = 128 * 1024
-WR_BOOT_FLASH_OFFSET = 0x002f_0000
-WR_SDB_FLASH_OFFSET  = 0x002e_0000
-WR_SDB_MAX_SIZE      = 64 * 1024
-SPEC_A7_FLASH_SIZE   = 16 * 1024 * 1024
+WR_BOOT_HEADER          = struct.Struct("<4sIII")
+WR_BOOT_MAX_PAYLOAD     = 128 * 1024
+WR_BOOT_FLASH_OFFSET    = 0x002f_0000
+WR_SDB_FLASH_OFFSET     = 0x002e_0000
+WR_SDB_MAX_SIZE         = 64 * 1024
+SPEC_A7_FLASH_SIZE      = 16 * 1024 * 1024
 
 # Boot Image Helpers -------------------------------------------------------------------------------
 
@@ -55,7 +55,7 @@ def inspect_boot_image(image, max_payload=WR_BOOT_MAX_PAYLOAD, cpu_type=None):
     if magic != WR_BOOT_MAGIC:
         raise ValueError("invalid WR CPU boot-image magic")
     header_size = WR_BOOT_HEADER.size
-    profile = None
+    profile     = None
     if version == WR_BOOT_PROFILE_VERSION:
         header_size = WR_BOOT_PROFILE_HEADER.size
         if len(image) < header_size:

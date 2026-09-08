@@ -7,9 +7,10 @@
 from migen import *
 
 from litex.gen import *
-from litex.soc.integration.common import get_mem_data
-from litex.soc.integration.soc import SoCRegion
+
 from litex.soc.interconnect.csr import CSRStorage, CSRStatus
+from litex.soc.integration.soc import SoCRegion
+from litex.soc.integration.common import get_mem_data
 
 from litex_wr_nic.gateware.wr_cpu import (
     WRCPUFlashBoot, WR_CPU_MEMORY_ORIGIN, WR_CPU_MEMORY_SIZE,
@@ -22,8 +23,10 @@ class WRCPUHostBoot(LiteXModule):
     """Hold the CPU until the host has loaded and verified its memory."""
     def __init__(self, memory_ready=1):
         self.ready         = Signal()
-        self._host_ready   = CSRStorage()
-        self._memory_ready = CSRStatus()
+        self._host_ready = CSRStorage(
+            description="Release the WR CPU after the host has loaded and verified its firmware.")
+        self._memory_ready = CSRStatus(
+            description="The SoC memory controller is ready for WR CPU accesses.")
 
         # # #
 
@@ -61,7 +64,7 @@ def add_wr_cpu_memory(soc, cpu_type="urv", memory="integrated", boot="auto",
     if boot == "spi" and sys_clk_freq is None:
         raise ValueError("SPI boot requires the system clock frequency.")
     loader = None
-    ready = memory_ready
+    ready  = memory_ready
     if memory == "private":
         if region is not None:
             raise ValueError("Private memory cannot use a SoC memory region.")
@@ -76,9 +79,12 @@ def add_wr_cpu_memory(soc, cpu_type="urv", memory="integrated", boot="auto",
         raise ValueError("WR CPU memory must be readable and writable.")
     if memory == "region":
         regions = soc.bus.regions
-        if not any(region.origin >= parent.origin and
+        if not any(
+            region.origin >= parent.origin and
             region.origin + region.size <= parent.origin + parent.size and
-            not parent.linker for parent in regions.values()):
+            not parent.linker
+            for parent in regions.values()
+        ):
             raise ValueError("The reserved WR memory region must be backed by an existing SoC region.")
         existing = regions.get("wr_cpu_mem")
         if existing is not None:
@@ -99,7 +105,11 @@ def add_wr_cpu_memory(soc, cpu_type="urv", memory="integrated", boot="auto",
         if boot == "embedded":
             if firmware is None:
                 raise ValueError("Embedded WR boot requires a firmware binary.")
-            contents = get_mem_data(firmware, data_width=32, endianness="little", mem_size=region.size)
+            contents = get_mem_data(firmware,
+                data_width = 32,
+                endianness = "little",
+                mem_size   = region.size,
+            )
         soc.add_ram("wr_cpu_mem", region.origin, region.size, contents=contents)
     if boot == "spi":
         soc.wr_cpu_boot = loader = WRCPUFlashBoot(sys_clk_freq,

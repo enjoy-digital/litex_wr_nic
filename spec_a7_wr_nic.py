@@ -32,7 +32,6 @@ from litex.soc.cores.clock          import S7PLL, S7MMCM
 from litex.soc.cores.led            import LedChaser
 from litex.soc.cores.spi.spi_master import SPIMaster
 from litex.soc.cores.hyperbus       import HyperRAM
-from litex.soc.integration.common   import get_mem_data
 from litex.soc.integration.soc      import SoCRegion
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
@@ -53,13 +52,11 @@ from litex_wr_nic.gateware.clk10m            import Clk10MGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
 from litex_wr_nic.gateware.wr_memory         import add_wr_cpu_memory, resolve_wr_boot
 from litex_wr_nic.gateware.wr_cpu            import (
-    WRCPUFlashBoot,
     WR_CPU_MEMORY_ORIGIN,
     WR_CPU_MEMORY_SIZE,
     WR_CPU_TYPES,
     validate_wr_cpu_config,
     wr_cpu_firmware_filename,
-    wr_cpu_word_bus,
 )
 from litex_wr_nic.wr_boot import WR_BOOT_FLASH_OFFSET, WR_SDB_FLASH_OFFSET, validate_flash_layout
 
@@ -201,7 +198,7 @@ class BaseSoC(LiteXWRNICSoC):
             white_rabbit_cpu_binary = os.path.join("litex_wr_nic", "firmware",
                 wr_cpu_firmware_filename(wr_cpu_type, "bin"))
 
-        wr_cpu_boot = resolve_wr_boot(wr_cpu_memory, wr_cpu_boot)
+        wr_cpu_boot   = resolve_wr_boot(wr_cpu_memory, wr_cpu_boot)
         wr_cpu_region = None
         if wr_cpu_memory == "hyperram":
             wr_cpu_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN, size=WR_CPU_MEMORY_SIZE, mode="rwx")
@@ -764,8 +761,10 @@ def main():
     if args.flash:
         bitstream = builder.get_bitstream_filename(mode="flash")
         sdb_image = "litex_wr_nic/firmware/sdb-wrpc.bin"
-        boot_image = os.path.join("litex_wr_nic", "firmware",
-            wr_cpu_firmware_filename(args.wr_cpu_type, "boot")) if resolve_wr_boot(args.wr_cpu_memory, args.wr_cpu_boot) == "spi" else None
+        boot_image = (
+            os.path.join("litex_wr_nic", "firmware", wr_cpu_firmware_filename(args.wr_cpu_type, "boot"))
+            if resolve_wr_boot(args.wr_cpu_memory, args.wr_cpu_boot) == "spi" else None
+        )
         validate_flash_layout(bitstream, sdb_image, boot_image)
         prog = soc.platform.create_programmer()
         prog.flash(0x0000_0000, bitstream)
