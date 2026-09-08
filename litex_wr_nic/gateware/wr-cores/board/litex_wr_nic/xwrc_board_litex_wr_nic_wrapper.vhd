@@ -41,6 +41,7 @@ entity xwrc_board_litex_wr_nic_wrapper is
     g_dpram_initf               : string  := "default_xilinx";
     g_dpram_size                : integer := 131072/4;
     g_external_cpu_memory       : boolean := false;
+    g_external_cpu              : boolean := false;
     -- identification (id and ver) of the layout of words in the generic diag interface
     g_diag_id                   : integer := 0;
     g_diag_ver                  : integer := 0;
@@ -111,6 +112,21 @@ entity xwrc_board_litex_wr_nic_wrapper is
     cpu_mem_rty_i        : in  std_logic := '0';
     cpu_mem_stall_i      : in  std_logic := '0';
     cpu_mem_ready_i      : in  std_logic := '1';
+
+    -- Optional CPU instantiated by LiteX.
+    cpu_ext_cyc_i        : in  std_logic := '0';
+    cpu_ext_stb_i        : in  std_logic := '0';
+    cpu_ext_we_i         : in  std_logic := '0';
+    cpu_ext_adr_i        : in  std_logic_vector(31 downto 0) := (others => '0');
+    cpu_ext_sel_i        : in  std_logic_vector(3 downto 0) := (others => '0');
+    cpu_ext_dat_i        : in  std_logic_vector(31 downto 0) := (others => '0');
+    cpu_ext_dat_o        : out std_logic_vector(31 downto 0);
+    cpu_ext_ack_o        : out std_logic;
+    cpu_ext_err_o        : out std_logic;
+    cpu_ext_rty_o        : out std_logic;
+    cpu_ext_stall_o      : out std_logic;
+    cpu_ext_irq_o        : out std_logic;
+    cpu_ext_reset_o      : out std_logic;
 
     -- WRF
     wrf_src_adr          : out std_logic_vector(1 downto 0);
@@ -206,6 +222,9 @@ architecture wrapper of xwrc_board_litex_wr_nic_wrapper is
   signal cpu_mem_out : t_wishbone_master_out;
   signal cpu_mem_in  : t_wishbone_master_in := cc_dummy_master_in;
 
+  signal cpu_ext_master_out : t_wishbone_master_out := cc_dummy_master_out;
+  signal cpu_ext_master_in  : t_wishbone_master_in := cc_dummy_master_in;
+
 begin
 
   -- wrf_src Record -> Signals.
@@ -264,6 +283,19 @@ begin
   cpu_mem_in.rty  <= cpu_mem_rty_i;
   cpu_mem_in.stall <= cpu_mem_stall_i;
 
+  -- External-CPU Signals <-> Record.
+  cpu_ext_master_out.cyc <= cpu_ext_cyc_i;
+  cpu_ext_master_out.stb <= cpu_ext_stb_i;
+  cpu_ext_master_out.we  <= cpu_ext_we_i;
+  cpu_ext_master_out.adr <= cpu_ext_adr_i;
+  cpu_ext_master_out.sel <= cpu_ext_sel_i;
+  cpu_ext_master_out.dat <= cpu_ext_dat_i;
+  cpu_ext_dat_o          <= cpu_ext_master_in.dat;
+  cpu_ext_ack_o          <= cpu_ext_master_in.ack;
+  cpu_ext_err_o          <= cpu_ext_master_in.err;
+  cpu_ext_rty_o          <= cpu_ext_master_in.rty;
+  cpu_ext_stall_o        <= cpu_ext_master_in.stall;
+
   -- xwrc_board_litex_wr_nic Instance.
   u_xwrc_board_litex_wr_nic : entity work.xwrc_board_litex_wr_nic
     generic map (
@@ -279,6 +311,7 @@ begin
       g_dpram_initf               => g_dpram_initf,
       g_dpram_size                => g_dpram_size,
       g_external_cpu_memory       => g_external_cpu_memory,
+      g_external_cpu              => g_external_cpu,
       g_diag_id                   => g_diag_id,
       g_diag_ver                  => g_diag_ver,
       g_diag_ro_size              => g_diag_ro_size,
@@ -322,6 +355,10 @@ begin
       cpu_mem_o            => cpu_mem_out,
       cpu_mem_i            => cpu_mem_in,
       cpu_mem_ready_i      => cpu_mem_ready_i,
+      cpu_ext_master_i     => cpu_ext_master_out,
+      cpu_ext_master_o     => cpu_ext_master_in,
+      cpu_ext_irq_o        => cpu_ext_irq_o,
+      cpu_ext_reset_o      => cpu_ext_reset_o,
 
       wrf_src_o            => wrf_src_o,
       wrf_src_i            => wrf_src_i,

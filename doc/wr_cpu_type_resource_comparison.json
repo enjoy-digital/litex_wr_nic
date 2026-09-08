@@ -1,0 +1,373 @@
+{
+  "metadata": {
+    "git_sha": "20b3641a6bdf46779ce5e05717d46bc0df071772",
+    "git_dirty": true,
+    "target": "spec_a7_wr_nic",
+    "device": "xc7a50tcsg325-2",
+    "tool_version": "Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024",
+    "firmware_sha256": {
+      "urv": "26b47b5ace087438b7964f1ff74c2f10ac3739ce85e434ad925816ff2fe046a4",
+      "vexriscv-lite": "8ee256c1688dcaa803c3e76d65499e183db7c68f3cd02d683a4ebd49df4cb357"
+    },
+    "wr_cpu_clk_hz": 62500000,
+    "directives": {
+      "place": "Explore",
+      "route": "Explore",
+      "post_route_phys_opt": "Explore"
+    }
+  },
+  "configs": {
+    "urv-integrated": {
+      "slice_luts": 12361,
+      "logic_luts": 11902,
+      "lut_memory": 459,
+      "lutram": 446,
+      "srls": 13,
+      "ffs": 15141,
+      "ramb36": 65,
+      "ramb18": 16,
+      "dsps": 8,
+      "bram18_equivalent": 146,
+      "tool_version": "Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024",
+      "device": "xc7a50tcsg325-2",
+      "wns_ns": 0.004,
+      "tns_ns": 0.0,
+      "setup_failing_endpoints": 0,
+      "whs_ns": 0.028,
+      "ths_ns": 0.0,
+      "hold_failing_endpoints": 0,
+      "hierarchy": [
+        {
+          "instance": "gen_external_cpu_memory.U_CPU_EXTERNAL",
+          "module": "wrc_urv_external_memory",
+          "total_luts": 1919,
+          "logic_luts": 1919,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 1256,
+          "ramb36": 0,
+          "ramb18": 2,
+          "dsps": 4
+        },
+        {
+          "instance": "(gen_external_cpu_memory.U_CPU_EXTERNAL)",
+          "module": "wrc_urv_external_memory",
+          "total_luts": 310,
+          "logic_luts": 310,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 259,
+          "ramb36": 0,
+          "ramb18": 0,
+          "dsps": 0
+        }
+      ],
+      "reports": {
+        "utilization": "gateware/spec_a7_wr_nic_utilization_place.rpt",
+        "timing": "gateware/spec_a7_wr_nic_timing.rpt",
+        "hierarchy": "gateware/spec_a7_wr_nic_utilization_hierarchical_place.rpt"
+      },
+      "bit_bytes": 1829716,
+      "bin_bytes": null,
+      "build_seconds": 316.442,
+      "wr_clk_wns_ns": 4.54
+    },
+    "vexriscv-lite-integrated": {
+      "slice_luts": 12292,
+      "logic_luts": 11837,
+      "lut_memory": 455,
+      "lutram": 442,
+      "srls": 13,
+      "ffs": 15167,
+      "ramb36": 65,
+      "ramb18": 18,
+      "dsps": 4,
+      "bram18_equivalent": 148,
+      "tool_version": "Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024",
+      "device": "xc7a50tcsg325-2",
+      "wns_ns": -0.011,
+      "tns_ns": -0.112,
+      "setup_failing_endpoints": 17,
+      "whs_ns": 0.028,
+      "ths_ns": 0.0,
+      "hold_failing_endpoints": 0,
+      "hierarchy": [
+        {
+          "instance": "VexRiscv",
+          "module": "VexRiscv",
+          "total_luts": 1427,
+          "logic_luts": 1427,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 1041,
+          "ramb36": 0,
+          "ramb18": 4,
+          "dsps": 0
+        },
+        {
+          "instance": "(VexRiscv)",
+          "module": "VexRiscv",
+          "total_luts": 922,
+          "logic_luts": 922,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 946,
+          "ramb36": 0,
+          "ramb18": 2,
+          "dsps": 0
+        },
+        {
+          "instance": "IBusCachedPlugin_cache",
+          "module": "InstructionCache",
+          "total_luts": 521,
+          "logic_luts": 521,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 95,
+          "ramb36": 0,
+          "ramb18": 2,
+          "dsps": 0
+        },
+        {
+          "instance": "gen_external_cpu.U_CPU_CONTROL",
+          "module": "wrc_external_cpu_control",
+          "total_luts": 57,
+          "logic_luts": 57,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 154,
+          "ramb36": 0,
+          "ramb18": 0,
+          "dsps": 0
+        }
+      ],
+      "reports": {
+        "utilization": "gateware/spec_a7_wr_nic_utilization_place.rpt",
+        "timing": "gateware/spec_a7_wr_nic_timing.rpt",
+        "hierarchy": "gateware/spec_a7_wr_nic_utilization_hierarchical_place.rpt"
+      },
+      "bit_bytes": 1810396,
+      "bin_bytes": null,
+      "build_seconds": 446.811,
+      "wr_clk_wns_ns": 4.413
+    },
+    "urv-hyperram": {
+      "slice_luts": 12975,
+      "logic_luts": 12496,
+      "lut_memory": 479,
+      "lutram": 466,
+      "srls": 13,
+      "ffs": 15933,
+      "ramb36": 34,
+      "ramb18": 21,
+      "dsps": 8,
+      "bram18_equivalent": 89,
+      "tool_version": "Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024",
+      "device": "xc7a50tcsg325-2",
+      "wns_ns": -0.144,
+      "tns_ns": -2.339,
+      "setup_failing_endpoints": 28,
+      "whs_ns": 0.028,
+      "ths_ns": 0.0,
+      "hold_failing_endpoints": 0,
+      "hierarchy": [
+        {
+          "instance": "gen_external_cpu_memory.U_CPU_EXTERNAL",
+          "module": "wrc_urv_external_memory",
+          "total_luts": 1917,
+          "logic_luts": 1917,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 1256,
+          "ramb36": 0,
+          "ramb18": 2,
+          "dsps": 4
+        },
+        {
+          "instance": "(gen_external_cpu_memory.U_CPU_EXTERNAL)",
+          "module": "wrc_urv_external_memory",
+          "total_luts": 311,
+          "logic_luts": 311,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 259,
+          "ramb36": 0,
+          "ramb18": 0,
+          "dsps": 0
+        }
+      ],
+      "reports": {
+        "utilization": "gateware/spec_a7_wr_nic_utilization_place.rpt",
+        "timing": "gateware/spec_a7_wr_nic_timing.rpt",
+        "hierarchy": "gateware/spec_a7_wr_nic_utilization_hierarchical_place.rpt"
+      },
+      "bit_bytes": 1611720,
+      "bin_bytes": null,
+      "build_seconds": 475.554,
+      "wr_clk_wns_ns": 5.282
+    },
+    "vexriscv-lite-hyperram": {
+      "slice_luts": 12754,
+      "logic_luts": 12277,
+      "lut_memory": 477,
+      "lutram": 464,
+      "srls": 13,
+      "ffs": 15970,
+      "ramb36": 34,
+      "ramb18": 23,
+      "dsps": 4,
+      "bram18_equivalent": 91,
+      "tool_version": "Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024",
+      "device": "xc7a50tcsg325-2",
+      "wns_ns": -0.527,
+      "tns_ns": -26.231,
+      "setup_failing_endpoints": 79,
+      "whs_ns": 0.028,
+      "ths_ns": 0.0,
+      "hold_failing_endpoints": 0,
+      "hierarchy": [
+        {
+          "instance": "VexRiscv",
+          "module": "VexRiscv",
+          "total_luts": 1420,
+          "logic_luts": 1420,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 1041,
+          "ramb36": 0,
+          "ramb18": 4,
+          "dsps": 0
+        },
+        {
+          "instance": "(VexRiscv)",
+          "module": "VexRiscv",
+          "total_luts": 926,
+          "logic_luts": 926,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 946,
+          "ramb36": 0,
+          "ramb18": 2,
+          "dsps": 0
+        },
+        {
+          "instance": "IBusCachedPlugin_cache",
+          "module": "InstructionCache",
+          "total_luts": 515,
+          "logic_luts": 515,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 95,
+          "ramb36": 0,
+          "ramb18": 2,
+          "dsps": 0
+        },
+        {
+          "instance": "gen_external_cpu.U_CPU_CONTROL",
+          "module": "wrc_external_cpu_control",
+          "total_luts": 57,
+          "logic_luts": 57,
+          "lutram": 0,
+          "srls": 0,
+          "ffs": 154,
+          "ramb36": 0,
+          "ramb18": 0,
+          "dsps": 0
+        }
+      ],
+      "reports": {
+        "utilization": "gateware/spec_a7_wr_nic_utilization_place.rpt",
+        "timing": "gateware/spec_a7_wr_nic_timing.rpt",
+        "hierarchy": "gateware/spec_a7_wr_nic_utilization_hierarchical_place.rpt"
+      },
+      "bit_bytes": 1594152,
+      "bin_bytes": null,
+      "build_seconds": 431.982,
+      "wr_clk_wns_ns": 5.102
+    }
+  },
+  "vexriscv_delta_vs_urv": {
+    "integrated": {
+      "slice_luts": {
+        "absolute": -69,
+        "percent": -0.5582072647844025
+      },
+      "logic_luts": {
+        "absolute": -65,
+        "percent": -0.5461267013947235
+      },
+      "lut_memory": {
+        "absolute": -4,
+        "percent": -0.8714596949891068
+      },
+      "ffs": {
+        "absolute": 26,
+        "percent": 0.17171917310613566
+      },
+      "ramb36": {
+        "absolute": 0,
+        "percent": 0.0
+      },
+      "ramb18": {
+        "absolute": 2,
+        "percent": 12.5
+      },
+      "bram18_equivalent": {
+        "absolute": 2,
+        "percent": 1.36986301369863
+      },
+      "dsps": {
+        "absolute": -4,
+        "percent": -50.0
+      },
+      "bit_bytes": {
+        "absolute": -19320,
+        "percent": -1.0559015716100204
+      },
+      "wns_ns": -0.015,
+      "whs_ns": 0.0,
+      "wr_clk_wns_ns": -0.12699999999999978
+    },
+    "hyperram": {
+      "slice_luts": {
+        "absolute": -221,
+        "percent": -1.7032755298651252
+      },
+      "logic_luts": {
+        "absolute": -219,
+        "percent": -1.752560819462228
+      },
+      "lut_memory": {
+        "absolute": -2,
+        "percent": -0.4175365344467641
+      },
+      "ffs": {
+        "absolute": 37,
+        "percent": 0.2322224314316199
+      },
+      "ramb36": {
+        "absolute": 0,
+        "percent": 0.0
+      },
+      "ramb18": {
+        "absolute": 2,
+        "percent": 9.523809523809524
+      },
+      "bram18_equivalent": {
+        "absolute": 2,
+        "percent": 2.247191011235955
+      },
+      "dsps": {
+        "absolute": -4,
+        "percent": -50.0
+      },
+      "bit_bytes": {
+        "absolute": -17568,
+        "percent": -1.0900156354701809
+      },
+      "wns_ns": -0.383,
+      "whs_ns": 0.0,
+      "wr_clk_wns_ns": -0.17999999999999972
+    }
+  }
+}

@@ -47,7 +47,13 @@ from litex_wr_nic.gateware.time              import TimeGenerator
 from litex_wr_nic.gateware.measurement       import MultiClkMeasurement
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
-from litex_wr_nic.gateware.wr_cpu            import WR_CPU_MEMORY_ORIGIN, WR_CPU_MEMORY_SIZE
+from litex_wr_nic.gateware.wr_cpu            import (
+    WR_CPU_MEMORY_ORIGIN,
+    WR_CPU_MEMORY_SIZE,
+    WR_CPU_TYPES,
+    validate_wr_cpu_config,
+    wr_cpu_firmware_filename,
+)
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -105,9 +111,11 @@ class BaseSoC(LiteXWRNICSoC):
         # ------------------------
         with_white_rabbit          = True,
         white_rabbit_sfp_connector = 0,
-        white_rabbit_cpu_firmware  = "litex_wr_nic/firmware/spec_a7_wrc.bram",
-        white_rabbit_cpu_binary    = "litex_wr_nic/firmware/spec_a7_wrc.bin",
-        wr_cpu_memory              = "private",
+        white_rabbit_cpu_firmware  = None,
+        white_rabbit_cpu_binary    = None,
+        wr_cpu_type               = "urv",
+        wr_cpu_variant            = None,
+        wr_cpu_memory             = "private",
     ):
         # Platform ---------------------------------------------------------------------------------
 
@@ -137,8 +145,16 @@ class BaseSoC(LiteXWRNICSoC):
 
         if wr_cpu_memory not in ("private", "integrated"):
             raise ValueError(f"Unsupported WR CPU memory mode: {wr_cpu_memory}")
+        wr_cpu_variant = validate_wr_cpu_config(
+            wr_cpu_type, wr_cpu_variant, wr_cpu_memory)
         if not with_white_rabbit and wr_cpu_memory != "private":
             raise ValueError("External WR CPU memory requires White Rabbit support.")
+        if white_rabbit_cpu_firmware is None:
+            white_rabbit_cpu_firmware = os.path.join("litex_wr_nic", "firmware",
+                wr_cpu_firmware_filename(wr_cpu_type, "bram"))
+        if white_rabbit_cpu_binary is None:
+            white_rabbit_cpu_binary = os.path.join("litex_wr_nic", "firmware",
+                wr_cpu_firmware_filename(wr_cpu_type, "bin"))
         wr_cpu_region = None
         if wr_cpu_memory == "integrated":
             if not os.path.isfile(white_rabbit_cpu_binary):
@@ -197,6 +213,8 @@ class BaseSoC(LiteXWRNICSoC):
             self.add_wr_core(
                 # CPU.
                 cpu_firmware        = white_rabbit_cpu_firmware,
+                cpu_type            = wr_cpu_type,
+                cpu_variant         = wr_cpu_variant,
                 cpu_memory_region   = wr_cpu_region,
 
                 # Configuration.
@@ -357,6 +375,10 @@ def main():
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
     parser.add_argument("--wr-cpu-memory", default="private", choices=["private", "integrated"],
         help="WR CPU memory implementation (default: private).")
+    parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_TYPES,
+        help="WR CPU implementation (default: embedded uRV).")
+    parser.add_argument("--wr-cpu-variant", default=None,
+        help="LiteX WR CPU variant (VexRiscv defaults to lite).")
     parser.add_argument("--output-dir", default=None, help="Build directory.")
 
     # Probes.
@@ -372,13 +394,18 @@ def main():
     # ---------------
     if args.build:
         print("Building firmware...")
-        r = os.system("cd litex_wr_nic/firmware && ./build.py --target acorn")
+        r = os.system("cd litex_wr_nic/firmware && ./build.py --target acorn --wr-cpu-type {}".format(
+            args.wr_cpu_type))
         if r != 0:
             raise RuntimeError("Firmware build failed.")
 
     # Build SoC/Gateware (with integrated Firmware).
     # ----------------------------------------------
-    soc = BaseSoC(wr_cpu_memory=args.wr_cpu_memory)
+    soc = BaseSoC(
+        wr_cpu_type    = args.wr_cpu_type,
+        wr_cpu_variant = args.wr_cpu_variant,
+        wr_cpu_memory  = args.wr_cpu_memory,
+    )
     if args.with_wishbone_fabric_interface_probe:
         soc.add_wishbone_fabric_interface_probe()
     if args.with_wishbone_slave_probe:

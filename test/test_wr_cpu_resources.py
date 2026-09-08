@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from tools.compare_wr_cpu_resources import parse_timing, parse_utilization
+from tools.compare_wr_cpu_types import parse_intra_clock_wns
 
 # Resource Report Tests ----------------------------------------------------------------------------
 
@@ -40,3 +41,14 @@ WNS(ns) TNS(ns) TNS Failing Endpoints TNS Total Endpoints WHS(ns) THS(ns) THS Fa
     assert values["wns_ns"] == 0.125
     assert values["setup_failing_endpoints"] == 0
     assert values["whs_ns"] == 0.050
+
+
+def test_parse_wr_cpu_clock_timing(tmp_path):
+    report = tmp_path / "timing.rpt"
+    report.write_text("""
+| Intra Clock Table
+clk_sys 5.125 0.000 0 100 0.050 0.000 0 100
+| Inter Clock Table
+clk_sys other_clock -0.250 -1.000 4 100 0.050 0.000 0 100
+""", encoding="utf-8")
+    assert parse_intra_clock_wns(report, "clk_sys") == 5.125

@@ -1,0 +1,5 @@
+config,slice_luts,logic_luts,lut_memory,ffs,ramb36,ramb18,bram18_equivalent,dsps,wns_ns,tns_ns,whs_ns,ths_ns,wr_clk_wns_ns,bit_bytes,build_seconds
+urv-integrated,12361,11902,459,15141,65,16,146,8,0.004,0.0,0.028,0.0,4.54,1829716,316.442
+vexriscv-lite-integrated,12292,11837,455,15167,65,18,148,4,-0.011,-0.112,0.028,0.0,4.413,1810396,446.811
+urv-hyperram,12975,12496,479,15933,34,21,89,8,-0.144,-2.339,0.028,0.0,5.282,1611720,475.554
+vexriscv-lite-hyperram,12754,12277,477,15970,34,23,91,4,-0.527,-26.231,0.028,0.0,5.102,1594152,431.982

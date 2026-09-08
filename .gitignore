@@ -15,3 +15,6 @@ litex_wr_nic/firmware/sdb-wrpc.bin
 litex_wr_nic/firmware/spec_a7_wrc.bin
 litex_wr_nic/firmware/spec_a7_wrc.boot
 litex_wr_nic/firmware/spec_a7_wrc.bram
+litex_wr_nic/firmware/spec_a7_wrc_vexriscv.bin
+litex_wr_nic/firmware/spec_a7_wrc_vexriscv.boot
+litex_wr_nic/firmware/spec_a7_wrc_vexriscv.bram
