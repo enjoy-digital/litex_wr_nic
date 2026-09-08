@@ -13,6 +13,7 @@ import pytest
 
 from migen import *
 from migen.fhdl.structure import _Assign
+from migen.sim import passive
 
 from litex.gen import LiteXModule
 
@@ -373,3 +374,41 @@ def test_legacy_psgen_keeps_running_without_completion_input():
     simulate(dut, {"wr": command(), "ps": monitor()})
     assert len(issued) >= 30
     assert issued[-1] > 900
+
+
+@pytest.mark.parametrize("code", [64, 192])
+def test_mmcm_repeated_commands_preserve_fractional_phase(code):
+    dut    = WRMMCMBackend("ps", "wr", width=8)
+    issued = []
+    cycles = 2048
+
+    @passive
+    def command():
+        # Refresh the command more often than one requested phase step. A
+        # constant servo output must have the same rate at every update rate.
+        while True:
+            yield dut.command.data.eq(code)
+            yield dut.command.load.eq(1)
+            yield
+            yield dut.command.load.eq(0)
+            for _ in range(7):
+                yield
+
+    def mmcm():
+        pending = 0
+        for tick in range(200 + cycles):
+            if pending:
+                pending -= 1
+            if (yield dut.psen):
+                assert pending == 0
+                assert (yield dut.psincdec) == int(code < 128)
+                pending = 12
+                if tick >= 200:
+                    issued.append(tick)
+            yield dut.psdone.eq(pending == 1)
+            assert not (yield dut.fault)
+            yield
+
+    simulate(dut, {"wr": command(), "ps": mmcm()})
+    expected = cycles * abs(code - 128) / (1 << 11)
+    assert abs(len(issued) - expected) <= 1

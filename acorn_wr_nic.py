@@ -87,7 +87,8 @@ class _CRG(LiteXModule):
 
         # RefClk MMCM (125MHz).
         # ---------------------
-        self.refclk_mmcm = S7MMCM(speedgrade=-3)
+        # Fine phase shifting requires integer feedback/output division (UG472).
+        self.refclk_mmcm = S7MMCM(speedgrade=-3, fractional=False)
         self.comb += self.refclk_mmcm.reset.eq(self.rst)
         self.refclk_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
         self.refclk_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
@@ -97,7 +98,7 @@ class _CRG(LiteXModule):
 
         # DMTD MMCM (62.5MHz).
         # --------------------
-        self.dmtd_mmcm = S7MMCM(speedgrade=-3)
+        self.dmtd_mmcm = S7MMCM(speedgrade=-3, fractional=False)
         self.comb += self.dmtd_mmcm.reset.eq(self.rst)
         self.dmtd_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
         self.dmtd_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)

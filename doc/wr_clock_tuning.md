@@ -63,20 +63,33 @@ gain a new completion-input requirement just by updating the dependency.
 An integration adopting `WRMMCMBackend` must connect `psdone` and use the
 WR system domain for its command source.
 
+For 7-series MMCMs, use `S7MMCM(..., fractional=False)` and enable fine phase
+shifting on each tuned output. Fractional output division is incompatible
+with fine phase shifting ([AMD UG472, pages 75 and 85](https://docs.amd.com/api/khub/documents/1kFbRqzm2fhwGy~cLQG2yA/content)).
+Acorn and M2SDR explicitly use integer-only configurations for their WR
+MMCMs. The nominal reference/DMTD frequencies remain 125/62.5 MHz; the
+selected 1.5 GHz VCO gives a phase step of approximately 11.905 ps.
+
 The nominal rate is `abs(code - center) / 2**(width + div_n + 3)` phase shifts
 per PSCLK cycle. A code below center requests phase increment; a code above
 center requests decrement. Each phase request is one PSCLK cycle. Direction
 stays fixed until completion, and a new request waits for the previous
 `PSDONE` and its deassertion. If the requested rate exceeds completion speed,
-the rate saturates; it does not accumulate an unbounded backlog. A new code
-clears the fractional accumulator without changing an outstanding request.
+the rate saturates; it does not accumulate an unbounded backlog. Same-direction
+updates preserve fractional phase and apply the new magnitude immediately.
+This includes repeated identical codes: refreshing a small correction must
+not prevent it from accumulating a complete step. Neutral or direction
+reversal clears unissued fractional phase without changing an outstanding
+request.
 
 The backend starts neutral and transfers complete tuning words through an
 asynchronous FIFO. A single pending slot retains the newest command if the
 FIFO fills; replacements increment `superseded`. The same `WRTuningCDC`
 helper is available to other DAC integrations. Both FIFO sides and backend
 state reset when either participating domain resets, with locally
-synchronized reset release. Fresh tuning commands are required afterward.
+synchronized reset release. Both sides remain reset until both clocks have
+resumed, so stale FIFO pointers cannot replay pre-reset commands when one
+clock was stopped. Fresh tuning commands are required afterward.
 
 If `PSDONE` does not arrive within `timeout_cycles` (default 1024 PSCLK
 cycles), a sticky fault stops further requests. Reset the backend **and MMCM**
@@ -102,5 +115,31 @@ driver's SPI initialization/update words, and check the MMCM's nominal rate
 and polarity against the previous accumulator law. The legacy code-zero
 magnitude overflow, non-neutral startup and unsafe overlapping requests are
 not compatibility requirements; the corrected backend handles these cases.
+
+`pytest -q test/test_wr_mmcm.py` adds generated-RTL simulations using Vivado's
+`xvlog`, `xelab` and `xsim` (skipped if unavailable):
+
+- Full 16-bit endpoints and one-LSB corrections in both directions, with
+  repeated updates over more than four million PSCLK cycles. A deterministic
+  varying command stream is checked against its independent code/time integral.
+- Nominal, delayed, stretched, stale-high, absent and timeout-boundary
+  completions; neutral/reversal while busy; completion/CSR accounting; sticky
+  faults; stopped/restarted clocks and reset with a backed-up command FIFO.
+- Actual `MMCME2_ADV`, clock-buffer and reset primitives from `unisims_ver`
+  for Acorn's 200 MHz and M2SDR's 100 MHz inputs, with 125/62.5 MHz outputs
+  and 200 MHz PSCLK. Checks cover the 12-cycle completion protocol, measured
+  output phase, both reference outputs, wraparound in both directions, and
+  reset during a shift followed by relock. Configuration checks separately
+  reject fractional division; the vendor behavioral model does not enforce
+  every hardware configuration restriction.
+
+The phase comparisons allow 10 ps for simulator rounding. This is a digital
+model tolerance, not a claim about hardware jitter or WR synchronization
+accuracy. Reproduce both layers with:
+
+```sh
+pytest -q test/test_wr_clock.py test/test_wr_mmcm.py
+```
+
 CPU/console tests on SPEC-A7 exercise the DAC integration; analog tuning range
 and closed-loop WR operation need a WR peer.

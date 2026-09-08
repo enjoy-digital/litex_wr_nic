@@ -132,22 +132,32 @@ class WRMMCMBackend(LiteXModule):
         ]
 
         # Nominal rate: |code - center| / 2**(width+div_n+3) shifts per PSCLK.
-        # Reset residual phase on every new command.
-        neutral   = 1 << (width - 1)
-        acc_width = width + div_n + 3
-        magnitude = Signal(width)
-        direction = Signal()
-        acc       = Signal(acc_width)
-        total     = Signal(acc_width + 1)
-        timer     = Signal(max=timeout_cycles)
-        self.comb += total.eq(acc + magnitude)
+        # Preserve fractional phase across same-direction updates, otherwise
+        # frequent servo commands can prevent small corrections from issuing.
+        # Neutral/reversal cancels only unissued phase; an active shift finishes.
+        neutral       = 1 << (width - 1)
+        acc_width     = width + div_n + 3
+        magnitude     = Signal(width)
+        direction     = Signal()
+        new_magnitude = Signal(width)
+        new_direction = Signal()
+        acc           = Signal(acc_width)
+        total         = Signal(acc_width + 1)
+        timer         = Signal(max=timeout_cycles)
+        self.comb += [
+            new_direction.eq(cdc.source.data < neutral),
+            new_magnitude.eq(Mux(new_direction,
+                neutral - cdc.source.data, cdc.source.data - neutral)),
+            total.eq(acc + Mux(cdc.source.load, new_magnitude, magnitude)),
+        ]
         sync = getattr(self.sync, cdc.output_cd)
         sync += [
             self.psen.eq(0),
             If(cdc.source.load,
-                direction.eq(cdc.source.data < neutral),
-                magnitude.eq(Mux(cdc.source.data < neutral,
-                    neutral - cdc.source.data, cdc.source.data - neutral)),
+                direction.eq(new_direction),
+                magnitude.eq(new_magnitude),
+            ),
+            If(cdc.source.load & ((new_magnitude == 0) | (new_direction != direction)),
                 acc.eq(0),
             ).Elif(~self.fault,
                 # Keep a due request while busy; never overlap PSEN pulses.
