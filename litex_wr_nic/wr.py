@@ -199,6 +199,17 @@ class WRClient:
                 result[name] = reg.read()
         return result
 
+    def read_time(self):
+        banks = [name[:-8] for name in self.regs if name.endswith("wr_time_capture")]
+        if len(banks) != 1:
+            raise ValueError("A unique WR time snapshot bank is required.")
+        prefix = banks[0] + "_"
+        self.regs[prefix + "capture"].write(1)
+        self.wait(lambda: self.regs[prefix + "done"].read(),
+            "WR time snapshot timed out; check the PHY reference clock.")
+        return {name: self.regs[prefix + name].read()
+            for name in ("seconds", "cycles", "time_valid", "link_up", "state")}
+
 # Console ------------------------------------------------------------------------------------------
 
 class WRConsole:
@@ -307,7 +318,7 @@ def main():
 
     # Commands.
     commands = parser.add_subparsers(dest="command", required=True)
-    for command in ("status", "diagnose", "restart"):
+    for command in ("status", "diagnose", "restart", "read-time"):
         commands.add_parser(command)
     console = commands.add_parser("console")
     console.add_argument("--command", dest="console_command")
@@ -336,7 +347,9 @@ def main():
                 wr_region     = args.wr_region,
                 memory_region = args.memory_region,
             )
-            if args.command == "restart":
+            if args.command == "read-time":
+                print(json.dumps(wr.read_time(), indent=2))
+            elif args.command == "restart":
                 wr.restart()
             elif args.command == "load-firmware":
                 wr.load_firmware(args.file.read_bytes(), args.firmware_cpu)

@@ -317,3 +317,16 @@ def test_upload_fences_writes_and_detects_memory_aliasing():
     with pytest.raises(RuntimeError, match="verification failed"):
         WRClient(bus).load_firmware(image, "vexriscv")
     assert WRClient(bus).read_cpu(CPU_RESET) == 1
+
+
+def test_time_snapshot_command_and_stopped_clock_timeout():
+    bus = Bus(info=True)
+    fields = dict(capture=0, done=1, seconds=123, cycles=456, time_valid=1, link_up=1, state=1)
+    for name, value in fields.items():
+        setattr(bus.regs, "wr_time_" + name, Register(value))
+    wr = WRClient(bus, timeout=0)
+    assert wr.read_time() == dict(seconds=123, cycles=456, time_valid=1, link_up=1, state=1)
+    assert bus.regs.wr_time_capture.read() == 1
+    bus.regs.wr_time_done.value = 0
+    with pytest.raises(TimeoutError, match="reference clock"):
+        wr.read_time()
