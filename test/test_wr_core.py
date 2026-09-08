@@ -15,12 +15,14 @@ import pytest
 from migen import Instance, Record, Signal, run_simulation
 
 from litex.gen import LiteXModule
-from litex.soc.integration.soc import SoCRegion
+
 from litex.soc.interconnect.csr_bus import CSRBankArray
+from litex.soc.integration.soc import SoCRegion
 
-from litex_wr_nic.gateware.wr_core import WhiteRabbitCore, add_white_rabbit
 from litex_wr_nic.gateware import wr_core
+from litex_wr_nic.gateware.wr_core import WhiteRabbitCore, add_white_rabbit
 
+# Helpers ------------------------------------------------------------------------------------------
 
 def core_kwargs():
     return dict(
@@ -32,16 +34,21 @@ def core_kwargs():
 
 @pytest.fixture
 def platform(monkeypatch):
-    sources = []
+    sources  = []
     prepared = []
     for name in (
         "wr_core_init", "patch_wr_subsystem_mux_class", "patch_wr_pps_gen_iob",
         "patch_wr_clock_monitor_presc_cdc", "patch_wr_external_cpu_memory",
     ):
         monkeypatch.setattr(wr_core, name, lambda name=name: prepared.append(name))
-    return SimpleNamespace(device="xc7a50t", add_source=sources.append,
-        sources=sources, prepared=prepared)
+    return SimpleNamespace(
+        device     = "xc7a50t",
+        add_source = sources.append,
+        sources    = sources,
+        prepared   = prepared,
+    )
 
+# Reusable Core Tests ------------------------------------------------------------------------------
 
 def test_core_import_has_no_nic_or_soc_side_effects():
     # Use a fresh interpreter: other tests import the compatibility NIC class.
@@ -153,13 +160,13 @@ def test_documented_cpu_setups_elaborate(platform, monkeypatch, tmp_path, cpu_ty
     from spec_a7_platform import Platform
 
     documentation = Path(__file__).resolve().parents[1] / "doc/wr_integration.md"
-    example = documentation.read_text().split("## " + section + "\n", 1)[1]
-    code = example.split("```python\n", 1)[1].split("```", 1)[0]
+    example = documentation.read_text(encoding="utf-8").split("## " + section + "\n", 1)[1]
+    code    = example.split("```python\n", 1)[1].split("```", 1)[0]
     monkeypatch.chdir(tmp_path)
     firmware = tmp_path / "litex_wr_nic/firmware"
     firmware.mkdir(parents=True)
     stem = "spec_a7_wrc" + ("_vexriscv" if cpu_type == "vexriscv" else "")
-    (firmware / (stem + ".bram")).write_text("00000013\n")
+    (firmware / (stem + ".bram")).write_text("00000013\n", encoding="utf-8")
     (firmware / (stem + ".bin")).write_bytes(bytes.fromhex("13000000"))
     soc = SoCMini(Platform(), clk_freq=125e6, ident_version=False)
     exec(compile(code, str(documentation), "exec"), {"self": soc})

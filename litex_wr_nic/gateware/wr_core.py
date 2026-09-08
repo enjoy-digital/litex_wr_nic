@@ -12,7 +12,9 @@ from migen import *
 from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
+
 from litex.build.io import SDRTristate
+
 from litex.soc.interconnect import wishbone
 
 from litex_wr_nic.gateware.wr_common         import (
@@ -57,7 +59,7 @@ class WhiteRabbitCore(LiteXModule):
         cpu_boot_loader   = None,
 
         # Board name.
-        board_name  = "NA  ",
+        board_name = "NA  ",
 
         # SFP.
         sfp_pads         = None,
@@ -83,13 +85,15 @@ class WhiteRabbitCore(LiteXModule):
         temp_1wire_pads = None,
 
         # Wishbone Slave.
-        wb_slave_size   = 0x0100_0000,
+        wb_slave_size = 0x0100_0000,
 
         dac_bits      = 16
     ):
 
         self.platform = platform
         self.cpu_bus  = None
+
+        # # #
 
         # Clks.
         # -----
@@ -169,8 +173,10 @@ class WhiteRabbitCore(LiteXModule):
         # -----------------------------
         # The host bus uses word addresses; the region size is in bytes.
         wb_slave_mask = (wb_slave_size // 4) - 1
-        self.wb_slave_sys = wb_slave_sys = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-        self.wb_slave_wr  = wb_slave_wr  = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.wb_slave_sys = wb_slave_sys = wishbone.Interface(
+            data_width=32, address_width=32, addressing="word")
+        self.wb_slave_wr  = wb_slave_wr  = wishbone.Interface(
+            data_width=32, address_width=32, addressing="word")
         self.bus    = wb_slave_sys
         self.sink   = wrf_stream2wb.sink
         self.source = wrf_wb2stream.source
@@ -187,10 +193,10 @@ class WhiteRabbitCore(LiteXModule):
             temp_1wire_oe_n = Signal()
             temp_1wire_i    = Signal()
             self.specials += SDRTristate(
-                io = temp_1wire_pads,
-                o  = Constant(0b0, 1),
-                oe = ~temp_1wire_oe_n,
-                i  = temp_1wire_i,
+                io  = temp_1wire_pads,
+                o   = Constant(0b0, 1),
+                oe  = ~temp_1wire_oe_n,
+                i   = temp_1wire_i,
                 clk = ClockSignal("wr_sys"),
             )
 
@@ -427,7 +433,7 @@ def add_white_rabbit(soc, cpu_firmware, cpu_memory_region=None,
     soc.wr_core = core = WhiteRabbitCore(soc.platform,
         cpu_firmware    = cpu_firmware,
         with_cpu_memory = cpu_memory_region is not None,
-        wb_slave_size   = wb_slave_region.size_pow2,
+        wb_slave_size = wb_slave_region.size_pow2,
         **kwargs,
     )
     soc.bus.add_slave(name="wr_wb_slave", slave=core.bus, region=wb_slave_region)

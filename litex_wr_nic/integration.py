@@ -4,9 +4,9 @@
 # Copyright (c) 2024-2026 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import hashlib
 import os
 import re
+import hashlib
 import subprocess
 from pathlib import Path
 
@@ -21,11 +21,11 @@ WR_NIC_DIR_CANDIDATE_PATTERNS = (
 
 WR_FIRMWARE_BUILD_SCRIPT_REL = os.path.join("firmware", "build.py")
 WR_FIRMWARE_IMAGE_REL        = os.path.join("firmware", "spec_a7_wrc.bram")
-WR_COMMON_REL                = os.path.join("gateware", "wr_common.py")
+WR_COMMON_REL               = os.path.join("gateware", "wr_common.py")
 
 WR_CORES_DIRNAME        = "wr-cores"
 WR_SUBSYSTEM_VHD_REL    = os.path.join("modules", "wrc_core", "xwr_subsystem.vhd")
-WR_PATCHED_SIGNATURE    = 'mux_class_i(1) => x"ff");'
+WR_PATCHED_SIGNATURE   = 'mux_class_i(1) => x"ff");'
 
 WR_CORES_RENAME_HINT      = "Rename/remove local wr-cores (for example: 'mv wr-cores wr-cores.old') and rerun."
 WR_CORES_INIT_RENAME_HINT = "Rename/remove it (for example: 'mv wr-cores wr-cores.old') and rerun so the expected WR-cores can be initialized."
