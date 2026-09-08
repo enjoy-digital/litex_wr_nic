@@ -9,11 +9,13 @@ from types import SimpleNamespace
 import pytest
 
 from migen import run_simulation
-from litex.soc.interconnect import wishbone
+
+from litex.soc.interconnect import csr_bus, wishbone
 
 from litex_wr_nic.wr import WRClient, WRConsole, CPU_CSR, CPU_RESET, CPU_HALT, CPU_HALTED
 from litex_wr_nic.gateware.wr_info import WRInfo, WR_INFO_MAGIC
 
+# Host Models --------------------------------------------------------------------------------------
 
 class Register:
     mode = "ro"
@@ -35,15 +37,22 @@ class Bus:
             self.mems.wr_cpu_mem = SimpleNamespace(base=0x50000000, size=16)
         self.regs = SimpleNamespace()
         if info:
-            for name, value in dict(magic=WR_INFO_MAGIC, cpu_type=int(cpu == "vexriscv"),
-                memory_mode=int(external), status=1, memory_size=128*1024,
-                firmware_hash=0x1234, reset_reason=0, reset_count=0).items():
+            for name, value in dict(
+                magic         = WR_INFO_MAGIC,
+                cpu_type      = int(cpu == "vexriscv"),
+                memory_mode   = int(external),
+                status        = 1,
+                memory_size   = 128*1024,
+                firmware_hash = 0x1234,
+                reset_reason  = 0,
+                reset_count   = 0,
+            ).items():
                 setattr(self.regs, "wr_info_" + name, Register(value))
-        self.words = {}
+        self.words      = {}
         self.operations = []
-        self.corrupt = False
-        self.halts = True
-        self.address = 0
+        self.corrupt    = False
+        self.halts      = True
+        self.address    = 0
 
     def read(self, address):
         self.operations.append(("read", address))
@@ -67,6 +76,7 @@ class Bus:
         else:
             self.words[address] = value
 
+# Management Tests ---------------------------------------------------------------------------------
 
 @pytest.fixture(autouse=True)
 def no_delays(monkeypatch):
@@ -86,7 +96,11 @@ def test_firmware_load_verifies_and_uses_correct_byte_order(external, cpu):
     writes = [op for op in bus.operations if op[0] == "write"]
     base = bus.mems.wr_wb_slave.base + CPU_CSR
     if cpu == "urv":
-        assert writes[:3] == [("write", base + CPU_HALT, 1), ("write", base, 1), ("write", base + CPU_HALT, 0)]
+        assert writes[:3] == [
+            ("write", base + CPU_HALT, 1),
+            ("write", base, 1),
+            ("write", base + CPU_HALT, 0),
+        ]
     else:
         assert all(op[1] != base + CPU_HALT for op in writes)
     assert writes[-1] == ("write", base, 0)
@@ -140,8 +154,11 @@ def test_live_identity_rejects_stale_map_and_cpu_mismatch():
 
 def test_console_restores_uart_selection_on_error():
     bus = SimpleNamespace(regs=SimpleNamespace(
-        uart_xover_rxtx=Register(), uart_xover_rxempty=Register(1),
-        uart_xover_txfull=Register(1), uart_control=Register(2)))
+        uart_xover_rxtx    = Register(),
+        uart_xover_rxempty = Register(1),
+        uart_xover_txfull  = Register(1),
+        uart_control      = Register(2),
+    ))
     console = WRConsole(bus, timeout=0)
     with pytest.raises(TimeoutError):
         with console.selected():
@@ -153,6 +170,8 @@ def test_console_restores_uart_selection_on_error():
 def test_live_reset_diagnostics_cross_clock_domains():
     host = wishbone.Interface(data_width=32, address_width=32, addressing="word")
     dut = WRInfo(host, "urv", False, 1, 0, 1)
+    # Include the field packing used by the real SoC CSR bank.
+    dut.csr_bank = csr_bus.CSRBank(dut.get_csrs(), address=0)
 
     def write_reset(value):
         yield host.adr.eq((0x20000000 + CPU_CSR) >> 2)

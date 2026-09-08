@@ -57,7 +57,7 @@ class WRClient:
         elif cpu_type is None and self.memory is None:
             cpu_type = "urv"
         self.cpu_type = cpu_type
-        self.size = min(self.memory.size if self.memory else 128*1024, 128*1024)
+        self.size     = min(self.memory.size if self.memory else 128*1024, 128*1024)
 
     def reg(self, name):
         return self.regs[self.info + "_" + name]
@@ -86,7 +86,8 @@ class WRClient:
             previous = self.read_cpu(CPU_HALT)
             self.write_cpu(CPU_HALT, 1)
             try:
-                self.wait(lambda: self.read_cpu(CPU_HALTED) & 1, "uRV did not halt; CPU reset was not asserted.")
+                self.wait(lambda: self.read_cpu(CPU_HALTED) & 1,
+                    "uRV did not halt; CPU reset was not asserted.")
             except Exception:
                 self.write_cpu(CPU_HALT, previous)
                 raise
@@ -126,7 +127,7 @@ class WRClient:
             raise ValueError("Firmware CPU profile does not match the loaded hardware.")
         if not data or len(data) > self.size:
             raise ValueError("Firmware must fit in the reserved WR CPU memory.")
-        data = data.ljust(self.size, b"\x00")
+        data  = data.ljust(self.size, b"\x00")
         order = "little" if self.memory else "big"
         self.stop()
         # Use the shared SoC memory path, including any HyperRAM cache.
@@ -148,11 +149,11 @@ class WRClient:
         if self.info:
             status = self.reg("status").read()
             result.update(
-                memory_ready = bool(status & 1),
-                link_up      = bool(status & 4),
-                time_valid   = bool(status & 8),
-                reset_reason = "host CPU reset" if self.reg("reset_reason").read() else "system reset",
-                reset_count  = self.reg("reset_count").read(),
+                memory_ready         = bool(status & 1),
+                link_up              = bool(status & 4),
+                time_valid           = bool(status & 8),
+                reset_reason         = "host CPU reset" if self.reg("reset_reason").read() else "system reset",
+                reset_count          = self.reg("reset_count").read(),
                 build_firmware_sha256 = f"{self.reg('firmware_hash').read():064x}",
             )
         for name, reg in self.regs.items():
@@ -166,7 +167,7 @@ class WRConsole:
     def __init__(self, bus, prefix=None, timeout=5.0):
         self.bus     = bus
         self.timeout = timeout
-        regs = vars(bus.regs)
+        regs       = vars(bus.regs)
         candidates = [name[:-5] for name in regs if name.endswith("xover_rxtx")]
         if prefix is None:
             if len(candidates) != 1:
@@ -176,8 +177,8 @@ class WRConsole:
         self.empty = regs[prefix + "_rxempty"]
         self.full  = regs[prefix + "_txfull"]
         parent = prefix.rsplit("_xover", 1)[0]
-        self.control = regs.get(parent + "_control")
-        self.level   = regs.get(parent + "_rxlevel")
+        self.control  = regs.get(parent + "_control")
+        self.level    = regs.get(parent + "_rxlevel")
         self.overflow = regs.get(parent + "_rxoverflow")
 
     @contextlib.contextmanager
@@ -193,11 +194,14 @@ class WRConsole:
 
     def receive(self, limit=128):
         if self.overflow and self.overflow.read():
-            raise RuntimeError("WR console RX overflow; output was lost. Reload the FPGA or increase crossover_rx_depth.")
+            raise RuntimeError(
+                "WR console RX overflow; output was lost. "
+                "Reload the FPGA or increase crossover_rx_depth.")
         if self.level:
             count = min(limit, self.level.read())
             if count:
-                return bytes(word & 0xff for word in self.bus.read(self.data.addr, length=count, burst="fixed"))
+                return bytes(word & 0xff for word in self.bus.read(
+                    self.data.addr, length=count, burst="fixed"))
             return b""
         data = bytearray()
         for _ in range(limit):
@@ -220,7 +224,7 @@ class WRConsole:
         self.receive()
         self.send(command.encode("ascii") + b"\r")
         deadline = time.monotonic() + timeout
-        output = bytearray()
+        output   = bytearray()
         while time.monotonic() < deadline:
             output.extend(self.receive())
             if b"wrc#" in output:
@@ -252,13 +256,18 @@ class WRConsole:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default="localhost")
-    parser.add_argument("--port", type=int, default=1234)
+    # Remote connection.
+    parser.add_argument("--host",    default="localhost")
+    parser.add_argument("--port",    default=1234, type=int)
     parser.add_argument("--csr-csv", default="csr.csv")
-    parser.add_argument("--cpu-type", choices=tuple(CPU_TYPES.values()))
-    parser.add_argument("--wr-region", default="wr_wb_slave")
+
+    # WR integration.
+    parser.add_argument("--cpu-type",      choices=tuple(CPU_TYPES.values()))
+    parser.add_argument("--wr-region",     default="wr_wb_slave")
     parser.add_argument("--memory-region", default="wr_cpu_mem")
     parser.add_argument("--uart-prefix")
+
+    # Commands.
     commands = parser.add_subparsers(dest="command", required=True)
     for command in ("status", "diagnose", "restart"):
         commands.add_parser(command)
@@ -268,7 +277,13 @@ def main():
     load.add_argument("file", type=Path)
     load.add_argument("--firmware-cpu", choices=tuple(CPU_TYPES.values()), required=True)
     args = parser.parse_args()
-    bus = RemoteClient(host=args.host, port=args.port, csr_csv=args.csr_csv, timeout=5, raise_on_timeout=True)
+    bus = RemoteClient(
+        host             = args.host,
+        port             = args.port,
+        csr_csv          = args.csr_csv,
+        timeout          = 5,
+        raise_on_timeout = True,
+    )
     bus.open()
     try:
         if args.command == "console":
@@ -278,7 +293,11 @@ def main():
                 else:
                     console.interactive()
         else:
-            wr = WRClient(bus, cpu_type=args.cpu_type, wr_region=args.wr_region, memory_region=args.memory_region)
+            wr = WRClient(bus,
+                cpu_type      = args.cpu_type,
+                wr_region     = args.wr_region,
+                memory_region = args.memory_region,
+            )
             if args.command == "restart":
                 wr.restart()
             elif args.command == "load-firmware":
@@ -287,7 +306,10 @@ def main():
                 result = wr.status()
                 if args.command == "diagnose":
                     with WRConsole(bus, prefix=args.uart_prefix).selected() as console:
-                        result["console"] = {command: console.command(command) for command in ("ver", "uptime", "time")}
+                        result["console"] = {
+                            command: console.command(command)
+                            for command in ("ver", "uptime", "time")
+                        }
                 print(json.dumps(result, indent=2))
     finally:
         bus.close()
