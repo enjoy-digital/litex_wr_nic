@@ -141,23 +141,28 @@ class WRMMCMBackend(LiteXModule):
         direction     = Signal()
         new_magnitude = Signal(width)
         new_direction = Signal()
+        new_load      = Signal()
         acc           = Signal(acc_width)
         total         = Signal(acc_width + 1)
         timer         = Signal(max=timeout_cycles)
-        self.comb += [
-            new_direction.eq(cdc.source.data < neutral),
-            new_magnitude.eq(Mux(new_direction,
-                neutral - cdc.source.data, cdc.source.data - neutral)),
-            total.eq(acc + Mux(cdc.source.load, new_magnitude, magnitude)),
-        ]
         sync = getattr(self.sync, cdc.output_cd)
+        # Register command decoding before the accumulator. In particular,
+        # FIFO readable/Gray-pointer logic must not feed the carry chain and
+        # phase-request control in the same 200 MHz cycle.
+        sync += [
+            new_load.eq(cdc.source.load),
+            new_direction.eq(cdc.source.data < neutral),
+            new_magnitude.eq(Mux(cdc.source.data < neutral,
+                neutral - cdc.source.data, cdc.source.data - neutral)),
+        ]
+        self.comb += total.eq(acc + Mux(new_load, new_magnitude, magnitude))
         sync += [
             self.psen.eq(0),
-            If(cdc.source.load,
+            If(new_load,
                 direction.eq(new_direction),
                 magnitude.eq(new_magnitude),
             ),
-            If(cdc.source.load & ((new_magnitude == 0) | (new_direction != direction)),
+            If(new_load & ((new_magnitude == 0) | (new_direction != direction)),
                 acc.eq(0),
             ).Elif(~self.fault,
                 # Keep a due request while busy; never overlap PSEN pulses.
@@ -167,7 +172,6 @@ class WRMMCMBackend(LiteXModule):
                         self.psen.eq(1),
                         self.psincdec.eq(direction),
                         self.busy.eq(1),
-                        timer.eq(0),
                     ).Else(
                         acc.eq((1 << acc_width) - 1),
                     ),
@@ -184,6 +188,10 @@ class WRMMCMBackend(LiteXModule):
                 ).Else(
                     timer.eq(timer + 1),
                 ),
+            ).Else(
+                # Prepare the watchdog while idle so the accumulator carry
+                # does not also drive the timer's reset/enable path.
+                timer.eq(0),
             ),
         ]
 

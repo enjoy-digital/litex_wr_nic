@@ -373,6 +373,9 @@ class BaseSoC(LiteXWRNICSoC):
         if with_white_rabbit:
             # Host/WR register and fabric traffic crosses asynchronous FIFOs.
             platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_wr_sys.clk)
+            # Tuning commands cross an asynchronous FIFO into PSCLK. The
+            # disciplined WR clock has no fixed phase relative to PSCLK.
+            platform.add_false_path_constraints(self.crg.cd_clk200.clk, self.cd_wr_sys.clk)
 
         platform.add_false_path_constraints(*asynchronous_clk_domains)
 

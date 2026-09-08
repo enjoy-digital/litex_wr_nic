@@ -61,7 +61,11 @@ The Acorn and M2SDR targets explicitly instantiate this backend and connect
 `ctrl_data`/`ctrl_load` interface are unchanged: existing integrations do not
 gain a new completion-input requirement just by updating the dependency.
 An integration adopting `WRMMCMBackend` must connect `psdone` and use the
-WR system domain for its command source.
+WR system domain for its command source. Declare the command and PSCLK
+domains asynchronous in the platform constraints: tuning commands cross a
+FIFO, and the disciplined clock can move relative to PSCLK. The Acorn and
+M2SDR targets include this constraint. Synchronous backend paths still need
+to meet the PSCLK period in the routed design.
 
 For 7-series MMCMs, use `S7MMCM(..., fractional=False)` and enable fine phase
 shifting on each tuned output. Fractional output division is incompatible
@@ -76,7 +80,9 @@ center requests decrement. Each phase request is one PSCLK cycle. Direction
 stays fixed until completion, and a new request waits for the previous
 `PSDONE` and its deassertion. If the requested rate exceeds completion speed,
 the rate saturates; it does not accumulate an unbounded backlog. Same-direction
-updates preserve fractional phase and apply the new magnitude immediately.
+updates preserve fractional phase. Command decoding uses one registered
+PSCLK stage between the FIFO and accumulator to keep the 200 MHz path short;
+the new magnitude applies when that stage loads the accumulator.
 This includes repeated identical codes: refreshing a small correction must
 not prevent it from accumulating a complete step. Neutral or direction
 reversal clears unissued fractional phase without changing an outstanding
@@ -140,6 +146,61 @@ accuracy. Reproduce both layers with:
 ```sh
 pytest -q test/test_wr_clock.py test/test_wr_mmcm.py
 ```
+
+`pytest -q test/test_wr_mmcm_formal.py` uses Yosys, SymbiYosys and Boolector
+to prove the request protocol for arbitrary commands at the FIFO output and
+arbitrary completion inputs, including missing/stuck/early completions and
+resets. Both the default 16-bit/1024-cycle configuration and an 8-bit/divided
+configuration are checked. The proof covers request exclusivity, one-cycle
+PSEN pulses, direction stability during an outstanding shift, completion
+accounting and sticky faults. Cover traces reach both shift directions,
+neutral/reversal during a shift, simultaneous command/completion and a
+timeout fault in the shorter configuration. Rate and code-to-direction
+mapping remain covered by the independent simulation scoreboards above.
+This proof does not model metastability or analog MMCM behavior.
+
+### SPEC-A7 physical MMCM test
+
+`bench/spec_a7_mmcm.py` builds a temporary SRAM image with four actual MMCMs:
+100/200 MHz inputs, 125/62.5 MHz outputs and 200 MHz PSCLK. The SPEC-A7's -2
+speed grade selects a different VCO from the Acorn/M2SDR -3 parts; each VCO
+is exported in the CSR map and used in the output-frequency prediction.
+This qualifies the backend on 7-series hardware, not WR servo lock or PPS
+accuracy on an M2SDR.
+
+From the repository root, with this checkout on `PYTHONPATH`:
+
+```sh
+PYTHONPATH=. python3 bench/spec_a7_mmcm.py --build
+# Check build/spec_a7_mmcm/gateware/spec_a7_mmcm_timing.rpt and *_drc.rpt.
+python3 litex_wr_nic/gateware/xilinx-bitstream.py \
+    build/spec_a7_mmcm/gateware/spec_a7_mmcm.bit \
+    build/spec_a7_mmcm/gateware/spec_a7_mmcm.bin
+openFPGALoader --cable ft4232 --freq 20000000 \
+    --bitstream build/spec_a7_mmcm/gateware/spec_a7_mmcm.bin
+litex_server --jtag --jtag-config=/path/to/spec_a7_openocd.cfg
+```
+
+In another terminal:
+
+```sh
+python3 bench/spec_a7_mmcm_test.py --csr-csv build/spec_a7_mmcm/csr.csv
+```
+
+The runner checks the FPGA identifier before writing test CSRs. It measures
+actual output-clock edges over 2**24 PSCLK cycles against the completed
+signed phase shifts and selected VCO. It checks endpoints, one-LSB codes,
+both polarities, neutral, every-cycle/slower command refresh, missing
+completion, fault recovery and reset with the producer clock stopped.
+An independent hardware monitor records overlapping/stretched requests,
+direction changes while busy, unsolicited/wrong-latency completions and
+loss of MMCM lock. Results are saved as JSON.
+
+Like the main SPEC-A7 target, the bench targets the 50T resource map and uses
+the repository's bitstream conversion for the connected 35T device.
+Stop the LiteX server before restoring your working converted WR bitstream with
+`openFPGALoader --cable ft4232 --bitstream /path/to/working_wr.bin`, then
+check the WR console. These commands load SRAM; they do not update flash.
 
 CPU/console tests on SPEC-A7 exercise the DAC integration; analog tuning range
 and closed-loop WR operation need a WR peer.
