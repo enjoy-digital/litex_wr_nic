@@ -7,6 +7,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import hashlib
 
 from migen import *
 from migen.genlib.cdc import MultiReg
@@ -35,6 +36,7 @@ from litex_wr_nic.gateware.wr_cpu            import (
 from litex_wr_nic.gateware.wrf_stream2wb     import Stream2Wishbone
 from litex_wr_nic.gateware.wrf_wb2stream     import Wishbone2Stream
 from litex_wr_nic.gateware.wb_clock_crossing import WishboneClockCrossing
+from litex_wr_nic.gateware.wr_info           import WRInfo
 
 # White Rabbit Core -------------------------------------------------------------------------------
 
@@ -180,6 +182,19 @@ class WhiteRabbitCore(LiteXModule):
         self.bus    = wb_slave_sys
         self.sink   = wrf_stream2wb.sink
         self.source = wrf_wb2stream.source
+        firmware_hash = 0
+        if os.path.isfile(cpu_firmware):
+            with open(cpu_firmware, "rb") as firmware:
+                firmware_hash = int.from_bytes(hashlib.sha256(firmware.read()).digest(), "big")
+        self.wr_info = WRInfo(wb_slave_wr,
+            cpu_type        = cpu_type,
+            with_cpu_memory = with_cpu_memory,
+            memory_ready    = memory_ready_wr,
+            link_up         = self.tm_link_up,
+            time_valid      = self.tm_time_valid,
+            firmware_hash   = firmware_hash,
+            host_size       = wb_slave_size,
+        )
         self.submodules += WishboneClockCrossing(self.platform,
             wb_from = wb_slave_sys,
             cd_from = "sys",
@@ -444,7 +459,7 @@ def add_white_rabbit(soc, cpu_firmware, cpu_memory_region=None,
     # CSR traversal so legacy register names keep a single owner.
     soc.autocsr_exclude = set(getattr(soc, "autocsr_exclude", ())) | {"wr_core"}
     for name in (
-        "cd_wr", "cd_wr_sys", "wr_cpu", "wr_cpu_bridge", "wr_cpu_memory_cdc",
+        "cd_wr", "cd_wr_sys", "wr_cpu", "wr_cpu_bridge", "wr_cpu_memory_cdc", "wr_info",
         "wrf_stream2wb", "wrf_wb2stream", "wb_slave_sys", "wb_slave_wr",
         "led_pps", "led_link", "led_act", "dac_refclk_load", "dac_refclk_data",
         "dac_dmtd_load", "dac_dmtd_data", "pps_in", "pps_out_valid", "pps_out",
