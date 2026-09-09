@@ -19,6 +19,9 @@ from litex_wr_nic.wr_boot import (
     WR_BOOT_MAGIC,
     WR_BOOT_MAX_PAYLOAD,
     WR_BOOT_VERSION,
+    WR_BOOT_PROFILE_VERSION,
+    WR_BOOT_CPU_IDS,
+    WR_BOOT_ABI,
 )
 
 # Constants ----------------------------------------------------------------------------------------
@@ -356,6 +359,9 @@ class WRCPUFlashBoot(LiteXModule, AutoCSR):
     ERROR_CRC        = 4
     ERROR_WISHBONE   = 5
     ERROR_WB_TIMEOUT = 6
+    ERROR_PROFILE    = 7
+    ERROR_ABI        = 8
+    ERROR_ADDRESS    = 9
 
     def __init__(self, sys_clk_freq,
         flash_offset     = WR_BOOT_FLASH_OFFSET,
@@ -363,6 +369,9 @@ class WRCPUFlashBoot(LiteXModule, AutoCSR):
         spi_clk_freq     = 15e6,
         memory_wait      = 200e-6,
         wishbone_timeout = 1024,
+        cpu_type         = "urv",
+        memory_ready     = 1,
+        allow_legacy     = True,
     ):
         self.bus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
 
@@ -429,7 +438,9 @@ class WRCPUFlashBoot(LiteXModule, AutoCSR):
 
         spi_fsm.act("WAIT_MEMORY",
             self.cs_n.eq(1),
-            If(wait_count == wait_cycles - 1,
+            If(memory_ready == 0,
+                NextValue(wait_count, 0),
+            ).Elif(wait_count == wait_cycles - 1,
                 NextValue(spi_bits, 7),
                 NextValue(spi_div, half_period - 1),
                 NextState("WARMUP_LOW"),
@@ -539,8 +550,8 @@ class WRCPUFlashBoot(LiteXModule, AutoCSR):
         )
 
         # Boot image parser and Wishbone writer.
-        header       = Array(Signal(8, name=f"header_{n}") for n in range(16))
-        header_index = Signal(4)
+        header       = Array(Signal(8, name=f"header_{n}") for n in range(32))
+        header_index = Signal(5)
         header_magic = Cat(*header[0:4])
         header_ver   = Cat(*header[4:8])
         header_len   = Cat(*header[8:12])
@@ -571,18 +582,49 @@ class WRCPUFlashBoot(LiteXModule, AutoCSR):
         boot_fsm.act("CHECK_HEADER",
             If(header_magic != int.from_bytes(WR_BOOT_MAGIC, "little"),
                 *fail(self.ERROR_MAGIC),
-            ).Elif(header_ver != WR_BOOT_VERSION,
+            ).Elif((header_ver != WR_BOOT_PROFILE_VERSION) &
+                ((header_ver != WR_BOOT_VERSION) | int(not allow_legacy)),
                 *fail(self.ERROR_VERSION),
             ).Elif((header_len == 0) | (header_len[:2] != 0) | (header_len > max_payload),
                 *fail(self.ERROR_LENGTH),
             ).Else(
-                NextValue(payload_len, header_len),
-                NextValue(remaining, header_len),
-                NextValue(expected_crc, header_crc),
-                NextValue(crc, 0xffff_ffff),
-                NextValue(progress, 0),
-                NextState("PAYLOAD"),
+                If(header_ver == WR_BOOT_PROFILE_VERSION,
+                    NextValue(header_index, 16),
+                    NextState("PROFILE"),
+                ).Else(
+                    NextState("START_PAYLOAD"),
+                ),
             )
+        )
+        boot_fsm.act("PROFILE",
+            byte_accept.eq(1),
+            If(byte_valid,
+                NextValue(header[header_index], byte_data),
+                If(header_index == 31,
+                    NextState("CHECK_PROFILE"),
+                ).Else(
+                    NextValue(header_index, header_index + 1),
+                ),
+            ),
+        )
+        boot_fsm.act("CHECK_PROFILE",
+            If(Cat(*header[16:20]) != WR_BOOT_CPU_IDS[cpu_type],
+                *fail(self.ERROR_PROFILE),
+            ).Elif(Cat(*header[20:24]) != WR_BOOT_ABI,
+                *fail(self.ERROR_ABI),
+            ).Elif((Cat(*header[24:28]) != 0) | (Cat(*header[28:32]) != 0),
+                *fail(self.ERROR_ADDRESS),
+            ).Else(
+                NextState("START_PAYLOAD"),
+            ),
+        )
+        boot_fsm.act("START_PAYLOAD",
+            NextValue(payload_len, header_len),
+            NextValue(remaining, header_len),
+            NextValue(expected_crc, header_crc),
+            NextValue(crc, 0xffff_ffff),
+            NextValue(progress, 0),
+            NextState("PAYLOAD"),
         )
         boot_fsm.act("PAYLOAD",
             byte_accept.eq(1),
