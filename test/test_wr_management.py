@@ -330,3 +330,29 @@ def test_time_snapshot_command_and_stopped_clock_timeout():
     bus.regs.wr_time_done.value = 0
     with pytest.raises(TimeoutError, match="reference clock"):
         wr.read_time()
+
+
+def test_private_upload_bounds_transport_backlog():
+    class QueuedBus(Bus):
+        def __init__(self):
+            super().__init__(info=True)
+            self.queued = 0
+
+        def write(self, address, value):
+            if address - self.mems.wr_wb_slave.base - CPU_CSR in (4, 8):
+                self.queued += 1
+                assert self.queued <= 16, "Private RAM upload exceeded the transport backlog"
+            super().write(address, value)
+
+        def read(self, address, length=None):
+            self.queued = 0
+            return super().read(address, length)
+
+    bus = QueuedBus()
+    wr = WRClient(bus)
+    wr.size = 512
+    image = bytes(range(256))*2
+    wr.load_firmware(image, "urv")
+    assert wr.read_cpu(CPU_RESET) == 0
+    assert [bus.words[index] for index in range(128)] == [
+        int.from_bytes(image[offset:offset+4], "big") for offset in range(0, 512, 4)]
