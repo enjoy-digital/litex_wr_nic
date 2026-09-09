@@ -3,6 +3,7 @@
 import pytest
 
 from litex_wr_nic.integration import (
+    build_wr_firmware,
     prepare_wr_environment,
     preflight_wr_cores,
     resolve_wr_paths,
@@ -85,3 +86,24 @@ def test_prepare_wr_environment_status_only_prints(capsys, tmp_path):
     captured = capsys.readouterr()
     assert "White Rabbit status:" in captured.out
     assert wr_env["wr_sfp"] is None
+
+
+def test_vexriscv_firmware_selection_and_build(tmp_path, monkeypatch):
+    firmware = tmp_path / "firmware"
+    firmware.mkdir()
+    (firmware / "build.py").touch()
+    (firmware / "spec_a7_wrc.bram").write_text("urv")
+    image = firmware / "spec_a7_wrc_vexriscv.bram"
+    image.write_text("vexriscv")
+    directory, selected = resolve_wr_paths(str(tmp_path), str(tmp_path), cpu_type="vexriscv")
+    assert selected == str(image)
+    commands = []
+
+    def run(command, **kwargs):
+        from types import SimpleNamespace
+        commands.append(command)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr("litex_wr_nic.integration.subprocess.run", run)
+    build_wr_firmware(directory, selected, "acorn", enforce_fresh=False, cpu_type="vexriscv")
+    assert commands == [[str(firmware / "build.py"), "--target", "acorn", "--wr-cpu-type", "vexriscv"]]

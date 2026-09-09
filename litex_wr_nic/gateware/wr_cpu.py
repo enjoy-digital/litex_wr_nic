@@ -23,8 +23,224 @@ from litex_wr_nic.wr_boot import (
 
 # Constants ----------------------------------------------------------------------------------------
 
-WR_CPU_MEMORY_ORIGIN = 0x4000_0000
-WR_CPU_MEMORY_SIZE   = WR_BOOT_MAX_PAYLOAD
+WR_CPU_MEMORY_ORIGIN     = 0x4000_0000
+WR_CPU_MEMORY_SIZE       = WR_BOOT_MAX_PAYLOAD
+WR_CPU_PERIPHERAL_ORIGIN = 0x0010_0000
+
+WR_CPU_TYPES = ("urv", "vexriscv")
+WR_CPU_ADAPTERS = {
+    "vexriscv": {
+        "variants"        : ("lite",),
+        "default_variant" : "lite",
+    },
+}
+
+# WR CPU Configuration -----------------------------------------------------------------------------
+
+def resolve_wr_cpu_variant(cpu_type, variant=None):
+    """Validate a WR CPU selection and return its canonical variant."""
+    if cpu_type not in WR_CPU_TYPES:
+        raise ValueError(f"Unsupported WR CPU type: {cpu_type}")
+    if cpu_type == "urv":
+        if variant is not None:
+            raise ValueError("The embedded uRV CPU does not accept --wr-cpu-variant.")
+        return None
+    adapter = WR_CPU_ADAPTERS[cpu_type]
+    if variant is None:
+        variant = adapter["default_variant"]
+    if variant not in adapter["variants"]:
+        supported = ", ".join(adapter["variants"])
+        raise ValueError(f"Unsupported {cpu_type} WR CPU variant: {variant}; supported: {supported}")
+    return variant
+
+
+def validate_wr_cpu_config(cpu_type, variant=None, memory="private"):
+    """Validate the CPU/memory combination and return the canonical variant."""
+    variant = resolve_wr_cpu_variant(cpu_type, variant)
+    if cpu_type != "urv" and memory == "private":
+        raise ValueError(f"WR CPU type {cpu_type} requires integrated or HyperRAM memory.")
+    return variant
+
+
+def wr_cpu_firmware_filename(cpu_type, extension, target="spec_a7"):
+    """Return the distinct firmware artifact used by a WR CPU profile."""
+    resolve_wr_cpu_variant(cpu_type)
+    suffix = "" if cpu_type == "urv" else f"_{cpu_type}"
+    return f"{target}_wrc{suffix}.{extension}"
+
+# WR CPU Interconnect ------------------------------------------------------------------------------
+
+class WRCPUInterconnect(LiteXModule):
+    """Split a LiteX CPU's WRPC memory and peripheral accesses."""
+
+    def __init__(self, ibus, dbus):
+        if ibus.data_width != 32 or dbus.data_width != 32:
+            raise ValueError("WR CPUs require 32-bit instruction and data Wishbone buses.")
+        if ibus.addressing != "word" or dbus.addressing != "word":
+            raise ValueError("The VexRiscv WR CPU adapter expects word-addressed Wishbone buses.")
+
+        self.memory_bus     = wishbone.Interface.like(dbus)
+        self.peripheral_bus = wishbone.Interface.like(dbus)
+        data_memory_bus     = wishbone.Interface.like(dbus)
+
+        # # #
+
+        peripheral_word = WR_CPU_PERIPHERAL_ORIGIN // 4
+        self.submodules.data_decoder = wishbone.Decoder(dbus, [
+            (lambda address: address < peripheral_word, data_memory_bus),
+            (lambda address: address >= peripheral_word, self.peripheral_bus),
+        ])
+        # Match the existing uRV bridge's preference for data when an
+        # instruction fill and a load/store arrive together.
+        self.submodules.memory_arbiter = wishbone.Arbiter(
+            masters = [data_memory_bus, ibus],
+            target  = self.memory_bus,
+        )
+
+# WR CPU Peripheral Bridge -------------------------------------------------------------------------
+
+class WRCPUPeripheralBridge(LiteXModule):
+    """Adapt a LiteX classic Wishbone master to WR's pipelined bus."""
+
+    def __init__(self, bus):
+        self.cyc   = Signal()
+        self.stb   = Signal()
+        self.we    = Signal()
+        self.adr   = Signal.like(bus.adr)
+        self.sel   = Signal.like(bus.sel)
+        self.dat_w = Signal.like(bus.dat_w)
+        self.dat_r = Signal.like(bus.dat_r)
+        self.ack   = Signal()
+        self.err   = Signal()
+        self.rty   = Signal()
+        self.stall = Signal()
+
+        # # #
+
+        request_accepted = Signal()
+        response_data    = Signal.like(bus.dat_r)
+        response_error   = Signal()
+
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
+        fsm.act("IDLE",
+            NextValue(request_accepted, 0),
+            If(bus.cyc & bus.stb,
+                NextValue(self.we, bus.we),
+                NextValue(self.adr, bus.adr),
+                NextValue(self.sel, bus.sel),
+                NextValue(self.dat_w, bus.dat_w),
+                NextState("ACCESS"),
+            ),
+        )
+        fsm.act("ACCESS",
+            self.cyc.eq(1),
+            self.stb.eq(~request_accepted),
+            If(~request_accepted & ~self.stall,
+                NextValue(request_accepted, 1),
+            ),
+            If(self.ack | self.err | self.rty,
+                NextValue(response_data, Mux(self.ack, self.dat_r, 0)),
+                NextValue(response_error, self.err | self.rty),
+                NextState("RESPONSE"),
+            ),
+        )
+        fsm.act("RESPONSE",
+            # VexRiscv-lite ignores Wishbone ERR, so every terminal response
+            # also asserts ACK. ERR is retained for future LiteX CPU adapters.
+            bus.ack.eq(1),
+            bus.err.eq(response_error),
+            bus.dat_r.eq(response_data),
+            NextState("WAIT_RELEASE"),
+        )
+        fsm.act("WAIT_RELEASE",
+            If(~bus.cyc | ~bus.stb,
+                NextState("IDLE"),
+            ),
+        )
+
+# LiteX WR CPU -------------------------------------------------------------------------------------
+
+class WRLiteXCPU(LiteXModule):
+    """Instantiate a supported LiteX CPU for WRPC firmware."""
+
+    def __init__(self, platform, cpu_type,
+        variant        = None,
+        irq            = 0,
+        software_reset = 0,
+        memory_ready   = 1,
+    ):
+        variant = resolve_wr_cpu_variant(cpu_type, variant)
+
+        from litex.soc.cores import cpu as litex_cpu
+
+        cpu_cls = litex_cpu.CPUS[cpu_type]
+        core    = cpu_cls(platform, variant=variant)
+        for name, expected in (
+            ("family", "riscv"),
+            ("data_width", 32),
+            ("endianness", "little"),
+        ):
+            if getattr(core, name, None) != expected:
+                raise ValueError(f"WR CPU {cpu_type} requires {name}={expected!r}.")
+        for name in ("ibus", "dbus", "interrupt", "reset"):
+            if not hasattr(core, name):
+                raise ValueError(f"WR CPU {cpu_type} does not expose {name}.")
+
+        core.set_reset_address(0x0000_0000)
+        self.submodules.core = ClockDomainsRenamer("wr_sys")(core)
+        # The arbiter is sequential too; keep the complete CPU adapter in the
+        # core's system domain, independently of the resettable PHY reference.
+        self.submodules.interconnect = interconnect = ClockDomainsRenamer("wr_sys")(
+            WRCPUInterconnect(core.ibus, core.dbus)
+        )
+        self.submodules.peripheral_bridge = peripheral_bridge = ClockDomainsRenamer("wr_sys")(
+            WRCPUPeripheralBridge(interconnect.peripheral_bus)
+        )
+        self.memory_bus        = interconnect.memory_bus
+        self.peripheral_bridge = peripheral_bridge
+        self.cpu_type          = cpu_type
+        self.cpu_variant       = variant
+
+        # # #
+
+        self.comb += [
+            core.reset.eq(software_reset | ~memory_ready),
+            peripheral_bridge.fsm.reset.eq(software_reset | ~memory_ready),
+            # VexRiscv aggregates enabled array inputs into standard machine
+            # external interrupt cause 11. Firmware selects line 0 in CSR BC0.
+            core.interrupt.eq(irq),
+        ]
+
+# WR CPU Memory Monitor ----------------------------------------------------------------------------
+
+class WRCPUMemoryMonitor(LiteXModule, AutoCSR):
+    """Expose diagnostics for a WR CPU's system-side memory bus."""
+
+    def __init__(self, monitor_bus):
+        self._status = CSRStatus(fields=[
+            CSRField("error", description="A WR CPU memory transaction failed."),
+            CSRField("busy",  description="A WR CPU memory transaction is active."),
+        ])
+        self._error_count        = CSRStatus(32, description="Number of WR CPU memory bus errors/timeouts.")
+        self._last_error_address = CSRStatus(32, description="Address of the most recent failed transaction.")
+
+        # # #
+
+        error_sticky = Signal()
+        error_count  = Signal(32)
+        error_addr   = Signal(32)
+
+        self.comb += [
+            self._status.fields.error.eq(error_sticky),
+            self._status.fields.busy.eq(monitor_bus.cyc),
+            self._error_count.status.eq(error_count),
+            self._last_error_address.status.eq(error_addr),
+        ]
+        self.sync += If(monitor_bus.err,
+            error_sticky.eq(1),
+            error_count.eq(error_count + 1),
+            error_addr.eq(monitor_bus.adr),
+        )
 
 # WR CPU Word Addressing ---------------------------------------------------------------------------
 
