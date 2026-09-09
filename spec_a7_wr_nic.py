@@ -254,6 +254,16 @@ class BaseSoC(LiteXWRNICSoC):
                 refclk_freq               = 100e6,
                 pclk_mux_direct_from_mmcm = True,
             )
+            # These dedicated MMCM outputs only feed the two inputs of the
+            # PIPE BUFGCTRL. One mode reaches pclk at a time. Keep timing
+            # within each mode; exclude impossible 125 MHz <-> 250 MHz paths.
+            platform.toolchain.pre_placement_commands.add(
+                "set_clock_groups -logically_exclusive "
+                "-group [get_clocks -of_objects [get_nets {pclk125}]] "
+                "-group [get_clocks -of_objects [get_nets {pclk250}]]",
+                pclk125 = self.pcie_phy.mmcm.clkouts[4][0],
+                pclk250 = self.pcie_phy.mmcm.clkouts[5][0],
+            )
             self.pcie_phy.update_config({
                 "Base_Class_Menu"          : "Network_controller",
                 "Sub_Class_Interface_Menu" : "Ethernet_controller",
