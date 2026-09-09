@@ -30,6 +30,15 @@ memory controller is ready and the host has written and verified all 128 KiB.
 Failed validation leaves the CPU held. A host reboot or disconnect does not
 release a waiting CPU. A normal CPU restart keeps the verified memory image.
 
+SPEC-A7 samples HyperRAM DQ/RWDS with a 180-degree shifted system PLL output.
+The cache uses local 17-bit byte addresses for the reserved 128 KiB window;
+the SoC decoder enforces that window's address bounds. Full host readback
+exercises physical RAM after cache eviction, which is essential: immediate
+readback from the cache alone did not expose the read corruption observed
+with the original sampling configuration. The system clock remains derived
+from its PLL so implementation checks its real relationship to the input
+capture clock.
+
 `--wr-cpu-memory integrated --wr-cpu-boot spi` reads the same SPI boot slot as
 HyperRAM boot. The default `auto` boot source preserves the previous selection
 for each memory mode. Private uRV RAM is physically inside the WR wrapper;

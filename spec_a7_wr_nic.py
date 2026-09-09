@@ -203,13 +203,19 @@ class BaseSoC(LiteXWRNICSoC):
         wr_cpu_region = None
         if wr_cpu_memory == "hyperram":
             wr_cpu_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN, size=WR_CPU_MEMORY_SIZE, mode="rwx")
-            wr_cpu_bus    = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+            # The SoC decoder owns the region bounds. Only the local 128 KiB
+            # address belongs in the cache tag, not the constant SoC prefix.
+            wr_cpu_bus    = wishbone.Interface(data_width=32, address_width=17, addressing="word")
             self.bus.add_slave(name="wr_cpu_mem", slave=wr_cpu_bus, region=wr_cpu_region)
             self.wr_cpu_cache = FullMemoryWE()(wishbone.Cache(
                 cachesize = (8*KILOBYTE)//4,
                 master    = wr_cpu_bus,
-                slave     = wishbone.Interface(data_width=32, address_width=32, addressing="word"),
+                slave     = wishbone.Interface(data_width=32, address_width=17, addressing="word"),
             ))
+            self.cd_hyperram_input = ClockDomain("hyperram_input")
+            self.crg.pll.create_clkout(self.cd_hyperram_input, sys_clk_freq,
+                phase=180, margin=0, with_reset=False)
+            self.comb += self.cd_hyperram_input.rst.eq(ResetSignal("sys"))
             self.hyperram = HyperRAM(
                 pads         = platform.request("hyperram"),
                 latency      = 7,
@@ -219,6 +225,7 @@ class BaseSoC(LiteXWRNICSoC):
                 # system clock and avoids introducing a timing-critical 250 MHz
                 # FPGA domain on the Artix-7.
                 clk_ratio    = "4:1",
+                dq_i_cd      = "hyperram_input",
             )
             self.comb += self.wr_cpu_cache.slave.connect(self.hyperram.bus)
             self.add_config("WR_CPU_CACHE_SIZE", 8*KILOBYTE)
@@ -272,15 +279,18 @@ class BaseSoC(LiteXWRNICSoC):
             })
             self.comb += ClockSignal("refclk_pcie").eq(self.pcie_phy.pcie_refclk)
             self.pcie_phy.use_external_qpll(qpll_channel=self.qpll.get_channel("pcie"))
-            platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
+            # Keep sys derived from the free-running PLL. A primary clock on
+            # this net would hide its phase relationship to HyperRAM capture.
             platform.toolchain.pre_placement_commands.append("reset_property LOC [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
             platform.toolchain.pre_placement_commands.append("set_property LOC GTPE2_CHANNEL_X0Y0 [get_cells -hierarchical -filter {{NAME=~pcie_s7/*gtp_channel.gtpe2_channel_i}}]")
 
             # PCIe <-> Sys-Clk false paths.
             platform.toolchain.pre_placement_commands.append(
-                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout*}}] -to [get_clocks -quiet sys_clk]")
+                "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout*}}] "
+                "-to [get_clocks -of_objects [get_nets sys_clk]]")
             platform.toolchain.pre_placement_commands.append(
-                "set_false_path -quiet -from [get_clocks -quiet sys_clk] -to [get_clocks -quiet {{*s7pciephy_clkout*}}]")
+                "set_false_path -quiet -from [get_clocks -of_objects [get_nets sys_clk]] "
+                "-to [get_clocks -quiet {{*s7pciephy_clkout*}}]")
             platform.toolchain.pre_placement_commands.append(
                 "set_false_path -quiet -from [get_clocks -quiet {{*s7pciephy_clkout0}}] -to [get_clocks -quiet {{*s7pciephy_clkout1}}]")
             platform.toolchain.pre_placement_commands.append(
