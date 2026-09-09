@@ -50,7 +50,7 @@ from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, Fin
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.clk10m            import Clk10MGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
-from litex_wr_nic.gateware.ps_gen            import PSGen
+from litex_wr_nic.gateware.wr_clock          import WRMMCMBackend
 from litex_wr_nic.gateware.wr_cpu            import (
     WR_CPU_MEMORY_ORIGIN,
     WR_CPU_MEMORY_SIZE,
@@ -87,7 +87,8 @@ class _CRG(LiteXModule):
 
         # RefClk MMCM (125MHz).
         # ---------------------
-        self.refclk_mmcm = S7MMCM(speedgrade=-3)
+        # Fine phase shifting requires integer feedback/output division (UG472).
+        self.refclk_mmcm = S7MMCM(speedgrade=-3, fractional=False)
         self.comb += self.refclk_mmcm.reset.eq(self.rst)
         self.refclk_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
         self.refclk_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
@@ -97,7 +98,7 @@ class _CRG(LiteXModule):
 
         # DMTD MMCM (62.5MHz).
         # --------------------
-        self.dmtd_mmcm = S7MMCM(speedgrade=-3)
+        self.dmtd_mmcm = S7MMCM(speedgrade=-3, fractional=False)
         self.comb += self.dmtd_mmcm.reset.eq(self.rst)
         self.dmtd_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
         self.dmtd_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
@@ -107,6 +108,11 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(LiteXWRNICSoC):
+    # Use the oscillator-control slots for this board's MMCM backends.
+    csr_map = {name: location for name, location in LiteXWRNICSoC.csr_map.items()
+        if name not in ("refclk_dac", "dmtd_dac")}
+    csr_map.update({"refclk_mmcm_ps_gen": 21, "dmtd_mmcm_ps_gen": 22})
+
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
         # ----------------
@@ -264,30 +270,30 @@ class BaseSoC(LiteXWRNICSoC):
 
             # RefClk MMCM Phase Shift.
             # ------------------------
-            self.refclk_mmcm_ps_gen = PSGen(
-                 cd_psclk    = "clk200",
-                 cd_sys      = "wr_sys",
-                 ctrl_size   = 16,
-                 )
+            self.refclk_mmcm_ps_gen = WRMMCMBackend(
+                cd_psclk   = "clk200",
+                cd_command = "wr_sys",
+                width      = 16,
+            )
             self.comb += [
-                self.refclk_mmcm_ps_gen.ctrl_data.eq(self.dac_refclk_data),
-                self.refclk_mmcm_ps_gen.ctrl_load.eq(self.dac_refclk_load),
-                self.crg.refclk_mmcm.psen.eq(self.refclk_mmcm_ps_gen.psen),
-                self.crg.refclk_mmcm.psincdec.eq(self.refclk_mmcm_ps_gen.psincdec),
+                self.wr_core.refclk_tuning.connect(self.refclk_mmcm_ps_gen.command),
+                self.crg.refclk_mmcm.psen.eq(     self.refclk_mmcm_ps_gen.psen),
+                self.crg.refclk_mmcm.psincdec.eq( self.refclk_mmcm_ps_gen.psincdec),
+                self.refclk_mmcm_ps_gen.psdone.eq(self.crg.refclk_mmcm.psdone),
             ]
 
             # DMTD MMCM Phase Shift.
             # ----------------------
-            self.dmtd_mmcm_ps_gen = PSGen(
-                 cd_psclk    = "clk200",
-                 cd_sys      = "wr_sys",
-                 ctrl_size   = 16,
-                 )
+            self.dmtd_mmcm_ps_gen = WRMMCMBackend(
+                cd_psclk   = "clk200",
+                cd_command = "wr_sys",
+                width      = 16,
+            )
             self.comb += [
-                self.dmtd_mmcm_ps_gen.ctrl_data.eq(self.dac_dmtd_data),
-                self.dmtd_mmcm_ps_gen.ctrl_load.eq(self.dac_dmtd_load),
-                self.crg.dmtd_mmcm.psen.eq(self.dmtd_mmcm_ps_gen.psen),
-                self.crg.dmtd_mmcm.psincdec.eq(self.dmtd_mmcm_ps_gen.psincdec),
+                self.wr_core.dmtd_tuning.connect(self.dmtd_mmcm_ps_gen.command),
+                self.crg.dmtd_mmcm.psen.eq(     self.dmtd_mmcm_ps_gen.psen),
+                self.crg.dmtd_mmcm.psincdec.eq( self.dmtd_mmcm_ps_gen.psincdec),
+                self.dmtd_mmcm_ps_gen.psdone.eq(self.crg.dmtd_mmcm.psdone),
             ]
 
             # Timings Constraints.
@@ -367,6 +373,9 @@ class BaseSoC(LiteXWRNICSoC):
         if with_white_rabbit:
             # Host/WR register and fabric traffic crosses asynchronous FIFOs.
             platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_wr_sys.clk)
+            # Tuning commands cross an asynchronous FIFO into PSCLK. The
+            # disciplined WR clock has no fixed phase relative to PSCLK.
+            platform.add_false_path_constraints(self.crg.cd_clk200.clk, self.cd_wr_sys.clk)
 
         platform.add_false_path_constraints(*asynchronous_clk_domains)
 

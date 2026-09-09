@@ -38,6 +38,7 @@ from litex_wr_nic.gateware.wrf_wb2stream     import Wishbone2Stream
 from litex_wr_nic.gateware.wb_clock_crossing import WishboneClockCrossing
 from litex_wr_nic.gateware.wr_info           import WRInfo
 from litex_wr_nic.gateware.wr_time           import WRApplicationTime
+from litex_wr_nic.gateware.wr_clock          import WRTuningInterface
 
 # White Rabbit Core -------------------------------------------------------------------------------
 
@@ -108,21 +109,23 @@ class WhiteRabbitCore(LiteXModule):
 
         # Signals.
         # --------
-        self.led_pps         = Signal()
-        self.led_link        = Signal()
-        self.led_act         = Signal()
-        self.dac_refclk_load = Signal()
-        self.dac_refclk_data = Signal(dac_bits)
-        self.dac_dmtd_load   = Signal()
-        self.dac_dmtd_data   = Signal(dac_bits)
-        self.pps_in          = Signal()
-        self.pps_out_valid   = Signal()
-        self.pps_out         = Signal()
-        self.pps_out_pulse   = Signal()
-        self.tm_link_up      = Signal()
-        self.tm_time_valid   = Signal()
-        self.tm_seconds      = Signal(40)
-        self.tm_cycles       = Signal(28)
+        self.led_pps        = Signal()
+        self.led_link       = Signal()
+        self.led_act        = Signal()
+        self.refclk_tuning  = WRTuningInterface(dac_bits, name="refclk_tuning")
+        self.dmtd_tuning    = WRTuningInterface(dac_bits, name="dmtd_tuning")
+        self.dac_refclk_load = self.refclk_tuning.load
+        self.dac_refclk_data = self.refclk_tuning.data
+        self.dac_dmtd_load   = self.dmtd_tuning.load
+        self.dac_dmtd_data   = self.dmtd_tuning.data
+        self.pps_in         = Signal()
+        self.pps_out_valid  = Signal()
+        self.pps_out        = Signal()
+        self.pps_out_pulse  = Signal()
+        self.tm_link_up     = Signal()
+        self.tm_time_valid  = Signal()
+        self.tm_seconds     = Signal(40)
+        self.tm_cycles      = Signal(28)
 
         self.wr_time = WRApplicationTime(
             seconds        = self.tm_seconds,

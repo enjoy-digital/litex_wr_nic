@@ -44,6 +44,7 @@ from litex_wr_nic.gateware.soc               import LiteXWRNICSoC
 from litex_wr_nic.gateware.time              import TimeGenerator
 from litex_wr_nic.gateware.qpll              import SharedQPLL
 from litex_wr_nic.gateware.ad5683r.core      import AD5683RDAC
+from litex_wr_nic.gateware.wr_clock          import WRDACBackend
 from litex_wr_nic.gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
 from litex_wr_nic.gateware.measurement       import MultiClkMeasurement
 from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
@@ -338,20 +339,24 @@ class BaseSoC(LiteXWRNICSoC):
             # ---------------------------------------
 
             # RefClk DAC.
+            self.refclk_tuning = WRDACBackend(cd="wr_sys")
+            self.comb += self.wr_core.refclk_tuning.connect(self.refclk_tuning.command)
             self.refclk_dac = AD5683RDAC(platform,
                 pads  = dac_refclk_pads,
-                load  = self.dac_refclk_load,
-                value = self.dac_refclk_data,
+                load  = self.refclk_tuning.load,
+                value = self.refclk_tuning.value,
                 gain  = 2, # 2 for 0-3V range to be able to accelerate enough RefClk, not working with 1.
                 clk_domain = "wr_sys",
             )
 
             # DMTD DAC.
+            self.dmtd_tuning = WRDACBackend(cd="wr_sys")
+            self.comb += self.wr_core.dmtd_tuning.connect(self.dmtd_tuning.command)
             self.dmtd_dac = AD5683RDAC(platform,
                 pads  = dac_dmtd_pads,
-                load  = self.dac_dmtd_load,
-                value = self.dac_dmtd_data,
-                gain  = 1,
+                load  = self.dmtd_tuning.load,
+                value = self.dmtd_tuning.value,
+                gain  = 2, # Preserve the effective gain used before g_enable_x2_gain was connected.
                 clk_domain = "wr_sys",
             )
 
