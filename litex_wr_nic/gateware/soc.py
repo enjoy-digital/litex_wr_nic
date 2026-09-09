@@ -268,16 +268,14 @@ class LiteXWRNICSoC(SoCMini):
     def add_wishbone_fabric_interface_probe(self):
        analyzer_signals = [
            self.wrf_stream2wb.bus,
-           self.wrf_stream2wb.sink,
            self.wrf_stream2wb.fsm,
 
            self.wrf_wb2stream.bus,
-           self.wrf_wb2stream.source,
-           self.wrf_wb2stream.fsm,
+           self.wrf_wb2stream.input_fsm,
        ]
        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
            depth        = 256,
-           clock_domain = "wr",
+           clock_domain = "wr_sys",
            samplerate   = int(62.5e6),
            register     = True,
            csr_csv      = "test/analyzer.csv"

@@ -97,13 +97,17 @@ def test_wr_interfaces_without_phy_clock():
         # The WR core itself originates fabric traffic in its system domain.
         yield rx.bus.cyc.eq(1)
         yield rx.bus.stb.eq(1)
-        yield rx.bus.adr.eq(2)
-        yield
-        yield rx.bus.adr.eq(0)
+        yield rx.bus.we.eq(1)
         yield rx.bus.sel.eq(3)
-        for word in [0xabcd, 0xef01]:
+        for address, word in [(2, 0x0200), (0, 0xabcd), (0, 0xef01)]:
+            yield rx.bus.adr.eq(address)
             yield rx.bus.dat_w.eq(word)
-            yield
+            for _ in range(100):
+                yield
+                if not (yield rx.bus.stall):
+                    break
+            else:
+                raise AssertionError("Fabric receive bus stalled")
         yield rx.bus.cyc.eq(0)
         yield rx.bus.stb.eq(0)
         for _ in range(150):

@@ -31,10 +31,11 @@ class LiteEthPHYWRGMII(LiteXModule):
             self.cd_eth_rx.clk.eq(ClockSignal("sys")),
             self.cd_eth_rx.rst.eq(ResetSignal("sys")),
             self.cd_eth_tx.clk.eq(ClockSignal("sys")),
-            self.cd_eth_tx.clk.eq(ClockSignal("sys")),
+            self.cd_eth_tx.rst.eq(ResetSignal("sys")),
         ]
 
         self.comb += [
-            sink.connect(wrf_stream2wb.sink,     omit={"last_be", "error"}),
-            wrf_wb2stream.source.connect(source, omit={"last_be", "error"}),
+            sink.connect(wrf_stream2wb.sink,     omit={"last_be"}),
+            wrf_wb2stream.source.connect(source, omit={"last_be"}),
+            source.last_be.eq(source.last),
         ]

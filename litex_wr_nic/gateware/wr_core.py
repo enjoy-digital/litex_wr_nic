@@ -394,7 +394,7 @@ class WhiteRabbitCore(LiteXModule):
             o_wrf_src_sel         = wrf_wb2stream.bus.sel,
 
             i_wrf_src_ack         = wrf_wb2stream.bus.ack,
-            i_wrf_src_stall       = 0, # Not Used.
+            i_wrf_src_stall       = wrf_wb2stream.bus.stall,
             i_wrf_src_err         = wrf_wb2stream.bus.err,
             i_wrf_src_rty         = 0, # Not Used.
 
@@ -407,9 +407,9 @@ class WhiteRabbitCore(LiteXModule):
             i_wrf_snk_sel         = wrf_stream2wb.bus.sel,
 
             o_wrf_snk_ack         = wrf_stream2wb.bus.ack,
-            o_wrf_snk_stall       = Open(), # Not Used.
+            o_wrf_snk_stall       = wrf_stream2wb.bus.stall,
             o_wrf_snk_err         = wrf_stream2wb.bus.err,
-            o_wrf_snk_rty         = Open(), # Not Used.
+            o_wrf_snk_rty         = wrf_stream2wb.bus.rty,
 
             # Time.
             o_tm_link_up_o        = self.tm_link_up,
