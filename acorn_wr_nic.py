@@ -261,7 +261,6 @@ class BaseSoC(LiteXWRNICSoC):
                 # Flash.
                 flash_pads      = platform.request("flash", 1),
             )
-            self.add_sources()
 
             # RefClk MMCM Phase Shift.
             # ------------------------

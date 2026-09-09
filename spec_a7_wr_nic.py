@@ -323,7 +323,6 @@ class BaseSoC(LiteXWRNICSoC):
                 # Temp 1Wire.
                 temp_1wire_pads  = platform.request("temp_1wire"),
             )
-            self.add_sources()
 
             # Pads.
             # -----

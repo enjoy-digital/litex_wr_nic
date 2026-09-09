@@ -8,6 +8,8 @@
 
 from types import SimpleNamespace
 
+import pytest
+
 from migen import ClockDomain, ClockSignal, Instance, Record, run_simulation
 from migen.fhdl.structure import _Assign
 
@@ -16,8 +18,15 @@ from litex.gen import LiteXModule
 from litex.soc.integration.soc import SoCRegion
 
 from litex_wr_nic.gateware.soc import LiteXWRNICSoC
+from litex_wr_nic.gateware.wr_core import WhiteRabbitCore
 
 # WR Clock Domain Tests ----------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def skip_hdl_sources(monkeypatch):
+    # These simulations replace the WR HDL instance with bus response models.
+    monkeypatch.setattr(WhiteRabbitCore, "add_sources", staticmethod(lambda platform: None))
+
 
 def test_wr_interfaces_without_phy_clock():
     dut          = LiteXModule()
