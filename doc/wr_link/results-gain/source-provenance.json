@@ -1,0 +1,59 @@
+{
+  "wr_core_upstream": "https://gitlab.com/ohwr/project/wr-cores.git",
+  "wrpc_upstream": "https://gitlab.com/ohwr/project/wrpc-sw.git",
+  "repositories": {
+    "wr-cores": {
+      "head": "8cc5e53275d229fbbf50b96a6ae4cb9c87626d53",
+      "submodules": [
+        " d99c8460ae8b939ada406fe23198c41d236bf49b ip_cores/general-cores (v2.1.0-11-gd99c846)",
+        " 0bced0107438a612b8656d5ae80a6d1a32f22b81 ip_cores/general-cores/testbench/osvvm/upstream (2020.12a-192-g0bced01)",
+        " de05caf973e17d1fa46f4fdb95762230bd1ab8c4 ip_cores/urv-core (wr-switch-sw-v8.0-13-gde05caf)",
+        " 97bc71975252b32cf8a47ba895f7010734f015e5 ip_cores/urv-core/ip_cores/general-cores (btrain-v2.5~41)",
+        " 7e5ab46665b65b94a37dad54f0dd713edc65f552 ip_cores/wrpc-sw (wr-switch-sw-v8.0-243-g7e5ab466)",
+        " 33d8c46c8353be56d35dc57dd3492769e276c00f ip_cores/wrpc-sw/ppsi (wrpc-v5.0-ohwr-25-g33d8c46c)",
+        " 57a9484c343cbda804ceaa39e6025ba425c9a252 ip_cores/wrpc-sw/ual (v1.3.1-1-g57a9484)"
+      ]
+    },
+    "wrpc-sw": {
+      "head": "13527cd68e1833214a89e4ee8c5b208188ff0e6a",
+      "submodules": [
+        " 33d8c46c8353be56d35dc57dd3492769e276c00f ppsi (wrpc-v5.0-ohwr-25-g33d8c46c)",
+        " 57a9484c343cbda804ceaa39e6025ba425c9a252 ual (v1.3.1-1-g57a9484)"
+      ]
+    },
+    "litex": {
+      "path": "/home/florent/dev/litex/litex/litex",
+      "head": "78c65eb2435622af22f641fa46cbd023974ac8d9",
+      "tracked_diff": ""
+    },
+    "migen": {
+      "path": "/home/florent/dev/litex/migen/migen",
+      "head": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+      "tracked_diff": ""
+    },
+    "liteeth": {
+      "path": "/home/florent/dev/litex/liteeth/liteeth",
+      "head": "8c9150ff121cb3148d8ea26ce3b1c5200479848d",
+      "tracked_diff": ""
+    },
+    "litepcie": {
+      "path": "/home/florent/dev/research/litex_wr_nic/build/wr_upstream_20260911/litepcie",
+      "head": "f9a2d43e4e9c29ae837641fb1c86cc0ffdec5da4",
+      "tracked_diff": ""
+    },
+    "litescope": {
+      "path": "/home/florent/dev/litex/litescope/litescope",
+      "head": "6bf3b92f261c50b8c7c74947f84e692ae846f512",
+      "tracked_diff": ""
+    },
+    "litex_boards": {
+      "path": "/home/florent/dev/litex/litex-boards/litex_boards",
+      "head": "3e606b50b3f14e31d4bf565e5ba3cac3d21f841d",
+      "tracked_diff": ""
+    }
+  },
+  "jtag_server_litex": {
+    "path": "/home/florent/dev/research/litex_wr_nic/build/wr_link_20260911/litex",
+    "head": "fa87e1c59732df3e3e590cb4e449180e2dee1531"
+  }
+}

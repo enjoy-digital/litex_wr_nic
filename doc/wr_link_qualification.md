@@ -4,7 +4,9 @@ This procedure uses the physical WR UART on each board and two independent
 JTAGBone servers. The host needs only USB connections. The WR link itself runs
 between Acorn SFP0 and **SPEC-A7 J12, which is SFP0**.
 
-The [complete upstream hardware results](wr_link/results-upstream/README.md) include both
+The [SPEC DMTD ×1 gain results](wr_link/results-gain/README.md) document the
+subsequent gain correction and its measured, user-limited qualification. The
+original ×2 baseline [complete upstream hardware results](wr_link/results-upstream/README.md) include both
 30-minute role tests, all twelve recovery cycles, raw UART/snapshot evidence,
 image and firmware hashes, and the failed runs that led to the fixes. The
 [upstream build notes](wr_link/upstream-build.md) identify the official source
@@ -21,6 +23,7 @@ PPS accuracy.
 
 | Symptom | Cause | Change / evidence |
 | --- | --- | --- |
+| SPEC DMTD requests x1 but operates at x2 | The Python generic name did not match the VHDL declaration and was ignored. | Bind `g_enable_x2_gain`; preserve x2 as the driver default and test explicit SPEC DMTD x1 on the connected bench. See [gain results](wr_link/results-gain/README.md). |
 | Acorn bitstream generation fails with Vivado AVAL-139 | Fractional MMCM dividers were combined with fine phase shifting. | Use integer dividers and the PSDONE-aware backend from the earlier [clock work](https://github.com/enjoy-digital/litex_wr_nic/pull/77). |
 | Acorn clock commands can lose small corrections or overlap phase shifts | Commands cross clock domains and phase shifts need completion handshakes. | Transfer coherent 16-bit commands through a FIFO, preserve fractional phase across same-direction updates, wait for PSDONE, expose a completion watchdog and counters. |
 | Acorn slave periodically leaves `TRACK_PHASE` while the link and PLL remain locked | The original MMCM PI profile (`kp=-150, ki=-2`) produces phase excursions past PPSI's ±120 ps correction threshold on this bench. | Increase main-loop tracking gains to `kp=-600, ki=-16`; reduce the frequency prelock boost from 20 to 5 to preserve its proportional gain. See the measured comparison below. |
@@ -318,11 +321,15 @@ No SFP delay/asymmetry constants were invented or written to flash. Automatic
 PHY/RX timestamp calibration runs in RAM. Absolute timing accuracy needs the
 appropriate physical calibration and an independent PPS measurement.
 
-The qualified SPEC image retains the legacy AD5683R driver's effective x2 gain
-on both DACs. Its misspelled VHDL generic is ignored, so the VHDL default applies
-even where the Python DMTD argument says `gain=1`. The driver correction already
-exists in [PR 77](https://github.com/enjoy-digital/litex_wr_nic/pull/77). This
-qualification does not change that analog range.
+The original upstream qualification used effective x2 gain on both SPEC DACs:
+the misspelled `g_x2_gain` generic was ignored, including the DMTD request for x1.
+The driver now binds `g_enable_x2_gain` correctly. Its default is x2 to preserve
+existing callers' effective behavior; SPEC explicitly selects x2 RefClk and x1
+DMTD. This reintroduces the earlier correction from the [clock work](https://github.com/enjoy-digital/litex_wr_nic/pull/77).
+The [gain results](wr_link/results-gain/README.md) record both initial role checks,
+six SPEC-master recoveries and two separate longer observations. Qualification
+was stopped at the user's request before repeating the full matrix at x1.
+Firmware PI coefficients were unchanged.
 
 The legacy SPEC `*_dac_current` CSRs also follow the WR write-data bus every
 clock, rather than latching only the corresponding DAC load strobe. That bus is

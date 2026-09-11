@@ -1,5 +1,7 @@
 # Complete upstream hardware qualification
 
+This is the original SPEC DAC ×2 baseline. The subsequent [DMTD ×1 correction and measured results](../results-gain/README.md) are documented separately.
+
 Both FPGA images were rebuilt from official WR-core `8cc5e532` and WRPC `13527cd6`, with firmware PPSI `33d8c46c`. The [source and build notes](../upstream-build.md) describe the integration patches and SPEC timing adjustment. These results are separate from the [older pinned-source qualification](../results/README.md).
 
 The bench uses uRV with private 128 KiB RAM, USB UART/JTAG, and Acorn SFP0 connected to SPEC-A7 J12/SFP0. Programming was to SRAM; firmware flash writes and erases were disabled.

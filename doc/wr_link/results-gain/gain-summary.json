@@ -1,0 +1,152 @@
+{
+  "audited": true,
+  "scope": "Stopped at user request; planned full matrix was not completed",
+  "full_matrix_completed": false,
+  "runs": {
+    "warm-acorn-master": {
+      "audit_passed": true,
+      "samples": 121,
+      "observed_tracking_seconds": 119.98894077097066,
+      "completed_check_seconds": 120.98224376491271,
+      "trailing_partial_sample": false,
+      "offset_ps": {
+        "minimum": -50,
+        "maximum": 54,
+        "mean": 0.48760330578512395,
+        "standard_deviation": 19.586686194301443
+      },
+      "termination": "completed",
+      "raw_uart": {
+        "master": {
+          "frames": 163,
+          "first_tracking_frame": 21,
+          "nontracking_frames_after_first": 0,
+          "sha256": "95b508ccb4cd1cc40e44c8c7bf623745ad2905b372187a07d4ec49ef709d5dc3"
+        },
+        "slave": {
+          "frames": 209,
+          "first_tracking_frame": 43,
+          "nontracking_frames_after_first": 0,
+          "sha256": "622d33db6d919a835e62aad4818012f3acc67cae357baaffd4d916d04eab898c"
+        }
+      }
+    },
+    "warm-spec-master": {
+      "audit_passed": true,
+      "samples": 120,
+      "observed_tracking_seconds": 119.03893670695834,
+      "completed_check_seconds": 120.03207300812937,
+      "trailing_partial_sample": false,
+      "offset_ps": {
+        "minimum": -18,
+        "maximum": 18,
+        "mean": -0.75,
+        "standard_deviation": 7.289547311047511
+      },
+      "termination": "completed",
+      "raw_uart": {
+        "master": {
+          "frames": 158,
+          "first_tracking_frame": 20,
+          "nontracking_frames_after_first": 0,
+          "sha256": "a69b1df81be920a534c2f0001d6d092ab917f0cabece8ebb1f17678884864b91"
+        },
+        "slave": {
+          "frames": 197,
+          "first_tracking_frame": 40,
+          "nontracking_frames_after_first": 0,
+          "sha256": "5984c670216266b739cf7d9018b2bf4a9a51f3aa903d36b158c30ff7f1e23284"
+        }
+      }
+    },
+    "interrupted-soak-spec-master": {
+      "audit_passed": true,
+      "samples": 1024,
+      "observed_tracking_seconds": 1022.9787885248661,
+      "completed_check_seconds": null,
+      "trailing_partial_sample": false,
+      "offset_ps": {
+        "minimum": -16,
+        "maximum": 19,
+        "mean": -0.0048828125,
+        "standard_deviation": 6.035456401188073
+      },
+      "termination": "foreground session interrupted",
+      "raw_uart": {
+        "master": {
+          "frames": 1027,
+          "first_tracking_frame": 0,
+          "nontracking_frames_after_first": 0,
+          "sha256": "e5623c14b53a5dcc423e40969d6811839c1c03f0ff806ba132bbcaccb2fbbee2"
+        },
+        "slave": {
+          "frames": 1384,
+          "first_tracking_frame": 0,
+          "nontracking_frames_after_first": 0,
+          "sha256": "021c74ea4cf9a252da231156707cb7fbb85953eba2cc38b02d6c39b25296d260"
+        }
+      }
+    },
+    "soak-spec-master": {
+      "audit_passed": true,
+      "samples": 1100,
+      "observed_tracking_seconds": 1099.0090930629522,
+      "completed_check_seconds": null,
+      "trailing_partial_sample": false,
+      "offset_ps": {
+        "minimum": -23,
+        "maximum": 23,
+        "mean": -0.10454545454545454,
+        "standard_deviation": 6.604473502705108
+      },
+      "termination": "user-requested stop",
+      "raw_uart": {
+        "master": {
+          "frames": 1106,
+          "first_tracking_frame": 0,
+          "nontracking_frames_after_first": 0,
+          "sha256": "bf3c0e836d95ee91121622053c8a4ab1add40e363b88646c8e8ddedac4d59a2c"
+        },
+        "slave": {
+          "frames": 1484,
+          "first_tracking_frame": 0,
+          "nontracking_frames_after_first": 0,
+          "sha256": "88d7764140a76f1680b9a9a4d73c883c2b5b340bea9496cc4e7dc91604181b60"
+        }
+      }
+    }
+  },
+  "recovery_master": "spec",
+  "recoveries": [
+    {
+      "operation": "link",
+      "cycle": 1,
+      "recovery_upper_bound_s": 45.96501526609063
+    },
+    {
+      "operation": "link",
+      "cycle": 2,
+      "recovery_upper_bound_s": 49.55331376683898
+    },
+    {
+      "operation": "link",
+      "cycle": 3,
+      "recovery_upper_bound_s": 45.589131959946826
+    },
+    {
+      "operation": "reload",
+      "cycle": 1,
+      "recovery_upper_bound_s": 53.15375306876376
+    },
+    {
+      "operation": "reload",
+      "cycle": 2,
+      "recovery_upper_bound_s": 50.12952803587541
+    },
+    {
+      "operation": "reload",
+      "cycle": 3,
+      "recovery_upper_bound_s": 50.01045887195505
+    }
+  ]
+}
