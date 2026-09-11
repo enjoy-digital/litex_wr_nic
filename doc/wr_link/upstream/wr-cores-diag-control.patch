@@ -1,0 +1,41 @@
+From 628cfa0792c74bab83fed378b54ac0dbaa288436 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Fri, 11 Sep 2026 13:03:07 +0200
+Subject: [PATCH] wrc_diags: allow host writes to the v2 control register
+
+The v2 diagnostic map places VER at word 0 and CTRL at word 1.
+The old selector made version writable and discarded snapshot requests
+to CTRL at byte offset 0x04. Select word 1 and correct the port comment.
+
+Found while reading WR diagnostics over JTAGBone on Acorn and SPEC-A7.
+The corrected selector permits fresh, frozen firmware snapshots and
+keeps version and data words read-only.
+---
+ modules/wrc_core/wrc_diags_dpram.vhd | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/modules/wrc_core/wrc_diags_dpram.vhd b/modules/wrc_core/wrc_diags_dpram.vhd
+index bce6e336..aaae6fbd 100644
+--- a/modules/wrc_core/wrc_diags_dpram.vhd
++++ b/modules/wrc_core/wrc_diags_dpram.vhd
+@@ -42,7 +42,7 @@ entity wrc_diags_dpram is
+     clk_sys_i : in std_logic;
+     rst_n_i   : in std_logic;
+ 
+-    -- R/O slave (except the 1st, control word)
++    -- R/O slave except CTRL (word 1, byte offset 0x04); VER is word 0.
+     slave_user_i : in  t_wishbone_slave_in;
+     slave_user_o : out t_wishbone_slave_out;
+     -- R/W slave
+@@ -84,7 +84,7 @@ begin
+       );
+ 
+ 
+-  s_is_control_word <= '1' when unsigned(slave_user_i.adr(f_log2_size(g_size)+1 downto 2) ) = 0 else '0';
++  s_is_control_word <= '1' when unsigned(slave_user_i.adr(f_log2_size(g_size)+1 downto 2) ) = 1 else '0';
+ 
+   s_we_user <= s_is_control_word and slave_user_i.we and slave_user_i.stb and slave_user_i.cyc;
+   s_we_wrc <= slave_wrc_i.we and slave_wrc_i.stb and slave_wrc_i.cyc;
+-- 
+2.53.0
+

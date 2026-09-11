@@ -1,0 +1,31 @@
+From 225231378741cd3ded7132778b2cde90633e1698 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Fri, 11 Sep 2026 13:03:07 +0200
+Subject: [PATCH] board: use the CPU address for private WR diagnostics
+
+The generated CPU device map places WDIAG at DEV_BASE + 0x800.
+The previous 0x900 offset belongs to the host map and leaves the real
+diagnostic RAM uninitialized. Use the CPU offset for BASE_WDIAGS_PRIV.
+
+Validated on uRV firmware in LiteX-WR-NIC: host diagnostic version is 2
+and live time, link, PTP and servo fields update on Acorn and SPEC-A7.
+---
+ include/board.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/board.h b/include/board.h
+index a15fa2a1..0558cf61 100644
+--- a/include/board.h
++++ b/include/board.h
+@@ -34,7 +34,7 @@
+ #define BASE_VUART              (DEV_BASE + 0x580)
+ #define BASE_ONEWIRE            (DEV_BASE + 0x600)
+ #define BASE_TIMECODE           (DEV_BASE + 0x700)
+-#define BASE_WDIAGS_PRIV        (DEV_BASE + 0x900)
++#define BASE_WDIAGS_PRIV        (DEV_BASE + 0x800)
+ #define BASE_CLOCK_MONITOR      (DEV_BASE + 0xa00)
+ #ifndef BASE_AUXWB
+ #define BASE_AUXWB              (DEV_BASE + 0x8000)
+-- 
+2.53.0
+

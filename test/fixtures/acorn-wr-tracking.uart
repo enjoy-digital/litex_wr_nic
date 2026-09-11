@@ -1,0 +1,18 @@
+
+wrc# [1@g[1@u[1@i
+[2J[1;1H[2J[1;1H[1;1f[01;34mSAWR WRPC Monitor v8.0-126-gbaf77496-dirty[01;35m | Esc/q = exit; r = redraw
+
+[01;34mTAI Time:                      UTC offset:      PLL mode:     state:
+[01;36m---+-------------------+-------------------------+---------+---------+-----
+ # |        MAC        |       IP (source)       |    RX   |    TX   | VLAN
+---+-------------------+-------------------------+---------+---------+-----
+ # |        MAC        |       IP (source)       |    RX   |    TX   | VLAN
+
+--- HAL ---|------------- PPSI ------------------------------------------------
+ Itf | Frq |  Config   | MAC of peer port  |    PTP/EXT/PDETECT States   | Pro 
+-----+-----+-----------+-------------------+-----------------------------+-----
+ Itf | Frq |  Config   | MAC of peer port  |    PTP/EXT/PDETECT States   | Pro 
+[01;34mPro(tocol): R-RawEth, V-VLAN, U-UDP
+[01;36m
+--------------------------- Synchronization status ----------------------------[J[3;11f[01;39m1970-01-01-00:12:09[3;44f37[3;59fFR[3;70fLocked [7;1f[01;32m 0[7;6f[01;35m02:00:00:00:00:01[7;26f[01;32m                       [7;52f[01;35m   1084[7;62f   2763[7;72f   0[12;1f[01;32m wr0[12;8f[01;32mLck[12;14f[01;39mauto      [12;26f08:87:40:00:00:01[12;46f[01;32mMASTER   /IDLE      /EXT_ON [12;76f[01;39mR[01;32m-W[16;1f[01;31mLink down, master mode or sync info not valid[m
+[J

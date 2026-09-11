@@ -1,0 +1,45 @@
+From d49516e520d95a0defcc9df44253e086ca1aa6f4 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Fri, 11 Sep 2026 13:03:07 +0200
+Subject: [PATCH] sfp: reject negative calibration database lookup results
+
+storage_match_sfp returns a negative errno on storage failure. Testing
+only for zero treats these failures as a calibration match. Mark all
+non-positive results unmatched and propagate negative errors; retain
+-ENXIO for an ordinary no-match result.
+
+An actual-C regression covers a match, no match, -EIO and -ENODEV,
+including clearing a previous SFP_MATCHED state.
+---
+ dev/sfp.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/dev/sfp.c b/dev/sfp.c
+index f209bd9d..7eb80e04 100644
+--- a/dev/sfp.c
++++ b/dev/sfp.c
+@@ -106,6 +106,8 @@ int sfp_dom_update(void)
+ 
+ int sfp_match(int force)
+ {
++	int match;
++
+ 	if (!force && !sfp_present()) {
+ 		return -ENODEV;
+ 	}
+@@ -133,9 +135,10 @@ int sfp_match(int force)
+ 
+ 	memcpy(sfp_info.sfp_params.pn, sfp_info.sfp_header->vendor_pn,
+ 	       SFP_PN_LEN);
+-	if (storage_match_sfp(&sfp_info.sfp_params) == 0) {
++	match = storage_match_sfp(&sfp_info.sfp_params);
++	if (match <= 0) {
+ 		sfp_info.sfp_in_db = SFP_NOT_MATCHED;
+-		return -ENXIO;
++		return match < 0 ? match : -ENXIO;
+ 	}
+ 
+ 	sfp_info.sfp_in_db = SFP_MATCHED;
+-- 
+2.53.0
+
