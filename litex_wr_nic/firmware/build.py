@@ -91,10 +91,16 @@ def checkout_commit(target="spec_a7"):
         "include/board.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c",
         cwd=CLONE_DIR)
 
-    # For Acorn: adapts kp/ki.
-    if target != "spec_a7":
-        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.kp = -1100;", "s->pi.kp = -150;")
-        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.ki = -30;", "s->pi.ki = -2;")
+    # Acorn's MMCM actuator needs more tracking bandwidth than the old
+    # -150/-2 profile: that profile repeatedly crossed PPSI's 120 ps limit.
+    # Keep the acquisition proportional gain unchanged (150*20 == 600*5)
+    # when increasing the phase-loop gains; the frequency prelock branch
+    # must not inherit a fourfold proportional gain increase.
+    if target == "acorn":
+        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.kp = -1100;", "s->pi.kp = -600;")
+        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.ki = -30;", "s->pi.ki = -16;")
+        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c",
+            "#define MPLL_FREQ_PRELOCK_GAIN_BOOST 20", "#define MPLL_FREQ_PRELOCK_GAIN_BOOST 5")
 
 def copy_config_file():
     """Copy the configuration file to the repository."""
