@@ -16,6 +16,7 @@ PPS accuracy.
 | --- | --- | --- |
 | Acorn bitstream generation fails with Vivado AVAL-139 | Fractional MMCM dividers were combined with fine phase shifting. | Use integer dividers and the PSDONE-aware backend from the earlier [clock work](https://github.com/enjoy-digital/litex_wr_nic/pull/77). |
 | Acorn clock commands can lose small corrections or overlap phase shifts | Commands cross clock domains and phase shifts need completion handshakes. | Transfer coherent 16-bit commands through a FIFO, preserve fractional phase across same-direction updates, wait for PSDONE, expose a completion watchdog and counters. |
+| Acorn slave periodically leaves `TRACK_PHASE` while the link and PLL remain locked | The original MMCM PI profile (`kp=-150, ki=-2`) produces phase excursions past PPSI's ±120 ps correction threshold on this bench. | Increase main-loop tracking gains to `kp=-600, ki=-16`; reduce the frequency prelock boost from 20 to 5 to preserve its proportional gain. See the measured comparison below. |
 | Acorn timing fails on reset crossings and PCIe clock-mode paths | The clock-generator reset crossed into 200 MHz unsynchronized; PIPE clock routing/constraints included incompatible clock modes. | Synchronize reset, buffer PSCLK, use dedicated PIPE MMCM outputs and constrain the mutually exclusive mux inputs. |
 | SPEC timing fails on PCIe clock-mode paths | Paths between mutually exclusive PIPE clocks were timed together. | Port the focused clock-mode constraint from [PR 78](https://github.com/enjoy-digital/litex_wr_nic/pull/78). |
 | Disabling the external WR clock still elaborates external-clock logic | A quoted `"FALSE"` was passed to a VHDL boolean through mixed-language elaboration. | Pass a numeric boolean, as for the CPU generics. |
@@ -187,6 +188,34 @@ counter latches are too noisy to establish that accuracy.
 For the reverse direction, use SPEC `mode master` at its default tuning code
 and Acorn `mode slave`. Initial functional tests reached WR `TRACK_PHASE` in
 both directions. The completed qualification results are recorded separately.
+
+### Acorn slave PLL tuning
+
+The first reverse soak failed after 46 seconds of tracking: the reported offset
+reached −125 ps, so PPSI changed from `TRACK_PHASE` to `SYNC_PHASE`. This is the
+existing `wrh-servo.c` safeguard at twice the 60 ps stability threshold. The link,
+WR extension, frequency lock, and main PLL remained active; the servo recovered
+without intervention. MMCM completion-fault and superseded-command counters were
+zero. A further baseline observation reproduced the excursions.
+
+The following UART gain changes were compared on the same running image, with
+SPEC master and Acorn slave. Statistics exclude the first 30 seconds of each
+observation. These are internal servo estimates, not independent PPS measurements.
+
+| Acorn main PI (`kp`, `ki`, shift) | Observation | Offset range | Standard deviation |
+| --- | ---: | ---: | ---: |
+| −150, −2, 12 (old default) | 180 s | −124…+100 ps | 49.66 ps |
+| −150, −1, 12 | Stopped at 104 s after larger excursions | −291…+229 ps | 99.38 ps |
+| −300, −8, 12 | 180 s | −31…+30 ps | 12.33 ps |
+| −600, −16, 12 | 180 s | −20…+14 ps | 6.14 ps |
+
+Both stronger profiles retained tracking after the initial monitor setup. The
+selected profile is `−600/−16`, with the helper PLL unchanged. The firmware also
+reduces `MPLL_FREQ_PRELOCK_GAIN_BOOST` to 5: `600 × 5 = 150 × 20`, preserving the
+old acquisition proportional gain instead of multiplying it by four. Warm UART
+tuning alone does not test this acquisition path; it must also pass the SRAM
+reload and PCS recovery tests with the rebuilt firmware. The qualification
+tool and PPSI thresholds are unchanged.
 
 Run the observer/configurator as follows, using the UART paths from the table:
 
