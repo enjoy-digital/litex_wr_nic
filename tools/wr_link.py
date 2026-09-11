@@ -23,6 +23,10 @@ import serial
 
 
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+# PPSI diagnostics can be printed between any two shell echo characters.
+# Strip only their timestamped records when matching an echo; retain the full
+# response and raw UART capture for diagnosis.
+PPSI_DIAGNOSTIC = re.compile(r"diag-[\w-]+: \d+\.\d+: [^\n]*\n\n?")
 
 
 class Console:
@@ -73,8 +77,9 @@ class Console:
             # Asynchronous WR logs can redraw an old prompt while a command is
             # being typed. Require the submitted command's echo before accepting
             # its completion prompt; otherwise a later command can race it.
-            after_echo = 0 if command is None else response.find(command + "\n")
-            if after_echo >= 0 and "wrc#" in response[after_echo:]:
+            echo_text = PPSI_DIAGNOSTIC.sub("", response)
+            after_echo = 0 if command is None else echo_text.find(command + "\n")
+            if after_echo >= 0 and "wrc#" in echo_text[after_echo:]:
                 self.record("rx", response)
                 return response
             time.sleep(0.05)

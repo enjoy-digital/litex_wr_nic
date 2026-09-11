@@ -180,7 +180,7 @@ def interrupt_link(board, peer, output, seconds):
             c = consoles[item.name] = Console(item.config["uart"], output / item.name)
             cleanup.callback(c.close)
             c.connect()
-            c.command("verbose 1")
+            c.command("verbose 0")
         bus = buses[board.name]
         # The host map exposes only endpoint MAC registers, not MDIO. Access
         # the CPU peripheral map through uRV's existing debug instruction port.
