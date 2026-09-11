@@ -368,7 +368,7 @@ class BaseSoC(LiteXWRNICSoC):
                 pads  = dac_dmtd_pads,
                 load  = self.dac_dmtd_load,
                 value = self.dac_dmtd_data,
-                gain  = 1,
+                gain  = 1, # Use the x1 DMTD range; RefClk requires x2.
                 clk_domain = "wr_sys",
             )
 
