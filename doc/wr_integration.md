@@ -141,3 +141,19 @@ External build integrations can pass `wr_cpu_type`, `wr_cpu_variant`, and
 contains the validated selection; the caller must pass that selection to its
 SoC constructor. Firmware lookup and rebuild select the corresponding CPU
 profile. Defaults remain uRV with private memory.
+
+## SPEC DAC control
+
+The AD5683R CSRs keep the `force`, `load`, `value`, `current` register order.
+`status` adds `ready` (bit 0), sticky `overflow` (bit 1), and applied `forced`
+(bit 2). Check `ready` before writing `force` or writing 1 to `load`.
+Set `force=1`, write `value`, then write `load=1` to submit one command.
+The value and mode travel together through the clock crossing; later value
+writes cannot change an already queued command. Writing `load=0` is optional
+and has no effect. Writing `force=0` returns control to WR in queue order.
+
+`current` holds the last code accepted by the serial DAC driver, including WR
+commands, with synchronization latency before host readback. It does not read
+the analog voltage or confirm SPI completion. The serial driver may coalesce
+updates that arrive while it is busy. A write when `ready=0` is discarded and
+sets `overflow`; reset clears the queue, applied host mode and overflow state.

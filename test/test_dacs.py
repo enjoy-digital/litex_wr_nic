@@ -17,7 +17,6 @@ def set_dac(bus, dac_value, dac_load, value):
     """Sets a DAC value and loads it."""
     dac_value.write(value)
     dac_load.write(1)
-    dac_load.write(0)
 
 def ramp_dac(bus, dac_value, dac_load):
     """Continuously ramps DAC from 0 to 65535 in 1 second, updating every 10 ms, restarting at 0 when done."""
