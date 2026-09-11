@@ -751,7 +751,10 @@ def main():
         {} if args.output_dir is None else {"output_dir": args.output_dir}))
     builder.build(
         run=args.build,
-        vivado_place_directive="Explore",
+        # The 250 MHz PTM sniffer needs timing-driven placement and an
+        # additional physical optimization pass with current upstream WR-core.
+        vivado_place_directive="ExtraTimingOpt",
+        vivado_post_place_phys_opt_directive="AggressiveExplore",
         vivado_route_directive="Explore",
         vivado_post_route_phys_opt_directive="Explore",
     )
