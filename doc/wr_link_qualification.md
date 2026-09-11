@@ -223,7 +223,9 @@ It does not establish traceability to UTC/TAI.
 
 `tools/wr_recover.py` uses a JSON file containing two named board records, each
 with `uart`, `usb_location`, `jtag_port`, `stream_port`, `jtag_config`, `csr`, and
-`bitstream`. Paths refer to the existing qualified images. Stop existing debug
+`bitstream`. Start from [bench.example.json](wr_link/bench.example.json) and the
+accompanying OpenOCD files, adapting the USB/UART locations to your bench.
+Run from the repository root; paths refer to the existing qualified images. Stop existing debug
 servers first: the tool owns and cleans up only the process groups it starts.
 
 ```sh

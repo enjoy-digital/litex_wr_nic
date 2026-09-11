@@ -255,13 +255,17 @@ def main():
         "--config", type=Path, required=True, help="JSON with exactly two named board records."
     )
     parser.add_argument("--master", required=True)
-    parser.add_argument("--master-trim", type=int)
+    parser.add_argument(
+        "--master-trim", type=int, help="Volatile 16-bit master tuning code after reload."
+    )
     parser.add_argument("--operation", choices=["link", "reload", "both"], default="both")
     parser.add_argument("--cycles", type=int, default=3)
     parser.add_argument("--link-down-seconds", type=float, default=5)
     parser.add_argument("--recovered-seconds", type=float, default=10)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if args.master_trim is not None and not 0 <= args.master_trim <= 65535:
+        parser.error("--master-trim must be a 16-bit code")
     config = json.loads(args.config.read_text())
     if len(config) != 2 or args.master not in config:
         parser.error("The configuration must contain the master and exactly one peer")

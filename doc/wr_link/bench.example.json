@@ -1,0 +1,20 @@
+{
+  "acorn": {
+    "uart": "/dev/serial/by-path/pci-0000:0b:00.3-usb-0:2:1.2-port0",
+    "usb_location": "5-2",
+    "jtag_port": 1236,
+    "stream_port": 20002,
+    "jtag_config": "doc/wr_link/acorn-usb.cfg",
+    "csr": "build/acorn-wr/csr.csv",
+    "bitstream": "build/acorn-wr/gateware/sqrl_acorn.bit"
+  },
+  "spec": {
+    "uart": "/dev/serial/by-path/pci-0000:06:00.1-usb-0:3:1.2-port0",
+    "usb_location": "1-3",
+    "jtag_port": 1235,
+    "stream_port": 20001,
+    "jtag_config": "doc/wr_link/spec-usb.cfg",
+    "csr": "build/spec-wr/csr.csv",
+    "bitstream": "build/spec-wr/gateware/spec_a7_wr_nic.bin"
+  }
+}

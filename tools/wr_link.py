@@ -66,11 +66,15 @@ class Console:
             self.port.write(bytes([value]))
             time.sleep(0.02)
 
-    def prompt(self, start, timeout=10):
+    def prompt(self, start, timeout=10, command=None):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             response = self.text(start)
-            if "wrc#" in response:
+            # Asynchronous WR logs can redraw an old prompt while a command is
+            # being typed. Require the submitted command's echo before accepting
+            # its completion prompt; otherwise a later command can race it.
+            after_echo = 0 if command is None else response.find(command + "\n")
+            if after_echo >= 0 and "wrc#" in response[after_echo:]:
                 self.record("rx", response)
                 return response
             time.sleep(0.05)
@@ -89,7 +93,7 @@ class Console:
     def command(self, command, timeout=10):
         start = len(self.buffer)
         self.send(command + "\r")
-        response = self.prompt(start, timeout)
+        response = self.prompt(start, timeout, command=command)
         if re.search(r'Unrecognized command|Unknown subcommand|Command "[^"\n]+": error', response):
             raise RuntimeError("WR command failed: " + response)
         return response
