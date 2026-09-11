@@ -261,6 +261,15 @@ class BaseSoC(LiteXWRNICSoC):
                 refclk_freq               = 100e6,
                 pclk_mux_direct_from_mmcm = True,
             )
+            # Dedicated PIPE mux inputs are mutually exclusive operating modes.
+            # Keep timing within each mode and exclude impossible cross-mode paths.
+            platform.toolchain.pre_placement_commands.add(
+                "set_clock_groups -logically_exclusive "
+                "-group [get_clocks -of_objects [get_nets {pclk125}]] "
+                "-group [get_clocks -of_objects [get_nets {pclk250}]]",
+                pclk125 = self.pcie_phy.mmcm.clkouts[4][0],
+                pclk250 = self.pcie_phy.mmcm.clkouts[5][0],
+            )
             self.pcie_phy.update_config({
                 "Base_Class_Menu"          : "Network_controller",
                 "Sub_Class_Interface_Menu" : "Ethernet_controller",
@@ -739,7 +748,10 @@ def main():
         {} if args.output_dir is None else {"output_dir": args.output_dir}))
     builder.build(
         run=args.build,
-        vivado_place_directive="Explore",
+        # The 250 MHz PTM sniffer needs timing-driven placement and an
+        # additional physical optimization pass with current upstream WR-core.
+        vivado_place_directive="ExtraTimingOpt",
+        vivado_post_place_phys_opt_directive="AggressiveExplore",
         vivado_route_directive="Explore",
         vivado_post_route_phys_opt_directive="Explore",
     )
