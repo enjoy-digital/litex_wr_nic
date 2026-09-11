@@ -17,6 +17,23 @@ def git(path, *args):
     return subprocess.check_output(['git', '-C', str(path), *args], text=True).strip()
 
 
+def finish_build(board, output):
+    # Both targets generate the map in test/, including when --output-dir is
+    # supplied. SPEC's target converts the image only for --load/--flash.
+    shutil.copy2(ROOT / 'test/csr.csv', output / 'csr.csv')
+    image = output / 'gateware' / ('sqrl_acorn.bit' if board == 'acorn' else 'spec_a7_wr_nic.bin')
+    if board == 'spec':
+        subprocess.run([sys.executable, str(ROOT / 'litex_wr_nic/gateware/xilinx-bitstream.py'),
+            str(image.with_suffix('.bit')), str(image)], cwd=ROOT, check=True)
+    if not image.is_file() or not image.stat().st_size:
+        raise RuntimeError('Missing or empty programming image: ' + str(image))
+    timing = next((output / 'gateware').glob('*_timing.rpt')).read_text()
+    if 'All user specified timing constraints are met.' not in timing:
+        raise RuntimeError('Vivado timing failed; inspect the report before loading')
+    return {str(p.relative_to(output)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in output.rglob('*') if p.is_file() and p.suffix in ('.bit', '.bin', '.bram', '.boot', '.csv')}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--board', required=True, choices=['acorn', 'spec'])
@@ -45,13 +62,7 @@ def main():
             '--build', '--skip-firmware-build', '--skip-software-headers', '--wr-cpu-type', 'urv',
             '--wr-cpu-memory', 'private', '--output-dir', str(output)]
         run(command)
-        if args.board == 'acorn':
-            shutil.copy2(ROOT / 'test/csr.csv', output / 'csr.csv')
-        manifest['sha256'] = {str(p.relative_to(output)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in output.rglob('*') if p.is_file() and p.suffix in ('.bit', '.bin', '.bram', '.boot', '.csv')}
-        timing = next((output / 'gateware').glob('*_timing.rpt')).read_text()
-        if 'All user specified timing constraints are met.' not in timing:
-            raise RuntimeError('Vivado timing failed; inspect the report before loading')
+        manifest['sha256'] = finish_build(args.board, output)
         manifest['passed'] = True
     finally:
         (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
