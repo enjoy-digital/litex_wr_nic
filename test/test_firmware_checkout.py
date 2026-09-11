@@ -56,8 +56,8 @@ def test_reused_firmware_checkout_restores_pinned_submodule_and_gains(tmp_path, 
 
     build.checkout_commit("acorn")
     assert git(checkout / "ppsi", "rev-parse", "HEAD") == pinned
-    assert "s->pi.kp = -150;" in gains.read_text()
-    assert "s->pi.ki = -2;" in gains.read_text()
-    assert "#define MPLL_FREQ_PRELOCK_GAIN_BOOST 20" in gains.read_text()
+    assert "s->pi.kp = -600;" in gains.read_text()
+    assert "s->pi.ki = -16;" in gains.read_text()
+    assert "#define MPLL_FREQ_PRELOCK_GAIN_BOOST 5" in gains.read_text()
     build.checkout_commit("spec_a7")
     assert gains.read_text() == original
