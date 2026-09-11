@@ -33,7 +33,7 @@ TOOLCHAIN_DIR     = "riscv-11.2-small"
 REPO_URL          = "https://gitlab.com/ohwr/project/wrpc-sw.git"
 CLONE_DIR         = "wrpc-sw"
 
-COMMIT_HASH       = "baf7749610b2880bf243b38a9a1608af8e0e688d"
+COMMIT_HASH       = "13527cd68e1833214a89e4ee8c5b208188ff0e6a"
 CONFIG_SRC        = "spec_a7_defconfig"
 
 FIRMWARE_SRC       = os.path.join(CLONE_DIR, "wrc.bram")
@@ -81,16 +81,25 @@ def checkout_commit(target="spec_a7"):
     # Ensure no kp/ki modifications.
     run_command(f"git checkout softpll/spll_main.c", cwd=CLONE_DIR)
     run_command(f"git checkout {COMMIT_HASH}", cwd=CLONE_DIR)
+    # Reused checkouts must also use the submodule revisions pinned by WRPC.
+    run_command("git submodule update --init --recursive", cwd=CLONE_DIR)
     # These files receive the project-local CPU-profile overlay below. Restore
     # only those owned files so repeated uRV/VexRiscv builds cannot leak flags.
     run_command(
-        f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c",
+        f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c "
+        "include/board.h dev/sfp.c",
         cwd=CLONE_DIR)
 
-    # For Acorn: adapts kp/ki.
-    if target != "spec_a7":
-        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.kp = -1100;", "s->pi.kp = -150;")
-        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.ki = -30;", "s->pi.ki = -2;")
+    # Acorn's MMCM actuator needs more tracking bandwidth than the old
+    # -150/-2 profile: that profile repeatedly crossed PPSI's 120 ps limit.
+    # Keep the acquisition proportional gain unchanged (150*20 == 600*5)
+    # when increasing the phase-loop gains; the frequency prelock branch
+    # must not inherit a fourfold proportional gain increase.
+    if target == "acorn":
+        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.kp = -1100;", "s->pi.kp = -600;")
+        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.ki = -30;", "s->pi.ki = -16;")
+        tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c",
+            "#define MPLL_FREQ_PRELOCK_GAIN_BOOST 20", "#define MPLL_FREQ_PRELOCK_GAIN_BOOST 5")
 
 def copy_config_file():
     """Copy the configuration file to the repository."""
@@ -136,9 +145,30 @@ def configure_cpu_profile(cpu_type):
         "#endif\n\n",
     )
 
+def configure_source_fixes():
+    """Apply compatibility fixes to the pinned WRPC sources."""
+    from litex_wr_nic.gateware.wr_common import _replace_once
+    def patch(name, before, after):
+        _replace_once(os.path.join(CLONE_DIR, name), before, after)
+
+    # The CPU map differs from the host map (whose wdiag offset is 0x900).
+    patch("include/board.h",
+        "#define BASE_WDIAGS_PRIV        (DEV_BASE + 0x900)",
+        "#define BASE_WDIAGS_PRIV        (DEV_BASE + 0x800)")
+    patch("dev/sfp.c", "int sfp_match(int force)\n{",
+        "int sfp_match(int force)\n{\n\tint match;\n")
+    patch("dev/sfp.c",
+        "if (storage_match_sfp(&sfp_info.sfp_params) == 0) {\n"
+        "\t\tsfp_info.sfp_in_db = SFP_NOT_MATCHED;\n\t\treturn -ENXIO;",
+        "match = storage_match_sfp(&sfp_info.sfp_params);\n"
+        "\tif (match <= 0) {\n\t\tsfp_info.sfp_in_db = SFP_NOT_MATCHED;\n"
+        "\t\treturn match < 0 ? match : -ENXIO;")
+
+
 def build_firmware(cpu_type):
     """Build the firmware."""
     configure_cpu_profile(cpu_type)
+    configure_source_fixes()
     run_command("make clean", cwd=CLONE_DIR)
     run_command("make spec_a7_defconfig", cwd=CLONE_DIR)
     cpu_flags = "-DWR_CPU_VEXRISCV" if cpu_type == "vexriscv" else ""
