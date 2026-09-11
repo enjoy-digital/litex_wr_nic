@@ -23,6 +23,7 @@ def test_capture_failure_restores_mcr_and_closes_all_connections(
 ):
     class Bus:
         mems = type("Memories", (), {"wr_wb_slave": type("Memory", (), {"base": 0x20000000})})
+        paused_seconds = 0
 
         def __init__(self):
             self.writes = []

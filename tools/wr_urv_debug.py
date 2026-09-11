@@ -21,6 +21,7 @@ class URVDebug:
         self.base = bus.mems.wr_wb_slave.base + 0xB00
         self.saved = {}
         self.entered = False
+        self.paused_seconds = None
 
     def wait(self, offset, expected):
         deadline = time.monotonic() + 2
@@ -54,6 +55,7 @@ class URVDebug:
         try:
             self.wait(0x80, 1)
             self.entered = True
+            self.started = time.monotonic()
             self.bus.write(self.base + 0x84, 0)
             for reg in (10, 11):
                 self.saved[reg] = self.read_register(reg)
@@ -75,6 +77,7 @@ class URVDebug:
             self.bus.write(self.base + 0x8C, 0x00100073)
             self.wait(0x80, 0)
             self.entered = False
+            self.paused_seconds = time.monotonic() - self.started
 
     def read(self, address):
         if not self.entered or address & 3:

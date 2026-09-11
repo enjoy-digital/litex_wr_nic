@@ -212,6 +212,7 @@ def interrupt_link(board, peer, output, seconds):
                 original = value
                 result["mcr_original"] = original
                 write_mcr(cpu, original | 0x800)
+            result["disable_cpu_pause_seconds"] = cpu.paused_seconds
             result["disabled_unix"] = time.time()
             start = time.monotonic()
             for name, c in consoles.items():
@@ -231,6 +232,7 @@ def interrupt_link(board, peer, output, seconds):
             if original is not None:
                 with URVDebug(bus) as cpu:
                     write_mcr(cpu, original)
+                result["restore_cpu_pause_seconds"] = cpu.paused_seconds
                 result["enabled_unix"] = time.time()
                 result["enabled_monotonic"] = time.monotonic()
         for name, c in consoles.items():
