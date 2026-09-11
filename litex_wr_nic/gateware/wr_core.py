@@ -403,8 +403,7 @@ class WhiteRabbitCore(LiteXModule):
         # subsequently registers its sources during finalization.
         if getattr(platform, "_wr_core_sources_added", False):
             return
-        if not os.path.exists("wr-cores"):
-            wr_core_init()
+        wr_core_init()
         patch_wr_subsystem_mux_class()
         patch_wr_pps_gen_iob()
         patch_wr_clock_monitor_presc_cdc()

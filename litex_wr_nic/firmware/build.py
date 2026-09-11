@@ -33,7 +33,7 @@ TOOLCHAIN_DIR     = "riscv-11.2-small"
 REPO_URL          = "https://gitlab.com/ohwr/project/wrpc-sw.git"
 CLONE_DIR         = "wrpc-sw"
 
-COMMIT_HASH       = "baf7749610b2880bf243b38a9a1608af8e0e688d"
+COMMIT_HASH       = "13527cd68e1833214a89e4ee8c5b208188ff0e6a"
 CONFIG_SRC        = "spec_a7_defconfig"
 
 FIRMWARE_SRC       = os.path.join(CLONE_DIR, "wrc.bram")
