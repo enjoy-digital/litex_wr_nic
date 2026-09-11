@@ -329,10 +329,15 @@ startup commands; VLAN handling in the endpoint is already disabled.
 
 [LiteX PR 2590](https://github.com/enjoy-digital/litex/pull/2590) contains the
 independent JTAG stream-port fix. The SPI MOSI fix already exists in WR-core.
-The remaining focused WR-core/WRPC patches, based on their current official
-upstreams, are in [wr_link/upstream](wr_link/upstream/README.md). GitLab submission
-requires authentication unavailable on this host; these files are prepared
-patches, not claimed merge requests.
+The remaining focused WR-core/WRPC fixes have public PRs in unofficial GitHub
+contribution mirrors, each based directly on its current official upstream:
+[WR-core #1](https://github.com/enjoy-digital/wr-cores/pull/1),
+[WRPC #1](https://github.com/enjoy-digital/wrpc-sw/pull/1), and
+[WRPC #2](https://github.com/enjoy-digital/wrpc-sw/pull/2).
+[wr_link/upstream](wr_link/upstream/README.md) contains the patches, upstream
+migration findings and fresh regression results. The mirrors provide a review
+and fetch route using available GitHub authentication; official GitLab merge
+requests still require GitLab authentication and have not been submitted.
 
 The workflow follows the project's [FPGA development article](https://enjoy-digital.github.io/posts/ai-era-fpga/)
 and [M2SDR debugging guide](https://github.com/enjoy-digital/litex_m2sdr/blob/main/doc/debugging-guide.md):

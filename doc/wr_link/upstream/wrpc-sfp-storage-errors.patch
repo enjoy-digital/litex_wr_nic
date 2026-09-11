@@ -1,4 +1,4 @@
-From d49516e520d95a0defcc9df44253e086ca1aa6f4 Mon Sep 17 00:00:00 2001
+From 7983b2c9ec5fbca4e4f9d799b61b2c80457d2c56 Mon Sep 17 00:00:00 2001
 From: Florent Kermarrec <florent@enjoy-digital.fr>
 Date: Fri, 11 Sep 2026 13:03:07 +0200
 Subject: [PATCH] sfp: reject negative calibration database lookup results

@@ -1,0 +1,36 @@
+{
+  "revisions": {
+    "wr_cores_base": "8f9b06565ef8d23712494314def63f6fc3813f8c",
+    "wr_cores_fixed": "628cfa0792c74bab83fed378b54ac0dbaa288436",
+    "wrpc_base": "13527cd68e1833214a89e4ee8c5b208188ff0e6a",
+    "wrpc_address_fixed": "225231378741cd3ded7132778b2cde90633e1698",
+    "wrpc_sfp_fixed": "7983b2c9ec5fbca4e4f9d799b61b2c80457d2c56"
+  },
+  "checks": {
+    "sfp_unpatched": {
+      "returncode": -6,
+      "stderr": "sfp: /tmp/wr-upstream-audit-e6xhopbd/sfp.c:63: main: Assertion `sfp_match(1) == -EIO && sfp_info.sfp_in_db == SFP_NOT_MATCHED' failed."
+    },
+    "sfp_fixed": {
+      "returncode": 0,
+      "stderr": ""
+    },
+    "host_decoder_unpatched": {
+      "returncode": 1,
+      "output": "/tmp/wr-upstream-audit-e6xhopbd/diags_tb.vhd:28:9:@1ns:(assertion failure): Version and diagnostics must be read-only\nghdl:error: assertion failed\nghdl:error: simulation failed"
+    },
+    "host_decoder_fixed": {
+      "returncode": 0,
+      "output": "/tmp/wr-upstream-audit-e6xhopbd/diags_tb.vhd:38:5:@67ns:(report note): Diagnostic decoder checks passed\nsimulation stopped @67ns"
+    },
+    "cpu_address_unpatched": {
+      "address": "0x900",
+      "expected": "0x800"
+    },
+    "cpu_address_fixed": {
+      "address": "0x800",
+      "expected": "0x800"
+    }
+  },
+  "passed": true
+}
