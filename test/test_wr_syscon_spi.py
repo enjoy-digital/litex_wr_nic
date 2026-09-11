@@ -80,7 +80,13 @@ end;
         return subprocess.run(["ghdl", "-r", "--std=08", "spi_tb", "--assert-level=error"],
             cwd=tmp_path, capture_output=True, text=True, timeout=30)
 
-    baseline = simulate(original)
+    # Current upstream already contains the MOSI fix. Retain a negative
+    # control so the test proves that an isolated GPCR strobe is exercised.
+    broken = original.replace(
+        "elsif sysc_regs_o.gpcr_wr = '1' and sysc_regs_o.gpcr_spi_mosi = '1' then",
+        "elsif sysc_regs_o.gpsr_wr = '1' and sysc_regs_o.gpcr_spi_mosi = '1' then")
+    assert broken != original
+    baseline = simulate(broken)
     assert baseline.returncode != 0 and "MOSI clear failed" in baseline.stdout
     wr_common.patch_wr_syscon_spi_mosi()
     fixed = path.read_text()
