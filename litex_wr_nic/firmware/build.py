@@ -86,7 +86,8 @@ def checkout_commit(target="spec_a7"):
     # These files receive the project-local CPU-profile overlay below. Restore
     # only those owned files so repeated uRV/VexRiscv builds cannot leak flags.
     run_command(
-        f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c",
+        f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c "
+        "include/board.h dev/sfp.c",
         cwd=CLONE_DIR)
 
     # For Acorn: adapts kp/ki.
@@ -138,9 +139,30 @@ def configure_cpu_profile(cpu_type):
         "#endif\n\n",
     )
 
+def configure_source_fixes():
+    """Apply compatibility fixes to the pinned WRPC sources."""
+    from litex_wr_nic.gateware.wr_common import _replace_once
+    def patch(name, before, after):
+        _replace_once(os.path.join(CLONE_DIR, name), before, after)
+
+    # The CPU map differs from the host map (whose wdiag offset is 0x900).
+    patch("include/board.h",
+        "#define BASE_WDIAGS_PRIV        (DEV_BASE + 0x900)",
+        "#define BASE_WDIAGS_PRIV        (DEV_BASE + 0x800)")
+    patch("dev/sfp.c", "int sfp_match(int force)\n{",
+        "int sfp_match(int force)\n{\n\tint match;\n")
+    patch("dev/sfp.c",
+        "if (storage_match_sfp(&sfp_info.sfp_params) == 0) {\n"
+        "\t\tsfp_info.sfp_in_db = SFP_NOT_MATCHED;\n\t\treturn -ENXIO;",
+        "match = storage_match_sfp(&sfp_info.sfp_params);\n"
+        "\tif (match <= 0) {\n\t\tsfp_info.sfp_in_db = SFP_NOT_MATCHED;\n"
+        "\t\treturn match < 0 ? match : -ENXIO;")
+
+
 def build_firmware(cpu_type):
     """Build the firmware."""
     configure_cpu_profile(cpu_type)
+    configure_source_fixes()
     run_command("make clean", cwd=CLONE_DIR)
     run_command("make spec_a7_defconfig", cwd=CLONE_DIR)
     cpu_flags = "-DWR_CPU_VEXRISCV" if cpu_type == "vexriscv" else ""

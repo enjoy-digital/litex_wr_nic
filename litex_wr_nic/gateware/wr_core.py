@@ -24,6 +24,7 @@ from litex_wr_nic.gateware.wr_common         import (
     patch_wr_pps_gen_iob,
     patch_wr_clock_monitor_presc_cdc,
     patch_wr_external_cpu_memory,
+    patch_wr_diags_control_word,
 )
 from litex_wr_nic.gateware.wr_cpu            import (
     WRCPUMemoryBridge,
@@ -406,6 +407,7 @@ class WhiteRabbitCore(LiteXModule):
         patch_wr_pps_gen_iob()
         patch_wr_clock_monitor_presc_cdc()
         patch_wr_external_cpu_memory()
+        patch_wr_diags_control_word()
         for filename in wr_core_files:
             platform.add_source(filename)
         platform._wr_core_sources_added = True

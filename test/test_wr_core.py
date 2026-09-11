@@ -39,6 +39,7 @@ def platform(monkeypatch):
     for name in (
         "wr_core_init", "patch_wr_subsystem_mux_class", "patch_wr_pps_gen_iob",
         "patch_wr_clock_monitor_presc_cdc", "patch_wr_external_cpu_memory",
+        "patch_wr_diags_control_word",
     ):
         monkeypatch.setattr(wr_core, name, lambda name=name: prepared.append(name))
     return SimpleNamespace(
@@ -126,11 +127,11 @@ def test_sources_are_automatic_and_explicit_calls_are_idempotent(platform, monke
         WhiteRabbitCore.add_sources(platform)
     core.get_fragment()
     assert platform.sources == list(wr_core.wr_core_files)
-    assert len(platform.prepared) == 5
+    assert len(platform.prepared) == 6
     assert platform.prepared[0] == "wr_core_init"
     WhiteRabbitCore.add_sources(platform)
     assert platform.sources == list(wr_core.wr_core_files)
-    assert len(platform.prepared) == 5
+    assert len(platform.prepared) == 6
 
 
 @pytest.mark.parametrize("size", [0x100000, 0x60000])
