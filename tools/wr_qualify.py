@@ -89,6 +89,8 @@ def main():
         def command(role, text):
             response = consoles[role].command(text, timeout=60)
             summary["boards"][role]["commands"].append(dict(command=text, response=response))
+            if "PRINTF OVF" in response:
+                raise RuntimeError(role + ": firmware printf buffer overflow")
             return response
 
         for role in consoles:
@@ -121,6 +123,9 @@ def main():
                 if c.error:
                     raise RuntimeError(role + ": UART reader failed") from c.error
                 end = len(c.buffer)
+                # Retain enough overlap to catch a warning split across reads.
+                if b"PRINTF OVF" in c.buffer[max(0, offsets[role] - 9) : end]:
+                    raise RuntimeError(role + ": firmware printf buffer overflow")
                 new_frames[role] = screens[role].feed(
                     bytes(c.buffer[offsets[role] : end]), now=c.last_received or start
                 )

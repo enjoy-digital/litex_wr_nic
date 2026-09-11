@@ -151,6 +151,8 @@ class Board:
             result["boot"] = console.prompt(0, timeout=60)
             console.connect()
             result["version"] = console.command("ver")
+            if "PRINTF OVF" in result["boot"] + result["version"]:
+                raise RuntimeError(self.name + ": firmware printf buffer overflow")
             result["passed"] = True
         except BaseException as error:
             result["error"] = str(error)
