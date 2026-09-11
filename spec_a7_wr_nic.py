@@ -261,6 +261,15 @@ class BaseSoC(LiteXWRNICSoC):
                 refclk_freq               = 100e6,
                 pclk_mux_direct_from_mmcm = True,
             )
+            # Dedicated PIPE mux inputs are mutually exclusive operating modes.
+            # Keep timing within each mode and exclude impossible cross-mode paths.
+            platform.toolchain.pre_placement_commands.add(
+                "set_clock_groups -logically_exclusive "
+                "-group [get_clocks -of_objects [get_nets {pclk125}]] "
+                "-group [get_clocks -of_objects [get_nets {pclk250}]]",
+                pclk125 = self.pcie_phy.mmcm.clkouts[4][0],
+                pclk250 = self.pcie_phy.mmcm.clkouts[5][0],
+            )
             self.pcie_phy.update_config({
                 "Base_Class_Menu"          : "Network_controller",
                 "Sub_Class_Interface_Menu" : "Ethernet_controller",
@@ -697,6 +706,8 @@ def main():
         help="Build directory (useful for resource comparisons).")
     parser.add_argument("--skip-firmware-build", action="store_true",
         help="Reuse existing WR firmware when building gateware.")
+    parser.add_argument("--wr-read-only-storage", action="store_true",
+        help="Keep WR calibration in RAM and disable firmware SPI flash writes/erases.")
     parser.add_argument("--skip-software-headers", action="store_true",
         help=argparse.SUPPRESS)
 
@@ -708,13 +719,16 @@ def main():
     parser.add_argument("--with-time-pps-probe",                  action="store_true")
 
     args = parser.parse_args()
+    if args.wr_read_only_storage and (not args.build or args.skip_firmware_build):
+        parser.error("--wr-read-only-storage requires rebuilding firmware with --build; "
+            "it cannot protect a previously built image")
 
     # Build Firmware.
     # ---------------
     if args.build and not args.skip_firmware_build:
         print("Building firmware...")
-        r = os.system("cd litex_wr_nic/firmware && ./build.py --wr-cpu-type {}".format(
-            args.wr_cpu_type))
+        r = os.system("cd litex_wr_nic/firmware && ./build.py --wr-cpu-type {} {}".format(
+            args.wr_cpu_type, "--read-only-storage" if args.wr_read_only_storage else ""))
         if r != 0:
             raise RuntimeError("Firmware build failed.")
 
