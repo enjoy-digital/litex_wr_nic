@@ -20,6 +20,8 @@ WR_PPS_GEN_VHD   = "wr-cores/modules/wr_pps_gen/xwr_pps_gen.vhd"
 WR_CLOCK_MONITOR_VHD = "wr-cores/ip_cores/general-cores/modules/wishbone/wb_clock_monitor/xwb_clock_monitor.vhd"
 WR_CORE_VHD      = "wr-cores/modules/wrc_core/xwr_core.vhd"
 WR_BOARD_VHD     = "wr-cores/board/common/xwrc_board_common.vhd"
+WR_SYSCON_VHD    = "wr-cores/modules/wrc_core/wrc_syscon.vhd"
+WR_DIAGS_VHD     = "wr-cores/modules/wrc_core/wrc_diags_dpram.vhd"
 
 def wr_core_init():
     print("Cloning wr-cores repository...")
@@ -127,6 +129,22 @@ def _replace_once(path, before, after, intermediate=None):
         raise RuntimeError(f"WR-core patch signature mismatch in {path}: {before[:80]!r}")
     with open(path, "w", encoding="utf-8") as f:
         f.write(contents.replace(matches[0], after, 1))
+
+def patch_wr_syscon_spi_mosi():
+    # Backport upstream ff0d6950 (2026-07-01) to the pinned WR-core revision.
+    # GPCR writes must clear MOSI. Testing GPSR here leaves MOSI stuck high.
+    _replace_once(WR_SYSCON_VHD,
+        "elsif sysc_regs_o.gpsr_wr = '1' and sysc_regs_o.gpcr_spi_mosi = '1' then",
+        "elsif sysc_regs_o.gpcr_wr = '1' and sysc_regs_o.gpcr_spi_mosi = '1' then")
+
+
+def patch_wr_diags_control_word():
+    # WR diagnostic v2 has VER at 0 and CTRL at byte offset 4. Allowing writes
+    # to word 0 corrupts the version while silently discarding snapshot requests.
+    _replace_once(WR_DIAGS_VHD,
+        "unsigned(slave_user_i.adr(f_log2_size(g_size)+1 downto 2) ) = 0",
+        "unsigned(slave_user_i.adr(f_log2_size(g_size)+1 downto 2) ) = 1")
+
 
 def patch_wr_external_cpu_memory():
     """Propagate optional external WR CPU interfaces through wr-cores."""

@@ -39,6 +39,7 @@ def platform(monkeypatch):
     for name in (
         "wr_core_init", "patch_wr_subsystem_mux_class", "patch_wr_pps_gen_iob",
         "patch_wr_clock_monitor_presc_cdc", "patch_wr_external_cpu_memory",
+        "patch_wr_syscon_spi_mosi", "patch_wr_diags_control_word",
     ):
         monkeypatch.setattr(wr_core, name, lambda name=name: prepared.append(name))
     return SimpleNamespace(
@@ -79,6 +80,18 @@ def test_standalone_core_interfaces(platform):
     assert uart.value == 1
 
 
+@pytest.mark.parametrize("enabled", [False, True])
+def test_external_clock_generic_is_numeric(platform, enabled):
+    core = WhiteRabbitCore(platform, with_ext_clk=enabled, **core_kwargs())
+    instance = next(s for s in core.get_fragment().specials
+        if isinstance(s, Instance) and s.of == "xwrc_board_litex_wr_nic_wrapper")
+    parameter = next(item.value for item in instance.items
+        if isinstance(item, Instance.Parameter) and item.name == "g_with_external_clock_input")
+    # Quoted FALSE can bind as true at the Verilog/VHDL boundary in Vivado.
+    assert not isinstance(parameter, str)
+    assert parameter.value == int(enabled)
+
+
 def test_compatibility_adapter_registers_memory_and_csrs_once(platform):
     soc          = LiteXModule()
     soc.platform = platform
@@ -114,11 +127,11 @@ def test_sources_are_automatic_and_explicit_calls_are_idempotent(platform, monke
         WhiteRabbitCore.add_sources(platform)
     core.get_fragment()
     assert platform.sources == list(wr_core.wr_core_files)
-    assert len(platform.prepared) == 5
+    assert len(platform.prepared) == 7
     assert platform.prepared[0] == "wr_core_init"
     WhiteRabbitCore.add_sources(platform)
     assert platform.sources == list(wr_core.wr_core_files)
-    assert len(platform.prepared) == 5
+    assert len(platform.prepared) == 7
 
 
 @pytest.mark.parametrize("size", [0x100000, 0x60000])

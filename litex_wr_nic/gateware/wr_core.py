@@ -24,6 +24,8 @@ from litex_wr_nic.gateware.wr_common         import (
     patch_wr_pps_gen_iob,
     patch_wr_clock_monitor_presc_cdc,
     patch_wr_external_cpu_memory,
+    patch_wr_syscon_spi_mosi,
+    patch_wr_diags_control_word,
 )
 from litex_wr_nic.gateware.wr_cpu            import (
     WRCPUMemoryBridge,
@@ -252,7 +254,7 @@ class WhiteRabbitCore(LiteXModule):
             p_g_external_cpu              = int(external_cpu),
             p_txpolarity                  = sfp_tx_polarity,
             p_rxpolarity                  = sfp_rx_polarity,
-            p_g_with_external_clock_input = str(with_ext_clk).upper(),
+            p_g_with_external_clock_input = int(with_ext_clk),
             p_g_fpga_family               = {True: "artix7", False: "kintex7"}[self.platform.device.startswith("xc7a")],
             p_g_board_name                = board_name,
             p_g_dac_bits                  = dac_bits,
@@ -407,6 +409,8 @@ class WhiteRabbitCore(LiteXModule):
         patch_wr_pps_gen_iob()
         patch_wr_clock_monitor_presc_cdc()
         patch_wr_external_cpu_memory()
+        patch_wr_syscon_spi_mosi()
+        patch_wr_diags_control_word()
         for filename in wr_core_files:
             platform.add_source(filename)
         platform._wr_core_sources_added = True
