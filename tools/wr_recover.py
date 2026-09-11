@@ -235,8 +235,10 @@ def interrupt_link(board, peer, output, seconds):
                 result["restore_cpu_pause_seconds"] = cpu.paused_seconds
                 result["enabled_unix"] = time.time()
                 result["enabled_monotonic"] = time.monotonic()
-        for name, c in consoles.items():
-            result[name + "_ptp"] = c.command("ptp")
+        # Link-up runs blocking PHY/SFP initialization in WRPC. Do not send
+        # another command immediately after CPU resume: it can be dropped
+        # before the shell polls UART again. The following qualifier connects
+        # to the consoles and verifies both PTP roles and WR tracking.
         result["passed"] = True
     except BaseException as error:
         result["error"] = str(error)
