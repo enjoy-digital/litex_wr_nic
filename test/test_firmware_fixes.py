@@ -141,4 +141,3 @@ int main(void) {
 '''
     result = run_c(path, prefix + code + checks)
     assert result.returncode == 0, result.stderr
-
