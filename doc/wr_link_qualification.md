@@ -175,6 +175,15 @@ ordinary PTP. Code 35000 brings the frequency into SPEC's tuning range and the
 slave reaches WR `TRACK_PHASE`. This is a bench frequency adjustment, not SFP
 delay calibration or a universal default for all Acorns.
 
+The generated Acorn MMCM uses a 1.5 GHz VCO and a 200 MHz PSCLK. Its backend
+requests `(code - 32768) / 2**19` signed phase steps per PSCLK. With the
+[7-series fine phase step](https://docs.amd.com/v/u/en-US/ug472_7Series_Clocking)
+of one fifty-sixth of a VCO period, this corresponds to approximately
+0.00454 ppm per code. Thus 35000 adds about 10.14 ppm relative to midscale.
+This is a calculation from the implemented tuning law, not a measurement of
+absolute oscillator accuracy. Host wall-clock estimates from sequential JTAG
+counter latches are too noisy to establish that accuracy.
+
 For the reverse direction, use SPEC `mode master` at its default tuning code
 and Acorn `mode slave`. Initial functional tests reached WR `TRACK_PHASE` in
 both directions. The completed qualification results are recorded separately.
