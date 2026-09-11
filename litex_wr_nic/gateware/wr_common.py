@@ -525,6 +525,7 @@ wr_core_files += [
     "wr-cores/modules/wr_softpll_ng/spll_aligner.vhd",
     "wr-cores/modules/wr_softpll_ng/spll_wb_slave.vhd",
     "wr-cores/modules/wr_softpll_ng/spll_wbgen2_pkg.vhd",
+    "wr-cores/modules/wr_softpll_ng/spll_host_map.vhd",
     "wr-cores/modules/wr_softpll_ng/xwr_softpll_ng.vhd",
 
     # WR Streamers Modules.

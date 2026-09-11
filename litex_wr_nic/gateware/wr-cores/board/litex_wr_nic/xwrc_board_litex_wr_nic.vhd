@@ -51,6 +51,7 @@ entity xwrc_board_litex_wr_nic is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean              := TRUE;
+    g_softpll_enable_debugger   : boolean              := FALSE;
     -- Board name
     g_board_name                : string               := "NA  ";
     -- FPGA family
@@ -428,7 +429,7 @@ begin  -- architecture struct
       g_interface_mode            => PIPELINED,
       g_address_granularity       => BYTE,
       g_aux_sdb                   => c_wrc_periph3_sdb,
-      g_softpll_enable_debugger   => FALSE,
+      g_softpll_enable_debugger   => g_softpll_enable_debugger,
       g_vuart_fifo_size           => 1024,
       g_pcs_16bit                 => TRUE,
       g_diag_id                   => g_diag_id,

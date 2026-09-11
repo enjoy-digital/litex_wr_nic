@@ -26,6 +26,7 @@ entity xwrc_board_litex_wr_nic_wrapper is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean := TRUE;
+    g_softpll_enable_debugger   : boolean := FALSE;
     -- Board name
     g_board_name                : string  := "NA  ";
     -- FPGA family
@@ -300,6 +301,7 @@ begin
   u_xwrc_board_litex_wr_nic : entity work.xwrc_board_litex_wr_nic
     generic map (
       g_with_external_clock_input => g_with_external_clock_input,
+      g_softpll_enable_debugger   => g_softpll_enable_debugger,
       g_board_name                => g_board_name,
       g_fpga_family               => g_fpga_family,
       g_aux_clks                  => g_aux_clks,

@@ -75,6 +75,7 @@ class WhiteRabbitCore(LiteXModule):
         # Clocking.
         qpll         = None,
         with_ext_clk = True,
+        with_softpll_debug = False,
 
         # Serial.
         serial_pads = None,
@@ -254,6 +255,7 @@ class WhiteRabbitCore(LiteXModule):
             p_txpolarity                  = sfp_tx_polarity,
             p_rxpolarity                  = sfp_rx_polarity,
             p_g_with_external_clock_input = int(with_ext_clk),
+            p_g_softpll_enable_debugger   = int(with_softpll_debug),
             p_g_fpga_family               = {True: "artix7", False: "kintex7"}[self.platform.device.startswith("xc7a")],
             p_g_board_name                = board_name,
             p_g_dac_bits                  = dac_bits,

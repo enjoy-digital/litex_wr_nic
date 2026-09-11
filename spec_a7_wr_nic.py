@@ -128,6 +128,7 @@ class BaseSoC(LiteXWRNICSoC):
         wr_cpu_type               = "urv",
         wr_cpu_variant            = None,
         wr_cpu_memory             = "private",
+        with_wr_pll_debug         = False,
 
         # Sync-In Parameters.
         # -------------------
@@ -241,6 +242,10 @@ class BaseSoC(LiteXWRNICSoC):
             wr_cpu_ready = wr_cpu_loader.ready
             self.add_config("WR_CPU_CACHE_SIZE", 8*KILOBYTE)
 
+        if with_wr_pll_debug:
+            from litex.soc.cores.xadc import S7SystemMonitor
+            self.xadc = S7SystemMonitor()
+
         # UART -------------------------------------------------------------------------------------
 
         self.uart = UARTShared(pads=platform.request("serial"), sys_clk_freq=sys_clk_freq)
@@ -308,6 +313,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # Board name.
                 board_name       = "SPA7",
+                with_softpll_debug = with_wr_pll_debug,
 
                 # SFP.
                 sfp_pads         = platform.request("sfp",     white_rabbit_sfp_connector),
@@ -611,9 +617,13 @@ class BaseSoC(LiteXWRNICSoC):
 
         # PCIe NIC ---------------------------------------------------------------------------------
 
-        if with_pcie and with_white_rabbit:
+        # The 8192-word SPLL trace needs the RAM otherwise used by the NIC.
+        # Retain the PCIe PHY/QPLL clock arrangement in the USB debug profile.
+        if with_pcie and with_white_rabbit and not with_wr_pll_debug:
             self.add_pcie_nic(pcie_phy=self.pcie_phy, eth_phys=[self.ethphy0], with_timing_constraints=False)
             self.add_pcie_ptm()
+        elif with_pcie and with_white_rabbit:
+            self.comb += self.ethphy0.source.ready.eq(1)
 
         # Etherbone --------------------------------------------------------------------------------
 
@@ -622,7 +632,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Time Generator ---------------------------------------------------------------------------
 
-        if with_pcie and with_white_rabbit:
+        if with_pcie and with_white_rabbit and not with_wr_pll_debug:
             # Time Generator.
             self.time_generator = TimeGenerator(
                 clk_domain = "wr",
@@ -691,6 +701,8 @@ def main():
 
     # Build/Load/Flash Arguments.
     # ---------------------------
+    parser.add_argument("--with-wr-pll-debug", action="store_true",
+        help="Enable the SoftPLL FIFO and FPGA sensors; omit PCIe NIC/PTM/time generator to fit RAM.")
     parser.add_argument("--build", action="store_true", help="Build bitstream.")
     parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
@@ -735,6 +747,7 @@ def main():
         wr_cpu_type    = args.wr_cpu_type,
         wr_cpu_variant = args.wr_cpu_variant,
         wr_cpu_memory  = args.wr_cpu_memory,
+        with_wr_pll_debug = args.with_wr_pll_debug,
     )
     if args.with_wishbone_fabric_interface_probe:
         soc.add_wishbone_fabric_interface_probe()
