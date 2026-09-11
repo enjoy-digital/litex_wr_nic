@@ -685,6 +685,8 @@ def main():
     parser.add_argument("--build", action="store_true", help="Build bitstream.")
     parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
+    parser.add_argument("--device",      default=None, help="Programmer device path (/dev/ttyUSBx).")
+    parser.add_argument("--ftdi-serial", default=None, help="Programmer FTDI serial number.")
     parser.add_argument("--wr-cpu-memory", default="private",
         choices=["private", "integrated", "hyperram"],
         help="WR CPU memory implementation (default: private).")
@@ -758,7 +760,7 @@ def main():
     # Load FPGA.
     # ----------
     if args.load:
-        prog = soc.platform.create_programmer()
+        prog = soc.platform.create_programmer(device=args.device, ftdi_serial=args.ftdi_serial)
         prog.load_bitstream(builder.get_bitstream_filename(mode="flash"))
 
     # Flash FPGA.
@@ -769,7 +771,7 @@ def main():
         boot_image = os.path.join("litex_wr_nic", "firmware",
             wr_cpu_firmware_filename(args.wr_cpu_type, "boot")) if args.wr_cpu_memory == "hyperram" else None
         validate_flash_layout(bitstream, sdb_image, boot_image)
-        prog = soc.platform.create_programmer()
+        prog = soc.platform.create_programmer(device=args.device, ftdi_serial=args.ftdi_serial)
         prog.flash(0x0000_0000, bitstream)
         prog.flash(WR_SDB_FLASH_OFFSET, sdb_image)
         if args.wr_cpu_memory == "hyperram":
