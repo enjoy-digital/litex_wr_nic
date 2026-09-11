@@ -4,9 +4,12 @@ This procedure uses the physical WR UART on each board and two independent
 JTAGBone servers. The host needs only USB connections. The WR link itself runs
 between Acorn SFP0 and **SPEC-A7 J12, which is SFP0**.
 
-The [completed hardware results](wr_link/results/README.md) include both
+The [complete upstream hardware results](wr_link/results-upstream/README.md) include both
 30-minute role tests, all twelve recovery cycles, raw UART/snapshot evidence,
-image and firmware hashes, and the failed runs that led to the fixes.
+image and firmware hashes, and the failed runs that led to the fixes. The
+[upstream build notes](wr_link/upstream-build.md) identify the official source
+revisions and integration changes. The [earlier results](wr_link/results/README.md)
+used older project pins and remain available as historical evidence.
 
 The implementation starts from `main` at
 `dcb63a88a666f6aa66f0d4618d03d947abc0c25a`, with uRV and private WR CPU RAM.
@@ -25,11 +28,13 @@ PPS accuracy.
 | SPEC timing fails on PCIe clock-mode paths | Paths between mutually exclusive PIPE clocks were timed together. | Port the focused clock-mode constraint from [PR 78](https://github.com/enjoy-digital/litex_wr_nic/pull/78). |
 | Disabling the external WR clock still elaborates external-clock logic | A quoted `"FALSE"` was passed to a VHDL boolean through mixed-language elaboration. | Pass a numeric boolean, as for the CPU generics. |
 | Rebuilding the pinned firmware retains a different PPSI version | Checking out WRPC did not synchronize its submodules. | Run `git submodule update --init --recursive`; test a reused checkout across two pinned submodule revisions. |
-| SPI flash identification reads all ones | WR-core cleared MOSI on a GPSR write instead of the GPCR write strobe. | Backport [upstream ff0d6950](https://gitlab.com/ohwr/project/wr-cores/-/commit/ff0d6950), already fixed upstream; GHDL reproduces the original failure. |
+| SPI flash identification reads all ones | WR-core cleared MOSI on a GPSR write instead of the GPCR write strobe. | [Upstream ff0d6950](https://gitlab.com/ohwr/project/wr-cores/-/commit/ff0d6950) is included in the current WR-core pin; GHDL verifies it and reproduces the original typo as a negative control. |
 | Host diagnostic RAM lacks version 2 and live data | Firmware used CPU offset `0x900`; the CPU map places diagnostics at `0x800`. | Correct `BASE_WDIAGS_PRIV`. The **host** diagnostic offset remains `0x900`. |
 | Snapshot requests are ignored | The WR-core host write selector enabled word 0 (VER), while v2 CTRL is word 1. | Allow writes to CTRL at byte offset `0x04`, leaving VER/data read-only. Test the actual decoder in GHDL. |
 | An SFP storage error is reported as a calibration match | `storage_match_sfp()` negative errno values passed the `== 0` check. | Treat all non-positive results as unmatched; propagate negative errors. Test the actual C function. |
 | Two standard JTAG servers collide | The CLI could not select JTAGUART's internal stream port. | Add `--jtag-port` in [LiteX PR 2590](https://github.com/enjoy-digital/litex/pull/2590). Each board needs a distinct public and internal port. |
+| Full upstream SPEC build misses timing in the 250 MHz PTM sniffer | Packet classification unnecessarily gated the FIFO data path in addition to its write enable. | Drive FIFO data directly in [LitePCIe PR 186](https://github.com/enjoy-digital/litepcie/pull/186), with unchanged valid/ready behavior and latency; use the SPEC target's improved placement settings. |
+| Full upstream firmware reports `PRINTF OVF` and corrupts console fields | The project allocated only 16 bytes for an unbounded formatter; older firmware silently overflowed the same buffer. | Allocate 256 bytes, matching upstream SPEC defaults; reproduce the old overflow with AddressSanitizer, check the compiled size, and reject warnings during qualification. |
 
 The SPI fix restores SPEC's original flash-backed MAC, `08:87:40:00:00:01`.
 Acorn's flash identifies correctly but has no SDB filesystem at the probed
@@ -69,17 +74,23 @@ previously built image read-only. The ordinary firmware build retains its usual
 persistent storage behavior.
 
 The qualified toolchain is Vivado 2024.1 and the project's `riscv-11.2-small`
-toolchain. The firmware pins WRPC `baf7749610b2880bf243b38a9a1608af8e0e688d`,
-which pins PPSI `a140eb76d2748dcbce0b7b681a9da948f1e408d3`. WR-core remains at
-`c3f828881f5fd496966f1f04723dc85992d526fa` with the project patches applied.
+toolchain. The firmware pins official WRPC
+`13527cd68e1833214a89e4ee8c5b208188ff0e6a`, which pins PPSI
+`33d8c46c8353be56d35dc57dd3492769e276c00f`. WR-core is built from official
+`8cc5e53275d229fbbf50b96a6ae4cb9c87626d53`, with the project integration patches
+applied. Both recursive submodule trees are initialized at their upstream pins.
+Use LitePCIe `f9a2d43e4e9c29ae837641fb1c86cc0ffdec5da4` from PR 186 for these
+builds, selecting that checkout with `PYTHONPATH` if necessary. Existing
+WR-core checkouts at a different revision are rejected; move them aside before
+building. See the [complete source notes](wr_link/upstream-build.md).
 
 Review the final timing report before loading. The tested clean builds meet the
 specified constraints:
 
 | Board | Setup WNS | Hold WHS | Pulse-width slack |
 | --- | ---: | ---: | ---: |
-| Acorn | +0.031 ns | +0.053 ns | 0 ns |
-| SPEC-A7 | +0.016 ns | +0.053 ns | 0 ns |
+| Acorn | +0.174 ns | +0.036 ns | 0 ns |
+| SPEC-A7 | +0.045 ns | +0.057 ns | 0 ns |
 
 Neither has unclocked registers or unconstrained active internal endpoints.
 Acorn reports two constant-clock endpoints in the measurement channels for its
@@ -328,16 +339,18 @@ startup commands; VLAN handling in the endpoint is already disabled.
 ## Upstream submissions and method
 
 [LiteX PR 2590](https://github.com/enjoy-digital/litex/pull/2590) contains the
-independent JTAG stream-port fix. The SPI MOSI fix already exists in WR-core.
+independent JTAG stream-port fix. [LitePCIe PR 186](https://github.com/enjoy-digital/litepcie/pull/186)
+contains the PTM formatter timing fix. The SPI MOSI fix already exists in WR-core.
 The remaining focused WR-core/WRPC fixes have public PRs in unofficial GitHub
-contribution mirrors, each based directly on its current official upstream:
+contribution mirrors, each based directly on a recorded official upstream revision:
 [WR-core #1](https://github.com/enjoy-digital/wr-cores/pull/1),
 [WRPC #1](https://github.com/enjoy-digital/wrpc-sw/pull/1), and
 [WRPC #2](https://github.com/enjoy-digital/wrpc-sw/pull/2).
 [wr_link/upstream](wr_link/upstream/README.md) contains the patches, upstream
-migration findings and fresh regression results. The mirrors provide a review
-and fetch route using available GitHub authentication; official GitLab merge
-requests still require GitLab authentication and have not been submitted.
+migration findings and fresh regression results. The official repositories are
+available over HTTPS at `gitlab.com/ohwr/project/`; GitLab SSH authentication is
+unnecessary to fetch and rebuild them. PRs were created only in `enjoy-digital`
+repositories. No merge requests were submitted to third-party repositories.
 
 The workflow follows the project's [FPGA development article](https://enjoy-digital.github.io/posts/ai-era-fpga/)
 and [M2SDR debugging guide](https://github.com/enjoy-digital/litex_m2sdr/blob/main/doc/debugging-guide.md):

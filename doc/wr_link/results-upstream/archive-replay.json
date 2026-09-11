@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "files_verified": 344,
+  "archive_sha256": "c64ab212c9b4369b96f0a29f729b872f2d027f706723c6afa3352d3724cdbd83",
+  "archive_bytes": 3377981,
+  "replay_directory": "/tmp/wr-upstream-final-replay-yyzcf87n",
+  "matrix_identical": true,
+  "compiled_print_buffers_bytes": {
+    "acorn": 256,
+    "spec": 256
+  }
+}

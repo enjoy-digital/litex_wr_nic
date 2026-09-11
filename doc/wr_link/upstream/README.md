@@ -22,9 +22,10 @@ OHWR development moved to GitLab.com in 2025; ohwr.org became a catalogue. See t
 The [old WRPC path](https://gitlab.com/ohwr/hdl-core-lib/wr-cores/wrpc-sw)
 is archived and describes itself as a read-only project preserving old URLs.
 
-The active repositories and freshly fetched `master` tips on 2026-09-11 are:
+The active repositories and `master` snapshots fetched for these focused patch
+checks earlier on 2026-09-11 are:
 
-| Official repository | Current upstream base | Commit date |
+| Official repository | Patch review base | Commit date |
 | --- | --- | --- |
 | [wr-cores](https://gitlab.com/ohwr/project/wr-cores) | `8f9b06565ef8d23712494314def63f6fc3813f8c` | 2026-09-07 |
 | [wrpc-sw](https://gitlab.com/ohwr/project/wrpc-sw) | `13527cd68e1833214a89e4ee8c5b208188ff0e6a` | 2026-09-09 |
@@ -32,6 +33,11 @@ The active repositories and freshly fetched `master` tips on 2026-09-11 are:
 WR-core's current README explicitly names `master` as the development branch
 since 2025. Both projects' `.ohwr.yaml` files point to these current locations.
 All three bugs remain present at these revisions.
+
+WR-core subsequently advanced to `8cc5e532` on the same day. The
+[complete upstream build](../upstream-build.md) uses that newer revision and
+WRPC `13527cd6`; its [hardware results](../results-upstream/README.md) are
+recorded separately from this focused patch audit.
 
 Anonymous HTTPS fetches from these repositories succeed. The failure is account
 authentication for publication: `ssh -T git@gitlab.com` returns
@@ -70,11 +76,12 @@ repository. Each PR description also supplies an exact `git fetch`/`cherry-pick`
 command. The SFP commit was separated from the earlier two-commit local branch;
 its patch content is unchanged, but its parent is now the unmodified WRPC base.
 
-The hardware uses backports to its pinned WR-core/WRPC revisions. These focused
-checks do not claim a full build or hardware qualification of latest upstream;
-the complete latest upstream revisions were not substituted into the qualified
-FPGA images.
+The original hardware qualification used backports to older project pins.
+These focused checks audit the three published patches; they do not themselves
+establish hardware qualification. See the separate complete upstream build and
+hardware results linked above for the newly rebuilt images.
 
-The SPI MOSI clear-strobe fix is already upstream as WR-core `ff0d6950`; this work
-backports it and does not propose a duplicate upstream change. The host tool fix
+The SPI MOSI clear-strobe fix is already upstream as WR-core `ff0d6950`. The
+original build backported it; the current WR-core pin already includes it.
+No duplicate upstream change is proposed. The host tool fix
 has been submitted separately as [LiteX PR 2590](https://github.com/enjoy-digital/litex/pull/2590).

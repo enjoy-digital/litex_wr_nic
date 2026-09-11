@@ -1,6 +1,12 @@
-# WR hardware qualification results
+# Historical WR hardware qualification results
 
-Final qualification uses the clean rebuilt Acorn PLL profile and the unchanged SPEC image identified in [manifest-tuned.json](manifest-tuned.json). Both boards use uRV with private RAM and read-only firmware storage. The WR connection is Acorn SFP0 to SPEC-A7 J12/SFP0; host access is USB UART/JTAG only.
+These results use older project source pins. The later full upstream rebuild
+also exposed a formatter overflow in these images' 16-byte console-buffer
+configuration. Use the [corrected complete upstream images and results](../results-upstream/README.md)
+for the current qualification. This archive preserves the earlier observations
+and PLL tuning evidence.
+
+This historical qualification used the rebuilt Acorn PLL profile and the unchanged SPEC image identified in [manifest-tuned.json](manifest-tuned.json). Both boards used uRV with private RAM and read-only firmware storage. The WR connection was Acorn SFP0 to SPEC-A7 J12/SFP0; host access was USB UART/JTAG only.
 
 | Master → slave | Continuous tracking | Samples | Internal offset range | Standard deviation |
 | --- | ---: | ---: | ---: | ---: |
