@@ -277,6 +277,13 @@ The physical UART and JTAG diagnostics are exercised while the PCS is held down.
 This recovery helper is for uRV images and must not be used during an uninterrupted
 timing observation because the software PLL pauses during CPU debug access.
 
+WRPC prints diagnostics asynchronously and performs blocking PHY/SFP work when
+the link returns. Console capture preserves those messages but excludes
+timestamped PPSI diagnostics when recognizing an interleaved command echo.
+Recovery leaves verbose diagnostics disabled and lets the following qualifier
+connect to the shell before sending further queries. A command sent immediately
+after CPU resume can be dropped while link initialization is still running.
+
 The reload test re-identifies USB devices, checks that UART/JTAG share the same
 physical adapter, SRAM-loads both images with UART boot capture, restarts debug
 servers, configures the intended roles, and verifies reacquisition. Recovery must

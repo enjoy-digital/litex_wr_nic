@@ -41,8 +41,9 @@ features with support for PCIe Precision Time Measurement (PTM). The design enab
 - **SPEC-A7:** Includes advanced clocking features like external 10MHz input and fine delay lines
     for precise PPS/10MHz generation from WR network.
 
-- **LiteX Acorn Baseboard:** Features a larger FPGA (XC7A200T) for easier debugging. Future plans
-    aim to add digital VCXO functionality for full White Rabbit support.
+- **LiteX Acorn Baseboard:** Uses the XC7A200T's MMCM phase shifting to discipline the WR reference
+    and DMTD clocks. See the [Acorn/SPEC-A7 qualification guide](doc/wr_link_qualification.md)
+    for master/slave operation, frequency tuning, and calibration limitations.
 
 This open-source project is modular and developer-friendly, making it suitable for applications
 requiring precise timing and basic networking functionality.
@@ -63,6 +64,7 @@ requiring precise timing and basic networking functionality.
 - [> Configure Flash Data Base (SDB)](#-configure-flash-data-base-sdb)
 - [> Use LiteX Server and LiteScope](#-use-litex-server-and-litescope)
 - [> JTAGBone Tests](#-jtagbone-tests)
+- [> USB-only WR link qualification](doc/wr_link_qualification.md)
 - [> Calibrate Sync Out Delays](#-calibrate-sync-out-delays)
 - [> Configure the RF PLL](#-configure-the-rf-pll)
 
