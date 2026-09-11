@@ -1,0 +1,97 @@
+{
+  "qualification_date": "2026-09-11",
+  "integration_base": "dcb63a88a666f6aa66f0d4618d03d947abc0c25a",
+  "implementation_commit": "fff663e6430530cda769173d04330b344fb55930",
+  "cpu": "urv",
+  "memory": "private",
+  "persistent_storage": "read-only firmware; SRAM programming only",
+  "dependencies": {
+    "litex": "78c65eb2435622af22f641fa46cbd023974ac8d9",
+    "migen": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+    "liteeth": "8c9150ff121cb3148d8ea26ce3b1c5200479848d",
+    "litepcie": "0439d6534a9e41f9605c6dbb52d926614b2fbeec",
+    "litescope": "6bf3b92f261c50b8c7c74947f84e692ae846f512",
+    "litex_boards": "3e606b50b3f14e31d4bf565e5ba3cac3d21f841d",
+    "wr-cores": "c3f828881f5fd496966f1f04723dc85992d526fa",
+    "wrpc-sw": "baf7749610b2880bf243b38a9a1608af8e0e688d",
+    "ppsi": "a140eb76d2748dcbce0b7b681a9da948f1e408d3"
+  },
+  "images": {
+    "acorn": {
+      "wns_ns": 0.031,
+      "whs_ns": 0.053,
+      "wpws_ns": 0.0,
+      "files": {
+        "acorn-tuned-qual/gateware/sqrl_acorn.bit": {
+          "sha256": "ca3d19e04f6305abe17ec6ad5d770c28261e284714b9d5d5a9b76f7860b94058",
+          "bytes": 3460229
+        },
+        "acorn-tuned-qual/gateware/sqrl_acorn_timing.rpt": {
+          "sha256": "a123b70db7f424796966183007debf22474bb1f986068ed40ae2e14be0b39f03",
+          "bytes": 3708936
+        },
+        "acorn-tuned-qual/csr.csv": {
+          "sha256": "d5d73302b71b7f406647a09977e1c9e3ad8ac81ff8141cd3c5c32e733208df94",
+          "bytes": 6128
+        },
+        "acorn-tuned-qual/spec_a7_wrc.bram": {
+          "sha256": "c0e038183694c86f10e20a20833a8af80e5a43ce5762f18d2601b67834401c3b",
+          "bytes": 1081344
+        },
+        "acorn-tuned-qual/spec_a7_wrc.boot": {
+          "sha256": "ea45a9e2ca9250575c2cc298c30edea969e301a4c4342821517d6d7fae19b727",
+          "bytes": 131088
+        },
+        "acorn-tuned-qual/spec_a7_wrc.bin": {
+          "sha256": "c947de37ef0c928795fa3fb0d5f815ab4a53f7f1a5c7109c978cb2466e4aca08",
+          "bytes": 121080
+        }
+      },
+      "implementation_commit": "fff663e6430530cda769173d04330b344fb55930",
+      "main_pll": {
+        "kp": -600,
+        "ki": -16,
+        "shift": 12,
+        "frequency_prelock_gain_boost": 5
+      }
+    },
+    "spec": {
+      "wns_ns": 0.016,
+      "whs_ns": 0.053,
+      "wpws_ns": 0,
+      "files": {
+        "spec-qual/gateware/spec_a7_wr_nic.bin": {
+          "sha256": "ecae3265122eac766955aaba5751cef5d749ee94916fa1d7fa70550168e871c6",
+          "bytes": 1790928
+        },
+        "spec-qual/gateware/spec_a7_wr_nic_timing.rpt": {
+          "sha256": "d3decababb5eb25d97a5f9361f4a625b368ad28976db199a4cb0f3a39f8177de",
+          "bytes": 4230768
+        },
+        "spec-qual/csr.csv": {
+          "sha256": "bc04389a6b960d539ef2dff132373a02cc5e04d7a9b62e70f8e9efb5e2ae3840",
+          "bytes": 7114
+        },
+        "spec-qual/spec_a7_wrc.bram": {
+          "sha256": "381fecb52d7f1c10529d88692ed67a6930f1f3df94bd0464a8b5b9583191e661",
+          "bytes": 1081344
+        },
+        "spec-qual/spec_a7_wrc.boot": {
+          "sha256": "7bf45a6230b5b617d6fd6c8b05aacaf67248ef431d36834d588cabaf95af5ad4",
+          "bytes": 131088
+        },
+        "spec-qual/spec_a7_wrc.bin": {
+          "sha256": "a44c150cf7a01ea775b58c2a83b30d131b095f61c19e3ea4c79400474a0997bd",
+          "bytes": 121080
+        }
+      },
+      "implementation_commit": "8e431d1b1ae2ee453800fee2fa159424fb5f647e"
+    }
+  },
+  "jtag_server_litex_commit": "fa87e1c59",
+  "tools": {
+    "vivado": "2024.1",
+    "openocd": "0.11.0",
+    "riscv_toolchain": "riscv-11.2-small"
+  }
+}

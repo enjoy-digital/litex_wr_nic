@@ -1,0 +1,164 @@
+{
+  "complete": true,
+  "soaks": {
+    "acorn": {
+      "passed": true,
+      "audit_errors": [],
+      "acquired_after_s": 41.83247299399227,
+      "soak_s": 1800.0150177059695,
+      "samples": 1800,
+      "offset_ps": {
+        "minimum": -52,
+        "maximum": 55,
+        "mean": 0.06111111111111111,
+        "standard_deviation": 18.926660763439518
+      },
+      "servo_updates_advanced": 1343,
+      "maximum_snapshot_time_difference_s": 0.375880544,
+      "raw_uart": {
+        "master": {
+          "sha256": "0d5c572e3ae110f626a15c98f625d058593b31cc4293cae20b43caff0f284fd3",
+          "frames": 1843,
+          "first_tracking_frame": 20,
+          "nontracking_frames_after_first": 0
+        },
+        "slave": {
+          "sha256": "f9916ec4c796444f1f1f552ea320b6f5f8777b95316de661728a5d2907f8d529",
+          "frames": 2472,
+          "first_tracking_frame": 43,
+          "nontracking_frames_after_first": 0
+        }
+      }
+    },
+    "spec": {
+      "passed": true,
+      "audit_errors": [],
+      "acquired_after_s": 1.9292943920008838,
+      "soak_s": 1800.971053601941,
+      "samples": 1801,
+      "offset_ps": {
+        "minimum": -25,
+        "maximum": 23,
+        "mean": 0.15880066629650194,
+        "standard_deviation": 6.319574791598482
+      },
+      "servo_updates_advanced": 1333,
+      "maximum_snapshot_time_difference_s": 0.275789056,
+      "raw_uart": {
+        "master": {
+          "sha256": "ef1be5b052bc35e6cf8dacad052f94c3e4dd1ebc4b9e415c305dab1575c2b2a6",
+          "frames": 1804,
+          "first_tracking_frame": 0,
+          "nontracking_frames_after_first": 0
+        },
+        "slave": {
+          "sha256": "20d777eeefc2e3d4c390dea83d0cad80aecae666af012aa4bb1ee7423cae9310",
+          "frames": 2419,
+          "first_tracking_frame": 0,
+          "nontracking_frames_after_first": 0
+        }
+      }
+    }
+  },
+  "recoveries": {
+    "acorn": {
+      "passed": true,
+      "cycles": [
+        {
+          "operation": "link",
+          "cycle": 1,
+          "passed": true,
+          "recovery_upper_bound_s": 44.238415983039886,
+          "tracking_observed_s": 10.973925014957786
+        },
+        {
+          "operation": "link",
+          "cycle": 2,
+          "passed": true,
+          "recovery_upper_bound_s": 44.28063590102829,
+          "tracking_observed_s": 10.973548280075192
+        },
+        {
+          "operation": "link",
+          "cycle": 3,
+          "passed": true,
+          "recovery_upper_bound_s": 37.28161088889465,
+          "tracking_observed_s": 11.039052603999153
+        },
+        {
+          "operation": "reload",
+          "cycle": 1,
+          "passed": true,
+          "recovery_upper_bound_s": 44.06335980584845,
+          "tracking_observed_s": 10.970687040127814
+        },
+        {
+          "operation": "reload",
+          "cycle": 2,
+          "passed": true,
+          "recovery_upper_bound_s": 46.754532364197075,
+          "tracking_observed_s": 10.975998800015077
+        },
+        {
+          "operation": "reload",
+          "cycle": 3,
+          "passed": true,
+          "recovery_upper_bound_s": 50.96324842283502,
+          "tracking_observed_s": 10.974518841132522
+        }
+      ],
+      "audit_errors": [],
+      "error": null
+    },
+    "spec": {
+      "passed": true,
+      "cycles": [
+        {
+          "operation": "link",
+          "cycle": 1,
+          "passed": true,
+          "recovery_upper_bound_s": 43.98211999703199,
+          "tracking_observed_s": 10.974146451801062
+        },
+        {
+          "operation": "link",
+          "cycle": 2,
+          "passed": true,
+          "recovery_upper_bound_s": 52.03451535082422,
+          "tracking_observed_s": 10.971963664051145
+        },
+        {
+          "operation": "link",
+          "cycle": 3,
+          "passed": true,
+          "recovery_upper_bound_s": 45.99448227114044,
+          "tracking_observed_s": 10.966996632050723
+        },
+        {
+          "operation": "reload",
+          "cycle": 1,
+          "passed": true,
+          "recovery_upper_bound_s": 50.98540021898225,
+          "tracking_observed_s": 10.048989343922585
+        },
+        {
+          "operation": "reload",
+          "cycle": 2,
+          "passed": true,
+          "recovery_upper_bound_s": 54.07617330318317,
+          "tracking_observed_s": 10.972036625957116
+        },
+        {
+          "operation": "reload",
+          "cycle": 3,
+          "passed": true,
+          "recovery_upper_bound_s": 52.806570812128484,
+          "tracking_observed_s": 10.239637237973511
+        }
+      ],
+      "audit_errors": [],
+      "error": null
+    }
+  },
+  "final_acorn_master_passed": true
+}

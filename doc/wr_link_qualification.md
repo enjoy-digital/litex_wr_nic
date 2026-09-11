@@ -4,6 +4,10 @@ This procedure uses the physical WR UART on each board and two independent
 JTAGBone servers. The host needs only USB connections. The WR link itself runs
 between Acorn SFP0 and **SPEC-A7 J12, which is SFP0**.
 
+The [completed hardware results](wr_link/results/README.md) include both
+30-minute role tests, all twelve recovery cycles, raw UART/snapshot evidence,
+image and firmware hashes, and the failed runs that led to the fixes.
+
 The implementation starts from `main` at
 `dcb63a88a666f6aa66f0d4618d03d947abc0c25a`, with uRV and private WR CPU RAM.
 The findings below concern this configuration. They do not qualify PCIe traffic,
@@ -302,6 +306,20 @@ read alone does not prove which part of that connection is absent.
 No SFP delay/asymmetry constants were invented or written to flash. Automatic
 PHY/RX timestamp calibration runs in RAM. Absolute timing accuracy needs the
 appropriate physical calibration and an independent PPS measurement.
+
+The qualified SPEC image retains the legacy AD5683R driver's effective x2 gain
+on both DACs. Its misspelled VHDL generic is ignored, so the VHDL default applies
+even where the Python DMTD argument says `gain=1`. The driver correction already
+exists in [PR 77](https://github.com/enjoy-digital/litex_wr_nic/pull/77). This
+qualification does not change that analog range.
+
+The legacy SPEC `*_dac_current` CSRs also follow the WR write-data bus every
+clock, rather than latching only the corresponding DAC load strobe. That bus is
+shared by the main/helper DAC writes and other SoftPLL registers. A snapshot can
+therefore show zero or another register's data instead of the last DAC command.
+Use UART `pll stat` / `pll gdac` to inspect the controller's commands; these are
+still command values, not measured analog voltages. The loaded-image raw CSR
+capture is retained with the final UART evidence so this difference is visible.
 
 The existing firmware init string also contains `vlan off` while VLAN commands
 are disabled. Its reported unknown-command warning does not stop later role/PTP
