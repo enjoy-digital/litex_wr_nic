@@ -79,6 +79,18 @@ def test_standalone_core_interfaces(platform):
     assert uart.value == 1
 
 
+@pytest.mark.parametrize("enabled", [False, True])
+def test_external_clock_generic_is_numeric(platform, enabled):
+    core = WhiteRabbitCore(platform, with_ext_clk=enabled, **core_kwargs())
+    instance = next(s for s in core.get_fragment().specials
+        if isinstance(s, Instance) and s.of == "xwrc_board_litex_wr_nic_wrapper")
+    parameter = next(item.value for item in instance.items
+        if isinstance(item, Instance.Parameter) and item.name == "g_with_external_clock_input")
+    # Quoted FALSE can bind as true at the Verilog/VHDL boundary in Vivado.
+    assert not isinstance(parameter, str)
+    assert parameter.value == int(enabled)
+
+
 def test_compatibility_adapter_registers_memory_and_csrs_once(platform):
     soc          = LiteXModule()
     soc.platform = platform

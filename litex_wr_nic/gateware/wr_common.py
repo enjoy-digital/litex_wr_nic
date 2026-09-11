@@ -14,7 +14,7 @@ from litex.build import tools
 
 WR_CORES_URL    = "https://gitlab.com/ohwr/project/wr-cores.git"
 WR_CORES_BRANCH = "master"
-WR_CORES_SHA1   = "c3f828881f5fd496966f1f04723dc85992d526fa"
+WR_CORES_SHA1   = "8cc5e53275d229fbbf50b96a6ae4cb9c87626d53"
 WR_SUBSYSTEM_VHD = "wr-cores/modules/wrc_core/xwr_subsystem.vhd"
 WR_PPS_GEN_VHD   = "wr-cores/modules/wr_pps_gen/xwr_pps_gen.vhd"
 WR_CLOCK_MONITOR_VHD = "wr-cores/ip_cores/general-cores/modules/wishbone/wb_clock_monitor/xwb_clock_monitor.vhd"
@@ -22,17 +22,23 @@ WR_CORE_VHD      = "wr-cores/modules/wrc_core/xwr_core.vhd"
 WR_BOARD_VHD     = "wr-cores/board/common/xwrc_board_common.vhd"
 
 def wr_core_init():
-    print("Cloning wr-cores repository...")
-    subprocess.run(["git", "clone", WR_CORES_URL], check=True)
-    os.chdir("wr-cores")
-    print("Checking out the specified commit...")
-    subprocess.run(["git", "checkout", "-B", WR_CORES_BRANCH, WR_CORES_SHA1], check=True)
-    print("Fixing submodules URL...")
-    tools.replace_in_file(".gitmodules", "ohwr.org", "gitlab.com/ohwr")
-    print("Updating submodules...")
-    subprocess.run(["git", "submodule", "update", "--init"], check=True)
-    print("wr-cores initialization complete.")
-    os.chdir("..")
+    """Initialize the pinned upstream tree and reject stale build checkouts."""
+    if not os.path.exists("wr-cores"):
+        subprocess.run(["git", "clone", WR_CORES_URL, "wr-cores"], check=True)
+        subprocess.run(["git", "checkout", "--detach", WR_CORES_SHA1],
+            cwd="wr-cores", check=True)
+        subprocess.run(["git", "submodule", "update", "--init", "--recursive"],
+            cwd="wr-cores", check=True)
+    revision = subprocess.check_output(["git", "rev-parse", "HEAD"],
+        cwd="wr-cores", text=True).strip()
+    if revision != WR_CORES_SHA1:
+        raise RuntimeError(f"wr-cores is at {revision}, expected {WR_CORES_SHA1}. "
+            "Move the existing wr-cores directory aside and rebuild to initialize the pinned sources.")
+    submodules = subprocess.check_output(["git", "submodule", "status", "--recursive"],
+        cwd="wr-cores", text=True)
+    if any(line[:1] in ("-", "+", "U") for line in submodules.splitlines()):
+        raise RuntimeError("wr-cores submodules do not match the pinned upstream revisions; "
+            "run git -C wr-cores submodule update --init --recursive.")
 
 def patch_wr_subsystem_mux_class():
     # Keep upstream xwr_subsystem and patch only the class mask needed by LiteX-WR-NIC.
@@ -172,6 +178,7 @@ def patch_wr_external_cpu_memory():
         """  U_CPU: entity work.wrc_urv_wrapper
     generic map (
       g_IRAM_SIZE => g_dpram_size,
+      g_USE_BRAM_MACROS => g_dpram_use_bram_macro,
       g_IRAM_INIT => g_dpram_initf,
       g_CPU_ID => 0
       )
@@ -198,6 +205,7 @@ def patch_wr_external_cpu_memory():
     U_CPU_PRIVATE: entity work.wrc_urv_wrapper
       generic map (
         g_IRAM_SIZE => g_dpram_size,
+        g_USE_BRAM_MACROS => g_dpram_use_bram_macro,
         g_IRAM_INIT => g_dpram_initf,
         g_CPU_ID => 0)
       port map (
@@ -247,6 +255,7 @@ def patch_wr_external_cpu_memory():
     U_CPU_PRIVATE: entity work.wrc_urv_wrapper
       generic map (
         g_IRAM_SIZE => g_dpram_size,
+        g_USE_BRAM_MACROS => g_dpram_use_bram_macro,
         g_IRAM_INIT => g_dpram_initf,
         g_CPU_ID => 0)
       port map (
@@ -530,7 +539,7 @@ wr_core_files += [
     "wr-cores/modules/wr_tbi_phy/disparity_gen_pkg.vhd",
 
     # WR Core Modules.
-    #"wr-cores/modules/wrc_core/wr_core.vhd",
+    "wr-cores/modules/wrc_core/wr_core.vhd",
     "wr-cores/modules/wrc_core/wrc_cpu_csr.vhd",
     "wr-cores/modules/wrc_core/wrc_diags_dpram.vhd",
     "wr-cores/modules/wrc_core/wrc_syscon.vhd",
@@ -567,9 +576,6 @@ wr_core_files += [
 
     # WR Fabric Modules.
     os.path.join(cdir, "wr-cores/modules/fabric/xwrf_mux.vhd"),
-
-    # WR Core Modules.
-    os.path.join(cdir, "wr-cores/modules/wrc_core/wr_core.vhd"),
 
     # WR Platform.
     os.path.join(cdir, "wr-cores/platform/xilinx/xwrc_platform_vivado.vhd"),

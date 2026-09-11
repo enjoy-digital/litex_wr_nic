@@ -252,7 +252,7 @@ class WhiteRabbitCore(LiteXModule):
             p_g_external_cpu              = int(external_cpu),
             p_txpolarity                  = sfp_tx_polarity,
             p_rxpolarity                  = sfp_rx_polarity,
-            p_g_with_external_clock_input = str(with_ext_clk).upper(),
+            p_g_with_external_clock_input = int(with_ext_clk),
             p_g_fpga_family               = {True: "artix7", False: "kintex7"}[self.platform.device.startswith("xc7a")],
             p_g_board_name                = board_name,
             p_g_dac_bits                  = dac_bits,
@@ -401,8 +401,7 @@ class WhiteRabbitCore(LiteXModule):
         # subsequently registers its sources during finalization.
         if getattr(platform, "_wr_core_sources_added", False):
             return
-        if not os.path.exists("wr-cores"):
-            wr_core_init()
+        wr_core_init()
         patch_wr_subsystem_mux_class()
         patch_wr_pps_gen_iob()
         patch_wr_clock_monitor_presc_cdc()

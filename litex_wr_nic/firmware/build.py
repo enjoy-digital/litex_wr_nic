@@ -33,7 +33,7 @@ TOOLCHAIN_DIR     = "riscv-11.2-small"
 REPO_URL          = "https://gitlab.com/ohwr/project/wrpc-sw.git"
 CLONE_DIR         = "wrpc-sw"
 
-COMMIT_HASH       = "baf7749610b2880bf243b38a9a1608af8e0e688d"
+COMMIT_HASH       = "13527cd68e1833214a89e4ee8c5b208188ff0e6a"
 CONFIG_SRC        = "spec_a7_defconfig"
 
 FIRMWARE_SRC       = os.path.join(CLONE_DIR, "wrc.bram")
@@ -81,6 +81,8 @@ def checkout_commit(target="spec_a7"):
     # Ensure no kp/ki modifications.
     run_command(f"git checkout softpll/spll_main.c", cwd=CLONE_DIR)
     run_command(f"git checkout {COMMIT_HASH}", cwd=CLONE_DIR)
+    # Reused checkouts must also use the submodule revisions pinned by WRPC.
+    run_command("git submodule update --init --recursive", cwd=CLONE_DIR)
     # These files receive the project-local CPU-profile overlay below. Restore
     # only those owned files so repeated uRV/VexRiscv builds cannot leak flags.
     run_command(
