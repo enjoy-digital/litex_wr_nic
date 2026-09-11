@@ -29,7 +29,7 @@ def firmware(tmp_path, monkeypatch):
     spec = importlib.util.spec_from_file_location('wr_build', ROOT / 'litex_wr_nic/firmware/build.py')
     build = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(build)
-    for name in ('include/board.h', 'dev/sfp.c'):
+    for name in ('include/board.h', 'dev/sfp.c', 'dev/spi_flash.c', 'dev/storage-cal.c'):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(subprocess.check_output(['git', '-C', str(SOURCE), 'show', build.COMMIT_HASH + ':' + name]))
@@ -97,3 +97,47 @@ def test_diagnostics_use_cpu_map_not_host_map(firmware):
     expected = int(re.search(r'#define WRC_DEVICES_MAP_WDIAG (0x[0-9a-f]+)', cpu_map).group(1), 16)
     actual = int(re.search(r'#define BASE_WDIAGS_PRIV\s+\(DEV_BASE \+ (0x[0-9a-f]+)\)', board).group(1), 16)
     assert actual == expected == 0x800
+
+
+def test_read_only_firmware_retains_calibration_without_writes(firmware):
+    build, path = firmware
+    build.configure_source_fixes(read_only_storage=True)
+    contents = {p: p.read_text() for p in path.rglob('*.c')}
+    build.configure_source_fixes(read_only_storage=True)
+    assert all(p.read_text() == text for p, text in contents.items())
+    flash = (path / 'dev/spi_flash.c').read_text()
+    cal = (path / 'dev/storage-cal.c').read_text()
+    prefix = r'''
+#include <stdint.h>
+#include <errno.h>
+#include <assert.h>
+struct spi_flash_device { void *bus; int use_4byte_addr; int sector_size; };
+static int spi_accesses, saved, set_result;
+static uint32_t parameter, value;
+void bb_spi_cs(void *bus, int level) { spi_accesses++; }
+void bb_spi_write(void *bus, int val, int count) { spi_accesses++; }
+void bb_spi_delay(void *bus) { spi_accesses++; }
+void spi_flash_write_addr(struct spi_flash_device *dev, uint32_t addr) { spi_accesses++; }
+int spi_flash_rsr(struct spi_flash_device *dev) { spi_accesses++; return 0; }
+int storage_set_calibration_parameter(uint32_t id, uint32_t val) { parameter=id; value=val; return set_result; }
+int storage_save_calibration(void) { saved++; return 0; }
+'''
+    code = '\n'.join(function(flash, name) for name in ('spi_flash_write', 'spi_flash_erase_sector', 'spi_flash_erase'))
+    code += function(cal, 'storage_set_calibration_parameter_and_save')
+    checks = r'''
+int main(void) {
+    struct spi_flash_device dev = {.sector_size = 65536}; uint8_t byte = 0;
+    assert(spi_flash_write(&dev, 0, &byte, 1) == -EROFS);
+    assert(spi_flash_erase(&dev, 0, 65536) == -EROFS);
+    spi_flash_erase_sector(&dev, 0);
+    assert(spi_accesses == 0);
+    assert(storage_set_calibration_parameter_and_save(7, 1234) == 0);
+    assert(parameter == 7 && value == 1234 && saved == 0);
+    set_result = -1;
+    assert(storage_set_calibration_parameter_and_save(7, 5678) == -1);
+    assert(saved == 0);
+    return 0;
+}
+'''
+    result = run_c(path, prefix + code + checks)
+    assert result.returncode == 0, result.stderr

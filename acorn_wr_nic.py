@@ -423,6 +423,11 @@ def main():
         help="LiteX WR CPU variant (VexRiscv defaults to lite).")
     parser.add_argument("--output-dir", default=None, help="Build directory.")
 
+    parser.add_argument("--skip-firmware-build", action="store_true",
+        help="Reuse firmware built separately (for example the read-only bench profile).")
+    parser.add_argument("--skip-software-headers", action="store_true",
+        help="Do not overwrite the checked-in PCIe software headers.")
+
     # Probes.
     # -------
     parser.add_argument("--with-wishbone-fabric-interface-probe", action="store_true")
@@ -434,7 +439,7 @@ def main():
 
     # Build Firmware.
     # ---------------
-    if args.build:
+    if args.build and not args.skip_firmware_build:
         print("Building firmware...")
         r = os.system("cd litex_wr_nic/firmware && ./build.py --target acorn --wr-cpu-type {}".format(
             args.wr_cpu_type))
@@ -462,7 +467,8 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
+    if not args.skip_software_headers:
+        generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
 
     # Load FPGA.
     # ----------

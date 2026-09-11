@@ -1,0 +1,23 @@
+{
+  "python": {
+    "migen": {"url": "https://github.com/m-labs/migen.git", "revision": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c"},
+    "litex": {"url": "https://github.com/enjoy-digital/litex.git", "revision": "905384c2437b27fd35f50340dfdc23e2c0def5c1"},
+    "litepcie": {"url": "https://github.com/enjoy-digital/litepcie.git", "revision": "f9a2d43e4e9c29ae837641fb1c86cc0ffdec5da4"},
+    "liteeth": {"url": "https://github.com/enjoy-digital/liteeth.git", "revision": "8c9150ff121cb3148d8ea26ce3b1c5200479848d"},
+    "litescope": {"url": "https://github.com/enjoy-digital/litescope.git", "revision": "6bf3b92f261c50b8c7c74947f84e692ae846f512"},
+    "litex_boards": {"url": "https://github.com/litex-hub/litex-boards.git", "revision": "3e606b50b3f14e31d4bf565e5ba3cac3d21f841d"}
+  },
+  "wr_cores": {
+    "url": "https://gitlab.com/ohwr/project/wr-cores.git",
+    "revision": "8cc5e53275d229fbbf50b96a6ae4cb9c87626d53",
+    "general_cores": "d99c8460ae8b939ada406fe23198c41d236bf49b",
+    "urv": "de05caf973e17d1fa46f4fdb95762230bd1ab8c4"
+  },
+  "wrpc": {
+    "url": "https://gitlab.com/ohwr/project/wrpc-sw.git",
+    "revision": "13527cd68e1833214a89e4ee8c5b208188ff0e6a",
+    "ppsi": "33d8c46c8353be56d35dc57dd3492769e276c00f",
+    "ual": "57a9484c343cbda804ceaa39e6025ba425c9a252"
+  },
+  "tools": {"vivado": "2024.1", "riscv32-elf-gcc": "11.2.0 (riscv-11.2-small)"}
+}
