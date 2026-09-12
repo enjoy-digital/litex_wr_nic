@@ -87,3 +87,6 @@ independent PPS alignment or jitter.
 Keep the manager's state directory across interruptions: it records process
 ownership for cleanup and shares a lock with the checker. Captures and build
 outputs belong outside version control.
+
+For optional native PLL traces and XADC capture, see
+[SoftPLL capture tools](wr_loop_response.md).
