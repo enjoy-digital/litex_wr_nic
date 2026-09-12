@@ -90,3 +90,13 @@ outputs belong outside version control.
 
 For optional native PLL traces and XADC capture, see
 [SoftPLL capture tools](wr_loop_response.md).
+
+## SFP identification
+
+WR link acquisition does not prove SFP EEPROM access or calibration lookup.
+On Acorn Baseboard Mini, verify the JP1 SCL and JP4 SDA routing through the
+PCA9306 level translator when address 0x50 does not acknowledge. The tested
+setup still needs this physical check. On each board, confirm the module
+identification and a matching calibration entry before interpreting servo
+tracking as calibrated absolute timing. See [board builds](boards.md) for
+HyVision connections and build-only checks.
