@@ -98,6 +98,68 @@ class WRTuningCDC(LiteXModule):
 
 # WR Clock Backends -------------------------------------------------------------------------------
 
+class WRTXPIBackend(LiteXModule):
+    """Rate accumulator for the 7-series GTP TX phase interpolator.
+
+    The output uses TXUSRCLK2 and TXPI_SYNFREQ_PPM=001 (two-clock updates).
+    Mean step magnitude is |code - center| / 2**(width - 4 + div_n).
+    Decrementing PI phase speeds up the clock, matching WRMMCMBackend polarity.
+    """
+    def __init__(self, cd_tx="wr", cd_command="wr_sys", width=16, div_n=0, **calibration):
+        if not isinstance(width, int) or width < 4 or not isinstance(div_n, int) or div_n < 0:
+            raise ValueError("TXPI requires an integer width >= 4 and divider >= 0.")
+        self.command        = WRTuningInterface(width, name="command")
+        self.txpippmstepsize = Signal(5)
+
+        # # #
+
+        self.cdc = cdc = WRTuningCDC(width, cd_command, cd_tx)
+        self.calibration = calibrated = WRTuningCalibration(width, cdc.input_cd, **calibration)
+        self.comb += [
+            self.command.connect(calibrated.sink),
+            calibrated.source.connect(cdc.sink),
+        ]
+
+        neutral   = 1 << (width - 1)
+        frac_bits = width - 4 + div_n
+        code      = Signal(width, reset=neutral)
+        selected  = Signal(width)
+        magnitude = Signal(width)
+        direction = Signal()
+        previous_direction = Signal()
+        clear     = Signal()
+        tick      = Signal()
+        acc       = Signal(max(1, frac_bits))
+        total     = Signal(max(width, frac_bits) + 1)
+        self.comb += [
+            selected.eq(Mux(cdc.source.load, cdc.source.data, code)),
+            direction.eq(selected < neutral),
+            magnitude.eq(Mux(direction, neutral - selected, selected - neutral)),
+            total.eq(acc + magnitude),
+        ]
+        sync = getattr(self.sync, cdc.output_cd)
+        sync += [
+            tick.eq(~tick),
+            If(cdc.source.load, code.eq(cdc.source.data)),
+            # Remember neutral/reversal even when it arrives between updates.
+            previous_direction.eq(direction),
+            If((magnitude == 0) | (direction != previous_direction), clear.eq(1)),
+            If(tick,
+                clear.eq(0),
+                # Update sign and magnitude together and hold both for two
+                # clocks. Drop unissued fractional phase on neutral/reversal;
+                # same-direction servo updates must preserve it.
+                If(clear | (magnitude == 0) | (direction != previous_direction),
+                    acc.eq(0),
+                    self.txpippmstepsize.eq(0),
+                ).Else(
+                    acc.eq(total[:frac_bits] if frac_bits else 0),
+                    self.txpippmstepsize.eq(Cat((total >> frac_bits)[:4], direction)),
+                ),
+            ),
+        ]
+
+
 class WRMMCMBackend(LiteXModule):
     """Rate accumulator with one outstanding MMCM phase shift at a time."""
     def __init__(self, cd_psclk, cd_command="wr_sys", width=16, div_n=0,

@@ -50,7 +50,7 @@ from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, Fin
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.clk10m            import Clk10MGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
-from litex_wr_nic.gateware.wr_clock          import WRMMCMBackend
+from litex_wr_nic.gateware.wr_clock          import WRMMCMBackend, WRTXPIBackend
 from litex_wr_nic.gateware.wr_cpu            import (
     WR_CPU_MEMORY_ORIGIN,
     WR_CPU_MEMORY_SIZE,
@@ -132,7 +132,11 @@ class BaseSoC(LiteXWRNICSoC):
         wr_cpu_memory             = "private",
         with_wr_pll_debug         = False,
 
+        # Main clock actuator.
+        wr_refclk_tuning = "mmcm",
     ):
+        if wr_refclk_tuning not in ("mmcm", "txpi"):
+            raise ValueError(f"Unsupported WR reference clock tuning: {wr_refclk_tuning}")
         # Platform ---------------------------------------------------------------------------------
 
         platform = sqrl_acorn.Platform()
@@ -282,6 +286,7 @@ class BaseSoC(LiteXWRNICSoC):
                 # QPLL.
                 qpll            = self.qpll,
                 with_ext_clk    = False,
+                with_txpi       = wr_refclk_tuning == "txpi",
 
                 # Serial.
                 serial_pads     = self.uart.shared_pads,
@@ -290,19 +295,29 @@ class BaseSoC(LiteXWRNICSoC):
                 flash_pads      = platform.request("flash", 1),
             )
 
-            # RefClk MMCM Phase Shift.
-            # ------------------------
-            self.refclk_mmcm_ps_gen = WRMMCMBackend(
-                 cd_psclk    = "clk200",
-                 cd_command  = "wr_sys",
-                 width       = 16,
-                 )
+            # Reference Clock Tuning.
+            # -----------------------
+            if wr_refclk_tuning == "txpi":
+                # Keep the QPLL reference fixed; tune only the WR transmitter.
+                # div_n=2 gives a nominal 0.00596 ppm/code at 1.25 Gb/s,
+                # TXOUT_DIV=4 and TXUSRCLK2=62.5 MHz (UG482/XAPP589).
+                self.refclk_txpi = refclk_tuning = WRTXPIBackend(div_n=2)
+                self.comb += [
+                    self.wr_core.txpippmstepsize.eq(refclk_tuning.txpippmstepsize),
+                    self.crg.refclk_mmcm.psen.eq(0),
+                    self.crg.refclk_mmcm.psincdec.eq(0),
+                ]
+            else:
+                self.refclk_mmcm_ps_gen = refclk_tuning = WRMMCMBackend(
+                    cd_psclk="clk200", cd_command="wr_sys", width=16)
+                self.comb += [
+                    self.crg.refclk_mmcm.psen.eq(refclk_tuning.psen),
+                    self.crg.refclk_mmcm.psincdec.eq(refclk_tuning.psincdec),
+                    refclk_tuning.psdone.eq(self.crg.refclk_mmcm.psdone),
+                ]
             self.comb += [
-                self.refclk_mmcm_ps_gen.command.data.eq(self.dac_refclk_data),
-                self.refclk_mmcm_ps_gen.command.load.eq(self.dac_refclk_load),
-                self.crg.refclk_mmcm.psen.eq(self.refclk_mmcm_ps_gen.psen),
-                self.crg.refclk_mmcm.psincdec.eq(self.refclk_mmcm_ps_gen.psincdec),
-                self.refclk_mmcm_ps_gen.psdone.eq(self.crg.refclk_mmcm.psdone),
+                refclk_tuning.command.data.eq(self.dac_refclk_data),
+                refclk_tuning.command.load.eq(self.dac_refclk_load),
             ]
 
             # DMTD MMCM Phase Shift.
@@ -430,6 +445,8 @@ def main():
     parser.add_argument("--wr-cpu-variant", default=None,
         help="LiteX WR CPU variant (VexRiscv defaults to lite).")
     parser.add_argument("--output-dir", default=None, help="Build directory.")
+    parser.add_argument("--wr-refclk-tuning", default="mmcm", choices=["mmcm", "txpi"],
+        help="WR main-clock actuator (default: mmcm; txpi uses the GTP phase interpolator).")
 
     parser.add_argument("--skip-firmware-build", action="store_true",
         help="Reuse firmware built separately (for example the read-only bench profile).")
@@ -457,6 +474,7 @@ def main():
     # Build SoC/Gateware (with integrated Firmware).
     # ----------------------------------------------
     soc = BaseSoC(
+        wr_refclk_tuning = args.wr_refclk_tuning,
         wr_cpu_type    = args.wr_cpu_type,
         wr_cpu_variant = args.wr_cpu_variant,
         wr_cpu_memory  = args.wr_cpu_memory,

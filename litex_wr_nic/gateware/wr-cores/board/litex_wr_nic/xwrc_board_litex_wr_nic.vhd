@@ -259,7 +259,9 @@ entity xwrc_board_litex_wr_nic is
     GT0_EXT_QPLL_RESET  : out std_logic;
     GT0_EXT_QPLL_CLK    : in  std_logic;
     GT0_EXT_QPLL_REFCLK : in  std_logic;
-    GT0_EXT_QPLL_LOCK   : in  std_logic
+    GT0_EXT_QPLL_LOCK   : in  std_logic;
+    txpippmen_i         : in std_logic := '0';
+    txpippmstepsize_i   : in std_logic_vector(4 downto 0) := (others => '0')
     );
 
 end entity xwrc_board_litex_wr_nic;
@@ -357,7 +359,9 @@ begin  -- architecture struct
       GT0_EXT_QPLL_RESET    => GT0_EXT_QPLL_RESET,
       GT0_EXT_QPLL_CLK      => GT0_EXT_QPLL_CLK,
       GT0_EXT_QPLL_REFCLK   => GT0_EXT_QPLL_REFCLK,
-      GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK
+      GT0_EXT_QPLL_LOCK     => GT0_EXT_QPLL_LOCK,
+      txpippmen_i           => txpippmen_i,
+      txpippmstepsize_i     => txpippmstepsize_i
     );
 
   -- Wishbone, fabric and SoftPLL DAC commands use the system clock. PPS and
