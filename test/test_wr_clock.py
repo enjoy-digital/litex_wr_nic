@@ -13,7 +13,7 @@ from migen.sim import passive
 from litex.gen import LiteXModule
 
 from litex_wr_nic.gateware.ps_gen import PSGen
-from litex_wr_nic.gateware.wr_clock import WRTuningCalibration, WRTuningCDC, WRMMCMBackend
+from litex_wr_nic.gateware.wr_clock import WRTuningCalibration, WRTuningCDC, WRMMCMBackend, WRTXPIBackend
 
 # Simulation Helpers -------------------------------------------------------------------------------
 
@@ -32,6 +32,143 @@ def simulate(dut, generators, clocks=None):
     run_simulation(fragment, generators, clocks=clocks)
 
 # Clock Tuning Tests -------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("width,div_n,code", [
+    (4, 0, 0), (4, 0, 15), (8, 0, 0), (8, 0, 255), (8, 0, 128),
+    (8, 2, 127), (8, 2, 129), (8, 2, 0), (8, 2, 255), (16, 2, 32785),
+])
+def test_txpi_rate_polarity_and_two_cycle_hold(width, div_n, code):
+    dut = WRTXPIBackend(cd_tx="ps", cd_command="wr", width=width, div_n=div_n)
+    neutral = 1 << (width - 1)
+    samples = []
+    cycles = 4096
+
+    def command():
+        for _ in range(10):
+            yield
+        yield dut.command.data.eq(code)
+        yield dut.command.load.eq(1)
+        yield
+        yield dut.command.load.eq(0)
+        # Unstrobed bus values must not change the held command.
+        yield dut.command.data.eq(neutral)
+
+    def monitor():
+        previous = 0
+        parity = None
+        for tick in range(200 + cycles):
+            value = yield dut.txpippmstepsize
+            if value != previous:
+                if parity is None:
+                    parity = tick % 2
+                assert tick % 2 == parity, "TXPI word changed between two-cycle updates"
+            previous = value
+            if tick >= 200:
+                if value & 15:
+                    assert value >> 4 == int(code < neutral)
+                samples.append(value & 15)
+            yield
+
+    simulate(dut, {"wr": command(), "ps": monitor()})
+    expected = cycles / 2 * abs(code - neutral) / (1 << (width - 4 + div_n))
+    assert abs(sum(samples) / 2 - expected) <= 1
+
+
+def test_txpi_frequent_commands_do_not_starve_fractional_steps():
+    dut = WRTXPIBackend(cd_tx="ps", cd_command="wr", width=8, div_n=2)
+    steps = []
+
+    def command():
+        for _ in range(10):
+            yield
+        for _ in range(800):
+            yield dut.command.data.eq(129)
+            yield dut.command.load.eq(1)
+            yield
+            yield dut.command.load.eq(0)
+            yield
+
+    def monitor():
+        for tick in range(4096 + 200):
+            if tick >= 200:
+                steps.append((yield dut.txpippmstepsize) & 15)
+            yield
+
+    simulate(dut, {"wr": command(), "ps": monitor()})
+    assert abs(sum(steps) / 2 - 32) <= 1
+
+
+def test_txpi_reversal_and_neutral_keep_atomic_two_cycle_updates():
+    dut = WRTXPIBackend(cd_tx="ps", cd_command="wr", width=8)
+    samples = []
+
+    def command():
+        for _ in range(10):
+            yield
+        # Opposite endpoint magnitudes (8 and 7) expose a mismatched sign.
+        # Offsets vary command arrival relative to the two-cycle update.
+        for delay in range(12, 24):
+            for code in (0, 240, 128):
+                yield dut.command.data.eq(code)
+                yield dut.command.load.eq(1)
+                yield
+                yield dut.command.load.eq(0)
+                for _ in range(delay):
+                    yield
+
+    def monitor():
+        previous = 0
+        parity = None
+        for tick in range(2500):
+            value = yield dut.txpippmstepsize
+            assert value in (0, 7, 24), "Direction and magnitude came from different commands"
+            if value != previous:
+                if parity is None:
+                    parity = tick % 2
+                assert tick % 2 == parity
+            previous = value
+            samples.append(value)
+            yield
+
+    simulate(dut, {"wr": command(), "ps": monitor()}, {"sys": 10, "wr": 16, "ps": 14})
+    assert 7 in samples and 24 in samples
+    assert samples[-100:] == [0]*100
+
+
+@pytest.mark.parametrize("domain", ["wr", "ps"])
+def test_txpi_reset_clears_command_and_fractional_phase(domain):
+    dut = WRTXPIBackend(cd_tx="ps", cd_command="wr", width=8)
+    samples = []
+
+    def command():
+        for _ in range(20):
+            yield
+        yield dut.command.data.eq(0)
+        yield dut.command.load.eq(1)
+        yield
+        yield dut.command.load.eq(0)
+        for _ in range(80):
+            yield
+        yield getattr(dut, "cd_" + domain).rst.eq(1)
+        for _ in range(20):
+            yield
+        yield getattr(dut, "cd_" + domain).rst.eq(0)
+
+    def monitor():
+        for _ in range(500):
+            samples.append((yield dut.txpippmstepsize))
+            yield
+
+    simulate(dut, {"wr": command(), "ps": monitor()}, {"sys": 10, "wr": 10, "ps": 14})
+    assert any(samples)
+    assert samples[-100:] == [0]*100
+
+
+@pytest.mark.parametrize("kwargs", [{"width": 3}, {"div_n": -1}, {"div_n": 0.5}])
+def test_txpi_rejects_invalid_parameters(kwargs):
+    with pytest.raises(ValueError):
+        WRTXPIBackend(**kwargs)
+
 
 @pytest.mark.parametrize("calibration,values", [
     ({}, [(0, 0, 0), (32768, 32768, 0), (65535, 65535, 0)]),

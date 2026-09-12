@@ -88,11 +88,14 @@ class WhiteRabbitCore(LiteXModule):
         # Wishbone Slave.
         wb_slave_size = 0x0100_0000,
 
-        dac_bits      = 16
+        dac_bits      = 16,
+        with_txpi     = False,
     ):
 
         self.platform = platform
         self.cpu_bus  = None
+        if with_txpi and not platform.device.startswith("xc7a"):
+            raise ValueError("WR TXPI tuning requires a 7-series GTP (Artix-7).")
 
         # # #
 
@@ -112,6 +115,7 @@ class WhiteRabbitCore(LiteXModule):
         self.dac_refclk_data = Signal(dac_bits)
         self.dac_dmtd_load   = Signal()
         self.dac_dmtd_data   = Signal(dac_bits)
+        self.txpippmstepsize = Signal(5) # TXUSRCLK2 / wr domain; held for two clocks.
         self.pps_in          = Signal()
         self.pps_out_valid   = Signal()
         self.pps_out         = Signal()
@@ -340,6 +344,10 @@ class WhiteRabbitCore(LiteXModule):
             o_pps_led_o           = self.led_pps,
             o_led_link_o          = self.led_link,
             o_led_act_o           = self.led_act,
+
+            # TX Phase Interpolator (GTP only).
+            i_txpippmen_i       = int(with_txpi),
+            i_txpippmstepsize_i = self.txpippmstepsize if with_txpi else 0,
 
             # QPLL Interface (for GTPE2_Common Sharing).
             o_gt0_ext_qpll_reset  = Open() if qpll is None else qpll.get_channel("eth").reset,

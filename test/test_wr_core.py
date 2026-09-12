@@ -81,6 +81,42 @@ def test_standalone_core_interfaces(platform):
 
 
 @pytest.mark.parametrize("enabled", [False, True])
+def test_txpi_is_opt_in_and_uses_the_reference_domain_port(platform, enabled):
+    core = WhiteRabbitCore(platform, with_txpi=enabled, **core_kwargs())
+    instance = next(s for s in core.get_fragment().specials
+        if isinstance(s, Instance) and s.of == "xwrc_board_litex_wr_nic_wrapper")
+    ports = {item.name: item.expr for item in instance.items if isinstance(item, Instance.Input)}
+    assert ports["txpippmen_i"].value == int(enabled)
+    if enabled:
+        assert ports["txpippmstepsize_i"] is core.txpippmstepsize
+    else:
+        assert ports["txpippmstepsize_i"].value == 0
+
+
+def test_txpi_rejects_gtx_platforms(platform):
+    platform.device = "xc7k325t"
+    with pytest.raises(ValueError, match="GTP"):
+        WhiteRabbitCore(platform, with_txpi=True, **core_kwargs())
+
+
+@pytest.mark.parametrize("backend", ["mmcm", "txpi"])
+def test_acorn_selects_one_main_clock_actuator(monkeypatch, backend):
+    from acorn_wr_nic import BaseSoC
+    from litex_wr_nic.gateware.wr_clock import WRMMCMBackend, WRTXPIBackend
+
+    monkeypatch.setattr(WhiteRabbitCore, "add_sources", staticmethod(lambda platform: None))
+    soc = BaseSoC(with_pcie=False, white_rabbit_cpu_firmware="unused.bram", wr_refclk_tuning=backend)
+    assert isinstance(soc.dmtd_mmcm_ps_gen, WRMMCMBackend)
+    if backend == "txpi":
+        assert isinstance(soc.refclk_txpi, WRTXPIBackend)
+        assert not hasattr(soc, "refclk_mmcm_ps_gen")
+    else:
+        assert isinstance(soc.refclk_mmcm_ps_gen, WRMMCMBackend)
+        assert not hasattr(soc, "refclk_txpi")
+    soc.finalize()
+
+
+@pytest.mark.parametrize("enabled", [False, True])
 def test_external_clock_generic_is_numeric(platform, enabled):
     core = WhiteRabbitCore(platform, with_ext_clk=enabled, **core_kwargs())
     instance = next(s for s in core.get_fragment().specials

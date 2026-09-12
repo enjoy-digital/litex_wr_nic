@@ -142,6 +142,31 @@ contains the validated selection; the caller must pass that selection to its
 SoC constructor. Firmware lookup and rebuild select the corresponding CPU
 profile. Defaults remain uRV with private memory.
 
+## Acorn GTP phase-interpolator tuning
+
+`python3 acorn_wr_nic.py --build --wr-refclk-tuning txpi` selects the optional
+TXPI main-clock actuator. The default is `mmcm`; the helper clock always uses
+its MMCM. TXPI leaves the 125 MHz QPLL reference fixed and tunes the WR
+transmitter and its 62.5 MHz reference clock.
+
+For another Artix-7 integration, enable `WhiteRabbitCore(with_txpi=True)` and
+connect `WRTXPIBackend.command` to the core's main DAC data/load signals in
+`wr_sys`. Connect the backend's `txpippmstepsize` to the core input of the same
+name in `wr` (TXUSRCLK2). The backend crosses commands coherently and holds
+the complete sign/magnitude word for two clocks. It starts neutral, retains
+fractional phase across same-direction commands and clears unissued phase on
+neutral, reversal or reset. GTX devices do not support this backend.
+
+The GTP configuration uses the TX buffer, `TXOUTCLKSEL=010`,
+`TXPI_SYNFREQ_PPM=001`, and a shared TXOUTCLK/TXUSRCLK2 clock, as required by
+[XAPP589](https://docs.amd.com/go/en-US/xapp589-VCXO) and
+[UG482](https://docs.amd.com/v/u/en-US/ug482_7Series_GTP_Transceivers).
+Acorn selects `div_n=2`: for a 16-bit command, the mean step magnitude is
+`abs(code - 32768) / 16384` per two-clock update. With `TXOUT_DIV=4` and a
+20-bit datapath this gives a nominal 0.00596 ppm/code. Increasing the code
+increases frequency. Recalibrate master trim when changing actuators; MMCM
+trim values and loop qualification do not transfer automatically to TXPI.
+
 ## SPEC DAC control
 
 The AD5683R CSRs keep the `force`, `load`, `value`, `current` register order.
