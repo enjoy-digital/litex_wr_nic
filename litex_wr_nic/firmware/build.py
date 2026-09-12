@@ -96,7 +96,8 @@ def checkout_commit(target="spec_a7"):
     # Keep the acquisition proportional gain unchanged (150*20 == 600*5)
     # when increasing the phase-loop gains; the frequency prelock branch
     # must not inherit a fourfold proportional gain increase.
-    if target == "acorn":
+    # HyVision starts with this MMCM profile too; qualify gains on hardware.
+    if target in ("acorn", "hyvision"):
         tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.kp = -1100;", "s->pi.kp = -600;")
         tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c", "s->pi.ki = -30;", "s->pi.ki = -16;")
         tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c",
@@ -279,7 +280,7 @@ def main():
     # from the repository root (for example by the resource-matrix helper).
     os.chdir(Path(__file__).resolve().parent)
     parser = argparse.ArgumentParser(description="LiteX-WR-NIC on Acorn Baseboard Mini.")
-    parser.add_argument("--target", default="spec_a7", help="Target Board.", choices=["spec_a7", "acorn"])
+    parser.add_argument("--target", default="spec_a7", help="Target Board.", choices=["spec_a7", "acorn", "hyvision"])
     parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_TYPES,
         help="WR CPU firmware profile (default: urv).")
     parser.add_argument("--read-only-storage", action="store_true",
