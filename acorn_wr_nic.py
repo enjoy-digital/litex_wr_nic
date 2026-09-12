@@ -130,6 +130,7 @@ class BaseSoC(LiteXWRNICSoC):
         wr_cpu_type               = "urv",
         wr_cpu_variant            = None,
         wr_cpu_memory             = "private",
+        with_wr_pll_debug         = False,
 
     ):
         # Platform ---------------------------------------------------------------------------------
@@ -196,6 +197,10 @@ class BaseSoC(LiteXWRNICSoC):
                 data_width=32, endianness="little", mem_size=WR_CPU_MEMORY_SIZE)
             self.add_ram("wr_cpu_mem", WR_CPU_MEMORY_ORIGIN, WR_CPU_MEMORY_SIZE, contents=contents)
             wr_cpu_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN, size=WR_CPU_MEMORY_SIZE, mode="rwx")
+
+        if with_wr_pll_debug:
+            from litex.soc.cores.xadc import S7SystemMonitor
+            self.xadc = S7SystemMonitor()
 
         # UART -------------------------------------------------------------------------------------
 
@@ -266,6 +271,7 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # Board name.
                 board_name       = "SAWR",
+                with_softpll_debug = with_wr_pll_debug,
 
                 # SFP.
                 sfp_pads        = platform.request("sfp",     white_rabbit_sfp_connector),
@@ -412,6 +418,8 @@ def main():
 
     # Build/Load/Flash Arguments.
     # ---------------------------
+    parser.add_argument("--with-wr-pll-debug", action="store_true",
+        help="Enable the SoftPLL host trace FIFO and FPGA temperature/supply CSRs.")
     parser.add_argument("--build", action="store_true", help="Build bitstream.")
     parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
@@ -452,6 +460,7 @@ def main():
         wr_cpu_type    = args.wr_cpu_type,
         wr_cpu_variant = args.wr_cpu_variant,
         wr_cpu_memory  = args.wr_cpu_memory,
+        with_wr_pll_debug = args.with_wr_pll_debug,
     )
     if args.with_wishbone_fabric_interface_probe:
         soc.add_wishbone_fabric_interface_probe()

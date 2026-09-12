@@ -87,7 +87,8 @@ def checkout_commit(target="spec_a7"):
     # only those owned files so repeated uRV/VexRiscv builds cannot leak flags.
     run_command(
         f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c "
-        "include/board.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c",
+        "include/board.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c "
+        "softpll/spll_helper.c softpll/softpll_ng.c shell/cmd_pll.c",
         cwd=CLONE_DIR)
 
     # Acorn's MMCM actuator needs more tracking bandwidth than the old
@@ -182,10 +183,56 @@ def configure_source_fixes(read_only_storage=False):
                 + (f"\treturn {result};\n" if result else "\treturn;\n"))
 
 
-def build_firmware(cpu_type, read_only_storage=False):
+def configure_pll_trace(decimation=0):
+    """Emit complete main/helper samples without changing the controller rate."""
+    if not decimation:
+        return
+    if decimation < 1 or decimation > 1024 or decimation & (decimation - 1):
+        raise ValueError("PLL trace decimation must be a power of two from 1 to 1024")
+    from litex_wr_nic.gateware.wr_common import _replace_once
+    main = Path(CLONE_DIR) / "softpll/spll_main.c"
+    text = main.read_text()
+    start = text.index("\tspll_debug(s->dbg_src_id, SPLL_DBG_SIGNAL_PHASE_CURRENT,")
+    end = text.index("\n\n\t/* Wait for both out and ref tags */", start)
+    block = text[start:end]
+    gated = (f"\tif (spll_trace_burst || (s->sample_n & {decimation - 1}) == 0) {{\n"
+        + f"\t\tspll_debug(s->dbg_src_id, 11, spll_trace_burst ? 1 : {decimation}, 0);\n"
+        + "\n".join("\t" + line for line in block.replace("s->sample_n++", "s->sample_n").splitlines())
+        + "\n\t}\n\tif (spll_trace_burst) spll_trace_burst--;\n\ts->sample_n++;")
+    _replace_once(str(main), block, gated)
+    _replace_once(str(main), "#undef WITH_SEQUENCING",
+        "unsigned spll_trace_burst;\n\n#undef WITH_SEQUENCING")
+    helper = Path(CLONE_DIR) / "softpll/spll_helper.c"
+    text = helper.read_text()
+    start = text.index("\t//spll_debug(SPLL_DBG_SRC_HELPER, SPLL_DBG_SIGNAL_TIME_MS,")
+    end = text.index("\n\n\tld_update", start)
+    block = text[start:end]
+    gated = (f"\tif ((s->sample_n & {decimation - 1}) == 0) {{\n"
+        + f"\t\tspll_debug(SPLL_DBG_SRC_HELPER, 11, {decimation}, 0);\n"
+        + "\n".join("\t" + line for line in block.replace("//spll_debug", "spll_debug").replace("s->sample_n++", "s->sample_n").splitlines())
+        + "\n\t}\n\ts->sample_n++;")
+    _replace_once(str(helper), block, gated)
+    shutil.copy2(Path(__file__).with_name("pll_trace_step.h"),
+        Path(CLONE_DIR) / "softpll/litex_pll_trace_step.h")
+    _replace_once(str(Path(CLONE_DIR) / "softpll/softpll_ng.c"),
+        "volatile struct softpll_state softpll;",
+        'volatile struct softpll_state softpll;\n#include "litex_pll_trace_step.h"')
+    shell = str(Path(CLONE_DIR) / "shell/cmd_pll.c")
+    _replace_once(shell, '#include "wrc.h"',
+        '#include "wrc.h"\n#include "wrpc.h"\nextern int spll_debug_step(int phase_ps);')
+    _replace_once(shell, "#define CMD_GAIN 9", "#define CMD_GAIN 9\n#define CMD_STEP 10")
+    _replace_once(shell, '\t[CMD_GAIN] = "gain",', '\t[CMD_GAIN] = "gain",\n\t[CMD_STEP] = "step",')
+    _replace_once(shell, '\t[CMD_GAIN] = 5,', '\t[CMD_GAIN] = 5,\n\t[CMD_STEP] = 1,')
+    _replace_once(shell, '\tcase CMD_GAIN:',
+        '\tcase CMD_STEP:\n\t\tif (wrc_ptp_run(-1)) return -EBUSY;\n'
+        '\t\treturn spll_debug_step(vals[1]);\n\tcase CMD_GAIN:')
+
+
+def build_firmware(cpu_type, read_only_storage=False, pll_trace_decimation=0):
     """Build the firmware."""
     configure_cpu_profile(cpu_type)
     configure_source_fixes(read_only_storage)
+    configure_pll_trace(pll_trace_decimation)
     run_command("make clean", cwd=CLONE_DIR)
     run_command("make spec_a7_defconfig", cwd=CLONE_DIR)
     cpu_flags = "-DWR_CPU_VEXRISCV" if cpu_type == "vexriscv" else ""
@@ -237,6 +284,8 @@ def main():
         help="WR CPU firmware profile (default: urv).")
     parser.add_argument("--read-only-storage", action="store_true",
         help="Retain calibration in RAM and disable firmware SPI flash writes/erases.")
+    parser.add_argument("--pll-trace-decimation", type=int, default=0,
+        help="Emit every Nth main/helper PLL sample (power of two, 1..1024; 0 keeps upstream tracing).")
     args = parser.parse_args()
 
     init_riscv_toolchain()
@@ -244,7 +293,7 @@ def main():
     clone_repository()
     checkout_commit(args.target)
     copy_config_file()
-    build_firmware(args.wr_cpu_type, args.read_only_storage)
+    build_firmware(args.wr_cpu_type, args.read_only_storage, args.pll_trace_decimation)
     copy_firmware(args.wr_cpu_type)
     build_sdbfs()
     print("Build process completed successfully.")
