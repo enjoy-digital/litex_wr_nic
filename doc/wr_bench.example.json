@@ -1,0 +1,23 @@
+{
+  "state_dir": "wr-jtag",
+  "boards": {
+    "acorn": {
+      "uart": "/dev/serial/by-path/REPLACE-ACORN-FT4232-INTERFACE-2",
+      "usb_location": "1-2",
+      "jtag_port": 1236,
+      "stream_port": 20002,
+      "csr": "bench-acorn/csr.csv",
+      "bitstream": "bench-acorn/gateware/sqrl_acorn.bit",
+      "identifier": "Acorn Baseboard Mini"
+    },
+    "spec": {
+      "uart": "/dev/serial/by-path/REPLACE-SPEC-FT4232-INTERFACE-2",
+      "usb_location": "1-3",
+      "jtag_port": 1235,
+      "stream_port": 20001,
+      "csr": "bench-spec/csr.csv",
+      "bitstream": "bench-spec/gateware/spec_a7_wr_nic.bin",
+      "identifier": "SPEC-A7"
+    }
+  }
+}

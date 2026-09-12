@@ -87,7 +87,7 @@ def checkout_commit(target="spec_a7"):
     # only those owned files so repeated uRV/VexRiscv builds cannot leak flags.
     run_command(
         f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c "
-        "include/board.h dev/sfp.c",
+        "include/board.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c",
         cwd=CLONE_DIR)
 
     # Acorn's MMCM actuator needs more tracking bandwidth than the old
@@ -145,7 +145,7 @@ def configure_cpu_profile(cpu_type):
         "#endif\n\n",
     )
 
-def configure_source_fixes():
+def configure_source_fixes(read_only_storage=False):
     """Apply compatibility fixes to the pinned WRPC sources."""
     from litex_wr_nic.gateware.wr_common import _replace_once
     def patch(name, before, after):
@@ -164,11 +164,28 @@ def configure_source_fixes():
         "\tif (match <= 0) {\n\t\tsfp_info.sfp_in_db = SFP_NOT_MATCHED;\n"
         "\t\treturn match < 0 ? match : -ENXIO;")
 
+    if read_only_storage:
+        # SRAM qualification must not silently save automatic PHY/RX calibration.
+        # Keep new calibration in RAM, and reject all SPI flash writes/erases,
+        # including commands from an existing startup script.
+        patch("dev/storage-cal.c", "return storage_save_calibration();",
+            "/* SRAM qualification: the updated calibration remains in RAM. */\n\treturn 0;")
+        patch("dev/spi_flash.c", '#include "wrc-debug.h"',
+            '#include <errno.h>\n#include "wrc-debug.h"')
+        for signature, result in (
+            ("int spi_flash_write(struct spi_flash_device *dev, uint32_t addr, uint8_t *buf, int count)", "-EROFS"),
+            ("int spi_flash_erase(struct spi_flash_device *dev, uint32_t addr, int count)", "-EROFS"),
+            ("void spi_flash_erase_sector(struct spi_flash_device *dev, uint32_t addr)", ""),
+        ):
+            patch("dev/spi_flash.c", signature + "\n{",
+                signature + "\n{\n\t/* SRAM qualification: persistent flash is read-only. */\n"
+                + (f"\treturn {result};\n" if result else "\treturn;\n"))
 
-def build_firmware(cpu_type):
+
+def build_firmware(cpu_type, read_only_storage=False):
     """Build the firmware."""
     configure_cpu_profile(cpu_type)
-    configure_source_fixes()
+    configure_source_fixes(read_only_storage)
     run_command("make clean", cwd=CLONE_DIR)
     run_command("make spec_a7_defconfig", cwd=CLONE_DIR)
     cpu_flags = "-DWR_CPU_VEXRISCV" if cpu_type == "vexriscv" else ""
@@ -218,6 +235,8 @@ def main():
     parser.add_argument("--target", default="spec_a7", help="Target Board.", choices=["spec_a7", "acorn"])
     parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_TYPES,
         help="WR CPU firmware profile (default: urv).")
+    parser.add_argument("--read-only-storage", action="store_true",
+        help="Retain calibration in RAM and disable firmware SPI flash writes/erases.")
     args = parser.parse_args()
 
     init_riscv_toolchain()
@@ -225,7 +244,7 @@ def main():
     clone_repository()
     checkout_commit(args.target)
     copy_config_file()
-    build_firmware(args.wr_cpu_type)
+    build_firmware(args.wr_cpu_type, args.read_only_storage)
     copy_firmware(args.wr_cpu_type)
     build_sdbfs()
     print("Build process completed successfully.")
