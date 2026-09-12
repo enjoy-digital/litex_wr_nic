@@ -22,8 +22,8 @@ features with support for PCIe Precision Time Measurement (PTM). The design enab
 
 ### Key Features
 
-- **White Rabbit Synchronization:** Sub-nanosecond timing precision, integrated WR fabric interface,
-    and support for PPS/10MHz clock outputs.
+- **White Rabbit Synchronization:** Integrated WR fabric interface and PPS/10MHz outputs.
+    Absolute timing accuracy requires board/module calibration and independent measurement.
 
 - **Flexible WR Modes:** The board can operate as a White Rabbit Slave, Master, or GrandMaster,
     allowing for versatile timing applications.
@@ -41,8 +41,14 @@ features with support for PCIe Precision Time Measurement (PTM). The design enab
 - **SPEC-A7:** Includes advanced clocking features like external 10MHz input and fine delay lines
     for precise PPS/10MHz generation from WR network.
 
-- **LiteX Acorn Baseboard:** Features a larger FPGA (XC7A200T) for easier debugging. Future plans
-    aim to add digital VCXO functionality for full White Rabbit support.
+- **LiteX Acorn Baseboard Mini / CLE-215+:** XC7A200T with MMCM tuning and optional GTP TXPI
+    tuning. Acorn and SPEC-A7 support WR master and slave operation.
+
+- **HyVision PCIe OPT01 revF:** XC7K70T with GTX PHY and MMCM tuning. Hardware qualification
+    remains necessary.
+
+See [board targets and reproducible builds](doc/boards.md) for the complete target matrix,
+connections, build profiles and qualification limits.
 
 This open-source project is modular and developer-friendly, making it suitable for applications
 requiring precise timing and basic networking functionality.
@@ -90,11 +96,14 @@ The project has been tested on Ubuntu 24.04 LTS. Below are the steps to prepare 
 5. Clone this repository and ensure you have the necessary hardware (see below).
 
 ### Required Hardware
-- Linux computer, PTM capable.
-- A LiteX-Acorn-Baseboard Mini or SPEC-A7 board.
-- An Intel I225 board.
-- A JTAG-HS2 Cable.
-- A Logic Analyzer/Scope to observe PPS.
+
+For WR link tests: a supported FPGA board, a WR peer, compatible SFP modules
+and fiber, and UART/JTAG access. Acorn/SPEC can use their USB interfaces;
+HyVision requires external adapters. See the [USB bench guide](doc/wr_usb_bench.md).
+
+The PCIe/PTM demonstration additionally needs a PTM-capable Linux computer,
+PCIe connections and an Intel I225 board. An independent scope or timing
+instrument is needed to measure PPS alignment and jitter.
 
 [> White Rabbit / PTM Demonstration
 -----------------------------------
@@ -189,13 +198,15 @@ synchronization across devices.
 [> Build and test designs
 -------------------------
 
-The FPGA design can be build and tested with the following commands:
+See [board targets and builds](doc/boards.md) for pinned dependencies and all supported targets.
+For example, the SPEC-A7 design can be built and loaded with:
 
 ```sh
 $ ./spec_a7_wr_nic.py --build --load
 ```
 
-The WR console/gui should then be available on `/dev/ttyUSB2`:
+The WR console uses 115200 baud. Select the board's stable `/dev/serial/by-path/` UART
+path rather than assuming a fixed `ttyUSB` number. For example, `gui` displays:
 
 ```
 wrc# gui
@@ -218,8 +229,9 @@ Pro(tocol): R-RawEth, V-VLAN, U-UDP
 Link down, master mode or sync info not valid
 ```
 
-The board should be should be able to communicate with another WR equipment and timing corrections
-displayed even if not effective on the LiteX-Acorn-Baseboard-Mini.
+Acorn and SPEC-A7 can acquire a WR peer and apply clock corrections. Follow the
+[role and trim procedure](doc/wr_usb_bench.md) when checking both master/slave directions.
+HyVision still requires the corresponding hardware checks.
 
 When rebooting the Host PC, the board should also be enumerated and seen with `lspci` with PTM
 capabilities.

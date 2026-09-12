@@ -77,14 +77,6 @@ class BaseSoC(SoCCore):
             hyperram_bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
             self.bus.add_slave(name="main_ram", slave=hyperram_bus, region=SoCRegion(origin=0x40000000, size=hyperram_size, mode="rwx"))
 
-            # HyperRAM L2 Cache.
-            hyperram_cache = wishbone.Cache(
-                cachesize = hyperram_cache_size//4,
-                master    = hyperram_bus,
-                slave     = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-            )
-            hyperram_cache = FullMemoryWE()(hyperram_cache)
-            self.hyperram_cache = hyperram_cache
             self.add_config("L2_SIZE", hyperram_cache_size)
 
             # HyperRAM Core.
@@ -95,7 +87,7 @@ class BaseSoC(SoCCore):
                 sys_clk_freq = sys_clk_freq,
                 clk_ratio    = "2:1",
             )
-            self.comb += self.hyperram_cache.slave.connect(self.hyperram.bus)
+            self.comb += hyperram_bus.connect(self.hyperram.bus)
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
         if with_ethernet or with_etherbone:
@@ -109,7 +101,7 @@ class BaseSoC(SoCCore):
             platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
             # Shared QPLL.
             self.qpll = qpll = QPLL(
-                gtrefclk0     = self.crg.cd_eth_ref.clk,
+                gtgrefclk0    = self.crg.cd_eth_ref.clk,
                 qpllsettings0 = qpll_eth_settings,
             )
             self.comb += platform.request("sfp_disable", eth_sfp).eq(0)
@@ -133,7 +125,7 @@ class BaseSoC(SoCCore):
 
         # SFP I2C ----------------------------------------------------------------------------------
 
-        i2c_pads = platform.request("sfp_i2c", 0)
+        i2c_pads = platform.request("sfp_i2c", eth_sfp)
         self.i2c = I2CMaster(pads=i2c_pads)
 
 # Build --------------------------------------------------------------------------------------------
@@ -157,8 +149,7 @@ def main():
         **parser.soc_argdict
     )
     builder = Builder(soc, **parser.builder_argdict)
-    if args.build:
-        builder.build(**parser.toolchain_argdict)
+    builder.build(run=args.build, **parser.toolchain_argdict)
 
     if args.load:
         prog = soc.platform.create_programmer()

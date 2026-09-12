@@ -2,7 +2,8 @@
 
 `WhiteRabbitCore` is a `LiteXModule` that can be used without the PCIe NIC,
 LiteEth SRAM replacement, or the NIC target's address map. It currently wraps
-the existing Xilinx 7-series WR board implementation. HDL sources are added
+the Artix-7 GTP and Kintex-7 GTX WR board implementations. See the
+[board matrix](boards.md) for target clocking and qualification scope. HDL sources are added
 automatically by `do_finalize()`; no separate `add_sources()` call is needed.
 
 The examples below belong inside an existing SoC constructor, after its

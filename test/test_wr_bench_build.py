@@ -22,9 +22,9 @@ def generated(tmp_path, monkeypatch):
     return output
 
 
-@pytest.mark.parametrize('board', ['acorn', 'spec'])
+@pytest.mark.parametrize('board', ['acorn', 'spec', 'hyvision'])
 def test_build_only_outputs_become_programmable(board, generated, monkeypatch):
-    image = generated / 'gateware' / ('sqrl_acorn.bit' if board == 'acorn' else 'spec_a7_wr_nic.bit')
+    image = generated / 'gateware' / Path(build.BOARDS[board][2]).with_suffix('.bit')
     image.write_bytes(b'Vivado output')
     def convert(command, **kwargs):
         assert board == 'spec'
@@ -34,7 +34,7 @@ def test_build_only_outputs_become_programmable(board, generated, monkeypatch):
         Path(command[-1]).write_bytes(b'Converted 35T image')
     monkeypatch.setattr(build.subprocess, 'run', convert)
     hashes = build.finish_build(board, generated)
-    expected_image = image if board == 'acorn' else image.with_suffix('.bin')
+    expected_image = image.with_suffix('.bin') if board == 'spec' else image
     assert str(expected_image.relative_to(generated)) in hashes
     assert (generated / 'csr.csv').read_bytes() == (build.ROOT / 'test/csr.csv').read_bytes()
     assert hashes['csr.csv'] == hashlib.sha256((generated / 'csr.csv').read_bytes()).hexdigest()

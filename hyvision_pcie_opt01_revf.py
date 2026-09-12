@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 #
-# This file is part of LiteX-Boards.
+# This file is part of LiteX-WR-NIC.
 #
 # Copyright (c) 2025 Hans Baier <foss@hans-baier.de>
 # SPDX-License-Identifier: BSD-2-Clause
-# Since this board has no uart, you want to build with JTAG UART:
-# python litex_boards/targets/hyvision_pcie_opt01_revf.py --build --uart-name=jtag_uart
+# WR UART: 115200 baud on DVP.DTX (T19) / DVP.DRX (U19), 3.3 V.
+# Connect a USB-UART adapter and common ground; JTAGBone uses the connectors below.
 #
 # JTAG Connectors: j11 or j13
 # Pinout:
@@ -19,6 +19,7 @@ import argparse
 import os
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
 
@@ -47,6 +48,7 @@ from litex_wr_nic.gateware.time              import TimeGenerator
 from litex_wr_nic.gateware.measurement       import MultiClkMeasurement
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
+from litex_wr_nic.gateware.wr_clock          import WRMMCMBackend
 from litex_wr_nic.gateware.wr_cpu            import (
     WR_CPU_MEMORY_ORIGIN,
     WR_CPU_MEMORY_SIZE,
@@ -75,15 +77,18 @@ class _CRG(LiteXModule):
         clk200 = platform.request("clk200")
 
         self.pll = pll = S7PLL(speedgrade=-1)
-        self.comb += pll.reset.eq(self.rst)
+        rst_clk200 = Signal()
+        self.specials += MultiReg(self.rst, rst_clk200, odomain="clk200")
+        self.comb += pll.reset.eq(rst_clk200)
         pll.register_clkin(clk200, 200e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, margin=0)
-        self.comb += self.cd_clk200.clk.eq(pll.clkin)
+        # PSCLK also clocks the tuning controller; use a global clock buffer.
+        self.specials += Instance("BUFG", i_I=pll.clkin, o_O=self.cd_clk200.clk)
 
         # RefClk MMCM (125MHz).
         # ---------------------
-        self.refclk_mmcm = S7MMCM(speedgrade=-1)
-        self.comb += self.refclk_mmcm.reset.eq(self.rst)
+        self.refclk_mmcm = S7MMCM(speedgrade=-1, fractional=False)
+        self.comb += self.refclk_mmcm.reset.eq(rst_clk200)
         self.refclk_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
         self.refclk_mmcm.create_clkout(self.cd_clk_125m_gtp,  125e6, margin=0)
         self.refclk_mmcm.expose_dps("clk200", with_csr=False)
@@ -92,8 +97,8 @@ class _CRG(LiteXModule):
 
         # DMTD MMCM (62.5MHz).
         # --------------------
-        self.dmtd_mmcm = S7MMCM(speedgrade=-1)
-        self.comb += self.dmtd_mmcm.reset.eq(self.rst)
+        self.dmtd_mmcm = S7MMCM(speedgrade=-1, fractional=False)
+        self.comb += self.dmtd_mmcm.reset.eq(rst_clk200)
         self.dmtd_mmcm.register_clkin(ClockSignal("clk200"), 200e6)
         self.dmtd_mmcm.create_clkout(self.cd_clk_62m5_dmtd, 62.5e6, margin=0)
         self.dmtd_mmcm.expose_dps("clk200", with_csr=False)
@@ -102,6 +107,10 @@ class _CRG(LiteXModule):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(LiteXWRNICSoC):
+    csr_map = {name: location for name, location in LiteXWRNICSoC.csr_map.items()
+        if name not in ("refclk_dac", "dmtd_dac")}
+    csr_map.update({"refclk_mmcm_ps_gen": 21, "dmtd_mmcm_ps_gen": 22})
+
     def __init__(self, sys_clk_freq=125e6,
         # PCIe Parameters.
         # ----------------
@@ -116,6 +125,7 @@ class BaseSoC(LiteXWRNICSoC):
         wr_cpu_type               = "urv",
         wr_cpu_variant            = None,
         wr_cpu_memory             = "private",
+        with_wr_pll_debug         = False,
     ):
         # Platform ---------------------------------------------------------------------------------
 
@@ -165,6 +175,10 @@ class BaseSoC(LiteXWRNICSoC):
             self.add_ram("wr_cpu_mem", WR_CPU_MEMORY_ORIGIN, WR_CPU_MEMORY_SIZE, contents=contents)
             wr_cpu_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN, size=WR_CPU_MEMORY_SIZE, mode="rwx")
 
+        if with_wr_pll_debug:
+            from litex.soc.cores.xadc import S7SystemMonitor
+            self.xadc = S7SystemMonitor()
+
         # UART -------------------------------------------------------------------------------------
 
         self.uart = UARTShared(pads=platform.request("serial"), sys_clk_freq = sys_clk_freq)
@@ -183,7 +197,9 @@ class BaseSoC(LiteXWRNICSoC):
                 with_ptm        = True,
                 refclk_freq     = 100e6,
                 mmcm_speedgrade = -1,
+                pclk_mux_direct_from_mmcm = True,
             )
+            self.add_pcie_pipe_clock_constraints()
             self.pcie_phy.update_config({
                 "Base_Class_Menu"          : "Network_controller",
                 "Sub_Class_Interface_Menu" : "Ethernet_controller",
@@ -194,15 +210,20 @@ class BaseSoC(LiteXWRNICSoC):
             platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/sys_clk_freq)
 
             # PCIe <-> Sys-Clk false paths.
-            false_paths = [
-                ("{{*s7pciephy_clkout0}}", "sys_clk"),
-                ("{{*s7pciephy_clkout1}}", "sys_clk"),
-                ("{{*s7pciephy_clkout3}}", "sys_clk"),
-                ("{{*s7pciephy_clkout0}}", "{{*s7pciephy_clkout1}}")
-            ]
-            for clk0, clk1 in false_paths:
-                platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk0}] -to [get_clocks {clk1}]")
-                platform.toolchain.pre_placement_commands.append(f"set_false_path -from [get_clocks {clk1}] -to [get_clocks {clk0}]")
+            # Resolve clocks through surviving domain nets. Unused optional
+            # clocks (such as clk250 with dedicated PIPE outputs) are trimmed.
+            pairs = [(self.crg.cd_sys.clk, cd.clk) for cd in (
+                self.pcie_phy.cd_clk125, self.pcie_phy.cd_clk250,
+                self.pcie_phy.cd_userclk1, self.pcie_phy.cd_userclk2,
+                self.pcie_phy.cd_pclk)]
+            pairs.append((self.pcie_phy.cd_clk125.clk, self.pcie_phy.cd_clk250.clk))
+            for clk0, clk1 in pairs:
+                for source, destination in ((clk0, clk1), (clk1, clk0)):
+                    platform.toolchain.pre_placement_commands.add(
+                        "set_false_path -quiet "
+                        "-from [get_clocks -quiet -of_objects [get_nets -quiet {source}]] "
+                        "-to [get_clocks -quiet -of_objects [get_nets -quiet {destination}]]",
+                        source=source, destination=destination)
 
         # White Rabbit -----------------------------------------------------------------------------
 
@@ -219,13 +240,14 @@ class BaseSoC(LiteXWRNICSoC):
 
                 # Configuration.
                 board_name       = "HYVF",
+                with_softpll_debug = with_wr_pll_debug,
 
                 # SFP.
                 sfp_pads         = sfp_pads,
-                sfp_i2c_pads     = sfp_pads, # FIXME: unlike acorn i2c is included in sfp resources
+                sfp_i2c_pads     = sfp_pads, # I2C is included in the SFP resource.
                 sfp_tx_polarity  = 0,
                 sfp_rx_polarity  = 0,
-                sfp_det_pads     = platform.request("sfp_rs1",        white_rabbit_sfp_connector),
+                sfp_det_pads     = platform.request("sfp_mod_abs",    white_rabbit_sfp_connector),
                 sfp_los_pads     = platform.request("sfp_los",        white_rabbit_sfp_connector),
                 sfp_disable_pads = platform.request("sfp_tx_disable", white_rabbit_sfp_connector),
                 sfp_fault_pads   = platform.request("sfp_tx_fault",   white_rabbit_sfp_connector),
@@ -237,39 +259,21 @@ class BaseSoC(LiteXWRNICSoC):
                 serial_pads      = self.uart.shared_pads,
              )
 
-            # RefClk MMCM Phase Shift.
-            # ------------------------
-            self.refclk_mmcm_ps_gen = Instance("ps_gen",
-                p_WIDTH       = 16,
-                p_DIV         = 16,
-                p_MULT        = 7,
-
-                i_pswidth     = self.dac_refclk_data,
-                i_pswidth_set = self.dac_refclk_load,
-                i_pswidth_clk = ClockSignal("wr"),
-
-                i_psclk       = ClockSignal("clk200"),
-                i_psdone      = self.crg.refclk_mmcm.psdone,
-                o_psen        = self.crg.refclk_mmcm.psen,
-                o_psincdec    = self.crg.refclk_mmcm.psincdec,
-            )
-
-            # DMTD MMCM Phase Shift.
-            # ----------------------
-            self.dac_mmcm_ps_gen = Instance("ps_gen",
-                p_WIDTH       = 16,
-                p_DIV         = 16,
-                p_MULT        = 7,
-
-                i_pswidth     = self.dac_dmtd_data,
-                i_pswidth_set = self.dac_dmtd_load,
-                i_pswidth_clk = ClockSignal("wr"),
-
-                i_psclk       = ClockSignal("clk200"),
-                i_psdone      = self.crg.dmtd_mmcm.psdone,
-                o_psen        = self.crg.dmtd_mmcm.psen,
-                o_psincdec    = self.crg.dmtd_mmcm.psincdec,
-            )
+            # DAC commands use wr_sys; both MMCM controllers run on clk200.
+            # Use the same rate accumulator and coherent CDC as Acorn.
+            self.refclk_mmcm_ps_gen = WRMMCMBackend(cd_psclk="clk200", cd_command="wr_sys")
+            self.dmtd_mmcm_ps_gen = WRMMCMBackend(cd_psclk="clk200", cd_command="wr_sys")
+            for backend, mmcm, data, load in (
+                (self.refclk_mmcm_ps_gen, self.crg.refclk_mmcm, self.dac_refclk_data, self.dac_refclk_load),
+                (self.dmtd_mmcm_ps_gen, self.crg.dmtd_mmcm, self.dac_dmtd_data, self.dac_dmtd_load),
+            ):
+                self.comb += [
+                    backend.command.data.eq(data),
+                    backend.command.load.eq(load),
+                    mmcm.psen.eq(backend.psen),
+                    mmcm.psincdec.eq(backend.psincdec),
+                    backend.psdone.eq(mmcm.psdone),
+                ]
 
             # Timings Constraints.
             # --------------------
@@ -294,8 +298,9 @@ class BaseSoC(LiteXWRNICSoC):
                 platform.request("pps_out").eq(self.pps_out),
                 platform.request("wr_clk_out").eq(ClockSignal("wr")),
 
-                # SFP.
-                platform.request("sfp_rs0", white_rabbit_sfp_connector).eq(1)
+                # Select the low-rate range for 1.25 Gb/s WR (SFF-8431).
+                platform.request("sfp_rs0", white_rabbit_sfp_connector).eq(0),
+                platform.request("sfp_rs1", white_rabbit_sfp_connector).eq(0),
             ]
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
@@ -344,12 +349,12 @@ class BaseSoC(LiteXWRNICSoC):
             self.crg.cd_sys.clk,
             self.crg.cd_clk_62m5_dmtd.clk,
             self.crg.cd_clk_125m_gtp.clk,
-            self.crg.cd_clk10m_in.clk,
             "wr_txoutclk",
             "wr_rxoutclk",
         ]
         if with_white_rabbit:
-            asynchronous_clk_domains += []
+            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_wr_sys.clk)
+            platform.add_false_path_constraints(self.crg.cd_clk200.clk, self.cd_wr_sys.clk)
 
         platform.add_false_path_constraints(*asynchronous_clk_domains)
 
@@ -378,6 +383,14 @@ def main():
     parser.add_argument("--wr-cpu-variant", default=None,
         help="LiteX WR CPU variant (VexRiscv defaults to lite).")
     parser.add_argument("--output-dir", default=None, help="Build directory.")
+    parser.add_argument("--sfp", default=0, type=int, choices=[0, 1],
+        help="WR SFP connector: 0=CN1, 1=CN2 (default: 0).")
+    parser.add_argument("--with-wr-pll-debug", action="store_true",
+        help="Enable the SoftPLL host trace FIFO and FPGA temperature/supply CSRs.")
+    parser.add_argument("--skip-firmware-build", action="store_true",
+        help="Reuse firmware built separately.")
+    parser.add_argument("--skip-software-headers", action="store_true",
+        help="Do not overwrite the checked-in PCIe software headers.")
 
     # Probes.
     # -------
@@ -390,9 +403,9 @@ def main():
 
     # Build Firmware.
     # ---------------
-    if args.build:
+    if args.build and not args.skip_firmware_build:
         print("Building firmware...")
-        r = os.system("cd litex_wr_nic/firmware && ./build.py --target acorn --wr-cpu-type {}".format(
+        r = os.system("cd litex_wr_nic/firmware && ./build.py --target hyvision --wr-cpu-type {}".format(
             args.wr_cpu_type))
         if r != 0:
             raise RuntimeError("Firmware build failed.")
@@ -400,6 +413,8 @@ def main():
     # Build SoC/Gateware (with integrated Firmware).
     # ----------------------------------------------
     soc = BaseSoC(
+        white_rabbit_sfp_connector = args.sfp,
+        with_wr_pll_debug = args.with_wr_pll_debug,
         wr_cpu_type    = args.wr_cpu_type,
         wr_cpu_variant = args.wr_cpu_variant,
         wr_cpu_memory  = args.wr_cpu_memory,
@@ -412,13 +427,15 @@ def main():
         soc.add_dac_vcxo_probe()
     if args.with_time_pps_probe:
         soc.add_time_pps_probe()
-    builder = Builder(soc, csr_csv="test/csr.csv", **(
+    builder = Builder(soc, csr_csv=(os.path.join(args.output_dir, "csr.csv")
+        if args.output_dir else "test/csr.csv"), **(
         {} if args.output_dir is None else {"output_dir": args.output_dir}))
     builder.build(run=args.build)
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
+    if not args.skip_software_headers:
+        generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
 
     # Load FPGA.
     # ----------

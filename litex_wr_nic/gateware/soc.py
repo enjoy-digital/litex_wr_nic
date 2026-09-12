@@ -79,6 +79,19 @@ class LiteXWRNICSoC(SoCMini):
     def add_wr_core(self, *args, **kwargs):
         return add_white_rabbit(self, *args, **kwargs)
 
+    def add_pcie_pipe_clock_constraints(self):
+        # Vivado can retain either name of an unbuffered MMCM output alias.
+        # Resolve both names, and fail if neither survives. The PIPE mux's
+        # 125/250 MHz modes are mutually exclusive; time each mode normally.
+        phy = self.pcie_phy
+        self.platform.toolchain.pre_placement_commands.add(
+            "set_clock_groups -logically_exclusive "
+            "-group [get_clocks -of_objects [get_nets -quiet [list {pclk125} {out125}]]] "
+            "-group [get_clocks -of_objects [get_nets -quiet [list {pclk250} {out250}]]]",
+            pclk125=phy.cd_pclk125.clk, out125=phy.mmcm.clkouts[4][0],
+            pclk250=phy.cd_pclk250.clk, out250=phy.mmcm.clkouts[5][0],
+        )
+
     # Add PCIe NIC ---------------------------------------------------------------------------------
 
     def add_pcie_nic(self, pcie_phy=None, eth_phys=[], eth_ntxslots=4, eth_nrxslots=4, with_timing_constraints=True):
