@@ -268,13 +268,7 @@ class BaseSoC(LiteXWRNICSoC):
             )
             # Dedicated PIPE mux inputs are mutually exclusive operating modes.
             # Keep timing within each mode and exclude impossible cross-mode paths.
-            platform.toolchain.pre_placement_commands.add(
-                "set_clock_groups -logically_exclusive "
-                "-group [get_clocks -of_objects [get_nets {pclk125}]] "
-                "-group [get_clocks -of_objects [get_nets {pclk250}]]",
-                pclk125 = self.pcie_phy.mmcm.clkouts[4][0],
-                pclk250 = self.pcie_phy.mmcm.clkouts[5][0],
-            )
+            self.add_pcie_pipe_clock_constraints()
             self.pcie_phy.update_config({
                 "Base_Class_Menu"          : "Network_controller",
                 "Sub_Class_Interface_Menu" : "Ethernet_controller",
@@ -757,7 +751,8 @@ def main():
         soc.add_dac_vcxo_probe()
     if args.with_time_pps_probe:
         soc.add_time_pps_probe()
-    builder = Builder(soc, csr_csv="test/csr.csv", **(
+    builder = Builder(soc, csr_csv=(os.path.join(args.output_dir, "csr.csv")
+        if args.output_dir else "test/csr.csv"), **(
         {} if args.output_dir is None else {"output_dir": args.output_dir}))
     builder.build(
         run=args.build,

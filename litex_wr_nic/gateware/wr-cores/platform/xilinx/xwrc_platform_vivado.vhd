@@ -703,7 +703,10 @@ begin  -- architecture rtl
 
     cmp_gtx: entity work.wr_gtx_phy_family7
       generic map(
-        g_simulation => g_simulation)
+        g_simulation   => g_simulation,
+        g_use_gtgrefclk => g_input_clk_single,
+        txpolarity     => txpolarity,
+        rxpolarity     => rxpolarity)
       port map(
         clk_gtx_i      => clk_125m_gtx_buf,
         tx_out_clk_o   => clk_ref,

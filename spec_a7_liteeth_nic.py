@@ -7,6 +7,11 @@
 # Copyright (c) 2024 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import argparse
+import os
+import subprocess
+import sys
+
 from migen import *
 
 from litex.gen import *
@@ -97,7 +102,9 @@ class BaseSoC(LiteXWRNICSoC):
         self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x1"),
             data_width = 64,
             bar0_size  = 0x20000,
+            pclk_mux_direct_from_mmcm = True,
         )
+        self.add_pcie_pipe_clock_constraints()
         self.pcie_phy.update_config({
             "Base_Class_Menu"          : "Network_controller",
             "Sub_Class_Interface_Menu" : "Ethernet_controller",
@@ -146,25 +153,31 @@ def main():
     parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
 
+    parser.add_argument("--output-dir", default=None, help="Build directory.")
+    parser.add_argument("--skip-software-headers", action="store_true",
+        help="Do not overwrite the checked-in PCIe software headers.")
     args = parser.parse_args()
 
     # Build SoC.
     # ----------
     soc = BaseSoC()
-    builder = Builder(soc, csr_csv="test/csr.csv")
+    builder = Builder(soc, csr_csv=(os.path.join(args.output_dir, "csr.csv")
+        if args.output_dir else "test/csr.csv"), **(
+        {} if args.output_dir is None else {"output_dir": args.output_dir}))
     builder.build(run=args.build)
 
     # Generate PCIe C Headers.
     # ------------------------
-    generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
+    if not args.skip_software_headers:
+        generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
 
     # Generate Bitstream.
     # -------------------
     if args.load or args.flash:
-        os.system("python3 litex_wr_nic/gateware/xilinx-bitstream.py {bit_file} {bin_file}".format(
-            bit_file = builder.get_bitstream_filename(mode="sram"),
-            bin_file = builder.get_bitstream_filename(mode="flash"),
-        ))
+        subprocess.run([sys.executable, "litex_wr_nic/gateware/xilinx-bitstream.py",
+            builder.get_bitstream_filename(mode="sram"),
+            builder.get_bitstream_filename(mode="flash"),
+        ], check=True)
 
     # Load FPGA.
     # ----------

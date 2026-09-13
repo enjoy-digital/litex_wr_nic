@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from migen import Instance, Record, Signal, run_simulation
+from migen.fhdl.structure import _Assign, ClockSignal
 
 from litex.gen import LiteXModule
 
@@ -39,7 +40,7 @@ def platform(monkeypatch):
     for name in (
         "wr_core_init", "patch_wr_subsystem_mux_class", "patch_wr_pps_gen_iob",
         "patch_wr_clock_monitor_presc_cdc", "patch_wr_external_cpu_memory",
-        "patch_wr_diags_control_word",
+        "patch_wr_diags_control_word", "patch_wr_gtx_clocking",
     ):
         monkeypatch.setattr(wr_core, name, lambda name=name: prepared.append(name))
     return SimpleNamespace(
@@ -163,11 +164,11 @@ def test_sources_are_automatic_and_explicit_calls_are_idempotent(platform, monke
         WhiteRabbitCore.add_sources(platform)
     core.get_fragment()
     assert platform.sources == list(wr_core.wr_core_files)
-    assert len(platform.prepared) == 6
+    assert len(platform.prepared) == 7
     assert platform.prepared[0] == "wr_core_init"
     WhiteRabbitCore.add_sources(platform)
     assert platform.sources == list(wr_core.wr_core_files)
-    assert len(platform.prepared) == 6
+    assert len(platform.prepared) == 7
 
 
 @pytest.mark.parametrize("size", [0x100000, 0x60000])
@@ -229,3 +230,23 @@ def test_documented_cpu_setups_elaborate(platform, monkeypatch, tmp_path, cpu_ty
     else:
         assert soc.wr_core.cpu_bus is None
         assert "wr_cpu" not in soc.bus.masters
+
+
+@pytest.mark.parametrize("sfp", [0, 1])
+def test_hyvision_uses_module_absent_and_coherent_tuning(monkeypatch, sfp):
+    from hyvision_pcie_opt01_revf import BaseSoC
+    from litex_wr_nic.gateware.wr_clock import WRMMCMBackend
+
+    monkeypatch.setattr(WhiteRabbitCore, "add_sources", staticmethod(lambda platform: None))
+    soc = BaseSoC(with_pcie=False, white_rabbit_cpu_firmware="unused.bram",
+        white_rabbit_sfp_connector=sfp)
+    absent = soc.platform.lookup_request("sfp_mod_abs", sfp)
+    fragment = soc.get_fragment()
+    instance = next(s for s in fragment.specials
+        if isinstance(s, Instance) and s.of == "xwrc_board_litex_wr_nic_wrapper")
+    assert next(i.expr for i in instance.items if i.name == "sfp_det_i") is absent
+    assert not any(isinstance(s, Instance) and s.of == "ps_gen" for s in fragment.specials)
+    for backend in (soc.refclk_mmcm_ps_gen, soc.dmtd_mmcm_ps_gen):
+        assert isinstance(backend, WRMMCMBackend)
+        assert any(isinstance(s, _Assign) and s.l is backend.cdc.cdc.cd_input.clk
+            and isinstance(s.r, ClockSignal) and s.r.cd == "wr_sys" for s in fragment.comb)

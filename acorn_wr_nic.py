@@ -226,13 +226,7 @@ class BaseSoC(LiteXWRNICSoC):
                 refclk_freq = 100e6,
                 pclk_mux_direct_from_mmcm = True,
             )
-            platform.toolchain.pre_placement_commands.add(
-                "set_clock_groups -logically_exclusive "
-                "-group [get_clocks -of_objects [get_nets {pclk125}]] "
-                "-group [get_clocks -of_objects [get_nets {pclk250}]]",
-                pclk125 = self.pcie_phy.cd_pclk125.clk,
-                pclk250 = self.pcie_phy.cd_pclk250.clk,
-            )
+            self.add_pcie_pipe_clock_constraints()
             self.pcie_phy.update_config({
                 "Base_Class_Menu"          : "Network_controller",
                 "Sub_Class_Interface_Menu" : "Ethernet_controller",
@@ -404,8 +398,6 @@ class BaseSoC(LiteXWRNICSoC):
             self.crg.cd_sys.clk,
             self.crg.cd_clk_62m5_dmtd.clk,
             self.crg.cd_clk_125m_gtp.clk,
-            self.crg.cd_clk10m_in.clk,
-            self.crg.cd_clk62m5_in.clk,
             "wr_txoutclk",
             "wr_rxoutclk",
         ]
@@ -488,7 +480,8 @@ def main():
         soc.add_dac_vcxo_probe()
     if args.with_time_pps_probe:
         soc.add_time_pps_probe()
-    builder = Builder(soc, csr_csv="test/csr.csv", **(
+    builder = Builder(soc, csr_csv=(os.path.join(args.output_dir, "csr.csv")
+        if args.output_dir else "test/csr.csv"), **(
         {} if args.output_dir is None else {"output_dir": args.output_dir}))
     builder.build(run=args.build)
 

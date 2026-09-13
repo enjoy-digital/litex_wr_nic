@@ -135,6 +135,54 @@ def _replace_once(path, before, after, intermediate=None):
     with open(path, "w", encoding="utf-8") as f:
         f.write(contents.replace(matches[0], after, 1))
 
+def patch_wr_gtx_clocking():
+    """Allow the pinned GTX PHY to use a fabric reference and board polarity."""
+    directory = "wr-cores/platform/xilinx/7Series/GTXE2/"
+    phy = directory + "wr_gtx_phy_family7.vhd"
+    channel = directory + "whiterabbit_gtxe2_channel_wrapper_gt.vhd"
+    generics = ("g_use_gtgrefclk : boolean := false;\n"
+                "        txpolarity : bit := '0';\n"
+                "        rxpolarity : bit := '0';\n        ")
+    _replace_once(phy, "g_simulation         : integer := 0",
+        generics + "g_simulation         : integer := 0")
+    for path in (phy, channel):
+        _replace_once(path, "GT_SIM_GTRESET_SPEEDUP    : string",
+            generics + "GT_SIM_GTRESET_SPEEDUP    : string")
+    _replace_once(phy, 'GT_SIM_GTRESET_SPEEDUP    =>  "TRUE",',
+        'g_use_gtgrefclk => g_use_gtgrefclk,\n'
+        '       txpolarity => txpolarity,\n'
+        '       rxpolarity => rxpolarity,\n'
+        '       GT_SIM_GTRESET_SPEEDUP    =>  "TRUE",')
+    _replace_once(channel, "--******************************** Main Body of Code",
+        "signal gtrefclk0, gtgrefclk : std_logic;\n"
+        "    signal cpllrefclksel : std_logic_vector(2 downto 0);\n\n"
+        "--******************************** Main Body of Code")
+    _replace_once(channel, "    tied_to_ground_i                    <= '0';",
+        "    -- UG476: fabric references use GTGREFCLK and CPLLREFCLKSEL=111.\n"
+        "    gtrefclk0 <= GTREFCLK0_IN when not g_use_gtgrefclk else '0';\n"
+        "    gtgrefclk <= GTREFCLK0_IN when g_use_gtgrefclk else '0';\n"
+        '    cpllrefclksel <= "111" when g_use_gtgrefclk else "001";\n\n'
+        "    tied_to_ground_i                    <= '0';")
+    # Ready reaches the RX PCS directly. Release it on the recovered clock,
+    # instead of routing raw GTX reset/lock status into all PCS state resets.
+    # A stopped clock must not prevent loss of readiness from propagating.
+    _replace_once(phy, "  rdy_o            <= everything_ready;",
+        "  U_Sync_ready_rx : entity work.gc_sync\n"
+        "    port map (\n"
+        "      clk_i     => rx_rec_clk,\n"
+        "      rst_n_a_i => everything_ready,\n"
+        "      d_i       => '1',\n"
+        "      q_o       => rdy_o);")
+    for before, after in (
+        ('CPLLREFCLKSEL                   =>      "001"', 'CPLLREFCLKSEL                   =>      cpllrefclksel'),
+        ('GTGREFCLK                       =>      tied_to_ground_i', 'GTGREFCLK                       =>      gtgrefclk'),
+        ('GTREFCLK0                       =>      GTREFCLK0_IN', 'GTREFCLK0                       =>      gtrefclk0'),
+        ('RXPOLARITY                      =>      tied_to_ground_i', 'RXPOLARITY                      =>      to_stdulogic(rxpolarity)'),
+        ('TXPOLARITY                      =>      tied_to_ground_i', 'TXPOLARITY                      =>      to_stdulogic(txpolarity)'),
+    ):
+        _replace_once(channel, before, after)
+
+
 def patch_wr_diags_control_word():
     # WR diagnostic v2 has VER at 0 and CTRL at byte offset 4. Allowing writes
     # to word 0 corrupts the version while silently discarding snapshot requests.

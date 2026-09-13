@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the pinned uRV/private-RAM USB bench profile with read-only storage."""
+"""Build a pinned uRV/private-RAM WR profile with read-only storage."""
 
 import argparse
 import hashlib
@@ -11,6 +11,11 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+BOARDS = {
+    'acorn': ('acorn_wr_nic.py', 'acorn', 'sqrl_acorn.bit'),
+    'spec': ('spec_a7_wr_nic.py', 'spec_a7', 'spec_a7_wr_nic.bin'),
+    'hyvision': ('hyvision_pcie_opt01_revf.py', 'hyvision', 'hyvision_pcie_opt01_revf.bit'),
+}
 
 
 def git(path, *args):
@@ -18,10 +23,10 @@ def git(path, *args):
 
 
 def finish_build(board, output):
-    # Both targets generate the map in test/, including when --output-dir is
-    # supplied. SPEC's target converts the image only for --load/--flash.
-    shutil.copy2(ROOT / 'test/csr.csv', output / 'csr.csv')
-    image = output / 'gateware' / ('sqrl_acorn.bit' if board == 'acorn' else 'spec_a7_wr_nic.bin')
+    # Accept older target outputs too. SPEC requires the converted 35T image.
+    if not (output / 'csr.csv').is_file():
+        shutil.copy2(ROOT / 'test/csr.csv', output / 'csr.csv')
+    image = output / 'gateware' / BOARDS[board][2]
     if board == 'spec':
         subprocess.run([sys.executable, str(ROOT / 'litex_wr_nic/gateware/xilinx-bitstream.py'),
             str(image.with_suffix('.bit')), str(image)], cwd=ROOT, check=True)
@@ -36,13 +41,17 @@ def finish_build(board, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--board', required=True, choices=['acorn', 'spec'])
+    parser.add_argument('--board', required=True, choices=BOARDS)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--wr-refclk-tuning', choices=['mmcm', 'txpi'], default='mmcm',
+        help='Acorn main-clock actuator; TXPI is supported only on its Artix-7 GTP.')
     parser.add_argument('--pll-trace-decimation', type=int, default=0,
         help='Enable PLL trace FIFO, main/helper trace decimation and FPGA sensors (power of two, 1..1024).')
     args = parser.parse_args()
     if args.pll_trace_decimation < 0 or args.pll_trace_decimation > 1024 or args.pll_trace_decimation & (args.pll_trace_decimation - 1):
         parser.error('--pll-trace-decimation must be 0 or a power of two from 1 to 1024')
+    if args.wr_refclk_tuning == 'txpi' and args.board != 'acorn':
+        parser.error('--wr-refclk-tuning txpi requires --board acorn')
     pins = json.loads((ROOT / 'doc/wr_bench_sources.json').read_text())
     for name, pin in pins['python'].items():
         module = importlib.import_module(name)
@@ -55,19 +64,22 @@ def main():
         source_dirty=bool(git(ROOT, 'status', '--porcelain', '--untracked-files=no')),
         dependencies=pins, profile='uRV/private 128 KiB; read-only SPI storage',
         pll_trace_decimation=args.pll_trace_decimation,
+        refclk_tuning=args.wr_refclk_tuning if args.board == 'acorn' else ('dac' if args.board == 'spec' else 'mmcm'),
         pcie_nic=not (args.board == 'spec' and args.pll_trace_decimation), passed=False)
     def run(command):
         subprocess.run([sys.executable, *command], cwd=ROOT, check=True)
     try:
         run(['litex_wr_nic/firmware/build.py', '--target',
-            'acorn' if args.board == 'acorn' else 'spec_a7', '--wr-cpu-type', 'urv', '--read-only-storage',
+            BOARDS[args.board][1], '--wr-cpu-type', 'urv', '--read-only-storage',
             '--pll-trace-decimation', str(args.pll_trace_decimation)])
         firmware = ROOT / 'litex_wr_nic/firmware'
         for ext in ('bram', 'bin', 'boot'):
             shutil.copy2(firmware / ('spec_a7_wrc.' + ext), output / ('spec_a7_wrc.' + ext))
-        command = ['acorn_wr_nic.py' if args.board == 'acorn' else 'spec_a7_wr_nic.py',
+        command = [BOARDS[args.board][0],
             '--build', '--skip-firmware-build', '--skip-software-headers', '--wr-cpu-type', 'urv',
             '--wr-cpu-memory', 'private', '--output-dir', str(output)]
+        if args.board == 'acorn':
+            command += ['--wr-refclk-tuning', args.wr_refclk_tuning]
         if args.pll_trace_decimation:
             command.append('--with-wr-pll-debug')
         run(command)
