@@ -694,11 +694,11 @@ class BaseSoC(LiteXWRNICSoC):
             ]
 
         # RF Out (LMX2572) -------------------------------------------------------------------------
-        # CHECKME: Connect SYNC if useful.
 
         if with_rf_out:
             rf_out_pll_pads = platform.request("rf_out_pll")
-            rf_out_pll_pads.miso = Signal()
+            # MUXout is wired only to LD9, not to the FPGA: there is no SPI readback.
+            rf_out_pll_pads.miso = Constant(0)
             self.rf_out_pll = SPIMaster(
                 pads         = rf_out_pll_pads,
                 data_width   = 24,
@@ -706,6 +706,11 @@ class BaseSoC(LiteXWRNICSoC):
                 spi_clk_freq = 5e6,
                 mode         = "aligned",
             )
+            self.rf_out_pll._sync = CSRStorage(1,
+                description="Manual RF PLL SYNC level; defaults low. Not synchronized to WR PPS.")
+            self.comb += rf_out_pll_pads.sync.eq(self.rf_out_pll._sync.storage)
+            # IC16 OSCin is fed directly by the 25 MHz PTP VCXO, before the AD9516.
+            self.add_constant("RF_OUT_PLL_REF_CLK_FREQ", 25_000_000)
 
         # Timing Constraints -----------------------------------------------------------------------
 

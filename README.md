@@ -765,66 +765,62 @@ Before starting the calibration process, ensure you have access to the following
 [> Configure the RF PLL
 -----------------------
 
-The RF PLL (LMX2572) is used to generate a wide range of frequencies. Configuration and testing can
-be done over the LiteX server using the provided `test/test_rf_pll.py` script. This script allows
-for writing single registers or loading a full register map configuration exported from the TICS
-software (Texas Instruments' configuration tool for the LMX2572).
+SPEC-A7's LMX2572 generates RF output A on **J8** and output B on **J9**. Its reference
+is the **25 MHz PTP VCXO**, before the AD9516 clock multiplier. When both the RF PLL and
+the WR slave servo are locked, RF frequency follows the WR-disciplined oscillator. RF phase alignment
+to PPS is a separate calibration and synchronization task.
 
-[!WARNING] While the configuration process appears to function correctly and the RF PLL shows a
-locked status (LED green), the output signal does not seem to be generated as expected. This issue
-may require additional hardware investigation by the SPEC-A7 hardware team.
+The integration uses host configuration over LiteX Server/JTAGBone. Configuration is
+explicit: loading the FPGA does not automatically program the RF PLL, and reloading the
+FPGA does not reset the separately powered LMX2572. Run the configuration command after
+power-up or when changing frequency. The application owns the RF PLL SPI interface while
+programming; firmware does not access it.
 
-### Requirements
-
-- **LiteX Server:** Ensure the LiteX server is running in JTAG or Etherbone mode.
-- **Configuration File:** A register map exported from TICS software (e.g., `test/lmx2572_25m_to_100m.txt`).
-
-### Procedure
-
-1. **Prepare the Environment**
-   - Verify that the SPEC-A7 is powered, flashed with bitstream and USB/JTAG cable connected.
-   - Ensure the LiteX server is running:
-   ```sh
-   litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
-   ```
-
-2. **Configure the RF PLL**
-   - Use the `test/test_rf_pll.py` script to configure the LMX2572.
-
-#### Example 1: Writing a Single Register
-To write to a single register, specify the register address and value in hexadecimal format:
-```sh
-python3 test/test_rf_pll.py --write-reg 0x10 0x1234
-```
-This command writes the value `0x1234` to register `0x10`.
-
-#### Example 2: Loading a Full Configuration
-
-To load a full register map configuration exported from TICS, provide the path to the configuration
-file:
+From the repository root, start the server and use the CSR map from the loaded image:
 
 ```sh
-python3 test/test_rf_pll.py --config test/lmx2572_25m_to_100m.txt
+litex_server --jtag --jtag-config=openocd_xc7_ft4232.cfg
+python3 test/test_rf_pll.py --csr-csv build/spec_a7_wr_nic/csr.csv \
+    --config test/rf_pll_25m_to_100m.txt
 ```
 
-This example loads the configuration from the file `test/lmx2572_25m_to_100m.txt` and programs the
-LMX2572. The script writes each register and toggles the synchronization signal after programming.
+This configures both outputs for nominal **100 MHz** (25 MHz PFD, 6.4 GHz VCO, divide by
+64). The loader parses the entire file before writing, resets the chip, skips read-only
+registers, and programs descending addresses with R0/VCO calibration last, following
+[TI's initialization sequence](https://www.ti.com/lit/ds/symlink/lmx2572.pdf) (section 7.5.1).
+SPI errors and timeouts stop the command with a nonzero exit status.
 
-3. **Validate the Configuration**
-   - Observe the PLL lock indicator (LED). If the configuration is successful, the PLL should lock,
-     and the LED should turn green.
-   - Use a spectrum analyzer or oscilloscope to verify that the desired output frequency is being
-     generated.
+Check a configuration without accessing hardware:
 
-### Example Configuration File
+```sh
+python3 test/test_rf_pll.py --config test/rf_pll_25m_to_100m.txt --dry-run
+```
 
-The provided `test/lmx2572_25m_to_100m.txt` has been generated from TICS software.
+The displayed frequencies are calculated settings, not measurements. **SPI completion
+is not proof of PLL lock.** The stock schematic connects MUXout only to **LD9**, with no
+FPGA input or SPI readback connection. The `rf_out_pll_miso` CSR consequently cannot verify
+register contents. Check LD9 with MUXout configured as lock detect, then measure J8/J9
+with an appropriate 50-ohm RF instrument. Confirm output frequency, power and stability;
+phase noise, jitter and PPS alignment require independent measurements.
 
-To generate similar files:
-- Open TICS software, configure the desired PLL settings, and export the register map as a text file.
+TICS Pro `.txt` register exports and `.tcs` projects are supported for normal fixed-frequency
+operation. Configure TICS Pro for the board's actual **25 MHz, single-ended reference**.
+The historical `test/LMX2572_125_122.88MHz.tcs` requires a **125 MHz reference** and is not
+suitable unchanged for stock SPEC-A7. The loader rejects its reference mismatch. The
+`--ref-clk-freq` option describes a physically different reference; it does not change the
+board clock. Phase-sync, ramp and FSK configurations require their own setup procedures
+and are not supported by the full-configuration loader.
 
-By following this procedure, you can configure and test the RF PLL (LMX2572) and load various
-configurations for different frequencies.
+For debugging, `--write-reg ADDRESS VALUE` sends one 16-bit register write; changing PLL
+dividers also requires the appropriate R0 calibration write. `--sync` pulses the manual
+`rf_out_pll_sync` CSR and returns it low. It requires a new bitstream and suitable LMX2572
+phase-sync settings; it neither enables phase-sync mode nor synchronizes the pulse to WR
+PPS. SYNC defaults low and is not pulsed by the normal configuration loader.
+
+`--host`, `--port`, `--csr-csv` and `--timeout` select the LiteX connection. The Python
+`litex_wr_nic.rf_pll.LMX2572` controller can also be used by host applications. Automated
+lock monitoring would require a physical MUXout-to-FPGA connection on this board revision.
+
 
 [> License
 ----------
