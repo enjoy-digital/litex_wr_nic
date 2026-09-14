@@ -76,6 +76,7 @@ class WhiteRabbitCore(LiteXModule):
         # Clocking.
         qpll         = None,
         with_ext_clk = True,
+        with_ext_pll = False,
         with_softpll_debug = False,
 
         # Serial.
@@ -96,6 +97,8 @@ class WhiteRabbitCore(LiteXModule):
 
         self.platform = platform
         self.cpu_bus  = None
+        if with_ext_pll and not with_ext_clk:
+            raise ValueError("An external WR PLL requires the external clock input.")
         if with_txpi and not platform.device.startswith("xc7a"):
             raise ValueError("WR TXPI tuning requires a 7-series GTP (Artix-7).")
 
@@ -119,6 +122,11 @@ class WhiteRabbitCore(LiteXModule):
         self.dac_dmtd_data   = Signal(dac_bits)
         self.txpippmstepsize = Signal(5) # TXUSRCLK2 / wr domain; held for two clocks.
         self.pps_in          = Signal()
+        # Board-supplied 62.5 MHz multiplier; status/reset use wr_sys.
+        self.ext_clk_mul     = Signal()
+        self.ext_clk_locked  = Signal()
+        self.ext_clk_stopped = Signal(reset=1)
+        self.ext_clk_reset   = Signal()
         self.pps_out_valid   = Signal()
         self.pps_out         = Signal()
         self.pps_out_pulse   = Signal()
@@ -260,6 +268,7 @@ class WhiteRabbitCore(LiteXModule):
             p_txpolarity                  = sfp_tx_polarity,
             p_rxpolarity                  = sfp_rx_polarity,
             p_g_with_external_clock_input = int(with_ext_clk),
+            p_g_use_external_pll          = int(with_ext_pll),
             p_g_softpll_enable_debugger   = int(with_softpll_debug),
             p_g_fpga_family               = {True: "artix7", False: "kintex7"}[self.platform.device.startswith("xc7a")],
             p_g_board_name                = board_name,
@@ -270,6 +279,10 @@ class WhiteRabbitCore(LiteXModule):
             i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
             i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
             i_clk_10m_ext_i       = ClockSignal("clk10m_in"),
+            i_clk_ext_mul_i       = self.ext_clk_mul,
+            i_clk_ext_locked_i    = self.ext_clk_locked,
+            i_clk_ext_stopped_i   = self.ext_clk_stopped,
+            o_clk_ext_rst_o       = self.ext_clk_reset,
             o_clk_62m5_sys_o      = ClockSignal("wr_sys"),
             o_rst_62m5_sys_o      = ResetSignal("wr_sys"),
             o_clk_62m5_ref_o      = ClockSignal("wr"),

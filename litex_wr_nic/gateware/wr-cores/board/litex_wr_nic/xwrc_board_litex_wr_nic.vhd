@@ -51,6 +51,7 @@ entity xwrc_board_litex_wr_nic is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean              := TRUE;
+    g_use_external_pll          : boolean              := FALSE;
     g_softpll_enable_debugger   : boolean              := FALSE;
     -- Board name
     g_board_name                : string               := "NA  ";
@@ -97,6 +98,11 @@ entity xwrc_board_litex_wr_nic is
     clk_125m_gtp_i      : in  std_logic;
     -- 10MHz ext ref clock input (g_with_external_clock_input = TRUE)
     clk_10m_ext_i       : in  std_logic                               := '0';
+    -- Board multiplier (62.5 MHz); status/reset synchronous to clk_62m5_sys_o.
+    clk_ext_mul_i       : in  std_logic                               := '0';
+    clk_ext_locked_i    : in  std_logic                               := '0';
+    clk_ext_stopped_i   : in  std_logic                               := '1';
+    clk_ext_rst_o       : out std_logic;
     -- External PPS input (g_with_external_clock_input = TRUE)
     pps_ext_i           : in  std_logic                               := '0';
 
@@ -301,6 +307,10 @@ architecture struct of xwrc_board_litex_wr_nic is
   signal ext_ref_mul_locked  : std_logic;
   signal ext_ref_mul_stopped : std_logic;
   signal ext_ref_rst         : std_logic;
+  signal clk_10m_platform         : std_logic;
+  signal ext_mul_platform         : std_logic;
+  signal ext_locked_platform      : std_logic;
+  signal ext_stopped_platform     : std_logic;
 
   signal sfp_sda_out         : std_logic;
   signal sfp_sda_in          : std_logic;
@@ -308,6 +318,14 @@ architecture struct of xwrc_board_litex_wr_nic is
   signal sfp_scl_in          : std_logic;
 
 begin  -- architecture struct
+
+  -- Keep the raw 10 MHz for PPS alignment. Only its DMTD multiplier is replaced;
+  -- the platform still supplies the independent WR system and PHY clocks.
+  clk_10m_ext         <= clk_10m_ext_i when g_use_external_pll else clk_10m_platform;
+  ext_ref_mul         <= clk_ext_mul_i when g_use_external_pll else ext_mul_platform;
+  ext_ref_mul_locked  <= clk_ext_locked_i when g_use_external_pll else ext_locked_platform;
+  ext_ref_mul_stopped <= clk_ext_stopped_i when g_use_external_pll else ext_stopped_platform;
+  clk_ext_rst_o       <= ext_ref_rst;
 
   sfp_scl <= '0' when sfp_scl_out = '0' else 'Z';
   sfp_sda <= '0' when sfp_sda_out = '0' else 'Z';
@@ -323,7 +341,7 @@ begin  -- architecture struct
     generic map (
       g_fpga_family               => g_fpga_family,
       g_direct_dmtd               => TRUE,
-      g_with_external_clock_input => g_with_external_clock_input,
+      g_with_external_clock_input => g_with_external_clock_input and not g_use_external_pll,
       g_use_default_plls          => TRUE,
       g_simulation                => 0,
       g_input_clk_single          => TRUE,
@@ -349,12 +367,12 @@ begin  -- architecture struct
       clk_ref_locked_o      => open,
       clk_62m5_dmtd_o       => clk_dmtd,
       pll_locked_o          => pll_locked,
-      clk_10m_ext_o         => clk_10m_ext,
+      clk_10m_ext_o         => clk_10m_platform,
       phy16_o               => phy16_to_wrc,
       phy16_i               => phy16_from_wrc,
-      ext_ref_mul_o         => ext_ref_mul,
-      ext_ref_mul_locked_o  => ext_ref_mul_locked,
-      ext_ref_mul_stopped_o => ext_ref_mul_stopped,
+      ext_ref_mul_o         => ext_mul_platform,
+      ext_ref_mul_locked_o  => ext_locked_platform,
+      ext_ref_mul_stopped_o => ext_stopped_platform,
       ext_ref_rst_i         => ext_ref_rst,
       GT0_EXT_QPLL_RESET    => GT0_EXT_QPLL_RESET,
       GT0_EXT_QPLL_CLK      => GT0_EXT_QPLL_CLK,
