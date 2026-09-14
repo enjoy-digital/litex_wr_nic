@@ -8,6 +8,7 @@
 import os
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
 
@@ -79,17 +80,29 @@ AD9516_EXT_CONFIG = [
 
 class AD9516PLL(LiteXModule):
     def __init__(self, platform, pads, config, name, clk_domain="sys"):
-        self._rst  = CSRStorage()
-        self._done = CSRStatus()
+        self.reset  = Signal()
+        self.locked = Signal()
+        self._rst    = CSRStorage()
+        self._done   = CSRStatus()
+        self._locked = CSRStatus(description="Configuration complete and PLL lock detected.")
 
         # # #
+
+        reset = Signal()
+        lock  = Signal()
+        self.specials += MultiReg(pads.lock, lock, odomain=clk_domain)
+        self.comb += [
+            reset.eq(ResetSignal(clk_domain) | self._rst.storage | self.reset),
+            self.locked.eq(self._done.status & lock & ~reset),
+            self._locked.status.eq(self.locked),
+        ]
 
         # PLL Driver Instance.
         self.specials += Instance(f"wr_pll_ctrl_{name}",
             p_g_project_name = "NORMAL",
             p_g_spi_clk_freq =  4,
             i_clk_i          = ClockSignal(clk_domain),
-            i_rst_n_i        = ~self._rst.storage,
+            i_rst_n_i        = ~reset,
             i_pll_lock_i     = pads.lock,
             o_pll_reset_n_o  = pads.reset_n,
             i_pll_status_i   = pads.stat,

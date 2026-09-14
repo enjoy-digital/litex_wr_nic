@@ -46,6 +46,7 @@ from litex_wr_nic.gateware.time              import TimeGenerator
 from litex_wr_nic.gateware.qpll              import SharedQPLL
 from litex_wr_nic.gateware.ad5683r.core      import AD5683RDAC
 from litex_wr_nic.gateware.ad9516.core       import AD9516PLL, AD9516_MAIN_CONFIG, AD9516_EXT_CONFIG
+from litex_wr_nic.gateware.wr_clock          import WRClockPresence
 from litex_wr_nic.gateware.measurement       import MultiClkMeasurement
 from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, FineDelay
 from litex_wr_nic.gateware.pps               import PPSGenerator
@@ -350,6 +351,7 @@ class BaseSoC(LiteXWRNICSoC):
                 # QPLL.
                 qpll             = self.qpll,
                 with_ext_clk     = True,
+                with_ext_pll     = with_sync_in_pll,
 
                 # Serial.
                 serial_pads      = self.uart.shared_pads,
@@ -412,6 +414,20 @@ class BaseSoC(LiteXWRNICSoC):
                     name       = "sync_in",
                     clk_domain = "sys",
                 )
+                self.ext_clk_presence = WRClockPresence()
+                self.sync_in_pll._reference_present = CSRStatus(
+                    description="Raw 10 MHz input activity, independent of the PLL reset.")
+                self.comb += [
+                    self.wr_core.ext_clk_mul.eq(ClockSignal("clk62m5_in")),
+                    self.sync_in_pll._reference_present.status.eq(self.ext_clk_presence.present),
+                ]
+                # WR holds its reset request until the next firmware poll.
+                self.specials += [
+                    MultiReg(self.wr_core.ext_clk_reset, self.sync_in_pll.reset),
+                    MultiReg(self.sync_in_pll.locked, self.wr_core.ext_clk_locked, odomain="wr_sys"),
+                    MultiReg(~self.ext_clk_presence.present, self.wr_core.ext_clk_stopped,
+                        odomain="wr_sys", reset=1),
+                ]
 
             # Clk10m In Logic.
             clk10m_in = Signal()
@@ -756,6 +772,8 @@ def main():
     parser.add_argument("--rgmii-rx-delay", type=float, default=2.0, metavar="NS",
         help="FPGA-added RGMII receive sampling delay in ns (default: 2).")
     parser.add_argument("--build", action="store_true", help="Build bitstream.")
+    parser.add_argument("--wr-ext-clock-multiplier", choices=["ad9516", "mmcm"], default="ad9516",
+        help="Grandmaster 10 MHz multiplier (default: external AD9516).")
     parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
     parser.add_argument("--device",      default=None, help="Programmer device path (/dev/ttyUSBx).")
@@ -800,6 +818,7 @@ def main():
         wr_cpu_variant = args.wr_cpu_variant,
         wr_cpu_memory  = args.wr_cpu_memory,
         with_wr_pll_debug = args.with_wr_pll_debug,
+        with_sync_in_pll = args.wr_ext_clock_multiplier == "ad9516",
         with_rgmii     = args.ethernet_interface == "rgmii",
         rgmii_tx_delay = args.rgmii_tx_delay * 1e-9,
         rgmii_rx_delay = args.rgmii_rx_delay * 1e-9,

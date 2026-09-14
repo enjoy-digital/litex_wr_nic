@@ -5,13 +5,47 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.cdc import BusSynchronizer
+from migen.genlib.cdc import BusSynchronizer, MultiReg
 
 from litex.gen import *
 
 from litex.soc.interconnect.csr import CSRField, CSRStatus
 
 from litex_wr_nic.gateware.wr_cdc import WRClockCrossing
+
+# WR External Clock -------------------------------------------------------------------------------
+
+class WRClockPresence(LiteXModule):
+    """Detect a stopped 10 MHz input independently of the external PLL reset.
+
+    At 125 MHz, timeout=1024 detects a missing clock within about 8.2 us.
+    The prescaler changes every eight input edges and crosses as one bit.
+    """
+    def __init__(self, cd="clk10m_in", timeout=1024):
+        if timeout < 2:
+            raise ValueError("Clock presence timeout must be at least two cycles.")
+        self.present = Signal()
+
+        # # #
+
+        counter = Signal(4, reset_less=True)
+        sync = getattr(self.sync, cd)
+        sync += counter.eq(counter + 1)
+        activity = Signal()
+        previous = Signal()
+        timer    = Signal(max=timeout)
+        self.specials += MultiReg(counter[-1], activity)
+        self.sync += [
+            previous.eq(activity),
+            If(activity != previous,
+                timer.eq(timeout - 1),
+                self.present.eq(1),
+            ).Elif(timer != 0,
+                timer.eq(timer - 1),
+            ).Else(
+                self.present.eq(0),
+            ),
+        ]
 
 # WR Tuning Command -------------------------------------------------------------------------------
 

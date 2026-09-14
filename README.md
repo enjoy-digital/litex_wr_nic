@@ -100,6 +100,8 @@ The project has been tested on Ubuntu 24.04 LTS. Below are the steps to prepare 
 For WR link tests: a supported FPGA board, a WR peer, compatible SFP modules
 and fiber, and UART/JTAG access. Acorn/SPEC can use their USB interfaces;
 HyVision requires external adapters. See the [USB bench guide](doc/wr_usb_bench.md).
+For SPEC-A7 with an external 10 MHz/PPS reference, see the
+[Grandmaster guide](doc/spec_a7_grandmaster.md).
 
 The PCIe/PTM demonstration additionally needs a PTM-capable Linux computer,
 PCIe connections and an Intel I225 board. An independent scope or timing

@@ -26,6 +26,7 @@ entity xwrc_board_litex_wr_nic_wrapper is
   generic(
     -- Select whether to include external ref clock input
     g_with_external_clock_input : boolean := TRUE;
+    g_use_external_pll          : boolean := FALSE;
     g_softpll_enable_debugger   : boolean := FALSE;
     -- Board name
     g_board_name                : string  := "NA  ";
@@ -61,6 +62,11 @@ entity xwrc_board_litex_wr_nic_wrapper is
     clk_62m5_dmtd_i      : in  std_logic;
     clk_125m_gtp_i       : in  std_logic;
     clk_10m_ext_i        : in  std_logic := '0';
+    -- Board multiplier (62.5 MHz); status/reset synchronous to clk_62m5_sys_o.
+    clk_ext_mul_i        : in  std_logic := '0';
+    clk_ext_locked_i     : in  std_logic := '0';
+    clk_ext_stopped_i    : in  std_logic := '1';
+    clk_ext_rst_o        : out std_logic;
     pps_ext_i            : in  std_logic := '0';
     clk_62m5_sys_o       : out std_logic;
     rst_62m5_sys_o       : out std_logic;
@@ -303,6 +309,7 @@ begin
   u_xwrc_board_litex_wr_nic : entity work.xwrc_board_litex_wr_nic
     generic map (
       g_with_external_clock_input => g_with_external_clock_input,
+      g_use_external_pll          => g_use_external_pll,
       g_softpll_enable_debugger   => g_softpll_enable_debugger,
       g_board_name                => g_board_name,
       g_fpga_family               => g_fpga_family,
@@ -329,6 +336,10 @@ begin
       clk_62m5_dmtd_i      => clk_62m5_dmtd_i,
       clk_125m_gtp_i       => clk_125m_gtp_i,
       clk_10m_ext_i        => clk_10m_ext_i,
+      clk_ext_mul_i        => clk_ext_mul_i,
+      clk_ext_locked_i     => clk_ext_locked_i,
+      clk_ext_stopped_i    => clk_ext_stopped_i,
+      clk_ext_rst_o        => clk_ext_rst_o,
       pps_ext_i            => pps_ext_i,
       clk_62m5_sys_o       => clk_62m5_sys_o,
       rst_62m5_sys_o       => rst_62m5_sys_o,
