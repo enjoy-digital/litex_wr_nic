@@ -18,3 +18,6 @@ litex_wr_nic/firmware/spec_a7_wrc.bram
 litex_wr_nic/firmware/spec_a7_wrc_vexriscv.bin
 litex_wr_nic/firmware/spec_a7_wrc_vexriscv.boot
 litex_wr_nic/firmware/spec_a7_wrc_vexriscv.bram
+litex_wr_nic/firmware/tang_mega_138k_pro_wrc*.bin
+litex_wr_nic/firmware/tang_mega_138k_pro_wrc*.boot
+litex_wr_nic/firmware/tang_mega_138k_pro_wrc*.bram

@@ -103,13 +103,20 @@ def checkout_commit(target="spec_a7"):
         tools.replace_in_file(f"{CLONE_DIR}/softpll/spll_main.c",
             "#define MPLL_FREQ_PRELOCK_GAIN_BOOST 20", "#define MPLL_FREQ_PRELOCK_GAIN_BOOST 5")
 
-def copy_config_file():
+def copy_config_file(target="spec_a7"):
     """Copy the configuration file to the repository."""
     config_dest = os.path.join(CLONE_DIR, "configs/spec_a7_defconfig")
     if not os.path.exists(CONFIG_SRC):
         print(f"Error: Configuration file {CONFIG_SRC} does not exist.")
         exit(1)
     shutil.copy(CONFIG_SRC, config_dest)
+    if target == "tang_mega_138k_pro":
+        config = Path(config_dest).read_text(encoding="utf-8")
+        config = config.replace("# CONFIG_TARGET_GENERIC_PHY_8BIT is not set", "CONFIG_TARGET_GENERIC_PHY_8BIT=y")
+        config = config.replace("CONFIG_TARGET_GENERIC_PHY_16BIT=y", "# CONFIG_TARGET_GENERIC_PHY_16BIT is not set")
+        config = config.replace('CONFIG_INIT_COMMAND="vlan off;ptp stop;sfp match;mode slave;ptp start"',
+            'CONFIG_INIT_COMMAND="ptp stop"')
+        Path(config_dest).write_text(config, encoding="utf-8")
 
 def configure_cpu_profile(cpu_type):
     """Add the small WRPC CPU abstraction needed by LiteX VexRiscv."""
@@ -241,11 +248,13 @@ def build_firmware(cpu_type, read_only_storage=False, pll_trace_decimation=0):
         f"make WR_CPU_CFLAGS={cpu_flags} WR_CPU_ASFLAGS={cpu_flags}",
         cwd=CLONE_DIR)
 
-def copy_firmware(cpu_type):
+def copy_firmware(cpu_type, target="spec_a7"):
     """Copy the resulting firmware to the destination."""
-    firmware_dest      = wr_cpu_firmware_filename(cpu_type, "bram")
-    firmware_bin_dest  = wr_cpu_firmware_filename(cpu_type, "bin")
-    firmware_boot_dest = wr_cpu_firmware_filename(cpu_type, "boot")
+    # Keep the historical 16-bit PHY filenames; the 8-bit profile is distinct.
+    profile = "tang_mega_138k_pro" if target == "tang_mega_138k_pro" else "spec_a7"
+    firmware_dest      = wr_cpu_firmware_filename(cpu_type, "bram", profile)
+    firmware_bin_dest  = wr_cpu_firmware_filename(cpu_type, "bin", profile)
+    firmware_boot_dest = wr_cpu_firmware_filename(cpu_type, "boot", profile)
     if not os.path.exists(FIRMWARE_SRC):
         print(f"Error: Firmware file {FIRMWARE_SRC} does not exist.")
         exit(1)
@@ -280,7 +289,8 @@ def main():
     # from the repository root (for example by the resource-matrix helper).
     os.chdir(Path(__file__).resolve().parent)
     parser = argparse.ArgumentParser(description="LiteX-WR-NIC on Acorn Baseboard Mini.")
-    parser.add_argument("--target", default="spec_a7", help="Target Board.", choices=["spec_a7", "acorn", "hyvision"])
+    parser.add_argument("--target", default="spec_a7", help="Target Board.",
+        choices=["spec_a7", "acorn", "hyvision", "tang_mega_138k_pro"])
     parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_TYPES,
         help="WR CPU firmware profile (default: urv).")
     parser.add_argument("--read-only-storage", action="store_true",
@@ -293,9 +303,9 @@ def main():
     check_riscv_toolchain()
     clone_repository()
     checkout_commit(args.target)
-    copy_config_file()
+    copy_config_file(args.target)
     build_firmware(args.wr_cpu_type, args.read_only_storage, args.pll_trace_decimation)
-    copy_firmware(args.wr_cpu_type)
+    copy_firmware(args.wr_cpu_type, args.target)
     build_sdbfs()
     print("Build process completed successfully.")
 
