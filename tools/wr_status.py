@@ -117,9 +117,17 @@ def diagnostic_snapshot(bus, timeout=3):
         # after completing a fresh update, then holds all fields for the host.
         bus.write(base + 4, 0x100)
         deadline = time.monotonic() + timeout
-        while bus.read(base + 4) & 0x101 != 0x101:
+        while True:
+            control = bus.read(base + 4)
+            if control & 0x101 == 0x101:
+                break
             if time.monotonic() > deadline:
                 raise TimeoutError("WR diagnostics did not produce a fresh snapshot")
+            # Firmware updates CTRL with a read/modify/write. An update begun
+            # before our request can overwrite SNAPSHOT with its old value.
+            # Reassert the request and clear VALID, within the original timeout.
+            if not control & 0x100:
+                bus.write(base + 4, 0x100)
             time.sleep(0.02)
         words = bus.read(base, length=25)
         if words[1] & 0x101 != 0x101:

@@ -49,3 +49,43 @@ def test_invalid_time_cannot_start_or_pass_a_tracking_check():
     assert 'slave: timestamp is not normalized' in status.qualification_errors(master, slave, md, sd, 101)
     sd['tai_ns'] = 123500000000
     assert status.qualification_errors(master, slave, md, sd, 101) == []
+
+
+class SnapshotRaceBus(SnapshotBus):
+    def __init__(self, always_lose=False):
+        super().__init__(0)
+        self.requests = 0
+        self.always_lose = always_lose
+
+    def write(self, address, value):
+        super().write(address, value)
+        self.words[1] = value
+        if value == 0x100:
+            self.requests += 1
+            if self.requests == 1 or self.always_lose:
+                # Firmware completes a CTRL read/modify/write begun before
+                # the host request, restoring VALID and losing SNAPSHOT.
+                self.words[1] = 1
+            else:
+                self.words[9] = 124
+                self.words[1] = 0x101
+
+
+def test_snapshot_retries_a_request_overwritten_by_firmware():
+    bus = SnapshotRaceBus()
+    result = status.diagnostic_snapshot(bus, timeout=0.1)
+    assert result['tai_ns'] == 124000000000
+    assert bus.requests == 2
+    assert bus.writes[-1] == (0x904, 0)
+
+
+def test_snapshot_retry_remains_bounded_and_releases_control(monkeypatch):
+    bus = SnapshotRaceBus(always_lose=True)
+    now = [0]
+    monkeypatch.setattr(status.time, 'monotonic', lambda: now[0])
+    monkeypatch.setattr(status.time, 'sleep', lambda delay: now.__setitem__(0, now[0] + delay))
+    with pytest.raises(TimeoutError, match='fresh snapshot'):
+        status.diagnostic_snapshot(bus, timeout=0.1)
+    assert now[0] == pytest.approx(0.12)
+    assert bus.requests > 1
+    assert bus.writes[-1] == (0x904, 0)
