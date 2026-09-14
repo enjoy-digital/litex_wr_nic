@@ -51,6 +51,7 @@ from litex_wr_nic.gateware.delay.core        import MacroDelay, CoarseDelay, Fin
 from litex_wr_nic.gateware.pps               import PPSGenerator
 from litex_wr_nic.gateware.clk10m            import Clk10MGenerator
 from litex_wr_nic.gateware.nic.phy           import LiteEthPHYWRGMII
+from litex_wr_nic.gateware.rgmii             import WRRGMIIPhy, WRRGMIIBridge
 from litex_wr_nic.gateware.wr_cpu            import (
     WRCPUFlashBoot,
     WR_CPU_MEMORY_ORIGIN,
@@ -119,6 +120,12 @@ class BaseSoC(LiteXWRNICSoC):
         # ----------------
         with_pcie = True,
 
+        # RGMII Parameters (replaces the PCIe NIC when enabled).
+        # ----------------------------------------------------
+        with_rgmii     = False,
+        rgmii_tx_delay = 2e-9,
+        rgmii_rx_delay = 2e-9,
+
         # White Rabbit Parameters.
         # ------------------------
         with_white_rabbit          = True,
@@ -155,6 +162,11 @@ class BaseSoC(LiteXWRNICSoC):
         # ------------------
         with_rf_out = True,
     ):
+        if with_rgmii:
+            if not with_white_rabbit or sys_clk_freq != 125e6:
+                raise ValueError("The RGMII bridge requires White Rabbit and a 125 MHz system clock")
+            with_pcie = False
+
         # Platform ---------------------------------------------------------------------------------
 
         platform      = Platform(variant="xc7a50t")
@@ -176,6 +188,10 @@ class BaseSoC(LiteXWRNICSoC):
             eth_refclk_from_pll = False, # Use SPEC-A7 dedicated MGTREFCLK1, not GTGREFCLK.
         )
         self.qpll.enable_pll_refclk()
+        if not with_pcie:
+            # Keep WR on the board's dedicated MGTREFCLK1. The unused PCIe
+            # PLL has no external clock in this standalone configuration.
+            self.comb += self.crg.cd_refclk_pcie.clk.eq(0)
 
         # SoCMini ----------------------------------------------------------------------------------
 
@@ -452,10 +468,29 @@ class BaseSoC(LiteXWRNICSoC):
 
             # White Rabbit Ethernet PHY (over White Rabbit Fabric) ---------------------------------
 
-            self.ethphy0 = LiteEthPHYWRGMII(
-                wrf_stream2wb = self.wrf_stream2wb,
-                wrf_wb2stream = self.wrf_wb2stream,
-            )
+            if with_rgmii:
+                self.rgmii_phy = WRRGMIIPhy(platform, platform.request("rgmii"),
+                    # J20 TX_CLK (N3) is clock-capable; RX_CLK (R5) is not.
+                    role     = "phy",
+                    tx_delay = rgmii_tx_delay,
+                    rx_delay = rgmii_rx_delay,
+                    # Compensate clock/data insertion skew at the 3.3 V
+                    # inputs; center the routed setup/hold timing window.
+                    rx_phase_adjust = -0.75e-9,
+                )
+                platform.add_false_path_constraints(self.crg.cd_sys.clk,
+                    self.rgmii_phy.cd_eth_rx.clk, self.rgmii_phy.cd_eth_tx.clk,
+                )
+                self.rgmii_bridge = WRRGMIIBridge(self.rgmii_phy,
+                    wr_source = self.wrf_wb2stream.source,
+                    wr_sink   = self.wrf_stream2wb.sink,
+                    wr_error  = self.wrf_wb2stream.error,
+                )
+            else:
+                self.ethphy0 = LiteEthPHYWRGMII(
+                    wrf_stream2wb = self.wrf_stream2wb,
+                    wrf_wb2stream = self.wrf_wb2stream,
+                )
 
             # White Rabbit Sync-Out ----------------------------------------------------------------
 
@@ -633,7 +668,7 @@ class BaseSoC(LiteXWRNICSoC):
 
         # Etherbone --------------------------------------------------------------------------------
 
-        if (not with_pcie) and with_white_rabbit:
+        if (not with_pcie) and with_white_rabbit and not with_rgmii:
             self.add_etherbone(phy=self.ethphy0, data_width=8, with_timing_constraints=False)
 
         # Time Generator ---------------------------------------------------------------------------
@@ -709,6 +744,12 @@ def main():
     # ---------------------------
     parser.add_argument("--with-wr-pll-debug", action="store_true",
         help="Enable the SoftPLL FIFO and FPGA sensors; omit PCIe NIC/PTM/time generator to fit RAM.")
+    parser.add_argument("--ethernet-interface", choices=["pcie", "rgmii"], default="pcie",
+        help="Application Ethernet interface (default: PCIe NIC).")
+    parser.add_argument("--rgmii-tx-delay", type=float, default=2.0, metavar="NS",
+        help="FPGA-added RGMII transmit clock delay in ns (default: 2).")
+    parser.add_argument("--rgmii-rx-delay", type=float, default=2.0, metavar="NS",
+        help="FPGA-added RGMII receive sampling delay in ns (default: 2).")
     parser.add_argument("--build", action="store_true", help="Build bitstream.")
     parser.add_argument("--load",  action="store_true", help="Load bitstream.")
     parser.add_argument("--flash", action="store_true", help="Flash bitstream.")
@@ -754,6 +795,9 @@ def main():
         wr_cpu_variant = args.wr_cpu_variant,
         wr_cpu_memory  = args.wr_cpu_memory,
         with_wr_pll_debug = args.with_wr_pll_debug,
+        with_rgmii     = args.ethernet_interface == "rgmii",
+        rgmii_tx_delay = args.rgmii_tx_delay * 1e-9,
+        rgmii_rx_delay = args.rgmii_rx_delay * 1e-9,
     )
     if args.with_wishbone_fabric_interface_probe:
         soc.add_wishbone_fabric_interface_probe()
@@ -778,7 +822,7 @@ def main():
 
     # Generate PCIe C Headers.
     # ------------------------
-    if not args.skip_software_headers:
+    if not args.skip_software_headers and args.ethernet_interface == "pcie" and not args.with_wr_pll_debug:
         generate_litepcie_software_headers(soc, "litex_wr_nic/software/kernel")
 
     # Generate Bitstream.

@@ -316,6 +316,46 @@ Loading firmware from ../firmware/wrpc-sw/wrc.bin...
 Loading firmware: 100%|██████████████████████████████████| 30270/30270 [00:00<00:00,
 ```
 
+[> Select the SPEC-A7 Ethernet interface
+----------------------------------------
+
+The default `--ethernet-interface pcie` connects WR application traffic to the PCIe NIC.
+Select `rgmii` for a standalone, full-duplex 1 Gb/s bridge on the 3.3 V J20 connector:
+
+```sh
+./spec_a7_wr_nic.py --build --ethernet-interface rgmii
+```
+
+SPEC acts as a PHY toward an external MAC: it drives the connector's RX signals and
+receives TX. J20 `TX_CLK` (N3) is clock-capable; `RX_CLK` (R5) is an output-only clock
+connection for this design. The transmitted 125 MHz clock is generated locally, including
+while the peer is starting. This mode retains WR UART/JTAG access and timing outputs and omits the
+PCIe NIC, PTM and Etherbone interfaces. It requires the default 125 MHz system clock.
+
+The MAC adds/removes preamble and FCS, pads short transmissions, and checks received FCS
+and RGMII errors. Each direction has two 2048-byte frame slots. Frames are forwarded only
+after completion; invalid, oversized or excess frames are discarded whole. VLAN headers
+are preserved. The `rgmii_bridge_{tx,rx}_buffer_{packets,dropped}` CSRs report accepted and
+dropped frames. On RGMII clock loss, transmit queues/counters reset, incomplete reception
+is discarded, and completed receive frames continue to WR. Receive counters reset with SYS.
+The receive PLL retries automatically when the peer clock starts or returns.
+`rgmii_phy_clock_ready` reports whether both RGMII PLLs are locked, not Ethernet link status.
+WR synchronization remains on the SFP; this bridge does not extend WR timing to RGMII.
+
+`--rgmii-tx-delay` and `--rgmii-rx-delay` specify the FPGA's share of a 2 ns clock/data
+offset in each direction, in ns (0 to 2, default 2). Configure the peer to supply the
+remaining offset: use 2 with an edge-aligned peer, or 0 when the peer supplies 2 ns.
+Transmit/receive here refer to SPEC: its transmitted clock is J20 `RX_CLK`.
+RX also applies a fixed phase correction for SPEC's 3.3 V clock/data input paths.
+The generated DDR timing constraints use that same budget, with ±0.5 ns source skew and
+1 ns receiver setup/hold. Confirm the peer's delay configuration and board skew before
+connecting it. There is no MDIO/reset controller on the RGMII pin group; configure the
+peer separately for fixed 1 Gb/s full duplex. 10/100 Mb/s operation and runtime switching
+between PCIe and RGMII are not supported.
+
+J20 requires a 3.3 V-compatible peer. Qualify the physical connection: AMD does not specify
+3.3 V RGMII compliance for 7-series HR I/O ([PG160, Table 4-2](https://docs.amd.com/api/khub/documents/fEsfqJT7_MyQMrEZhzjcVA/content)).
+
 [> Select the WR CPU
 --------------------
 
