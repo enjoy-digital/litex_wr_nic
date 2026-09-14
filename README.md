@@ -376,6 +376,15 @@ conservative 31.25 MHz HyperRAM clock from the 125 MHz system clock. The existin
 remains at `0x002e0000`. The packaged image zero-fills the complete 128 KiB CPU window so its initial
 contents match the private and integrated modes.
 
+SPEC-A7 samples HyperRAM DQ/RWDS with a 180-degree shifted system PLL output.
+The cache uses local addresses within the decoded 128 KiB CPU window. When checking
+memory integrity, read back the full window after cache eviction: immediate cached
+readback alone does not verify the physical HyperRAM contents.
+
+Use the default uRV/private memory profile for WR master/slave operation. HyperRAM
+execution supports firmware and memory bring-up, but WR slave PLL lock is not yet
+qualified with either uRV or VexRiscv.
+
 The firmware build creates both the raw binary and the packaged boot image:
 
 ```sh
