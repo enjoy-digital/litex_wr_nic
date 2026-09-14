@@ -380,7 +380,7 @@ class WhiteRabbitCore(LiteXModule):
             o_wrf_src_sel         = wrf_wb2stream.bus.sel,
 
             i_wrf_src_ack         = wrf_wb2stream.bus.ack,
-            i_wrf_src_stall       = 0, # Not Used.
+            i_wrf_src_stall       = wrf_wb2stream.stall,
             i_wrf_src_err         = wrf_wb2stream.bus.err,
             i_wrf_src_rty         = 0, # Not Used.
 

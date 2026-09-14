@@ -32,70 +32,89 @@ class Wishbone2Stream(LiteXModule):
 
         # # #
 
-        # Signals.
-        valid = Signal()
-        last  = Signal()
-        sel   = Signal(2)
-        data  = Signal(16)
+        # Retain the final word until another word or the end of the frame
+        # arrives. A fabric master may pause between its final data and CYC
+        # deassertion, so a one-clock delayed VALID cannot delimit the packet.
+        pending       = Signal()
+        pending_sel   = Signal(2)
+        pending_data  = Signal(16)
+        pending_first = Signal()
+        first         = Signal()
+        frame_error   = Signal()
+        self.error    = Signal()
+        self.stall    = Signal()
 
-        # Always accept incoming accesses.
-        self.comb += bus.ack.eq(1)
-
-        # Clock Domain Crossing.
         self.cdc = cdc = stream.ClockDomainCrossing(
-            layout  = [("data", 16), ("sel", 2)],
-            cd_from = cd_from,
-            cd_to   = "sys",
-            depth   = 16,
+            layout          = [("data", 16), ("sel", 2), ("error", 1)],
+            cd_from         = cd_from,
+            cd_to           = "sys",
+            depth           = 16,
             with_common_rst = True,
         )
+        self.comb += [
+            cdc.sink.data.eq(pending_data),
+            cdc.sink.first.eq(pending_first),
+            cdc.sink.sel.eq(pending_sel),
+            cdc.sink.error.eq(frame_error),
+            bus.ack.eq(bus.cyc & bus.stb & ~self.stall),
+        ]
 
-        # FSM.
         self.fsm = fsm = ClockDomainsRenamer(cd_from)(FSM(reset_state="IDLE"))
         fsm.act("IDLE",
-            If(bus.stb & bus.cyc,
-                # On Status Word, jump to DATA.
-                If(bus.adr == 0b10,
-                    NextState("DATA")
-                )
-            )
+            If(bus.stb & bus.cyc & (bus.adr == 0b10),
+                NextValue(frame_error, bus.dat_w[1]),
+                NextValue(first, 1),
+                NextState("DATA"),
+            ),
         )
         fsm.act("DATA",
-            # Copy Regular Data.
-            If(bus.stb & bus.cyc,
-                If(bus.adr == 0b00,
-                    valid.eq(1),
-                    sel.eq(bus.sel),
-                    data.eq(bus.dat_w),
-                )
+            If(~bus.cyc | (bus.stb & (bus.adr != 0b00)),
+                If(bus.cyc & bus.stb & (bus.adr == 0b10),
+                    NextValue(frame_error, frame_error | bus.dat_w[1]),
+                ),
+                NextState("FLUSH"),
+            ).Elif(bus.stb,
+                # A new word releases the previous one as non-final data.
+                # Honor FIFO backpressure before acknowledging replacement.
+                self.stall.eq(pending & ~cdc.sink.ready),
+                cdc.sink.valid.eq(pending),
+                If(~self.stall,
+                    NextValue(pending, 1),
+                    NextValue(pending_sel, bus.sel),
+                    NextValue(pending_data, bus.dat_w),
+                    NextValue(pending_first, first),
+                    NextValue(first, 0),
+                ),
             ),
-            # Return to IDLE when Regular Data or Access is done.
-            If(~bus.cyc | (bus.stb & bus.cyc & (bus.adr != 0b00)),
-                last.eq(1),
-                NextState("IDLE")
-            )
         )
-        self.comb += cdc.sink.last.eq(last)
-        _sync = getattr(self.sync, cd_from)
-        _sync += [
-            cdc.sink.valid.eq(valid),
-            cdc.sink.sel.eq(sel),
-            cdc.sink.data.eq(data),
-        ]
+        fsm.act("FLUSH",
+            # Do not acknowledge a following frame until the final word has
+            # crossed. Any trailing OOB words are ignored by IDLE.
+            self.stall.eq(1),
+            cdc.sink.valid.eq(pending),
+            cdc.sink.last.eq(1),
+            If(~pending | cdc.sink.ready,
+                NextValue(pending, 0),
+                NextState("IDLE"),
+            ),
+        )
 
         # 16-bit to 8-bit Converter.
         self.converter = converter = stream.Converter(16, 8, reverse=True)
+
+        # Error is sideband to preserve the historical byte-stream layout.
+        self.comb += self.error.eq(cdc.source.error)
 
         # CDC -> Converter -> Source.
         self.comb += [
             If(cdc.source.valid,
                 # Even number of bytes.
                 If(cdc.source.sel == 0b11,
-                    cdc.source.connect(converter.sink, omit={"sel"}),
+                    cdc.source.connect(converter.sink, omit={"sel", "error"}),
                     converter.source.connect(source),
                 # Odd number of bytes.
                 ).Elif(cdc.source.sel == 0b10,
-                    cdc.source.connect(source, omit={"sel", "data"}),
+                    cdc.source.connect(source, omit={"sel", "data", "error"}),
                     source.data.eq(cdc.source.data[8:16])
                 ).Else(
                     cdc.source.ready.eq(1), # Ready by default.
