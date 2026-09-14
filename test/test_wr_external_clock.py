@@ -8,11 +8,51 @@ from types import SimpleNamespace
 
 import pytest
 
-from migen import CEInserter, ClockDomain, Instance, Record, Signal, run_simulation
+from migen import CEInserter, ClockDomain, If, Instance, Record, Signal, run_simulation
+
+from litex.gen import LiteXModule
 
 from litex_wr_nic.gateware.ad9516.core import AD9516PLL, AD9516_EXT_CONFIG
+from litex_wr_nic.gateware.delay.macro_delay import MacroDelay
 from litex_wr_nic.gateware.wr_clock import WRClockPresence
 from litex_wr_nic.gateware.wr_core import WhiteRabbitCore
+
+
+@pytest.mark.parametrize("delay", [1, 2, 7])
+def test_delayed_pps_reaches_10mhz_aligner_at_every_phase(delay):
+    missed_short_pulse = False
+    for phase in range(0, 100, 2):
+        dut = LiteXModule()
+        pulse, short, extended = Signal(), Signal(), Signal()
+        dut.short_delay = MacroDelay(pulse, short, default_delay=delay)
+        dut.long_delay  = MacroDelay(pulse, extended, default_delay=delay, pulse_cycles=16)
+        # Model the upstream aligner's edge detection in the 10 MHz domain.
+        previous, previous_short = Signal(), Signal()
+        captured, captured_short = Signal(4), Signal(4)
+        dut.sync.ext += [
+            previous.eq(extended), previous_short.eq(short),
+            If(extended & ~previous, captured.eq(captured + 1)),
+            If(short & ~previous_short, captured_short.eq(captured_short + 1)),
+        ]
+        samples = []
+        captures = []
+
+        def check():
+            for cycle in range(180):
+                yield pulse.eq(cycle in (20, 100))
+                yield
+                samples.append(((yield short), (yield extended)))
+            assert (yield captured) == 2
+            captures.append((yield captured_short))
+
+        run_simulation(dut, check(), clocks={"sys": 16, "ext": (100, phase)})
+        rises = [[i for i, sample in enumerate(samples) if sample[column]
+            and (i == 0 or not samples[i-1][column])] for column in (0, 1)]
+        assert len(rises[0]) == 2
+        assert rises[0] == rises[1] # No extra leading-edge delay.
+        assert sum(sample[1] for sample in samples) == 32 # Two 16-cycle pulses.
+        missed_short_pulse |= captures[0] != 2
+    assert missed_short_pulse # A one-WR-cycle pulse is insufficient.
 
 
 @pytest.mark.parametrize("stop_after", [130, 170])

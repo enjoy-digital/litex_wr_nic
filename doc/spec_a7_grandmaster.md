@@ -33,6 +33,8 @@ configuration completion and qualified PLL lock. Clock measurement channels
 The activity detector is independent of the AD9516 reset: WR firmware first
 waits for 10 MHz, then resets/reconfigures the AD9516 and waits for lock.
 Its reset request and PLL status cross between the WR and host clock domains.
+The delayed PPS is extended from 16 ns to 256 ns so the 10 MHz aligner can
+capture it at any clock phase; its leading edge and macro delay are preserved.
 
 For hardware validation, check Grandmaster lock with both inputs present,
 remove and restore the 10 MHz input, and confirm reacquisition without a host

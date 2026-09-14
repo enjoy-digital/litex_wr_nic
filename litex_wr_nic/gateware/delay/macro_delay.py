@@ -12,7 +12,9 @@ from litex.soc.interconnect.csr import *
 # Macro Delay --------------------------------------------------------------------------------------
 
 class MacroDelay(LiteXModule):
-    def __init__(self, pulse_i, pulse_o, clk_domain="sys", default_delay=1):
+    def __init__(self, pulse_i, pulse_o, clk_domain="sys", default_delay=1, pulse_cycles=1):
+        if pulse_cycles < 1:
+            raise ValueError("Pulse width must be at least one clock cycle.")
         self._value = CSRStorage(32, description="Macro Delay Clk Cycles.", reset=default_delay)
 
         # # #
@@ -37,4 +39,20 @@ class MacroDelay(LiteXModule):
         ]
 
         # Output.
-        self.comb += pulse_o.eq(enable & (count == 0))
+        if pulse_cycles == 1:
+            self.comb += pulse_o.eq(enable & (count == 0))
+        else:
+            # Register the widened output so asynchronous consumers cannot see
+            # counter decode glitches. Anticipate count==0 to keep the same
+            # leading edge, including the one-cycle delay and retrigger cases.
+            remaining = Signal(max=pulse_cycles)
+            trigger = (pulse_i & (self._value.storage == 1)) | (~pulse_i & enable & (count == 1))
+            _sync += If(trigger,
+                pulse_o.eq(1),
+                remaining.eq(pulse_cycles - 1),
+            ).Elif(remaining != 0,
+                pulse_o.eq(1),
+                remaining.eq(remaining - 1),
+            ).Else(
+                pulse_o.eq(0),
+            )

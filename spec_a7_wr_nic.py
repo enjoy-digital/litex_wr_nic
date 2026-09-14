@@ -466,11 +466,13 @@ class BaseSoC(LiteXWRNICSoC):
             self.sync.wr += pps_in_d.eq(pps_in)
             self.comb += pps_in_pulse.eq(pps_in & ~pps_in_d)
 
+            # The upstream aligner samples PPS at 10 MHz: hold it for 256 ns.
             self.pps_in_macro_delay = MacroDelay(
                 pulse_i = pps_in_pulse,
                 pulse_o = pps_in_macro_delay,
                 clk_domain    = "wr",
                 default_delay = pps_in_macro_delay_default,
+                pulse_cycles  = 16,
             )
             self.comb += self.pps_in.eq(pps_in_macro_delay)
 
