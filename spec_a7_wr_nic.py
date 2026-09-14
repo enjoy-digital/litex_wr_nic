@@ -220,8 +220,10 @@ class BaseSoC(LiteXWRNICSoC):
             # address belongs in the cache tag, not the constant SoC prefix.
             wr_cpu_bus    = wishbone.Interface(data_width=32, address_width=17, addressing="word")
             self.bus.add_slave(name="wr_cpu_mem", slave=wr_cpu_bus, region=wr_cpu_region)
+            # Keep the SoftPLL IRQ and main PLL code in distinct cache lines.
+            # They alias in an 8 KiB direct-mapped cache during slave operation.
             self.wr_cpu_cache = FullMemoryWE()(wishbone.Cache(
-                cachesize = (8*KILOBYTE)//4,
+                cachesize = (16*KILOBYTE)//4,
                 master    = wr_cpu_bus,
                 slave     = wishbone.Interface(data_width=32, address_width=17, addressing="word"),
             ))
@@ -247,7 +249,7 @@ class BaseSoC(LiteXWRNICSoC):
                 region = wr_cpu_region,
             )
             wr_cpu_ready = wr_cpu_loader.ready
-            self.add_config("WR_CPU_CACHE_SIZE", 8*KILOBYTE)
+            self.add_config("WR_CPU_CACHE_SIZE", 16*KILOBYTE)
 
         if with_wr_pll_debug:
             from litex.soc.cores.xadc import S7SystemMonitor

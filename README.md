@@ -350,7 +350,7 @@ selected at gateware build time:
 |---|---|---|---|
 | `private` | All, uRV only | WR-core private dual-port RAM initialized from `spec_a7_wrc.bram` | 128 KiB private BRAM |
 | `integrated` | All | LiteX `wr_cpu_mem` initialized from `spec_a7_wrc.bin` | 128 KiB SoC BRAM |
-| `hyperram` | SPEC-A7 | SPI-flash boot image copied automatically to HyperRAM | 8 KiB write-back cache plus HyperRAM controller |
+| `hyperram` | SPEC-A7 | SPI-flash boot image copied automatically to HyperRAM | 16 KiB write-back cache plus HyperRAM controller |
 
 `private` remains the default and is compatible with existing bitstreams and host tools. Select a
 different implementation with:
@@ -371,7 +371,7 @@ The integrated mode embeds the raw binary in SoC RAM. The HyperRAM mode holds th
 while an FPGA boot loader reads the selected profile (`spec_a7_wrc.boot` or
 `spec_a7_wrc_vexriscv.boot`) from SPI flash offset `0x002f0000`, validates its magic, version,
 aligned length, and CRC32, and copies it to HyperRAM. It then releases the CPU and returns the flash
-pins to WRPC. A write-back 8 KiB cache fronts the controller, which uses its 4:1 mode to generate a
+pins to WRPC. A write-back 16 KiB cache fronts the controller, which uses its 4:1 mode to generate a
 conservative 31.25 MHz HyperRAM clock from the 125 MHz system clock. The existing 64 KiB WR SDB slot
 remains at `0x002e0000`. The packaged image zero-fills the complete 128 KiB CPU window so its initial
 contents match the private and integrated modes.
@@ -380,10 +380,6 @@ SPEC-A7 samples HyperRAM DQ/RWDS with a 180-degree shifted system PLL output.
 The cache uses local addresses within the decoded 128 KiB CPU window. When checking
 memory integrity, read back the full window after cache eviction: immediate cached
 readback alone does not verify the physical HyperRAM contents.
-
-Use the default uRV/private memory profile for WR master/slave operation. HyperRAM
-execution supports firmware and memory bring-up, but WR slave PLL lock is not yet
-qualified with either uRV or VexRiscv.
 
 The firmware build creates both the raw binary and the packaged boot image:
 
