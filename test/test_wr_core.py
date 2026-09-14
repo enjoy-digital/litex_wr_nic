@@ -90,8 +90,14 @@ def test_external_phy_keeps_one_owner_and_csr_bank(platform, monkeypatch):
         def __init__(self, *args, **kwargs):
             self._ghdl_opts = []
 
+    prepared = []
+
+    def prepare_sources(platform):
+        prepared.append(platform)
+        return []
+
     monkeypatch.setattr(vhd2v_converter, "VHD2VConverter", Converter)
-    monkeypatch.setattr(wr_phy, "phy8_sources", lambda platform: [])
+    monkeypatch.setattr(wr_phy, "phy8_sources", prepare_sources)
     soc = LiteXModule()
     soc.phy = phy = LiteXModule()
     for name, width in (
@@ -104,11 +110,13 @@ def test_external_phy_keeps_one_owner_and_csr_bank(platform, monkeypatch):
     phy.status = CSRStatus(5)
     soc.wr = WhiteRabbitCore(platform, cpu_firmware="unused.bram",
         phy=phy, with_ext_clk=False)
+    assert prepared == []
     banks = CSRBankArray(soc, lambda name, memory: 0)
     assert [name for name, *_ in banks.banks] == ["phy"]
     assert [csr.name for csr in banks.banks[0][1]] == ["status"]
     assert all(module is not phy for name, module in soc.wr._submodules)
     soc.get_fragment()
+    assert prepared == [platform]
     assert platform.prepared == []
 
 

@@ -4,9 +4,10 @@
 # Copyright (c) 2026 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import importlib.util
-from pathlib import Path
 import subprocess
+import importlib.util
+
+from pathlib import Path
 
 
 def git(path, *args):
@@ -65,29 +66,29 @@ def test_reused_firmware_checkout_restores_pinned_submodule_and_gains(tmp_path, 
 
 
 def test_tang_profile_does_not_leak_into_16bit_firmware(tmp_path, monkeypatch):
-    path = Path(__file__).resolve().parents[1] / 'litex_wr_nic/firmware/build.py'
-    spec = importlib.util.spec_from_file_location('wr_firmware_build', path)
+    path = Path(__file__).resolve().parents[1] / "litex_wr_nic/firmware/build.py"
+    spec = importlib.util.spec_from_file_location("wr_firmware_build", path)
     build = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(build)
-    checkout = tmp_path / 'wrpc-sw'
-    (checkout / 'configs').mkdir(parents=True)
-    monkeypatch.setattr(build, 'CLONE_DIR', str(checkout))
-    monkeypatch.setattr(build, 'CONFIG_SRC', str(path.parent / 'spec_a7_defconfig'))
-    config = checkout / 'configs/spec_a7_defconfig'
+    checkout = tmp_path / "wrpc-sw"
+    (checkout / "configs").mkdir(parents=True)
+    monkeypatch.setattr(build, "CLONE_DIR", str(checkout))
+    monkeypatch.setattr(build, "CONFIG_SRC", str(path.parent / "spec_a7_defconfig"))
+    config = checkout / "configs/spec_a7_defconfig"
 
-    build.copy_config_file('tang_mega_138k_pro')
-    assert 'CONFIG_TARGET_GENERIC_PHY_8BIT=y' in config.read_text()
-    assert '# CONFIG_TARGET_GENERIC_PHY_16BIT is not set' in config.read_text()
-    assert 'CONFIG_INIT_COMMAND="ptp stop"' in config.read_text()
-    build.copy_config_file('spec_a7')
+    build.copy_config_file("tang_mega_138k_pro")
+    assert "CONFIG_TARGET_GENERIC_PHY_8BIT=y" in config.read_text(encoding="utf-8")
+    assert "# CONFIG_TARGET_GENERIC_PHY_16BIT is not set" in config.read_text(encoding="utf-8")
+    assert 'CONFIG_INIT_COMMAND="ptp stop"' in config.read_text(encoding="utf-8")
+    build.copy_config_file("spec_a7")
     assert config.read_bytes() == Path(build.CONFIG_SRC).read_bytes()
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(build, 'FIRMWARE_SRC', str(checkout / 'wrc.bram'))
-    monkeypatch.setattr(build, 'FIRMWARE_BIN_SRC', str(checkout / 'wrc.bin'))
-    (checkout / 'wrc.bram').write_text('12345678\n')
-    (checkout / 'wrc.bin').write_bytes(bytes(range(64)))
-    Path('spec_a7_wrc.bin').write_bytes(b'16-bit profile')
-    build.copy_firmware('urv', 'tang_mega_138k_pro')
-    assert Path('spec_a7_wrc.bin').read_bytes() == b'16-bit profile'
-    assert Path('tang_mega_138k_pro_wrc.bin').read_bytes() == bytes(range(64))
+    monkeypatch.setattr(build, "FIRMWARE_SRC", str(checkout / "wrc.bram"))
+    monkeypatch.setattr(build, "FIRMWARE_BIN_SRC", str(checkout / "wrc.bin"))
+    (checkout / "wrc.bram").write_text("12345678\n", encoding="utf-8")
+    (checkout / "wrc.bin").write_bytes(bytes(range(64)))
+    Path("spec_a7_wrc.bin").write_bytes(b'16-bit profile')
+    build.copy_firmware("urv", "tang_mega_138k_pro")
+    assert Path("spec_a7_wrc.bin").read_bytes() == b'16-bit profile'
+    assert Path("tang_mega_138k_pro_wrc.bin").read_bytes() == bytes(range(64))

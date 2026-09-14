@@ -111,12 +111,12 @@ def copy_config_file(target="spec_a7"):
         exit(1)
     shutil.copy(CONFIG_SRC, config_dest)
     if target == "tang_mega_138k_pro":
-        config = Path(config_dest).read_text()
+        config = Path(config_dest).read_text(encoding="utf-8")
         config = config.replace("# CONFIG_TARGET_GENERIC_PHY_8BIT is not set", "CONFIG_TARGET_GENERIC_PHY_8BIT=y")
         config = config.replace("CONFIG_TARGET_GENERIC_PHY_16BIT=y", "# CONFIG_TARGET_GENERIC_PHY_16BIT is not set")
         config = config.replace('CONFIG_INIT_COMMAND="vlan off;ptp stop;sfp match;mode slave;ptp start"',
             'CONFIG_INIT_COMMAND="ptp stop"')
-        Path(config_dest).write_text(config)
+        Path(config_dest).write_text(config, encoding="utf-8")
 
 def configure_cpu_profile(cpu_type):
     """Add the small WRPC CPU abstraction needed by LiteX VexRiscv."""
@@ -289,7 +289,8 @@ def main():
     # from the repository root (for example by the resource-matrix helper).
     os.chdir(Path(__file__).resolve().parent)
     parser = argparse.ArgumentParser(description="LiteX-WR-NIC on Acorn Baseboard Mini.")
-    parser.add_argument("--target", default="spec_a7", help="Target Board.", choices=["spec_a7", "acorn", "hyvision", "tang_mega_138k_pro"])
+    parser.add_argument("--target", default="spec_a7", help="Target Board.",
+        choices=["spec_a7", "acorn", "hyvision", "tang_mega_138k_pro"])
     parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_TYPES,
         help="WR CPU firmware profile (default: urv).")
     parser.add_argument("--read-only-storage", action="store_true",

@@ -10,6 +10,7 @@ import os
 
 from migen import *
 from migen.genlib.cdc import MultiReg
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
@@ -399,6 +400,7 @@ class WhiteRabbitCore(LiteXModule):
                 p_g_with_external_clock_input = int(with_ext_clk),
                 p_g_use_external_pll          = int(with_ext_pll),
                 p_g_fpga_family               = {True: "artix7", False: "kintex7"}[self.platform.device.startswith("xc7a")],
+
                 # Clocks/resets.
                 i_areset_n_i          = ~ResetSignal("sys"),
                 i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
@@ -437,10 +439,6 @@ class WhiteRabbitCore(LiteXModule):
             )
             self.specials += Instance("xwrc_board_litex_wr_nic_wrapper", **params)
         else:
-            from migen.genlib.resetsync import AsyncResetSynchronizer
-            from litex.build.vhd2v_converter import VHD2VConverter
-            from litex_wr_nic.gateware.wr_phy import phy8_sources
-
             self.comb += [
                 self.cd_wr_sys.clk.eq(ClockSignal("sys")),
                 self.cd_wr_sys.rst.eq(ResetSignal("sys")),
@@ -453,34 +451,47 @@ class WhiteRabbitCore(LiteXModule):
             for name in ("g_external_cpu_memory", "g_external_cpu", "g_softpll_enable_debugger"):
                 params["p_" + name] = "true" if params["p_" + name] else "false"
             params.update(
-                i_clk_sys_i = ClockSignal("wr_sys"),
-                i_clk_ref_i = ClockSignal("wr"),
+                # Clocks/resets.
+                i_clk_sys_i  = ClockSignal("wr_sys"),
+                i_clk_ref_i  = ClockSignal("wr"),
                 i_clk_dmtd_i = ClockSignal("wr_dmtd"),
-                i_rst_n_i = ~ResetSignal("wr_sys"),
-                i_sfp_det_i = 0 if sfp_det_pads is None else sfp_det_pads,
-                i_phy_tx_disparity_i = phy.tx_disparity,
-                i_phy_tx_enc_err_i = phy.tx_error,
-                i_phy_rx_data_i = phy.rx_data,
-                i_phy_rx_clk_i = phy.rx_clk,
-                i_phy_rx_k_i = phy.rx_k,
-                i_phy_rx_enc_err_i = phy.rx_error,
-                i_phy_rx_bitslide_i = phy.rx_bitslide,
-                i_phy_rdy_i = phy.ready,
-                i_phy_sfp_tx_fault_i = 0 if sfp_fault_pads is None else sfp_fault_pads,
-                i_phy_sfp_los_i = 0 if sfp_los_pads is None else sfp_los_pads,
-                o_phy_rst_o = phy.reset,
-                o_phy_loopen_o = phy.loopback,
-                o_phy_tx_data_o = phy.tx_data,
-                o_phy_tx_k_o = phy.tx_k,
+                i_rst_n_i    = ~ResetSignal("wr_sys"),
+
+                # PHY/SFP interface.
+                i_sfp_det_i            = 0 if sfp_det_pads is None else sfp_det_pads,
+                i_phy_tx_disparity_i   = phy.tx_disparity,
+                i_phy_tx_enc_err_i     = phy.tx_error,
+                i_phy_rx_data_i        = phy.rx_data,
+                i_phy_rx_clk_i         = phy.rx_clk,
+                i_phy_rx_k_i           = phy.rx_k,
+                i_phy_rx_enc_err_i     = phy.rx_error,
+                i_phy_rx_bitslide_i    = phy.rx_bitslide,
+                i_phy_rdy_i            = phy.ready,
+                i_phy_sfp_tx_fault_i   = 0 if sfp_fault_pads is None else sfp_fault_pads,
+                i_phy_sfp_los_i        = 0 if sfp_los_pads is None else sfp_los_pads,
+                o_phy_rst_o            = phy.reset,
+                o_phy_loopen_o         = phy.loopback,
+                o_phy_tx_data_o        = phy.tx_data,
+                o_phy_tx_k_o           = phy.tx_k,
                 o_phy_sfp_tx_disable_o = Open() if sfp_disable_pads is None else sfp_disable_pads,
             )
-            self.core = VHD2VConverter(platform,
-                top_entity="xwrc_litex_phy8", params=params,
-                files=phy8_sources(platform), force_convert=True, flatten_source=False)
-            self.core._ghdl_opts.append("-frelaxed-rules")
+            self._phy_params = params
 
     def do_finalize(self):
-        if not self._with_external_phy:
+        if self._with_external_phy:
+            from litex.build.vhd2v_converter import VHD2VConverter
+            from litex_wr_nic.gateware.wr_phy import phy8_sources
+
+            # Source checkout, patching and conversion belong to build finalization.
+            self.core = VHD2VConverter(self.platform,
+                top_entity     = "xwrc_litex_phy8",
+                params         = self._phy_params,
+                files          = phy8_sources(self.platform),
+                force_convert  = True,
+                flatten_source = False,
+            )
+            self.core._ghdl_opts.append("-frelaxed-rules")
+        else:
             self.add_sources(self.platform)
 
     @staticmethod
