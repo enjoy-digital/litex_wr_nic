@@ -107,6 +107,10 @@ HyVision requires external adapters. See the [USB bench guide](doc/wr_usb_bench.
 For SPEC-A7 with an external 10 MHz/PPS reference, see the
 [Grandmaster guide](doc/spec_a7_grandmaster.md).
 
+PTM builds require LitePCIe with `S7PCIEPHY.create_ptm_sniffer()`
+([LitePCIe #187](https://github.com/enjoy-digital/litepcie/pull/187), merged in
+`56a97c9`). The PHY now owns the receive tap and checks its Vivado connections.
+
 The PCIe/PTM demonstration additionally needs a PTM-capable Linux computer,
 PCIe connections and an Intel I225 board. An independent scope or timing
 instrument is needed to measure PPS alignment and jitter.

@@ -22,7 +22,6 @@ from litex.soc.integration.soc_core import *
 
 from litescope import LiteScopeAnalyzer
 
-from litepcie.frontend.ptm  import PCIePTMSniffer
 from litepcie.frontend.ptm  import PTMCapabilities, PTMRequester
 
 from litex_wr_nic.gateware.nic import sram
@@ -196,49 +195,8 @@ class LiteXWRNICSoC(SoCMini):
     # Add PCIe PTM ---------------------------------------------------------------------------------
 
     def add_pcie_ptm(self):
-        # PCIe PTM Sniffer.
-        # -----------------
-
-        # Since Xilinx PHY does not allow redirecting PTM TLP Messages to the AXI inferface, we have
-        # to sniff the GTPE2 -> PCIE2 RX Data to re-generate PTM TLP Messages.
-
-        # Sniffer Signals.
-        # ----------------
-        sniffer_rst_n   = Signal()
-        sniffer_clk     = Signal()
-        sniffer_rx_data = Signal(16)
-        sniffer_rx_ctl  = Signal(2)
-
-        # Sniffer Tap.
-        # ------------
-        rx_data = Signal(16)
-        rx_ctl  = Signal(2)
-        self.sync.pclk += rx_data.eq(rx_data + 1)
-        self.sync.pclk += rx_ctl.eq(rx_ctl + 1)
-        self.specials += Instance("sniffer_tap",
-            i_rst_n_in    = 1,
-            i_clk_in     = ClockSignal("pclk"),
-            i_rx_data_in = rx_data, # /!\ Fake, will be re-connected post-synthesis /!\.
-            i_rx_ctl_in  = rx_ctl,  # /!\ Fake, will be re-connected post-synthesis /!\.
-            o_rst_n_out   = sniffer_rst_n,
-            o_clk_out     = sniffer_clk,
-            o_rx_data_out = sniffer_rx_data,
-            o_rx_ctl_out  = sniffer_rx_ctl,
-        )
-
-        # Sniffer.
-        # --------
-        self.pcie_ptm_sniffer = PCIePTMSniffer(
-            rx_rst_n = sniffer_rst_n,
-            rx_clk   = sniffer_clk,
-            rx_data  = sniffer_rx_data,
-            rx_ctrl  = sniffer_rx_ctl,
-        )
-        self.pcie_ptm_sniffer.add_sources(self.platform)
-
-
-        # PTM
-        # ---
+        # The PHY owns the receive tap and validates its post-synthesis wiring.
+        self.pcie_ptm_sniffer = self.pcie_phy.create_ptm_sniffer()
 
         # PTM Capabilities.
         self.ptm_capabilities = PTMCapabilities(
@@ -252,24 +210,6 @@ class LiteXWRNICSoC(SoCMini):
             pcie_ptm_sniffer = self.pcie_ptm_sniffer,
             sys_clk_freq     = self.sys_clk_freq,
         )
-
-        # Sniffer Post-Synthesis connections.
-        # -----------------------------------
-        pcie_ptm_sniffer_connections = []
-        for n in range(2):
-            pcie_ptm_sniffer_connections.append((
-                f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_k_wire_filter[{n}]", # Src.
-                f"sniffer_tap/rx_ctl_in[{n}]",                               # Dst.
-            ))
-        for n in range(16):
-            pcie_ptm_sniffer_connections.append((
-                f"pcie_s7/inst/inst/gt_top_i/gt_rx_data_wire_filter[{n}]", # Src.
-                f"sniffer_tap/rx_data_in[{n}]",                            # Dst.
-            ))
-        for _from, _to in pcie_ptm_sniffer_connections:
-            self.platform.toolchain.pre_optimize_commands.append(f"set pin_driver [get_nets -of [get_pins {_to}]]")
-            self.platform.toolchain.pre_optimize_commands.append(f"disconnect_net -net $pin_driver -objects {_to}")
-            self.platform.toolchain.pre_optimize_commands.append(f"connect_net -hier -net {_from} -objects {_to}")
 
     # Add Sources ----------------------------------------------------------------------------------
 
