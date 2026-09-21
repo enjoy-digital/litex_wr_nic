@@ -29,7 +29,7 @@ def firmware(tmp_path, monkeypatch):
     spec = importlib.util.spec_from_file_location('wr_build', ROOT / 'litex_wr_nic/firmware/build.py')
     build = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(build)
-    for name in ('include/board.h', 'dev/sfp.c', 'dev/spi_flash.c', 'dev/storage-cal.c'):
+    for name in ('include/board.h', 'dev/sfp.c', 'dev/spi_flash.c', 'dev/storage-cal.c', 'lib/task-stats.c'):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(subprocess.check_output(['git', '-C', str(SOURCE), 'show', build.COMMIT_HASH + ':' + name]))
@@ -97,6 +97,76 @@ def test_diagnostics_use_cpu_map_not_host_map(firmware):
     expected = int(re.search(r'#define WRC_DEVICES_MAP_WDIAG (0x[0-9a-f]+)', cpu_map).group(1), 16)
     actual = int(re.search(r'#define BASE_WDIAGS_PRIV\s+\(DEV_BASE \+ (0x[0-9a-f]+)\)', board).group(1), 16)
     assert actual == expected == 0x800
+
+
+def test_slave_statistics_require_an_active_wr_extension(firmware):
+    build, path = firmware
+    before = function((path / 'lib/task-stats.c').read_text(), 'wrc_log_stats')
+    build.configure_source_fixes()
+    after = function((path / 'lib/task-stats.c').read_text(), 'wrc_log_stats')
+    prefix = r'''
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include <assert.h>
+#define WRC_MODE_SLAVE 3
+#define NETIF_LINK_UP 1
+#define PP_SERVO_FLAG_VALID 1
+#define PPSI_EXT_WR 1
+#define PP_EXSTATE_ACTIVE 2
+#define CONFIG_HAS_EXT_WR 1
+#define HAS_MONITOR_SERVO_ERR 0
+#define HAS_TEMP_SENSORS 0
+struct pp_time { int64_t value; };
+struct pp_servo { unsigned update_count, flags; const char *servo_state_name;
+    struct pp_time delayMS, offsetFromMaster; } servo;
+typedef struct { int cur_setpoint_ps, n_err_state, n_err_offset, n_err_delta_rtt; } wrh_servo_t;
+typedef struct { struct pp_time rawDelayMM, delta_txm, delta_rxm, delta_txs, delta_rxs; } wr_servo_ext_t;
+struct wr_data { wrh_servo_t servo; wr_servo_ext_t servo_ext; } wr;
+struct port_dummy { int delayAsymmetry; } port;
+struct { int state, protocol_extension, extState; void *ext_data; struct port_dummy *portDS; } ppi_static;
+struct { void *pp_instances; } globals, *ppg = &globals;
+#define SRV(x) (&servo)
+struct wrc_netif_device { void *nic; } netif;
+struct spll_aux_clock_status { int flags, phase; };
+struct { int link_up; } wrc_global_link;
+struct wrc_temp_sensor { int t; };
+int wrc_endpoint_dev, wrc_stat_running, wrc_ui_refperiod, rtt_printed;
+uint32_t wrc_stats_last;
+struct wrc_netif_device *netif_get_device(int n) { return &netif; }
+int wrc_ptp_get_mode(void) { return WRC_MODE_SLAVE; }
+int wrc_task_not_yet(uint32_t *tick, int period) { return 0; }
+void shw_pps_gen_get_time(uint64_t *sec, uint32_t *ns) { *sec=1; *ns=0; }
+void minic_get_stats(void *nic, int *tx, int *rx, int *err) { *tx=*rx=*err=0; }
+int pp_printf(const char *fmt, ...) { rtt_printed += !strcmp(fmt, "mu:%Ld "); return 0; }
+int spll_check_lock(int n) { return 1; }
+const char *get_state_as_string(void *p, int state) { return "slave"; }
+void spll_get_num_channels(void *p, int *n) { *n=1; }
+struct spll_aux_clock_status spll_get_aux_status(int n) { return (struct spll_aux_clock_status){0}; }
+int64_t pp_time_to_picos(const struct pp_time *p) { return p->value; }
+int64_t interval_to_picos(int x) { return x; }
+void pp_time_sub(struct pp_time *a, const struct pp_time *b) { a->value -= b->value; }
+int ep_get_bitslide(void *p) { return 0; }
+int spll_get_dac(int n) { return 32768; }
+struct wrc_temp_sensor *wrc_temp_getnext(void *p) { return NULL; }
+'''
+    checks = r'''
+int main(void) {
+    ppi_static.portDS = &port;
+    for (int active=0; active<2; active++) {
+        ppi_static.protocol_extension = PPSI_EXT_WR;
+        ppi_static.extState = active ? PP_EXSTATE_ACTIVE : 0;
+        ppi_static.ext_data = active ? &wr : NULL;
+        wrc_stat_running = 1; wrc_stats_last = ~0u;
+        assert(wrc_log_stats() == 1);
+        assert(rtt_printed == active);
+    }
+    return 0;
+}
+'''
+    assert run_c(path, prefix + before + checks).returncode != 0
+    result = run_c(path, prefix + after + checks)
+    assert result.returncode == 0, result.stderr
 
 
 def test_read_only_firmware_retains_calibration_without_writes(firmware):

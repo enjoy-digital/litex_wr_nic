@@ -87,7 +87,7 @@ def checkout_commit(target="spec_a7"):
     # only those owned files so repeated uRV/VexRiscv builds cannot leak flags.
     run_command(
         f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c "
-        "include/board.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c "
+        "include/board.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c lib/task-stats.c "
         "softpll/spll_helper.c softpll/softpll_ng.c shell/cmd_pll.c",
         cwd=CLONE_DIR)
 
@@ -166,6 +166,11 @@ def configure_source_fixes(read_only_storage=False):
     patch("include/board.h",
         "#define BASE_WDIAGS_PRIV        (DEV_BASE + 0x900)",
         "#define BASE_WDIAGS_PRIV        (DEV_BASE + 0x800)")
+    # Slave mode does not imply that the WR extension is active. Its servo
+    # pointer is NULL during discovery, fallback to PTP and link loss.
+    patch("lib/task-stats.c",
+        "if (wrc_ptp_get_mode() == WRC_MODE_SLAVE) {\n#if CONFIG_HAS_EXT_WR",
+        "if (wrc_ptp_get_mode() == WRC_MODE_SLAVE && wrh_servo) {\n#if CONFIG_HAS_EXT_WR")
     patch("dev/sfp.c", "int sfp_match(int force)\n{",
         "int sfp_match(int force)\n{\n\tint match;\n")
     patch("dev/sfp.c",
