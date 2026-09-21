@@ -12,6 +12,51 @@ They use SPEC-A7 resource names and firmware; adapt pads and firmware target
 for another board. Your SoC supplies the host bus master (for example a LiteX
 CPU or JTAGBone).
 
+## CPU, memory and boot architecture
+
+![White Rabbit CPU and memory choices, with the SPEC-A7 flash-to-HyperRAM boot sequence](wr_cpu_architecture.svg)
+
+Select one WR CPU and one compatible memory path at gateware build time. The blocks show
+functional interfaces: uRV is embedded in the upstream WR core; VexRiscv is instantiated
+through the LiteX CPU adapter. Both run WRPC firmware, including the SoftPLL control loop,
+using their respective firmware profiles. The WR endpoint, hardware timestamps, DDMTD phase
+measurement and board PHY provide the same interfaces to the selected CPU and application.
+
+| Memory selection | WR CPU | Implementation | Firmware initialization |
+| --- | --- | --- | --- |
+| `private` (default) | uRV | 128 KiB private WR BRAM | `.bram` contents included in the bitstream |
+| `integrated` | uRV or VexRiscv `lite` | 128 KiB LiteX SoC BRAM | Matching CPU `.bin` contents included in the bitstream |
+| `hyperram` | uRV or VexRiscv `lite` | SPEC-A7 HyperRAM behind a 16 KiB write-back cache | Matching CPU `.boot` image copied from SPI flash |
+
+The CPU sees its 128 KiB firmware RAM at address zero. For the SoC-memory paths, instruction
+and low-memory data accesses cross from `wr_sys` to `sys`; the supplied NIC targets map
+`wr_cpu_mem` at `0x40000000`. A custom SoC can reserve another region, as in the integrated-RAM
+example below. CPU accesses to WR peripherals remain on the WR peripheral bus. Host control,
+application Ethernet streams and time/PPS interfaces remain available independently of the
+CPU/memory selection. JTAGBone, UARTBone and PCIe access depend on the target configuration.
+
+On SPEC-A7, `--wr-cpu-memory hyperram` instantiates the FPGA flash loader. It holds the WR CPU
+in reset while memory starts up, reads the selected CPU's boot image at flash offset
+`0x002f0000`, checks the header, and copies the payload through the SoC bus/cache to HyperRAM.
+After a successful CRC32 check, it releases the CPU to execute from RAM and returns flash
+ownership to WRPC for SDB access. A header, CRC or bus error keeps the CPU in reset; loader
+status is available through the `wr_cpu_boot` CSRs. See
+[CPU and memory selection](../README.md#-select-the-wr-cpu) for build commands and flash layout.
+
+The current LiteX CPU adapter supports VexRiscv `lite`; additional LiteX CPUs need an adapter
+and matching firmware support. Integrated RAM is available on SPEC-A7, Acorn and HyVision;
+the supplied HyperRAM/flash-boot implementation is specific to SPEC-A7. Consult the
+[board matrix](boards.md) for hardware qualification status.
+
+The [diagram source](wr_cpu_architecture.svg) is a self-contained SVG with editable text and
+named groups. Edit it directly in Inkscape or another SVG editor; the README and this guide
+use the same file. To export it from the repository root for a presentation:
+
+```sh
+inkscape doc/wr_cpu_architecture.svg --export-type=png --export-width=1600 \
+    --export-filename=/tmp/wr_cpu_architecture.png
+```
+
 ## Board requirements
 
 The board must supply `sys`, `clk_62m5_dmtd`, `clk_125m_gtp` and `clk10m_in`.
