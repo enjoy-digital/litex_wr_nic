@@ -46,6 +46,34 @@ def phy8_sources(platform):
         "wr-cores/modules/wrc_core/wrc_diags_dpram.vhd": (
             'g_addr_conflict_resolution => "dont_care"',
             'g_addr_conflict_resolution => "write_first"'),
+        # Give the falling-edge timestamp registers a local reset register.
+        "wr-cores/modules/wr_endpoint/ep_timestamping_unit.vhd": (
+            "architecture syn of ep_timestamping_unit is",
+            "architecture syn of ep_timestamping_unit is\n"
+            "  signal rst_n_ref_f : std_logic := '0';"),
+        # Factor the inversion bit out of the packet-filter ALU. This avoids
+        # a deep eight-way operation mux after GHDL conversion on GW5.
+        "wr-cores/modules/wr_endpoint/ep_packet_filter.vhd": (
+            """    case op_t is
+      when "000"  => r := a and b;
+      when "100"  => r := a nand b;
+      when "001"  => r := a or b;
+      when "101"  => r := a nor b;
+      when "010"  => r := a xor b;
+      when "110"  => r := a xnor b;
+      when "011"  => r := a;
+      when "111"  => r := not a;
+      when others => null;
+    end case;
+    return r;""",
+            """    case op_t(1 downto 0) is
+      when "00" => r := a and b;
+      when "01" => r := a or b;
+      when "10" => r := a xor b;
+      when "11" => r := a;
+      when others => r := 'X';
+    end case;
+    return r xor op_t(2);"""),
     }
     sources = []
     for filename in wr_core_files:
@@ -64,6 +92,22 @@ def phy8_sources(platform):
                 copy.parent.mkdir(parents=True, exist_ok=True)
                 copy.write_bytes(Path(filename).read_bytes())
                 _replace_once(copy, *overrides[filename])
+                if filename.endswith("ep_timestamping_unit.vhd"):
+                    _replace_once(copy,
+                        "  take_f : process(clk_ref_i)\n"
+                        "  begin\n"
+                        "    if falling_edge(clk_ref_i) then\n"
+                        "      if rst_n_ref_i = '0' then",
+                        "  p_reset_f : process(clk_ref_i)\n"
+                        "  begin\n"
+                        "    if falling_edge(clk_ref_i) then\n"
+                        "      rst_n_ref_f <= rst_n_ref_i;\n"
+                        "    end if;\n"
+                        "  end process;\n\n"
+                        "  take_f : process(clk_ref_i)\n"
+                        "  begin\n"
+                        "    if falling_edge(clk_ref_i) then\n"
+                        "      if rst_n_ref_f = '0' then")
                 filename = str(copy)
             sources.append(os.path.abspath(filename))
     for filename in (

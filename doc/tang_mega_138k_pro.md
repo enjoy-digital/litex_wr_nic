@@ -7,8 +7,10 @@ It requires USB for programming/debug and fiber for the optical test.
 
 This is a console/link bring-up target. **WR master/slave synchronization is
 not implemented yet:** the main and helper clock commands are only latched
-in diagnostic CSRs, and receive latency is uncalibrated. Firmware starts with
-`ptp stop`. There is no PCIe NIC, external-reference input or persistent storage.
+in diagnostic CSRs, and receive latency is uncalibrated. The initialization
+script requests `ptp stop`, but WRPC can restart PTP after initialization or
+link-up. Stop it explicitly before diagnostics. There is no PCIe NIC,
+external-reference input or persistent storage.
 
 ## Build
 
@@ -25,9 +27,9 @@ Acorn/SPEC dependency manifest predates the required Gowin support.
 | Repository | Revision |
 | --- | --- |
 | `m-labs/migen` | `4c2ae8dfeea37f235b52acb8166f12acaaae4f7c` |
-| `enjoy-digital/litex` | `9478c44e7b9bd5db1bf7d47119b86a4492d003ee` |
-| `litex-hub/litex-boards` | `15cdfe4cde89b383e0ec752092dab66d24695b98` |
-| `enjoy-digital/liteeth` | `d9106980ea5c2c112fd0264d2471fa25302062e8` ([PR #224](https://github.com/enjoy-digital/liteeth/pull/224)) |
+| `enjoy-digital/litex` | `dce79bf9abf6eb77e4f6e9358e11751f83051cab` |
+| `litex-hub/litex-boards` | `58634aac7029fd80dc7a8bbff1e5fbe22e141fb2` |
+| `enjoy-digital/liteeth` | `0e2fbcf838d177ff1dad0595dba9f0f4aec931f1` ([PR #227](https://github.com/enjoy-digital/liteeth/pull/227)) |
 | `enjoy-digital/litescope` | `6bf3b92f261c50b8c7c74947f84e692ae846f512` |
 
 From the repository root:
@@ -90,7 +92,9 @@ Retain generated reports and captures under `build/`, outside commits.
 RX valid and PHY ready. Check these through a LiteX `RemoteClient` using the
 matching CSR CSV. `{ref,dmtd,rx}_clk_freq_value` report frequency in Hz,
 updated approximately once a second against the system oscillator. Expect
-approximately 125 MHz; these counters are not an independent frequency reference.
+approximately 125 MHz for `ref`/`rx` and 62.5 MHz for `dmtd`: the 8-bit WR
+core divides its inputs by two for phase measurement. These counters are not
+an independent frequency reference.
 `main_main_dac` and `main_helper_dac` show firmware requests, not applied tuning.
 LEDs 0, 1 and 2 expose the WR link, activity and PPS LED signals.
 

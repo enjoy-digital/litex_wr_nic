@@ -114,6 +114,8 @@ def copy_config_file(target="spec_a7"):
         config = Path(config_dest).read_text(encoding="utf-8")
         config = config.replace("# CONFIG_TARGET_GENERIC_PHY_8BIT is not set", "CONFIG_TARGET_GENERIC_PHY_8BIT=y")
         config = config.replace("CONFIG_TARGET_GENERIC_PHY_16BIT=y", "# CONFIG_TARGET_GENERIC_PHY_16BIT is not set")
+        # SFP management is not connected in the initial Tang target.
+        config = config.replace("CONFIG_SFP_DOM=y", "# CONFIG_SFP_DOM is not set")
         config = config.replace('CONFIG_INIT_COMMAND="vlan off;ptp stop;sfp match;mode slave;ptp start"',
             'CONFIG_INIT_COMMAND="ptp stop"')
         Path(config_dest).write_text(config, encoding="utf-8")

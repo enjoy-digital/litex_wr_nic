@@ -21,24 +21,26 @@ class WishboneClockCrossing(LiteXModule):
         # S2M CDC (cd_from -> cd_to).
         # ---------------------------
         self.cdc_s2m = cdc_s2m = stream.ClockDomainCrossing(
-            layout  = [
+            layout   = [
                 ("we",     1),
                 ("adr",   32),
                 ("sel",    4),
                 ("dat_w", 32),
             ],
-            cd_from = cd_from,
-            cd_to   = cd_to,
+            cd_from  = cd_from,
+            cd_to    = cd_to,
+            buffered = cd_from == cd_to,
         )
         # M2S CDC (cd_to -> cd_from).
         # ---------------------------
         self.cdc_m2s = cdc_m2s = stream.ClockDomainCrossing(
-            layout  = [
+            layout   = [
                 ("err",     1),
                 ("dat_r",  32),
             ],
-            cd_from = cd_to,
-            cd_to   = cd_from,
+            cd_from  = cd_to,
+            cd_to    = cd_from,
+            buffered = cd_from == cd_to,
         )
 
         # Cross FSM.

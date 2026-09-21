@@ -52,7 +52,7 @@ class WhiteRabbitCore(LiteXModule):
     HDL sources are registered automatically during finalization.
 
     ``phy`` selects the portable 8-bit/125 MHz interface, using a caller-owned
-    62.5 MHz ``sys`` clock and a 125 MHz helper clock in ``wr_dmtd``. Its
+    62.5 MHz ``sys`` clock and a near-62.5 MHz helper clock in ``wr_dmtd``. Its
     firmware must use CONFIG_TARGET_GENERIC_PHY_8BIT. See wr_phy.GW5WRPHY.
     The caller registers the PHY as a submodule.
     """
@@ -188,7 +188,7 @@ class WhiteRabbitCore(LiteXModule):
                 wr_cpu_bus_wr = wr_cpu_bridge.bus
             self.submodules.wr_cpu_memory_cdc = WishboneClockCrossing(self.platform,
                 wb_from        = wr_cpu_bus_wr,
-                cd_from        = "wr_sys",
+                cd_from        = "sys" if self._with_external_phy else "wr_sys",
                 wb_to          = wr_cpu_bus_sys,
                 cd_to          = "sys",
                 timeout_cycles = 1024,
@@ -216,7 +216,7 @@ class WhiteRabbitCore(LiteXModule):
             wb_from = wb_slave_sys,
             cd_from = "sys",
             wb_to   = wb_slave_wr,
-            cd_to   = "wr_sys",
+            cd_to   = "sys" if self._with_external_phy else "wr_sys",
         )
 
         # Temp 1-Wire Logic.

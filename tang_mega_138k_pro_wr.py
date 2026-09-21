@@ -42,7 +42,8 @@ class CRG(LiteXModule):
         self.pll = pll = GW5APLL(device=platform.device, devicename=platform.devicename)
         pll.register_clkin(platform.request("clk50"), 50e6)
         pll.create_clkout(self.cd_sys,     62.5e6, margin=0)
-        pll.create_clkout(self.cd_wr_dmtd, 125e6,  margin=0)
+        # The 8-bit WR core divides the 125 MHz inputs by two for DDMTD.
+        pll.create_clkout(self.cd_wr_dmtd, 62.5e6, margin=0)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -66,9 +67,13 @@ class BaseSoC(SoCMini):
         self.uart_xover_phy = UARTPHY(console_pads, 62.5e6, baudrate=115200)
         self.uart_xover = UART(self.uart_xover_phy,
             tx_fifo_depth = 128,
-            rx_fifo_depth = 128,
+            rx_fifo_depth = 4096,
             rx_fifo_rx_we = True,
         )
+        # Buffer complete console replies and allow burst reads over UARTBone.
+        self.console_rx_level = CSRStatus(len(self.uart_xover.rx_fifo.level),
+            description="Number of WR console bytes available for host reads.")
+        self.comb += self.console_rx_level.status.eq(self.uart_xover.rx_fifo.level)
         wr_serial = Record([("tx", 1), ("rx", 1)])
         self.comb += [
             wr_serial.rx.eq(console_pads.tx),
@@ -150,7 +155,7 @@ class BaseSoC(SoCMini):
         platform.add_generated_clock_constraint(sys_clk, platform.lookup_request("clk50"),
             divide_by=4, multiply_by=5, name="sys")
         platform.add_generated_clock_constraint(dmtd_clk, platform.lookup_request("clk50"),
-            divide_by=2, multiply_by=5, name="dmtd")
+            divide_by=4, multiply_by=5, name="dmtd")
         platform.add_period_constraint(self.phy.tx_clk, 8)
         platform.add_period_constraint(self.phy.rx_clk, 8)
         platform.add_false_path_constraints(
