@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (c) 2026 Enjoy-Digital <enjoy-digital.fr> -->
+<!-- SPDX-License-Identifier: BSD-2-Clause -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1160" viewBox="0 0 1600 1160" role="img" aria-labelledby="title description">
+  <title id="title">White Rabbit CPU, memory and flash boot in a LiteX SoC</title>
+  <desc id="description">Choose an embedded uRV or LiteX VexRiscv-lite WR CPU. uRV can use 128 KiB of private BRAM. Either CPU can use 128 KiB of LiteX-integrated RAM, or a SPEC-A7 HyperRAM window through a 16 KiB write-back cache. SoC memory accesses cross from the WR clock domain to the LiteX Wishbone bus. The WR endpoint, timestamps, DDMTD phase measurement, peripherals and PHY remain in hardware. WRPC firmware runs the SoftPLL control loop. For HyperRAM boot, an FPGA loader checks and copies the selected CPU firmware image from SPI flash, validates its CRC32, then releases the CPU and returns flash ownership to WRPC. CPU and memory options are selected at build time.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="125%" height="130%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="2" dy="3"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.24"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0,0 L 10,5 L 0,10 Z" fill="#5b5b5b"/>
+    </marker>
+    <marker id="boot-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0,0 L 10,5 L 0,10 Z" fill="#2489b0"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #171717; text-anchor: middle; }
+      .heading { font-size: 34px; font-weight: bold; }
+      .subtitle { font-size: 23px; fill: #555; }
+      .label { font-size: 25px; font-weight: bold; }
+      .body { font-size: 22px; }
+      .small { font-size: 20px; }
+      .muted { fill: #555; }
+      .block { stroke: #5b5b5b; stroke-width: 1.5; stroke-linejoin: round; filter: url(#shadow); }
+      .wire { fill: none; stroke: #5b5b5b; stroke-width: 2.1; stroke-linejoin: round; marker-start: url(#arrow); marker-end: url(#arrow); }
+      .boot { fill: none; stroke: #2489b0; stroke-width: 2.3; stroke-dasharray: 8 5; stroke-linejoin: round; marker-end: url(#boot-arrow); }
+      .boot-text { fill: #2489b0; }
+    </style>
+  </defs>
+  <rect width="1600" height="1160" fill="white"/>
+
+  <text x="800" y="53" class="heading">White Rabbit in a LiteX SoC</text>
+  <text x="800" y="90" class="subtitle">Choose the WR CPU, memory and firmware boot path</text>
+  <g id="fpga">
+    <polygon points="240,125 1330,125 1360,155 1360,905 270,905 240,875" fill="#eeeeee" class="block"/>
+  </g>
+  <text x="1295" y="878" class="label" style="font-style: italic">FPGA</text>
+  <g id="runtime-connections">
+  <path d="M 620,250 H 680" class="wire"/>
+  <text x="650" y="234" class="small">I/D</text>
+  <path d="M 817,295 V 365" class="wire"/>
+  <path d="M 460,335 V 425" class="wire"/>
+  <text x="533" y="389" class="small muted">uRV only</text>
+  <path d="M 570,335 V 365 H 650 V 640 H 460 V 675" class="wire"/>
+  <text x="455" y="627" class="small">Peripherals / IRQ</text>
+  <path d="M 817,435 V 480" class="wire"/>
+  <path d="M 1155,435 V 480" class="wire"/>
+  <path d="M 1290,535 H 1410" class="wire"/>
+  <path d="M 190,755 H 300" class="wire"/>
+  <text x="239" y="736" class="small">WR link</text>
+  <path d="M 620,755 H 680" class="wire"/>
+  <text x="650" y="731" class="small">WRF</text>
+  <path d="M 620,795 H 680" class="wire" style="marker-start: none"/>
+  <text x="650" y="827" class="small">Time</text>
+  </g>
+  <g id="wr-cpu">
+    <polygon points="300,170 603,170 620,187 620,335 317,335 300,318" fill="#f8f8f8" class="block"/>
+  <text x="460" y="205" class="label">WR CPU — choose one</text>
+  <text x="460" y="239" class="body">uRV (embedded in WR)</text>
+  <text x="460" y="264" class="small muted">or</text>
+  <text x="460" y="293" class="label">LiteX VexRiscv-lite</text>
+  <text x="460" y="321" class="small muted">WRPC firmware</text>
+  </g>
+  <g id="memory-bridge">
+    <polygon points="680,185 938,185 955,202 955,295 697,295 680,278" fill="#bdbdbd" class="block"/>
+  <text x="817" y="217" class="label">CPU memory bridge</text>
+  <text x="817" y="250" class="small">Clock-domain crossing</text>
+  <text x="817" y="278" class="small">Address remapping</text>
+  </g>
+  <text x="1127" y="211" class="body">128 KiB firmware RAM</text>
+  <text x="1127" y="248" class="small muted">CPU view: 0x00000000</text>
+  <text x="1127" y="279" class="small muted">SoC RAM: 0x40000000*</text>
+  <g id="soc-bus">
+    <polygon points="680,365 1276,365 1290,379 1290,435 694,435 680,421" fill="#bdbdbd" class="block"/>
+  <text x="985" y="409" class="label">LiteX Wishbone interconnect</text>
+  </g>
+  <g id="private-ram">
+    <polygon points="300,425 603,425 620,442 620,525 317,525 300,508" fill="#f8f8f8" class="block"/>
+  <text x="460" y="459" class="label">Private WR BRAM</text>
+  <text x="460" y="493" class="small">128 KiB • .bram initialization</text>
+  </g>
+  <text x="460" y="556" class="small muted">private  (default)</text>
+  <g id="integrated-ram">
+    <polygon points="680,480 938,480 955,497 955,590 697,590 680,573" fill="#f8f8f8" class="block"/>
+  <text x="817" y="515" class="label">LiteX integrated RAM</text>
+  <text x="817" y="550" class="body">128 KiB BRAM</text>
+  <text x="817" y="578" class="small">.bin initialization</text>
+  </g>
+  <g id="hyperram-controller">
+    <polygon points="1020,480 1273,480 1290,497 1290,590 1037,590 1020,573" fill="#bdbdbd" class="block"/>
+  <text x="1155" y="513" class="body">16 KiB write-back cache</text>
+  <text x="1155" y="545" class="small">+</text>
+  <text x="1155" y="578" class="label">HyperRAM controller</text>
+  </g>
+  <text x="817" y="619" class="small muted">integrated</text>
+  <text x="1155" y="619" class="small muted">hyperram  (SPEC-A7)</text>
+  <text x="1100" y="335" class="small muted">SoC memory — choose one</text>
+  <g id="external-hyperram">
+    <polygon points="1410,480 1558,480 1575,497 1575,590 1427,590 1410,573" fill="#bdbdbd" class="block"/>
+  <text x="1492" y="521" class="label">HyperRAM</text>
+  <text x="1492" y="552" class="small">128 KiB</text>
+  <text x="1492" y="577" class="small">WR window</text>
+  </g>
+  <g id="wr-hardware">
+    <polygon points="300,675 603,675 620,692 620,840 317,840 300,823" fill="#f8f8f8" class="block"/>
+  <text x="460" y="713" class="label">White Rabbit hardware</text>
+  <text x="460" y="752" class="body">Endpoint • timestamps</text>
+  <text x="460" y="785" class="small">DDMTD • PPS • peripherals</text>
+  <text x="460" y="818" class="body">PCS / transceiver PHY</text>
+  </g>
+  <g id="application">
+    <polygon points="680,675 938,675 955,692 955,840 697,840 680,823" fill="#f8f8f8" class="block"/>
+  <text x="817" y="713" class="label">Application design</text>
+  <text x="817" y="752" class="body">Ethernet streams</text>
+  <text x="817" y="785" class="body">Time / PPS outputs</text>
+  <text x="817" y="818" class="small">Optional NIC / PCIe PTM</text>
+  </g>
+  <g id="sfp">
+    <polygon points="35,705 173,705 190,722 190,805 52,805 35,788" fill="#bdbdbd" class="block"/>
+  <text x="112" y="745" class="label">SFP / fiber</text>
+  <text x="112" y="779" class="body">WR peer</text>
+  </g>
+  <g id="flash-boot-connections">
+  <path d="M 1410,750 H 1290" class="boot"/>
+  <text x="1350" y="729" class="small boot-text">.boot</text>
+  <path d="M 1020,700 H 990 V 435" class="boot"/>
+  <text x="1011" y="647" class="small boot-text" transform="rotate(-90 1011 647)">copy</text>
+  </g>
+  <g id="flash-loader">
+    <polygon points="1020,675 1273,675 1290,692 1290,840 1037,840 1020,823" fill="#bdbdbd" class="block"/>
+  <text x="1155" y="713" class="label">FPGA flash loader</text>
+  <text x="1155" y="752" class="small">Copy + validate (CRC32)</text>
+  <text x="1155" y="785" class="body">CPU held in reset</text>
+  <text x="1155" y="818" class="small">until image is ready</text>
+  </g>
+  <g id="spi-flash">
+    <polygon points="1410,690 1558,690 1575,707 1575,815 1427,815 1410,798" fill="#bdbdbd" class="block"/>
+  <text x="1492" y="728" class="label">SPI flash</text>
+  <text x="1492" y="763" class="small">CPU firmware</text>
+  <text x="1492" y="793" class="small">+ WR SDB</text>
+  </g>
+  <text x="630" y="878" class="small muted">* Target default; a custom SoC can remap the RAM region.</text>
+  <text x="65" y="957" class="label" text-anchor="start" style="text-anchor:start">SPEC-A7 HyperRAM boot</text>
+  <g id="boot-step-1">
+    <polygon points="65,990 383,990 395,1002 395,1078 77,1078 65,1066" fill="#f3f3f3" class="block"/>
+  <text x="230" y="1026" class="body">1  Hold WR CPU in reset</text>
+  <text x="230" y="1058" class="small muted">Wait for memory startup</text>
+  </g>
+  <path d="M 395,1034 H 445" class="boot"/>
+  <g id="boot-step-2">
+    <polygon points="445,990 763,990 775,1002 775,1078 457,1078 445,1066" fill="#f3f3f3" class="block"/>
+  <text x="610" y="1026" class="body">2  Load firmware from flash</text>
+  <text x="610" y="1058" class="small muted">Check header; copy to RAM</text>
+  </g>
+  <path d="M 775,1034 H 825" class="boot"/>
+  <g id="boot-step-3">
+    <polygon points="825,990 1143,990 1155,1002 1155,1078 837,1078 825,1066" fill="#f3f3f3" class="block"/>
+  <text x="990" y="1026" class="body">3  Check payload CRC32</text>
+  <text x="990" y="1058" class="small muted">Errors keep CPU in reset</text>
+  </g>
+  <path d="M 1155,1034 H 1205" class="boot"/>
+  <g id="boot-step-4">
+    <polygon points="1205,990 1523,990 1535,1002 1535,1078 1217,1078 1205,1066" fill="#f3f3f3" class="block"/>
+  <text x="1370" y="1026" class="body">4  Run WRPC from RAM</text>
+  <text x="1370" y="1058" class="small muted">Return flash pins to WRPC</text>
+  </g>
+  <text x="800" y="1125" class="small muted">Build-time choices • Matching WRPC firmware per CPU • Blue dashed arrows: flash boot only</text>
+</svg>

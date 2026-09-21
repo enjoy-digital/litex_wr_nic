@@ -28,6 +28,10 @@ features with support for PCIe Precision Time Measurement (PTM). The design enab
 - **Flexible WR Modes:** The board can operate as a White Rabbit Slave, Master, or GrandMaster,
     allowing for versatile timing applications.
 
+- **Configurable WR CPU and Memory:** Use embedded uRV or LiteX VexRiscv-lite, with private
+    or LiteX-integrated RAM, or flash-loaded HyperRAM on SPEC-A7. See the
+    [CPU, memory and boot architecture](doc/wr_integration.md#cpu-memory-and-boot-architecture).
+
 - **PCIe PTM Integration:** Propagates WR clock to the host system and connected boards via PCIe
     PTM. This ensures precise time distribution across systems.
 
@@ -360,6 +364,12 @@ J20 requires a 3.3 V-compatible peer. Qualify the physical connection: AMD does 
 
 [> Select the WR CPU
 --------------------
+
+![White Rabbit CPU and memory choices, with the SPEC-A7 flash-to-HyperRAM boot sequence](doc/wr_cpu_architecture.svg)
+
+The diagram shows build-time choices. See the
+[integration guide](doc/wr_integration.md#cpu-memory-and-boot-architecture) for compatible
+CPU/memory combinations and the flash boot sequence.
 
 The embedded WR-core uRV remains the default. A LiteX-managed VexRiscv `lite` core can instead run
 the same WRPC firmware from the SoC memory path:
