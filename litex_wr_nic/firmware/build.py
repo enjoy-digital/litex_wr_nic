@@ -87,8 +87,9 @@ def checkout_commit(target="spec_a7"):
     # only those owned files so repeated uRV/VexRiscv builds cannot leak flags.
     run_command(
         f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c "
-        "include/board.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c lib/task-stats.c "
-        "softpll/spll_helper.c softpll/softpll_ng.c shell/cmd_pll.c shell/cmd_sfp.c",
+        "include/board.h include/irq.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c "
+        "lib/task-stats.c softpll/spll_helper.c softpll/softpll_ng.c shell/cmd_pll.c "
+        "shell/cmd_sfp.c",
         cwd=CLONE_DIR)
 
     # Acorn's MMCM actuator needs more tracking bandwidth than the old
@@ -174,8 +175,83 @@ def configure_cpu_profile(cpu_type, peripheral_origin=None):
         "#ifdef WR_CPU_VEXRISCV\n"
         "    /* LiteX VexRiscv masks its external interrupt array in CSR BC0. */\n"
         "    asm volatile (\"csrw 0xbc0, %0\" : : \"r\"(1));\n"
+        "#endif\n"
+        "#ifdef WR_CPU_AE350\n"
+        "    /* The claimed source of the last interrupt, for diagnostics. */\n"
+        "    ae350_plic_source = 0;\n"
         "#endif\n\n",
     )
+    if cpu_type == "external":
+        from litex_wr_nic.gateware.wr_common import _replace_once
+
+        # WRPC's RISC-V interrupt path expects the core to present its
+        # external interrupt directly. The AE350 routes the fabric's user
+        # interrupts through its own PLIC, which is internal to the hard CPU:
+        # a source must be enabled there, and every interrupt claimed and
+        # completed or the external interrupt stays asserted.
+        tools.replace_in_file(
+            irq_helper,
+            "#include \"irq.h\"",
+            "#include <stdint.h>\n#include \"irq.h\"\n\n"
+            "#ifdef WR_CPU_AE350\n"
+            "volatile uint32_t ae350_plic_source;\n"
+            "#endif",
+        )
+        _replace_once(os.path.join(CLONE_DIR, "include/irq.h"),
+            """#elif defined(CONFIG_ARCH_RISCV)
+
+static inline void clear_irq(void) {
+    unsigned long t;
+    /* AW: needed? */
+    asm volatile ("csrrc %0, mip, %1" : "=r"(t) : "r"(1 << 11));
+}
+
+static inline void init_irq(void) {}
+""",
+            """#elif defined(CONFIG_ARCH_RISCV) && defined(WR_CPU_AE350)
+
+/* AndeStar NCEPLIC100 in the AE350 platform, seen only by this CPU. */
+#include <stdint.h>
+
+#define AE350_PLIC_BASE      0xe4000000
+#define AE350_PLIC_SOURCES   32
+#define AE350_PLIC_PRIORITY  ((volatile uint32_t *)(AE350_PLIC_BASE))
+#define AE350_PLIC_ENABLE    ((volatile uint32_t *)(AE350_PLIC_BASE + 0x2000))
+#define AE350_PLIC_THRESHOLD (*(volatile uint32_t *)(AE350_PLIC_BASE + 0x200000))
+#define AE350_PLIC_CLAIM     (*(volatile uint32_t *)(AE350_PLIC_BASE + 0x200004))
+
+extern volatile uint32_t ae350_plic_source;
+
+static inline void clear_irq(void) {
+    /* Claim after draining the core's FIFO: the source is still pending,
+       and completing it lets the PLIC assert the next interrupt. */
+    uint32_t source = AE350_PLIC_CLAIM;
+    if (source) {
+        ae350_plic_source = source;
+        AE350_PLIC_CLAIM  = source;
+    }
+}
+
+static inline void init_irq(void) {
+    int source;
+    /* The fabric's user interrupts (GP_INT) occupy a platform-specific
+       source range; enable them all and record which one arrives. */
+    for (source = 1; source < AE350_PLIC_SOURCES; source++)
+        AE350_PLIC_PRIORITY[source] = 1;
+    AE350_PLIC_ENABLE[0] = 0xfffffffe;
+    AE350_PLIC_THRESHOLD = 0;
+}
+
+#elif defined(CONFIG_ARCH_RISCV)
+
+static inline void clear_irq(void) {
+    unsigned long t;
+    /* AW: needed? */
+    asm volatile ("csrrc %0, mip, %1" : "=r"(t) : "r"(1 << 11));
+}
+
+static inline void init_irq(void) {}
+""")
 
 def configure_source_fixes(read_only_storage=False):
     """Apply compatibility fixes to the pinned WRPC sources."""
