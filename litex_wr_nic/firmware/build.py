@@ -123,11 +123,22 @@ def copy_config_file(target="spec_a7"):
             'CONFIG_INIT_COMMAND="ptp stop;sfp match"')
         Path(config_dest).write_text(config, encoding="utf-8")
 
-def configure_cpu_profile(cpu_type):
-    """Add the small WRPC CPU abstraction needed by LiteX VexRiscv."""
+def configure_cpu_profile(cpu_type, peripheral_origin=None):
+    """Add the small WRPC CPU abstraction needed by CPUs other than uRV.
+
+    ``peripheral_origin`` relocates WRPC's peripheral window for a CPU that
+    reaches it through a SoC address decoder. WR decodes address bits 15:2,
+    so only the base changes.
+    """
     makefile   = os.path.join(CLONE_DIR, "Makefile")
     crt0       = os.path.join(CLONE_DIR, "arch/risc-v/crt0.S")
     irq_helper = os.path.join(CLONE_DIR, "arch/risc-v/irq_helper.c")
+    if peripheral_origin is not None:
+        tools.replace_in_file(
+            os.path.join(CLONE_DIR, "include/board.h"),
+            "#ifdef CONFIG_ARCH_RISCV\n    #define DEV_BASE\t0x100000",
+            f"#ifdef CONFIG_ARCH_RISCV\n    #define DEV_BASE\t{peripheral_origin:#010x}",
+        )
     tools.replace_in_file(
         makefile,
         "asflags-y = $(archflags-y)\n",
@@ -142,10 +153,17 @@ def configure_cpu_profile(cpu_type):
         crt0,
         "_entry:\n\n    la     gp, _gp",
         "_entry:\n\n"
-        "#ifdef WR_CPU_VEXRISCV\n"
-        "    /* The LiteX VexRiscv mtvec register has no reset value. */\n"
+        "#if defined(WR_CPU_VEXRISCV) || defined(WR_CPU_AE350)\n"
+        "    /* These CPUs do not reset mtvec to the WRPC handler. */\n"
         "    la     t0, _exception_entry\n"
         "    csrw   mtvec, t0\n"
+        "#endif\n"
+        "#ifdef WR_CPU_AE350\n"
+        "    /* AndeStar V5 mcache_ctl: enable the instruction and data\n"
+        "       caches, which reset disabled. Fetching WRPC from fabric\n"
+        "       memory over the CPU's AHB port is otherwise the bottleneck. */\n"
+        "    li     t0, 0x3\n"
+        "    csrs   0x7ca, t0\n"
         "#endif\n\n"
         "    la     gp, _gp",
     )
@@ -252,14 +270,18 @@ def configure_pll_trace(decimation=0):
         '\t\treturn spll_debug_step(vals[1]);\n\tcase CMD_GAIN:')
 
 
-def build_firmware(cpu_type, read_only_storage=False, pll_trace_decimation=0):
+def build_firmware(cpu_type, read_only_storage=False, pll_trace_decimation=0,
+    peripheral_origin=None):
     """Build the firmware."""
-    configure_cpu_profile(cpu_type)
+    configure_cpu_profile(cpu_type, peripheral_origin)
     configure_source_fixes(read_only_storage)
     configure_pll_trace(pll_trace_decimation)
     run_command("make clean", cwd=CLONE_DIR)
     run_command("make spec_a7_defconfig", cwd=CLONE_DIR)
-    cpu_flags = "-DWR_CPU_VEXRISCV" if cpu_type == "vexriscv" else ""
+    cpu_flags = {
+        "vexriscv" : "-DWR_CPU_VEXRISCV",
+        "external" : "-DWR_CPU_AE350",
+    }.get(cpu_type, "")
     run_command(
         f"make WR_CPU_CFLAGS={cpu_flags} WR_CPU_ASFLAGS={cpu_flags}",
         cwd=CLONE_DIR)
@@ -311,6 +333,8 @@ def main():
         help="WR CPU firmware profile (default: urv).")
     parser.add_argument("--read-only-storage", action="store_true",
         help="Retain calibration in RAM and disable firmware SPI flash writes/erases.")
+    parser.add_argument("--peripheral-origin", type=lambda v: int(v, 0), default=None,
+        help="Base address of WRPC's peripheral window for a SoC-provided CPU.")
     parser.add_argument("--pll-trace-decimation", type=int, default=0,
         help="Emit every Nth main/helper PLL sample (power of two, 1..1024; 0 keeps upstream tracing).")
     args = parser.parse_args()
@@ -320,7 +344,8 @@ def main():
     clone_repository()
     checkout_commit(args.target)
     copy_config_file(args.target)
-    build_firmware(args.wr_cpu_type, args.read_only_storage, args.pll_trace_decimation)
+    build_firmware(args.wr_cpu_type, args.read_only_storage, args.pll_trace_decimation,
+        args.peripheral_origin)
     copy_firmware(args.wr_cpu_type, args.target)
     build_sdbfs()
     print("Build process completed successfully.")

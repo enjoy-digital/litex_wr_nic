@@ -27,7 +27,9 @@ WR_CPU_MEMORY_ORIGIN     = 0x4000_0000
 WR_CPU_MEMORY_SIZE       = WR_BOOT_MAX_PAYLOAD
 WR_CPU_PERIPHERAL_ORIGIN = 0x0010_0000
 
-WR_CPU_TYPES = ("urv", "vexriscv")
+# "external": the CPU belongs to the enclosing SoC (for example a hard core);
+# the core exposes its WRPC peripheral window, interrupt and reset request.
+WR_CPU_TYPES = ("urv", "vexriscv", "external")
 WR_CPU_ADAPTERS = {
     "vexriscv": {
         "variants"        : ("lite",),
@@ -41,9 +43,9 @@ def resolve_wr_cpu_variant(cpu_type, variant=None):
     """Validate a WR CPU selection and return its canonical variant."""
     if cpu_type not in WR_CPU_TYPES:
         raise ValueError(f"Unsupported WR CPU type: {cpu_type}")
-    if cpu_type == "urv":
+    if cpu_type in ("urv", "external"):
         if variant is not None:
-            raise ValueError("The embedded uRV CPU does not accept --wr-cpu-variant.")
+            raise ValueError(f"The {cpu_type} WR CPU does not accept a variant.")
         return None
     adapter = WR_CPU_ADAPTERS[cpu_type]
     if variant is None:
@@ -65,7 +67,9 @@ def validate_wr_cpu_config(cpu_type, variant=None, memory="private"):
 def wr_cpu_firmware_filename(cpu_type, extension, target="spec_a7"):
     """Return the distinct firmware artifact used by a WR CPU profile."""
     resolve_wr_cpu_variant(cpu_type)
-    suffix = "" if cpu_type == "urv" else f"_{cpu_type}"
+    # The SoC-CPU profile differs by peripheral window and CPU quirks; the
+    # only SoC CPU supported today is the Gowin AE350 hard core.
+    suffix = {"urv": "", "external": "_ae350"}.get(cpu_type, f"_{cpu_type}")
     return f"{target}_wrc{suffix}.{extension}"
 
 # WR CPU Interconnect ------------------------------------------------------------------------------
