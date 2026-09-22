@@ -36,7 +36,8 @@ def test_reused_firmware_checkout_restores_pinned_submodule_and_gains(tmp_path, 
     git(checkout, "init", "-q")
     for name in ("Makefile", "arch/risc-v/crt0.S", "arch/risc-v/irq_helper.c",
                  "include/board.h", "dev/sfp.c", "dev/spi_flash.c", "dev/storage-cal.c",
-                 "softpll/spll_helper.c", "softpll/softpll_ng.c", "shell/cmd_pll.c"):
+                 "lib/task-stats.c", "softpll/spll_helper.c", "softpll/softpll_ng.c",
+                 "shell/cmd_pll.c"):
         path = checkout / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("fixture\n")
