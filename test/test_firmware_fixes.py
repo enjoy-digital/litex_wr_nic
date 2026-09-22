@@ -29,7 +29,8 @@ def firmware(tmp_path, monkeypatch):
     spec = importlib.util.spec_from_file_location('wr_build', ROOT / 'litex_wr_nic/firmware/build.py')
     build = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(build)
-    for name in ('include/board.h', 'dev/sfp.c', 'dev/spi_flash.c', 'dev/storage-cal.c', 'lib/task-stats.c'):
+    for name in ('include/board.h', 'dev/sfp.c', 'dev/spi_flash.c', 'dev/storage-cal.c',
+                 'lib/task-stats.c', 'shell/cmd_sfp.c'):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(subprocess.check_output(['git', '-C', str(SOURCE), 'show', build.COMMIT_HASH + ':' + name]))
@@ -87,6 +88,18 @@ int main(void) {
     assert run_c(path, prefix + before + checks).returncode != 0
     result = run_c(path, prefix + after + checks)
     assert result.returncode == 0, result.stderr
+
+
+def test_unmatched_sfp_does_not_report_a_calibration(firmware):
+    build, path = firmware
+    build.configure_source_fixes()
+    source = (path / 'shell/cmd_sfp.c').read_text()
+    # Any failure prints "Could not match to DB" and returns before the
+    # calibration line, whose values are defaults when nothing matched.
+    body = source[source.index('/* SFP read correctly */'):]
+    branch = body.index('if (ret)')
+    assert branch < body.index('SFP matched')
+    assert 'ret == -ENXIO' not in source
 
 
 def test_diagnostics_use_cpu_map_not_host_map(firmware):

@@ -32,10 +32,14 @@ entity xwrc_litex_phy8 is
     clk_dmtd_i           : in  std_logic;
     rst_n_i              : in  std_logic;
 
-    -- UART/SFP presence.
+    -- UART/SFP presence and management I2C (0 drives the line low).
     uart_rxd_i           : in  std_logic;
     sfp_det_i            : in  std_logic;
     uart_txd_o           : out std_logic;
+    sfp_scl_o            : out std_logic;
+    sfp_scl_i            : in  std_logic := '1';
+    sfp_sda_o            : out std_logic;
+    sfp_sda_i            : in  std_logic := '1';
 
     -- Clock actuators.
     dac_refclk_load      : out std_logic;
@@ -252,6 +256,10 @@ begin
       uart_rxd_i         => uart_rxd_i,
       sfp_det_i          => sfp_det_i,
       uart_txd_o         => uart_txd_o,
+      sfp_scl_o          => sfp_scl_o,
+      sfp_scl_i          => sfp_scl_i,
+      sfp_sda_o          => sfp_sda_o,
+      sfp_sda_i          => sfp_sda_i,
       dac_dpll_load_p1_o => dac_refclk_load,
       dac_dpll_data_o    => dac_refclk_data,
       dac_hpll_load_p1_o => dac_dmtd_load,

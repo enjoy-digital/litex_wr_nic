@@ -88,7 +88,7 @@ def checkout_commit(target="spec_a7"):
     run_command(
         f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c "
         "include/board.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c lib/task-stats.c "
-        "softpll/spll_helper.c softpll/softpll_ng.c shell/cmd_pll.c",
+        "softpll/spll_helper.c softpll/softpll_ng.c shell/cmd_pll.c shell/cmd_sfp.c",
         cwd=CLONE_DIR)
 
     # Acorn's MMCM actuator needs more tracking bandwidth than the old
@@ -114,10 +114,13 @@ def copy_config_file(target="spec_a7"):
         config = Path(config_dest).read_text(encoding="utf-8")
         config = config.replace("# CONFIG_TARGET_GENERIC_PHY_8BIT is not set", "CONFIG_TARGET_GENERIC_PHY_8BIT=y")
         config = config.replace("CONFIG_TARGET_GENERIC_PHY_16BIT=y", "# CONFIG_TARGET_GENERIC_PHY_16BIT is not set")
-        # SFP management is not connected in the initial Tang target.
+        # The gateware serves a copy of the module EEPROM (SFF-8472 A0h); the
+        # diagnostics page (A2h) is not copied, so DOM stays disabled.
         config = config.replace("CONFIG_SFP_DOM=y", "# CONFIG_SFP_DOM is not set")
+        # Identify the module at start-up; the target has no persistent
+        # calibration storage, so the role is selected from the console.
         config = config.replace('CONFIG_INIT_COMMAND="vlan off;ptp stop;sfp match;mode slave;ptp start"',
-            'CONFIG_INIT_COMMAND="ptp stop"')
+            'CONFIG_INIT_COMMAND="ptp stop;sfp match"')
         Path(config_dest).write_text(config, encoding="utf-8")
 
 def configure_cpu_profile(cpu_type):
@@ -179,6 +182,12 @@ def configure_source_fixes(read_only_storage=False):
         "match = storage_match_sfp(&sfp_info.sfp_params);\n"
         "\tif (match <= 0) {\n\t\tsfp_info.sfp_in_db = SFP_NOT_MATCHED;\n"
         "\t\treturn match < 0 ? match : -ENXIO;")
+    # Without calibration storage, matching fails with the storage error
+    # instead of -ENXIO. Report every failure as unmatched: the delays and
+    # alpha printed otherwise are defaults, not the module's calibration.
+    patch("shell/cmd_sfp.c",
+        "\t\tif (ret == -ENXIO) {\n\t\t\tpp_printf(\"Could not match to DB\\n\");",
+        "\t\tif (ret) {\n\t\t\tpp_printf(\"Could not match to DB\\n\");")
 
     if read_only_storage:
         # SRAM qualification must not silently save automatic PHY/RX calibration.

@@ -57,6 +57,10 @@ class WhiteRabbitCore(LiteXModule):
     firmware must use CONFIG_TARGET_GENERIC_PHY_8BIT. See wr_phy.GW5WRPHY.
     The caller registers the PHY as a submodule.
 
+    With ``phy``, the SFP management I2C of the firmware is available as the
+    ``sfp_scl_o``/``sfp_sda_o`` open-drain intents (0 drives the line low) and
+    the ``sfp_scl_i``/``sfp_sda_i`` line levels, for the caller to route.
+
     ``cpu_memory_local`` keeps the external uRV memory inside the core as a
     single-cycle pipelined RAM initialized from the firmware, with a host
     Wishbone slave in ``cpu_memory_bus``. It requires the same-clock ``phy``
@@ -150,6 +154,10 @@ class WhiteRabbitCore(LiteXModule):
         self.dac_dmtd_data   = Signal(dac_bits)
         self.txpippmstepsize = Signal(5) # TXUSRCLK2 / wr domain; held for two clocks.
         self.pps_in          = Signal()
+        self.sfp_scl_o       = Signal()
+        self.sfp_scl_i       = Signal(reset=1)
+        self.sfp_sda_o       = Signal()
+        self.sfp_sda_i       = Signal(reset=1)
         # Board-supplied 62.5 MHz multiplier; status/reset use wr_sys.
         self.ext_clk_mul     = Signal()
         self.ext_clk_locked  = Signal()
@@ -491,6 +499,10 @@ class WhiteRabbitCore(LiteXModule):
 
                 # PHY/SFP interface.
                 i_sfp_det_i            = 0 if sfp_det_pads is None else sfp_det_pads,
+                o_sfp_scl_o            = self.sfp_scl_o,
+                i_sfp_scl_i            = self.sfp_scl_i,
+                o_sfp_sda_o            = self.sfp_sda_o,
+                i_sfp_sda_i            = self.sfp_sda_i,
                 i_phy_tx_disparity_i   = phy.tx_disparity,
                 i_phy_tx_enc_err_i     = phy.tx_error,
                 i_phy_rx_data_i        = phy.rx_data,

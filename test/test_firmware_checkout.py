@@ -37,7 +37,7 @@ def test_reused_firmware_checkout_restores_pinned_submodule_and_gains(tmp_path, 
     for name in ("Makefile", "arch/risc-v/crt0.S", "arch/risc-v/irq_helper.c",
                  "include/board.h", "dev/sfp.c", "dev/spi_flash.c", "dev/storage-cal.c",
                  "lib/task-stats.c", "softpll/spll_helper.c", "softpll/softpll_ng.c",
-                 "shell/cmd_pll.c"):
+                 "shell/cmd_pll.c", "shell/cmd_sfp.c"):
         path = checkout / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("fixture\n")
@@ -80,7 +80,8 @@ def test_tang_profile_does_not_leak_into_16bit_firmware(tmp_path, monkeypatch):
     build.copy_config_file("tang_mega_138k_pro")
     assert "CONFIG_TARGET_GENERIC_PHY_8BIT=y" in config.read_text(encoding="utf-8")
     assert "# CONFIG_TARGET_GENERIC_PHY_16BIT is not set" in config.read_text(encoding="utf-8")
-    assert 'CONFIG_INIT_COMMAND="ptp stop"' in config.read_text(encoding="utf-8")
+    assert 'CONFIG_INIT_COMMAND="ptp stop;sfp match"' in config.read_text(encoding="utf-8")
+    assert "# CONFIG_SFP_DOM is not set" in config.read_text(encoding="utf-8")
     build.copy_config_file("spec_a7")
     assert config.read_bytes() == Path(build.CONFIG_SRC).read_bytes()
 
