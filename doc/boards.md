@@ -20,6 +20,8 @@ is GTP-specific; HyVision tunes its GTX reference with the MMCM backend.
 The [Tang Mega 138K Pro guide](tang_mega_138k_pro.md) describes its separate
 Gowin/GHDL build, dependencies, clock actuators and hardware tests. Its
 portable 8-bit PHY integration reuses LiteEth's raw SerDes and LiteX 8b/10b.
+It reads the SFP EEPROM through the gateware, outputs the WR PPS and
+timestamps an external PPS on its PMOD0 header.
 
 Acorn, SPEC-A7 and Tang Mega 138K Pro have been exercised as both WR master
 and slave. HyVision needs hardware qualification of link acquisition, tuning

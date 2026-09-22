@@ -17,8 +17,11 @@ The WR CPU runs from a single-cycle LiteX RAM inside the core. This matters:
 through the SoC bus the SoftPLL interrupt took about half of the CPU and the
 slave servo lost lock every minute or so.
 
+The gateware also reads the SFP module EEPROM and serves it to the firmware,
+outputs the WR PPS and timestamps an external PPS against the WR time.
+
 USB is required for programming and debug; there is no PCIe NIC,
-external-reference input, persistent storage or SFP EEPROM access yet.
+external-reference input or persistent storage.
 
 ## Build
 
@@ -37,7 +40,7 @@ Acorn/SPEC dependency manifest predates the required Gowin support.
 | `m-labs/migen` | `4c2ae8dfeea37f235b52acb8166f12acaaae4f7c` |
 | `enjoy-digital/litex` | `dce79bf9abf6eb77e4f6e9358e11751f83051cab` plus [PR #2628](https://github.com/enjoy-digital/litex/pull/2628) (`GW5APLL.expose_dpa`) |
 | `litex-hub/litex-boards` | `58634aac7029fd80dc7a8bbff1e5fbe22e141fb2` |
-| `enjoy-digital/liteeth` | `0e2fbcf838d177ff1dad0595dba9f0f4aec931f1` ([PR #227](https://github.com/enjoy-digital/liteeth/pull/227)) |
+| `enjoy-digital/liteeth` | `77bccd4` plus [PR #229](https://github.com/enjoy-digital/liteeth/pull/229) (SerDes FIFO levels) |
 | `enjoy-digital/litescope` | `6bf3b92f261c50b8c7c74947f84e692ae846f512` |
 
 From the repository root:
@@ -62,7 +65,11 @@ RX symbols on the recovered clock (see below). Retain generated reports and
 captures under `build/`, outside commits.
 
 The build runs with zero setup/hold violations on Gowin 1.9.12 and uses about
-8% of the logic and 26% of the block RAM of the GW5AST-138.
+9% of the logic and 26% of the block RAM of the GW5AST-138. Portable source
+overlays keep the vendor-specific changes out of the shared WR checkout: the
+packet-filter ALU, the PPS pulse-width counter and the replication of the
+reset synchronizers' second stage are what let the 125 MHz receive path and
+the WR reference path close on this device.
 
 ## Dock clock generator
 
@@ -93,6 +100,92 @@ python3 tools/tang_ms5351.py --csr-csv build/tang_mega_138k_pro_wr/csr.csv --uar
 the SerDes reference is interrupted for a few milliseconds. The FPGA reaches
 the chip through the dock's 8-way I2C multiplexer (channel 3); the same host
 path with `main_i2c_sel` selects the SFP0/SFP1 EEPROMs on channels 0/1.
+
+## SFP module identification
+
+WRPC bit-bangs the module EEPROM (SFF-8472 A0h) from its own GPIO, but on
+this dock that EEPROM shares the I2C bus with the clock generator, and the
+firmware's transfers cannot be stalled while the servo is updating the
+clock. The gateware therefore reads the EEPROM into a memory with a hardware
+I2C master between clock updates and serves that copy to the firmware as a
+24Cxx-style device, so `sfp match` and `sfp info` work while the servo runs.
+
+The reader takes the bus between clock updates, selects the module's
+multiplexer channel (0 for SFP0, 1 for SFP1), reads all 256 bytes and
+releases the bus; it retries every second until a copy is acknowledged, so a
+module inserted later is picked up. The firmware runs `sfp match` at
+start-up. Its CSRs report the state:
+
+| Register | Meaning |
+| --- | --- |
+| `sfp_eeprom_reader_status` | A valid copy is held; a read is in progress |
+| `sfp_eeprom_reader_reads`, `sfp_eeprom_reader_errors` | Completed reads, reads without acknowledge |
+| `sfp_eeprom_reader_control` | Read now; retry automatically until valid |
+| `sfp_eeprom_address`, `sfp_eeprom_data` | Host window into the copy |
+
+There is no calibration storage on this target, so `sfp match` reports
+`Could not match to DB` after printing the part number: the module is
+identified, but its delay and alpha values are not applied. Supply them with
+the WR receive-delay calibration below, or add flash storage.
+
+## PPS
+
+The WR PPS is output on the dock's PMOD0 header with a 20% duty cycle, and an
+external PPS is timestamped against the WR time on the same header:
+
+| Signal | PMOD0 pin | FPGA pin | Direction |
+| --- | --- | --- | --- |
+| `pps_out` | 3 | R16 | 3.3 V output, 20% duty cycle |
+| `pps_in` | 1 | N18 | 3.3 V input, pulled down |
+| `GND` | 5, 11 | — | — |
+
+The input is sampled eight times per reference cycle (IDES8 on a 500 MHz
+clock from the WR reference), so an edge is placed to one nanosecond within
+the cycle; `pps_sampler_delay` adds up to 256 IODELAY taps of about 12.5 ps
+before the sampler, which refines that by scanning. `pps_timestamper_*`
+reports the WR seconds and cycles of the latest edge, the sample index inside
+the cycle, whether the WR time was valid and the raw sample word.
+A second timestamper watches the generated output (`pps_out_timestamper_*`),
+which qualifies the output path without any connection. On this bench it
+reports one edge per WR second at cycle 1 of the second: the edge is at the
+start of the second plus the timestamper's own input register, so a
+cross-board measurement subtracts 8 ns for it.
+
+Read them with the bench helper (the timestamped offset inside the second is
+`cycles x 8 ns + index x 1 ns`):
+
+```sh
+python3 tang_pps.py --build <output-dir> --samples 20
+python3 tang_pps.py --build <output-dir> --scan-delay
+```
+
+For the cross-board measurement, connect the peer's PPS output to PMOD0 pin 1
+with a common ground, subtract the cable delay, and compare consecutive
+timestamps: their spread is the alignment jitter, and their offset from the
+second boundary is the alignment, which still needs the receive-delay and
+asymmetry calibration below to be absolute.
+
+## Receive latency
+
+The Gowin word aligner does not report its bit slip, so WR's `rx_bitslide`
+cannot be derived from the hardware: the receive latency is a fixed offset of
+this link, not a per-link-up correction. It is repeatable in practice. With
+the peer as master, resetting the Tang's SerDes and PCS with
+`phy_control.reset` (which forces CDR lock and comma alignment again) and
+repeating the WR handshake gave a round-trip delay of 943530, 943527 and
+943524 ps over three acquisitions: a 6 ps spread, with no step of a symbol
+(8 ns) or a bit (800 ps).
+
+```sh
+python3 tang_relink.py --build <output-dir> --cycles 6
+```
+
+`phy_fifo_levels` reports the SerDes interface FIFO occupancies (2 and 14
+words on this bench, unchanged across acquisitions) and `phy_link_events`
+counts comma alignment acquisitions and losses, so a re-alignment that does
+move the latency is visible. Once measured against a reference, a constant
+offset can be applied through `phy_control.bitslide` in 800 ps bit periods,
+or through the module's receive delay.
 
 ## USB and optical test
 
@@ -130,7 +223,9 @@ path with `main_i2c_sel` selects the SFP0/SFP1 EEPROMs on channels 0/1.
    link-up; stop it explicitly for diagnostics.
 
 `phy_status` bits 0–4 report TX PLL lock, RX CDR lock, comma alignment,
-RX valid and PHY ready. `{ref,dmtd,rx}_clk_freq_value` report frequency in
+RX valid and PHY ready; `phy_fifo_levels` and `phy_link_events` add the
+SerDes FIFO occupancies and the alignment event counters, and
+`phy_control` resets the SerDes/PCS and carries the receive bitslide offset. `{ref,dmtd,rx}_clk_freq_value` report frequency in
 Hz, updated approximately once a second against the 50 MHz system oscillator:
 expect about 125 MHz for `ref`/`rx` and 62.5 MHz for `dmtd`. These counters
 are not an independent frequency reference; `ref`/`rx` measured against the
@@ -239,16 +334,16 @@ The subsampler supports factors 1–16.
 
 ## Remaining work
 
-- Characterize/bypass the RX FIFO and hardware comma aligner, obtain the actual
-  bitslide, and prove repeatable TX/RX latency across resets. `rx_bitslide=0` is
-  a placeholder. PHY loopback and exhaustive 8b/10b error/disparity checking also
-  need implementation; the adapter currently uses LiteX's basic decoder check.
-- Route the dock's SFP management to the WR firmware for module
-  identification and the calibration database (`sfp match`), and choose an
-  accessible PPS output for independent measurements.
-- Qualify the loop with a wider main-clock range (`main_tuning_shift`) and
-  measure PPS alignment/jitter independently with board/module delay and
-  asymmetry calibration.
+- Measure the PPS alignment against the peer with the cabling above, and the
+  absolute accuracy against an independent reference: the receive delay,
+  the board and module delays and the link asymmetry are not calibrated, so
+  the servo statistics do not establish absolute timing.
+- Add calibration storage so `sfp match` can apply a module's delays, and
+  read the diagnostics page (A2h) if module monitoring is wanted.
+- PHY loopback and exhaustive 8b/10b error/disparity checking are not
+  implemented; the adapter uses LiteX's decoder validity check.
+- Qualify the servo with a wider main-clock range: `main_tuning_shift` above
+  1 needs SoftPLL gains matched to the I2C update latency.
 
 The only new VHDL is a flat record adapter around `xwrc_board_common`. The raw
 SerDes, codec, resets, clocking and debug logic reuse LiteEth/LiteX. Portable
