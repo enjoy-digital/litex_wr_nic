@@ -81,6 +81,45 @@ def test_standalone_core_interfaces(platform):
     assert uart.value == 1
 
 
+def test_external_phy_keeps_one_owner_and_csr_bank(platform, monkeypatch):
+    from litex.build import vhd2v_converter
+    from litex.soc.interconnect.csr import CSRStatus
+    from litex_wr_nic.gateware import wr_phy
+
+    class Converter(LiteXModule):
+        def __init__(self, *args, **kwargs):
+            self._ghdl_opts = []
+
+    prepared = []
+
+    def prepare_sources(platform):
+        prepared.append(platform)
+        return []
+
+    monkeypatch.setattr(vhd2v_converter, "VHD2VConverter", Converter)
+    monkeypatch.setattr(wr_phy, "phy8_sources", prepare_sources)
+    soc = LiteXModule()
+    soc.phy = phy = LiteXModule()
+    for name, width in (
+        ("tx_clk", 1), ("rx_clk", 1), ("pll_lock", 1),
+        ("tx_disparity", 1), ("tx_error", 1), ("rx_data", 8), ("rx_k", 1),
+        ("rx_error", 1), ("rx_bitslide", 4), ("ready", 1),
+        ("reset", 1), ("loopback", 1), ("tx_data", 8), ("tx_k", 1),
+    ):
+        setattr(phy, name, Signal(width))
+    phy.status = CSRStatus(5)
+    soc.wr = WhiteRabbitCore(platform, cpu_firmware="unused.bram",
+        phy=phy, with_ext_clk=False)
+    assert prepared == []
+    banks = CSRBankArray(soc, lambda name, memory: 0)
+    assert [name for name, *_ in banks.banks] == ["phy"]
+    assert [csr.name for csr in banks.banks[0][1]] == ["status"]
+    assert all(module is not phy for name, module in soc.wr._submodules)
+    soc.get_fragment()
+    assert prepared == [platform]
+    assert platform.prepared == []
+
+
 @pytest.mark.parametrize("enabled", [False, True])
 def test_txpi_is_opt_in_and_uses_the_reference_domain_port(platform, enabled):
     core = WhiteRabbitCore(platform, with_txpi=enabled, **core_kwargs())

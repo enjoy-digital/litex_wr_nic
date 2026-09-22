@@ -10,6 +10,7 @@ import os
 
 from migen import *
 from migen.genlib.cdc import MultiReg
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
@@ -49,6 +50,11 @@ class WhiteRabbitCore(LiteXModule):
     ``wr_sys``; PPS and timecode use ``wr`` (the PHY reference clock).
     The caller supplies board pads and clocks and registers the bus regions.
     HDL sources are registered automatically during finalization.
+
+    ``phy`` selects the portable 8-bit/125 MHz interface, using a caller-owned
+    62.5 MHz ``sys`` clock and a near-62.5 MHz helper clock in ``wr_dmtd``. Its
+    firmware must use CONFIG_TARGET_GENERIC_PHY_8BIT. See wr_phy.GW5WRPHY.
+    The caller registers the PHY as a submodule.
     """
 
     def __init__(self, platform,
@@ -73,6 +79,9 @@ class WhiteRabbitCore(LiteXModule):
         sfp_los_pads     = None,
         sfp_det_pads     = None,
 
+        # Optional LiteX PHY (8-bit, 125 MHz).
+        phy = None,
+
         # Clocking.
         qpll         = None,
         with_ext_clk = True,
@@ -95,7 +104,15 @@ class WhiteRabbitCore(LiteXModule):
         with_txpi     = False,
     ):
 
-        self.platform = platform
+        self.platform           = platform
+        self._with_external_phy = phy is not None
+        if phy is not None:
+            if with_ext_clk or with_ext_pll or with_txpi or qpll is not None:
+                raise ValueError("The external 8-bit PHY requires caller-owned clocks and no Xilinx PLL options.")
+            if any(pads is not None for pads in (sfp_pads, sfp_i2c_pads, flash_pads, temp_1wire_pads)):
+                raise ValueError("The external 8-bit PHY does not support transceiver, I2C, flash or 1-Wire pads.")
+            if sfp_tx_polarity or sfp_rx_polarity or dac_bits != 16:
+                raise ValueError("The external 8-bit PHY requires default polarity and 16-bit DAC commands.")
         self.cpu_bus  = None
         if with_ext_pll and not with_ext_clk:
             raise ValueError("An external WR PLL requires the external clock input.")
@@ -171,7 +188,7 @@ class WhiteRabbitCore(LiteXModule):
                 wr_cpu_bus_wr = wr_cpu_bridge.bus
             self.submodules.wr_cpu_memory_cdc = WishboneClockCrossing(self.platform,
                 wb_from        = wr_cpu_bus_wr,
-                cd_from        = "wr_sys",
+                cd_from        = "sys" if self._with_external_phy else "wr_sys",
                 wb_to          = wr_cpu_bus_sys,
                 cd_to          = "sys",
                 timeout_cycles = 1024,
@@ -199,7 +216,7 @@ class WhiteRabbitCore(LiteXModule):
             wb_from = wb_slave_sys,
             cd_from = "sys",
             wb_to   = wb_slave_wr,
-            cd_to   = "wr_sys",
+            cd_to   = "sys" if self._with_external_phy else "wr_sys",
         )
 
         # Temp 1-Wire Logic.
@@ -257,7 +274,7 @@ class WhiteRabbitCore(LiteXModule):
 
         # White Rabbit Core Instance.
         # ---------------------------
-        self.specials += Instance("xwrc_board_litex_wr_nic_wrapper",
+        params = dict(
             # Parameters.
             p_g_dpram_initf               = os.path.abspath(cpu_firmware),
             p_g_dpram_size                = 131072//4,
@@ -265,28 +282,9 @@ class WhiteRabbitCore(LiteXModule):
             # boundary; use a numeric boolean for deterministic elaboration.
             p_g_external_cpu_memory       = int(external_cpu_memory),
             p_g_external_cpu              = int(external_cpu),
-            p_txpolarity                  = sfp_tx_polarity,
-            p_rxpolarity                  = sfp_rx_polarity,
-            p_g_with_external_clock_input = int(with_ext_clk),
-            p_g_use_external_pll          = int(with_ext_pll),
             p_g_softpll_enable_debugger   = int(with_softpll_debug),
-            p_g_fpga_family               = {True: "artix7", False: "kintex7"}[self.platform.device.startswith("xc7a")],
             p_g_board_name                = board_name,
             p_g_dac_bits                  = dac_bits,
-
-            # Clocks/resets.
-            i_areset_n_i          = ~ResetSignal("sys"),
-            i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
-            i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
-            i_clk_10m_ext_i       = ClockSignal("clk10m_in"),
-            i_clk_ext_mul_i       = self.ext_clk_mul,
-            i_clk_ext_locked_i    = self.ext_clk_locked,
-            i_clk_ext_stopped_i   = self.ext_clk_stopped,
-            o_clk_ext_rst_o       = self.ext_clk_reset,
-            o_clk_62m5_sys_o      = ClockSignal("wr_sys"),
-            o_rst_62m5_sys_o      = ResetSignal("wr_sys"),
-            o_clk_62m5_ref_o      = ClockSignal("wr"),
-            o_rst_62m5_ref_o      = ResetSignal("wr"),
 
             # DAC RefClk Interface.
             o_dac_refclk_load     = self.dac_refclk_load,
@@ -296,31 +294,9 @@ class WhiteRabbitCore(LiteXModule):
             o_dac_dmtd_load       = self.dac_dmtd_load,
             o_dac_dmtd_data       = self.dac_dmtd_data,
 
-            # SFP Interface.
-            o_sfp_txp_o           = sfp_pads.txp,
-            o_sfp_txn_o           = sfp_pads.txn,
-            i_sfp_rxp_i           = sfp_pads.rxp,
-            i_sfp_rxn_i           = sfp_pads.rxn,
-            i_sfp_det_i           = 0      if sfp_det_pads is None else sfp_det_pads,
-            io_sfp_sda            = sfp_i2c_pads.sda,
-            io_sfp_scl            = sfp_i2c_pads.scl,
-            i_sfp_tx_fault_i      = 0      if   sfp_fault_pads is None else   sfp_fault_pads,
-            i_sfp_tx_los_i        = 0      if     sfp_los_pads is None else     sfp_los_pads,
-            o_sfp_tx_disable_o    = Open() if sfp_disable_pads is None else sfp_disable_pads,
-
-            # One-Wire Interface.
-            i_onewire_i           = 0      if temp_1wire_pads is None else temp_1wire_i,
-            o_onewire_oen_o       = Open() if temp_1wire_pads is None else temp_1wire_oe_n,
-
             # UART Interface.
             i_uart_rxd_i          = 1      if serial_pads is None else serial_pads.rx,
             o_uart_txd_o          = Open() if serial_pads is None else serial_pads.tx,
-
-            # SPI Flash Interface.
-            o_spi_sclk_o          = Open() if flash_pads is None else wr_flash_clk,
-            o_spi_ncs_o           = Open() if flash_pads is None else wr_flash_cs,
-            o_spi_mosi_o          = Open() if flash_pads is None else wr_flash_mosi,
-            i_spi_miso_i          = 0      if flash_pads is None else flash_pads.miso,
 
             # Optional WR CPU Memory Master.
             o_cpu_mem_cyc_o       = Open() if not external_cpu_memory or external_cpu else wr_cpu_bridge.cyc,
@@ -360,16 +336,6 @@ class WhiteRabbitCore(LiteXModule):
             o_pps_led_o           = self.led_pps,
             o_led_link_o          = self.led_link,
             o_led_act_o           = self.led_act,
-
-            # TX Phase Interpolator (GTP only).
-            i_txpippmen_i       = int(with_txpi),
-            i_txpippmstepsize_i = self.txpippmstepsize if with_txpi else 0,
-
-            # QPLL Interface (for GTPE2_Common Sharing).
-            o_gt0_ext_qpll_reset  = Open() if qpll is None else qpll.get_channel("eth").reset,
-            i_gt0_ext_qpll_clk    = 0      if qpll is None else qpll.get_channel("eth").clk,
-            i_gt0_ext_qpll_refclk = 0      if qpll is None else qpll.get_channel("eth").refclk,
-            i_gt0_ext_qpll_lock   = 0      if qpll is None else qpll.get_channel("eth").lock,
 
             # Wishbone Slave Interface (MMAP).
             i_wb_slave_cyc        = wb_slave_wr.cyc,
@@ -417,8 +383,116 @@ class WhiteRabbitCore(LiteXModule):
             o_tm_cycles_o         = self.tm_cycles,
         )
 
+        if phy is None:
+            params.update(
+                # TX Phase Interpolator (GTP only).
+                i_txpippmen_i       = int(with_txpi),
+                i_txpippmstepsize_i = self.txpippmstepsize if with_txpi else 0,
+
+                # QPLL Interface (for GTPE2_Common Sharing).
+                o_gt0_ext_qpll_reset  = Open() if qpll is None else qpll.get_channel("eth").reset,
+                i_gt0_ext_qpll_clk    = 0      if qpll is None else qpll.get_channel("eth").clk,
+                i_gt0_ext_qpll_refclk = 0      if qpll is None else qpll.get_channel("eth").refclk,
+                i_gt0_ext_qpll_lock   = 0      if qpll is None else qpll.get_channel("eth").lock,
+
+                p_txpolarity                  = sfp_tx_polarity,
+                p_rxpolarity                  = sfp_rx_polarity,
+                p_g_with_external_clock_input = int(with_ext_clk),
+                p_g_use_external_pll          = int(with_ext_pll),
+                p_g_fpga_family               = {True: "artix7", False: "kintex7"}[self.platform.device.startswith("xc7a")],
+
+                # Clocks/resets.
+                i_areset_n_i          = ~ResetSignal("sys"),
+                i_clk_62m5_dmtd_i     = ClockSignal("clk_62m5_dmtd"),
+                i_clk_125m_gtp_i      = ClockSignal("clk_125m_gtp"),
+                i_clk_10m_ext_i       = ClockSignal("clk10m_in"),
+                i_clk_ext_mul_i       = self.ext_clk_mul,
+                i_clk_ext_locked_i    = self.ext_clk_locked,
+                i_clk_ext_stopped_i   = self.ext_clk_stopped,
+                o_clk_ext_rst_o       = self.ext_clk_reset,
+                o_clk_62m5_sys_o      = ClockSignal("wr_sys"),
+                o_rst_62m5_sys_o      = ResetSignal("wr_sys"),
+                o_clk_62m5_ref_o      = ClockSignal("wr"),
+                o_rst_62m5_ref_o      = ResetSignal("wr"),
+
+                # SFP Interface.
+                o_sfp_txp_o           = sfp_pads.txp,
+                o_sfp_txn_o           = sfp_pads.txn,
+                i_sfp_rxp_i           = sfp_pads.rxp,
+                i_sfp_rxn_i           = sfp_pads.rxn,
+                i_sfp_det_i           = 0      if sfp_det_pads is None else sfp_det_pads,
+                io_sfp_sda            = sfp_i2c_pads.sda,
+                io_sfp_scl            = sfp_i2c_pads.scl,
+                i_sfp_tx_fault_i      = 0      if   sfp_fault_pads is None else   sfp_fault_pads,
+                i_sfp_tx_los_i        = 0      if     sfp_los_pads is None else     sfp_los_pads,
+                o_sfp_tx_disable_o    = Open() if sfp_disable_pads is None else sfp_disable_pads,
+
+                # One-Wire Interface.
+                i_onewire_i           = 0      if temp_1wire_pads is None else temp_1wire_i,
+                o_onewire_oen_o       = Open() if temp_1wire_pads is None else temp_1wire_oe_n,
+
+                # SPI Flash Interface.
+                o_spi_sclk_o          = Open() if flash_pads is None else wr_flash_clk,
+                o_spi_ncs_o           = Open() if flash_pads is None else wr_flash_cs,
+                o_spi_mosi_o          = Open() if flash_pads is None else wr_flash_mosi,
+                i_spi_miso_i          = 0      if flash_pads is None else flash_pads.miso,
+            )
+            self.specials += Instance("xwrc_board_litex_wr_nic_wrapper", **params)
+        else:
+            self.comb += [
+                self.cd_wr_sys.clk.eq(ClockSignal("sys")),
+                self.cd_wr_sys.rst.eq(ResetSignal("sys")),
+                self.cd_wr.clk.eq(phy.tx_clk),
+            ]
+            self.specials += AsyncResetSynchronizer(self.cd_wr,
+                ResetSignal("sys") | ~phy.pll_lock)
+            for name in ("p_g_dac_bits", "i_pps_ext_i"):
+                params.pop(name)
+            for name in ("g_external_cpu_memory", "g_external_cpu", "g_softpll_enable_debugger"):
+                params["p_" + name] = "true" if params["p_" + name] else "false"
+            params.update(
+                # Clocks/resets.
+                i_clk_sys_i  = ClockSignal("wr_sys"),
+                i_clk_ref_i  = ClockSignal("wr"),
+                i_clk_dmtd_i = ClockSignal("wr_dmtd"),
+                i_rst_n_i    = ~ResetSignal("wr_sys"),
+
+                # PHY/SFP interface.
+                i_sfp_det_i            = 0 if sfp_det_pads is None else sfp_det_pads,
+                i_phy_tx_disparity_i   = phy.tx_disparity,
+                i_phy_tx_enc_err_i     = phy.tx_error,
+                i_phy_rx_data_i        = phy.rx_data,
+                i_phy_rx_clk_i         = phy.rx_clk,
+                i_phy_rx_k_i           = phy.rx_k,
+                i_phy_rx_enc_err_i     = phy.rx_error,
+                i_phy_rx_bitslide_i    = phy.rx_bitslide,
+                i_phy_rdy_i            = phy.ready,
+                i_phy_sfp_tx_fault_i   = 0 if sfp_fault_pads is None else sfp_fault_pads,
+                i_phy_sfp_los_i        = 0 if sfp_los_pads is None else sfp_los_pads,
+                o_phy_rst_o            = phy.reset,
+                o_phy_loopen_o         = phy.loopback,
+                o_phy_tx_data_o        = phy.tx_data,
+                o_phy_tx_k_o           = phy.tx_k,
+                o_phy_sfp_tx_disable_o = Open() if sfp_disable_pads is None else sfp_disable_pads,
+            )
+            self._phy_params = params
+
     def do_finalize(self):
-        self.add_sources(self.platform)
+        if self._with_external_phy:
+            from litex.build.vhd2v_converter import VHD2VConverter
+            from litex_wr_nic.gateware.wr_phy import phy8_sources
+
+            # Source checkout, patching and conversion belong to build finalization.
+            self.core = VHD2VConverter(self.platform,
+                top_entity     = "xwrc_litex_phy8",
+                params         = self._phy_params,
+                files          = phy8_sources(self.platform),
+                force_convert  = True,
+                flatten_source = False,
+            )
+            self.core._ghdl_opts.append("-frelaxed-rules")
+        else:
+            self.add_sources(self.platform)
 
     @staticmethod
     def add_sources(platform):
