@@ -127,3 +127,55 @@ def test_receive_gaps_follow_decoder_latency_and_alignment_loss_recovers():
         clocks            = {"sys": 16, "wr_phy_tx": 8, "wr_phy_rx": 8},
         special_overrides = {Instance: RawLoopback(0, valid, aligned)},
     )
+
+
+# Portable Source Preparation ----------------------------------------------------------------------
+
+def test_source_overlays_apply_to_the_pinned_checkout(tmp_path, monkeypatch):
+    """Every override matches its pinned upstream source exactly once."""
+    from pathlib import Path as _Path
+
+    import pytest
+
+    from litex_wr_nic.gateware import wr_phy
+
+    root = _Path(__file__).resolve().parents[1]
+    if not (root / "wr-cores/modules/wr_pps_gen/xwr_pps_gen.vhd").exists():
+        pytest.skip("The pinned wr-cores checkout is required")
+
+    prepared = {}
+
+    class Platform:
+        def add_source(self, filename):
+            prepared.setdefault("verilog", []).append(filename)
+
+    for name in ("wr_core_init", "patch_wr_subsystem_mux_class",
+                 "patch_wr_clock_monitor_presc_cdc", "patch_wr_external_cpu_memory",
+                 "patch_wr_diags_control_word"):
+        monkeypatch.setattr(f"litex_wr_nic.gateware.wr_common.{name}", lambda: None)
+    monkeypatch.chdir(root)
+    sources = wr_phy.phy8_sources(Platform())
+
+    # The overridden files are replaced by copies outside the shared checkout.
+    copies = [s for s in sources if "/.litex-phy8/" in s]
+    assert {_Path(s).name for s in copies} == {
+        "uart_async_tx.vhd", "wrc_diags_dpram.vhd", "ep_timestamping_unit.vhd",
+        "ep_packet_filter.vhd", "xwr_pps_gen.vhd", "gc_sync.vhd",
+    }
+    # Each copy differs from the upstream file it was taken from.
+    for filename in wr_phy.phy8_source_overrides():
+        upstream = (root / filename).read_text()
+        copy = root / "wr-cores/.litex-phy8" / _Path(filename).name
+        assert copy.read_text() != upstream
+    # The shared checkout is untouched by the overlay.
+    pps = (root / "wr-cores/modules/wr_pps_gen/xwr_pps_gen.vhd").read_text()
+    assert "width_zero" not in pps
+    sync = (root / "wr-cores/ip_cores/general-cores/modules/common/gc_sync.vhd").read_text()
+    assert 'keep of sync1' in sync
+    # The replicable copy keeps the first stage protected.
+    copy = next(s for s in copies if s.endswith("gc_sync.vhd"))
+    text = _Path(copy).read_text()
+    assert 'keep of sync0          : signal is "true"' in text
+    assert 'async_reg of sync1 : signal is "true"' in text
+    assert 'attribute keep of sync1' not in text
+    assert 'attribute keep_hierarchy' not in text
