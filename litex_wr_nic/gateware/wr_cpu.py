@@ -338,8 +338,13 @@ class WRCPULocalMemory(LiteXModule):
     a classic word-addressed Wishbone slave for firmware loading and debug; it
     is granted the cycle after the CPU port was idle or, after ``host_wait``
     busy cycles, by stalling the CPU for one cycle.
+
+    The memory is split into ``banks`` with a kept copy of the address mux for
+    each: the fetch address is combinational from the CPU program counter,
+    and one net fanning out to every block RAM of a 128 KiB memory otherwise
+    dominates the cycle.
     """
-    def __init__(self, size, contents=None, host_wait=16):
+    def __init__(self, size, contents=None, host_wait=16, banks=4):
         self.cpu   = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.stall = Signal()
         self.host  = wishbone.Interface(data_width=32, address_width=log2_int(size//4), addressing="word")
@@ -347,11 +352,11 @@ class WRCPULocalMemory(LiteXModule):
 
         # # #
 
-        # Keep the memory out of AutoCSR: exporting it on the CSR bus would
-        # add a second RAM port.
-        mem  = Memory(32, size//4, init=contents)
-        port = mem.get_port(write_capable=True, we_granularity=8)
-        self.specials += mem, port
+        words      = size//4
+        bank_words = words//banks
+        if contents is None:
+            contents = []
+        contents = list(contents) + [0]*(words - len(contents))
 
         # Arbitration: the grant is registered, so the CPU's combinational
         # request logic stays out of the high-fanout RAM address path.
@@ -377,20 +382,51 @@ class WRCPULocalMemory(LiteXModule):
             ),
         ]
 
-        # Memory port: the address is registered by the port, data returns the
-        # next cycle together with the registered acknowledge.
+        # Request selection: word address, byte enables and data.
+        adr   = Signal(log2_int(words))
+        we    = Signal(4)
+        dat_w = Signal(32)
         self.comb += [
             If(host_grant,
-                port.adr.eq(self.host.adr),
-                port.dat_w.eq(self.host.dat_w),
-                port.we.eq(Replicate(self.host.we, 4) & self.host.sel),
+                adr.eq(self.host.adr),
+                dat_w.eq(self.host.dat_w),
+                we.eq(Replicate(self.host.we, 4) & self.host.sel),
             ).Else(
-                port.adr.eq(self.cpu.adr[2:]),
-                port.dat_w.eq(self.cpu.dat_w),
-                port.we.eq(Replicate(cpu_request, 4) & Replicate(self.cpu.we, 4) & self.cpu.sel),
+                adr.eq(self.cpu.adr[2:]),
+                dat_w.eq(self.cpu.dat_w),
+                we.eq(Replicate(cpu_request & self.cpu.we, 4) & self.cpu.sel),
             ),
-            self.cpu.dat_r.eq(port.dat_r),
-            self.host.dat_r.eq(port.dat_r),
+        ]
+
+        # Memory banks: the address is registered by each port, data returns
+        # the next cycle together with the registered acknowledge.
+        bank_bits = log2_int(banks)
+        select    = adr[-bank_bits:] if banks > 1 else Constant(0, 1)
+        select_r  = Signal(max(bank_bits, 1))
+        dat_r     = Signal(32)
+        cases     = {}
+        for i in range(banks):
+            # Keep the memory out of AutoCSR: exporting it on the CSR bus would
+            # add a second RAM port.
+            mem  = Memory(32, bank_words, init=contents[i*bank_words:(i + 1)*bank_words])
+            port = mem.get_port(write_capable=True, we_granularity=8)
+            self.specials += mem, port
+            bank_adr = Signal(log2_int(bank_words), attr={("syn_keep", 1)})
+            bank_we  = Signal(4, attr={("syn_keep", 1)})
+            self.comb += [
+                bank_adr.eq(adr[:log2_int(bank_words)]),
+                bank_we.eq(we & Replicate(select == i, 4)),
+                port.adr.eq(bank_adr),
+                port.dat_w.eq(dat_w),
+                port.we.eq(bank_we),
+            ]
+            cases[i] = dat_r.eq(port.dat_r)
+        self.sync += select_r.eq(select)
+        self.comb += Case(select_r, cases)
+
+        self.comb += [
+            self.cpu.dat_r.eq(dat_r),
+            self.host.dat_r.eq(dat_r),
             self.cpu.ack.eq(cpu_ack),
             self.host.ack.eq(host_ack),
         ]

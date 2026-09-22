@@ -65,7 +65,7 @@ architecture arch of wrc_urv_external_memory is
   signal dwb_out                              : t_wishbone_master_out;
 
   signal mem_request_data, mem_request, mem_full, mem_issue : std_logic;
-  signal mem_response, mem_response_data                    : std_logic;
+  signal mem_response, mem_response_data, mem_data_write    : std_logic;
   signal mem_outstanding : unsigned(2 downto 0);
   -- Request types in issue order, oldest first; '1' marks a data access.
   signal mem_queue       : std_logic_vector(c_MAX_OUTSTANDING-1 downto 0);
@@ -128,6 +128,9 @@ begin
   -- uRV pulses load/store for one cycle, independently of instruction fetches.
   -- Preserve the complete request while the selected bus path is occupied.
   -- The CPU stalls until completion, so one pending entry is sufficient.
+  -- The request fields are captured every cycle: the execute stage holds
+  -- them while it waits for completion, and a clock enable derived from the
+  -- late load/store decode would otherwise fan out to all of these registers.
   dm_accept <= '1' when dm_pending = '1' and
     ((dm_is_wishbone = '0' and mem_issue = '1') or
      (dm_is_wishbone = '1' and dm_hi_cycle = '0' and dm_hi_wait = '0')) else '0';
@@ -146,7 +149,9 @@ begin
           dm_pending <= '0';
         end if;
         if dm_load = '1' or dm_store = '1' then
-          dm_pending        <= '1';
+          dm_pending <= '1';
+        end if;
+        if dm_pending = '0' or dm_accept = '1' then
           dm_write          <= dm_store;
           dm_request_addr   <= dm_addr;
           dm_request_data   <= dm_data_s;
@@ -253,6 +258,7 @@ begin
       if cpu_rst = '1' then
         mem_queue       <= (others => '0');
         mem_outstanding <= (others => '0');
+        mem_data_write  <= '0';
       else
         v_queue := mem_queue;
         v_count := mem_outstanding;
@@ -263,6 +269,9 @@ begin
         if mem_issue = '1' then
           v_queue(to_integer(v_count)) := mem_request_data;
           v_count                      := v_count + 1;
+          if mem_request_data = '1' then
+            mem_data_write <= dm_write;
+          end if;
         end if;
         mem_queue       <= v_queue;
         mem_outstanding <= v_count;
@@ -275,8 +284,8 @@ begin
   mem_response_data <= mem_response and mem_queue(0);
   im_valid          <= mem_response and not mem_queue(0);
   im_data           <= cpu_mem_i.dat when cpu_mem_i.ack = '1' else c_INSN_NOP;
-  dm_load_done      <= dm_hi_load_done or (mem_response_data and not dm_write);
-  dm_store_done     <= dm_hi_store_done or (mem_response_data and dm_write);
+  dm_load_done      <= dm_hi_load_done or (mem_response_data and not mem_data_write);
+  dm_store_done     <= dm_hi_store_done or (mem_response_data and mem_data_write);
   dm_data_l         <= dm_hi_rdata when dm_hi_load_done = '1' else
                        cpu_mem_i.dat when cpu_mem_i.ack = '1' else (others => '0');
 end architecture arch;

@@ -239,8 +239,8 @@ def test_local_cpu_memory_registers_a_host_slave_and_no_master(platform, monkeyp
     assert core.wr_cpu_memory.size == 128*1024
     assert core.wr_cpu_bridge.stall is not None
     fragment = soc.get_fragment()
-    memories = [s for s in fragment.specials if getattr(s, "depth", None) == 32768]
-    assert len(memories) == 1 and memories[0].init[:4] == [0x03020100, 0x07060504, 0x0b0a0908, 0x0f0e0d0c]
+    memories = sorted((s for s in fragment.specials if getattr(s, "depth", None) == 8192), key=lambda m: m.duid)
+    assert len(memories) == 4 and memories[0].init[:4] == [0x03020100, 0x07060504, 0x0b0a0908, 0x0f0e0d0c]
     # The memory is private to the core: no CSR-bus export of its contents.
     banks = CSRBankArray(soc, lambda name, memory: 5)
     assert banks.srams == []
