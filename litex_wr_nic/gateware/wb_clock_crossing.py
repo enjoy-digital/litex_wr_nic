@@ -15,9 +15,16 @@ from litex.soc.interconnect import stream
 # Wishbone Clock Crossing --------------------------------------------------------------------------
 
 # This module is a simple/minimal clock crossing module for Wishbone transactions.
+#
+# One transaction is in flight at a time. The request is captured in the cycle
+# it is accepted and ``stall`` is asserted until the response is returned, so a
+# pipelined master (WR's external-memory uRV wrapper) can issue back-to-back
+# requests, or replace a request that has not been accepted, without loss.
 
 class WishboneClockCrossing(LiteXModule):
     def __init__(self, platform, wb_from, cd_from, wb_to, cd_to, timeout_cycles=64):
+        self.stall = Signal() # cd_from; the request of the current cycle is not accepted.
+
         # S2M CDC (cd_from -> cd_to).
         # ---------------------------
         self.cdc_s2m = cdc_s2m = stream.ClockDomainCrossing(
@@ -46,20 +53,18 @@ class WishboneClockCrossing(LiteXModule):
         # Cross FSM.
         # ----------
         self.cross_fsm = cross_fsm = ClockDomainsRenamer(cd_from)(FSM(reset_state="IDLE"))
+        self.comb += self.stall.eq(~(cross_fsm.ongoing("IDLE") & cdc_s2m.sink.ready))
         cross_fsm.act("IDLE",
+            # Send request to CDC as soon as it is presented.
             If(wb_from.cyc & wb_from.stb,
-                NextState("SEND")
-            )
-        )
-        cross_fsm.act("SEND",
-            # Send request to CDC.
-            cdc_s2m.sink.valid.eq(1),
-            cdc_s2m.sink.we.eq(wb_from.we),
-            cdc_s2m.sink.adr.eq(wb_from.adr),
-            cdc_s2m.sink.sel.eq(wb_from.sel),
-            cdc_s2m.sink.dat_w.eq(wb_from.dat_w),
-            If(cdc_s2m.sink.ready,
-                NextState("RECEIVE")
+                cdc_s2m.sink.valid.eq(1),
+                cdc_s2m.sink.we.eq(wb_from.we),
+                cdc_s2m.sink.adr.eq(wb_from.adr),
+                cdc_s2m.sink.sel.eq(wb_from.sel),
+                cdc_s2m.sink.dat_w.eq(wb_from.dat_w),
+                If(cdc_s2m.sink.ready,
+                    NextState("RECEIVE")
+                )
             )
         )
         cross_fsm.act("RECEIVE",
