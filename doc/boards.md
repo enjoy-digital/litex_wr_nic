@@ -8,7 +8,7 @@ clock crossings. Board clock actuators and physical connections differ:
 | `acorn_wr_nic.py` | CLE-215+, XC7A200T / GTP | Main and helper MMCM; optional main GTP TXPI | Baseboard Mini USB UART; SFP0 |
 | `spec_a7_wr_nic.py` | SPEC-A7 / GTP | Main AD5683R ×2, helper AD5683R ×1 | USB UART; SFP0 / J12 |
 | `hyvision_pcie_opt01_revf.py` | XC7K70T / GTX | Main and helper MMCM | DVP UART; SFP0 / CN1, or `--sfp 1` for CN2 |
-| `tang_mega_138k_pro_wr.py` | GW5AST-138B / LiteEth raw SerDes | Initial PHY bring-up; clock tuning pending | USB UARTBone/WR console; SFP0, or `--sfp 1` |
+| `tang_mega_138k_pro_wr.py` | GW5AST-138B / LiteEth raw SerDes | Main MS5351 PLL fraction (I2C), helper GW5A PLL phase steps | USB UARTBone/WR console; SFP0, or `--sfp 1` |
 | `acorn_liteeth_nic.py` | CLE-215+, XC7A200T / GTP | Ethernet only, no WR | Baseboard Mini SFP0 and SFP1 |
 | `spec_a7_liteeth_nic.py` | SPEC-A7 / GTP | Ethernet only, no WR | SFP0 / J12 |
 | `spec_a7_bringup.py` | SPEC-A7 XC7A35T / optional GTP | Bring-up SoC, no WR | USB UART; optional Ethernet on `--eth-sfp 0` (J12) or `1` |
@@ -18,12 +18,12 @@ The WR wrapper supports Artix-7 GTP and Kintex-7 GTX. The direct TXPI backend
 is GTP-specific; HyVision tunes its GTX reference with the MMCM backend.
 
 The [Tang Mega 138K Pro guide](tang_mega_138k_pro.md) describes its separate
-Gowin/GHDL build, dependencies and first hardware test. Its portable 8-bit PHY
-integration is for link development; WR synchronization is not implemented yet.
+Gowin/GHDL build, dependencies, clock actuators and hardware tests. Its
+portable 8-bit PHY integration reuses LiteEth's raw SerDes and LiteX 8b/10b.
 
-Acorn and SPEC-A7 have been exercised as both WR master and slave. HyVision
-needs hardware qualification of link acquisition, tuning range and both
-roles. A successful FPGA build does not establish WR lock, independent PPS
+Acorn, SPEC-A7 and Tang Mega 138K Pro have been exercised as both WR master
+and slave. HyVision needs hardware qualification of link acquisition, tuning
+range and both roles. A successful FPGA build does not establish WR lock, independent PPS
 alignment or jitter. Absolute accuracy requires the board/module delay and
 link asymmetry calibration, checked with an independent timing instrument.
 

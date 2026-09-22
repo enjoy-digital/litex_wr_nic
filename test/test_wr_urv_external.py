@@ -18,7 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # uRV External Memory Test -------------------------------------------------------------------------
 
-def test_urv_external_memory_preserves_data_requests(tmp_path):
+@pytest.mark.parametrize("slave_mode", [0, 1], ids=["pipelined", "stalling"])
+def test_urv_external_memory_preserves_data_requests(tmp_path, slave_mode):
     for tool in ("xvlog", "xvhdl", "xelab", "xsim"):
         if shutil.which(tool) is None:
             pytest.skip(f"{tool} is required for the mixed-language uRV regression")
@@ -53,7 +54,8 @@ def test_urv_external_memory_preserves_data_requests(tmp_path):
         ROOT / "litex_wr_nic/gateware/wr-cores/modules/wrc_core/wrc_urv_external_memory.vhd",
         ROOT / "test/hdl/wr_urv_external_tb.vhd",
     )
-    run("xelab", "work.urv_external_tb", "--snapshot", "urv_external_tb")
+    run("xelab", "work.urv_external_tb", "--snapshot", "urv_external_tb",
+        "--generic_top", f"g_SLAVE_MODE={slave_mode}")
     output = run("xsim", "urv_external_tb", "--runall")
     # XSim may exit with status zero for a VHDL assertion failure.
     assert "Note: PASS" in output and "Failure:" not in output, output

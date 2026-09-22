@@ -54,8 +54,11 @@ features with support for PCIe Precision Time Measurement (PTM). The design enab
 See [board targets and reproducible builds](doc/boards.md) for the complete target matrix,
 connections, build profiles and qualification limits.
 
-An initial [Tang Mega 138K Pro WR PHY target](doc/tang_mega_138k_pro.md) provides
-USB debug and optical-link bring-up; clock tuning and latency calibration remain pending.
+The [Tang Mega 138K Pro WR target](doc/tang_mega_138k_pro.md) brings White Rabbit to
+a Gowin GW5A device: LiteEth's raw SerDes carries the WR PCS, the WR CPU runs from a
+single-cycle LiteX RAM, and the dock's MS5351 clock generator and the GW5A PLL dynamic
+phase adjustment act as main/helper clock actuators. It synchronizes as WR master or
+slave with SPEC-A7; latency calibration and independent PPS qualification remain pending.
 
 This open-source project is modular and developer-friendly, making it suitable for applications
 requiring precise timing and basic networking functionality.

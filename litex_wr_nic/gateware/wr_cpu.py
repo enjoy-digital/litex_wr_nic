@@ -266,7 +266,12 @@ def wr_cpu_word_bus(module, bus):
 # WR CPU Memory Bridge -----------------------------------------------------------------------------
 
 class WRCPUMemoryBridge(LiteXModule, AutoCSR):
-    """Expose the flattened WR-core CPU-memory master as LiteX Wishbone."""
+    """Expose the flattened WR-core CPU-memory master as LiteX Wishbone.
+
+    The uRV wrapper is a pipelined master: it issues a request in every cycle
+    where ``stall`` is low. The owner drives ``stall`` from the connected slave;
+    LiteX Wishbone has no stall signal of its own.
+    """
 
     def __init__(self, monitor_bus=None):
         self.bus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
@@ -309,7 +314,6 @@ class WRCPUMemoryBridge(LiteXModule, AutoCSR):
             self.ack.eq(self.bus.ack),
             self.err.eq(self.bus.err),
             self.rty.eq(0),
-            self.stall.eq(0),
             self._status.fields.error.eq(error_sticky),
             self._status.fields.busy.eq(monitor_bus.cyc),
             self._error_count.status.eq(error_count),
@@ -322,6 +326,78 @@ class WRCPUMemoryBridge(LiteXModule, AutoCSR):
             error_count.eq(error_count + 1),
             error_addr.eq(monitor_bus.adr),
         )
+
+# WR CPU Local Memory ------------------------------------------------------------------------------
+
+class WRCPULocalMemory(LiteXModule):
+    """Same-clock WR CPU memory answering one pipelined request per cycle.
+
+    ``cpu`` is the byte-addressed pipelined port of the uRV wrapper: a request
+    is accepted when ``stall`` is low and acknowledged one cycle later, which
+    restores the native one-fetch-per-cycle timing of the WRPC CPU. ``host`` is
+    a classic word-addressed Wishbone slave for firmware loading and debug; it
+    is granted the cycle after the CPU port was idle or, after ``host_wait``
+    busy cycles, by stalling the CPU for one cycle.
+    """
+    def __init__(self, size, contents=None, host_wait=16):
+        self.cpu   = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.stall = Signal()
+        self.host  = wishbone.Interface(data_width=32, address_width=log2_int(size//4), addressing="word")
+        self.size  = size
+
+        # # #
+
+        # Keep the memory out of AutoCSR: exporting it on the CSR bus would
+        # add a second RAM port.
+        mem  = Memory(32, size//4, init=contents)
+        port = mem.get_port(write_capable=True, we_granularity=8)
+        self.specials += mem, port
+
+        # Arbitration: the grant is registered, so the CPU's combinational
+        # request logic stays out of the high-fanout RAM address path.
+        cpu_request  = Signal()
+        host_request = Signal()
+        host_grant   = Signal()
+        host_waited  = Signal()
+        host_timer   = Signal(max=host_wait + 1)
+        cpu_ack      = Signal()
+        host_ack     = Signal()
+        self.comb += [
+            cpu_request.eq(self.cpu.cyc & self.cpu.stb),
+            host_request.eq(self.host.cyc & self.host.stb & ~host_ack & ~host_grant),
+            host_waited.eq(host_timer == host_wait),
+            self.stall.eq(host_grant),
+        ]
+        self.sync += [
+            host_grant.eq(host_request & (~cpu_request | host_waited)),
+            If(host_request & ~(~cpu_request | host_waited),
+                If(~host_waited, host_timer.eq(host_timer + 1))
+            ).Else(
+                host_timer.eq(0)
+            ),
+        ]
+
+        # Memory port: the address is registered by the port, data returns the
+        # next cycle together with the registered acknowledge.
+        self.comb += [
+            If(host_grant,
+                port.adr.eq(self.host.adr),
+                port.dat_w.eq(self.host.dat_w),
+                port.we.eq(Replicate(self.host.we, 4) & self.host.sel),
+            ).Else(
+                port.adr.eq(self.cpu.adr[2:]),
+                port.dat_w.eq(self.cpu.dat_w),
+                port.we.eq(Replicate(cpu_request, 4) & Replicate(self.cpu.we, 4) & self.cpu.sel),
+            ),
+            self.cpu.dat_r.eq(port.dat_r),
+            self.host.dat_r.eq(port.dat_r),
+            self.cpu.ack.eq(cpu_ack),
+            self.host.ack.eq(host_ack),
+        ]
+        self.sync += [
+            cpu_ack.eq(cpu_request & ~host_grant),
+            host_ack.eq(host_grant),
+        ]
 
 # CRC32 --------------------------------------------------------------------------------------------
 

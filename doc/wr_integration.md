@@ -174,6 +174,7 @@ supported and register the WR sources only once per platform. Use Migen's
 | --- | --- | --- |
 | `bus` | `sys` | 32-bit word-addressed host Wishbone slave |
 | `cpu_bus` | `sys` | Optional 32-bit word-addressed CPU memory master |
+| `cpu_memory_bus` | `sys` | Optional host slave of the local single-cycle CPU memory |
 | `sink` / `source` | `sys` | Application Ethernet byte streams |
 | `dac_*_data`, `dac_*_load` | `wr_sys` | Oscillator tuning commands |
 | `tm_seconds`, `tm_cycles`, `tm_time_valid`, `pps_*` | `wr` | PHY reference time and PPS |
@@ -181,6 +182,17 @@ supported and register the WR sources only once per platform. Use Migen's
 For direct SoC-memory integration, pass `with_cpu_memory=True`, register
 `cpu_bus` against the reserved `SoCRegion`, and supply `cpu_memory_ready`.
 Keep the host slave's decoded size consistent with `wb_slave_size` on the core.
+
+The external-memory uRV wrapper is a pipelined Wishbone master: it issues one
+request per cycle while the slave's `stall` is low and consumes in-order
+responses. Through `WishboneClockCrossing` this degrades to one outstanding
+access, as on SPEC-A7. With the same-clock external PHY, `cpu_memory_local=True`
+instead keeps a `WRCPULocalMemory` inside the core: a single-cycle RAM
+initialized from the firmware binary that restores the native one-fetch-per-cycle
+uRV timing, with `cpu_memory_bus` as the host slave for loading and debug.
+`add_white_rabbit` registers it as `wr_cpu_ram`. The Tang Mega 138K Pro target
+uses this: through the SoC bus the SoftPLL interrupt consumed about half of
+the CPU and the slave servo lost lock intermittently.
 
 External build integrations can pass `wr_cpu_type`, `wr_cpu_variant`, and
 `wr_cpu_memory` to `prepare_wr_environment`. The returned configuration
