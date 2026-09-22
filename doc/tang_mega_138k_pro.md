@@ -38,9 +38,9 @@ Acorn/SPEC dependency manifest predates the required Gowin support.
 | Repository | Revision |
 | --- | --- |
 | `m-labs/migen` | `4c2ae8dfeea37f235b52acb8166f12acaaae4f7c` |
-| `enjoy-digital/litex` | `dce79bf9abf6eb77e4f6e9358e11751f83051cab` plus [PR #2628](https://github.com/enjoy-digital/litex/pull/2628) (`GW5APLL.expose_dpa`) |
+| `enjoy-digital/litex` | `0e57a19e9180470aa1a06080a568ef6edda47db1` (`GW5APLL.expose_dpa`, [#2628](https://github.com/enjoy-digital/litex/pull/2628)) |
 | `litex-hub/litex-boards` | `58634aac7029fd80dc7a8bbff1e5fbe22e141fb2` |
-| `enjoy-digital/liteeth` | `77bccd4` plus [PR #229](https://github.com/enjoy-digital/liteeth/pull/229) (SerDes FIFO levels) |
+| `enjoy-digital/liteeth` | `77bccd4a4ea18eaee21c7686dc5ad8acec8b65d5` plus [PR #229](https://github.com/enjoy-digital/liteeth/pull/229) (SerDes FIFO levels) |
 | `enjoy-digital/litescope` | `6bf3b92f261c50b8c7c74947f84e692ae846f512` |
 
 From the repository root:
