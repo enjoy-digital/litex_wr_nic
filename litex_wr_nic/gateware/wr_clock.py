@@ -9,9 +9,10 @@ from migen.genlib.cdc import BusSynchronizer, MultiReg
 
 from litex.gen import *
 
-from litex.soc.interconnect.csr import CSRField, CSRStatus
+from litex.soc.interconnect.csr import CSRField, CSRStatus, CSRStorage
 
 from litex_wr_nic.gateware.wr_cdc import WRClockCrossing
+from litex_wr_nic.gateware.ms5351 import MS5351PLLTuner, MS5351_CODE_WIDTH, MS5351_CODE_NOMINAL
 
 # WR External Clock -------------------------------------------------------------------------------
 
@@ -296,4 +297,137 @@ class WRMMCMBackend(LiteXModule):
             self._steps.status.eq(self.status_cdc.o[2:]),
             self.superseded_cdc.i.eq(cdc.superseded),
             self._superseded.status.eq(self.superseded_cdc.o),
+        ]
+
+
+class WRGowinPLLBackend(LiteXModule):
+    """Rate accumulator for Gowin GW5A PLL dynamic phase adjustment.
+
+    Each pulse shifts the selected PLL output by one VCO/8 step, so a steady
+    pulse rate is a frequency offset: |code - center| / 2**(width+div_n+3)
+    steps per cycle of ``cd``, at most one every 2**(div_n+4) cycles. With a
+    1.25 GHz VCO and a 62.5 MHz clock this gives +/- 195 ppm for div_n=1.
+    Codes above center advance the phase and raise the output frequency.
+    The command and the PLL controls share ``cd``; the PLL exposes its
+    controls through ``GW5APLL.expose_dpa``.
+    """
+    def __init__(self, cd="sys", width=16, div_n=1, **calibration):
+        if div_n < 0:
+            raise ValueError("Invalid PLL rate divider.")
+        self.command   = WRTuningInterface(width, name="command")
+        self.phase_dir = Signal()
+        self.phase_step = Signal()
+        self.steps     = Signal(32)
+
+        # # #
+
+        self.calibration = calibrated = WRTuningCalibration(width, cd, **calibration)
+        self.comb += self.command.connect(calibrated.sink)
+
+        # Neutral/reversal cancels unissued phase; frequent same-direction
+        # commands keep their fractional progress so small offsets still step.
+        neutral   = 1 << (width - 1)
+        acc_width = width + div_n + 3
+        magnitude = Signal(width)
+        direction = Signal()
+        acc       = Signal(acc_width)
+        total     = Signal(acc_width + 1)
+        self.comb += total.eq(acc + magnitude)
+        sync = getattr(self.sync, cd)
+        sync += [
+            self.phase_step.eq(0),
+            If(calibrated.source.load,
+                direction.eq(calibrated.source.data >= neutral),
+                magnitude.eq(Mux(calibrated.source.data < neutral,
+                    neutral - calibrated.source.data, calibrated.source.data - neutral)),
+                If((calibrated.source.data == neutral) |
+                   ((calibrated.source.data >= neutral) != direction),
+                    acc.eq(0),
+                ),
+            ).Else(
+                acc.eq(total[:acc_width]),
+                If(total[acc_width],
+                    self.phase_dir.eq(direction),
+                    self.phase_step.eq(1),
+                    self.steps.eq(self.steps + 1),
+                ),
+            ),
+        ]
+
+        self._command = CSRStatus(width, description="Latest WR helper-clock command.")
+        self._steps   = CSRStatus(32, description="Issued PLL phase steps, wrapping at 32 bits.")
+        command = Signal(width, reset=neutral)
+        sync += If(self.command.load, command.eq(self.command.data))
+        if cd == "sys":
+            self.comb += [
+                self._command.status.eq(command),
+                self._steps.status.eq(self.steps),
+            ]
+        else:
+            self.status_cdc = BusSynchronizer(width + 32, cd, "sys")
+            self.comb += [
+                self.status_cdc.i.eq(Cat(command, self.steps)),
+                self._command.status.eq(self.status_cdc.o[:width]),
+                self._steps.status.eq(self.status_cdc.o[width:]),
+            ]
+
+
+class WRMS5351Backend(LiteXModule):
+    """Main-clock actuator on an MS5351 PLL feedback fraction.
+
+    The 16-bit WR command is centered on ``center`` (a 21-bit MS5351 code,
+    nominal 2**20) and scaled by 2**shift codes per command step, then
+    saturated to the 21-bit range. With shift=0 the servo spans +/- 7 ppm in
+    0.2 ppb steps around a center that absorbs the crystal offset; a larger
+    shift trades resolution for range. The tuner runs in ``sys``.
+    """
+    def __init__(self, sys_clk_freq, width=16, center=MS5351_CODE_NOMINAL, shift=0, **tuner):
+        if not 0 <= center < (1 << MS5351_CODE_WIDTH) or not 0 <= shift <= MS5351_CODE_WIDTH - width:
+            raise ValueError("Invalid MS5351 center code or command shift.")
+        self.command = WRTuningInterface(width, name="command")
+        self.tuner   = tuner = MS5351PLLTuner(sys_clk_freq, **tuner)
+
+        self._control = CSRStorage(fields=[
+            CSRField("enable", size=1, reset=1, description="Drive the MS5351 from WR commands; clear to release the I2C bus."),
+        ])
+        self._center = CSRStorage(MS5351_CODE_WIDTH, reset=center,
+            description="MS5351 code for a neutral WR command; nominal is 2**20.")
+        self._shift  = CSRStorage(max(1, (MS5351_CODE_WIDTH - width).bit_length()), reset=shift,
+            description="MS5351 codes per WR command step, as a power of two.")
+        self._status = CSRStatus(fields=[
+            CSRField("busy",  size=1, description="An I2C update is in progress."),
+            CSRField("valid", size=1, description="The MS5351 holds the fractional configuration."),
+        ])
+        self._command = CSRStatus(width, description="Latest WR main-clock command.")
+        self._code    = CSRStatus(MS5351_CODE_WIDTH, description="MS5351 code applied by the latest update.")
+        self._updates = CSRStatus(32, description="Completed I2C updates.")
+        self._errors  = CSRStatus(32, description="I2C updates without acknowledge.")
+
+        # # #
+
+        neutral = 1 << (width - 1)
+        command = Signal(width, reset=neutral)
+        offset  = Signal((width + 1, True))
+        delta   = Signal((MS5351_CODE_WIDTH + 2, True))
+        code    = Signal((MS5351_CODE_WIDTH + 3, True))
+        maximum = (1 << MS5351_CODE_WIDTH) - 1
+        self.sync += If(self.command.load, command.eq(self.command.data))
+        self.comb += [
+            offset.eq(command - neutral),
+            delta.eq(offset << self._shift.storage),
+            code.eq(self._center.storage + delta),
+            tuner.enable.eq(self._control.fields.enable),
+            If(code < 0,
+                tuner.code.eq(0),
+            ).Elif(code > maximum,
+                tuner.code.eq(maximum),
+            ).Else(
+                tuner.code.eq(code),
+            ),
+            self._status.fields.busy.eq(tuner.busy),
+            self._status.fields.valid.eq(tuner.valid),
+            self._command.status.eq(command),
+            self._code.status.eq(tuner.current),
+            self._updates.status.eq(tuner.updates),
+            self._errors.status.eq(tuner.errors),
         ]

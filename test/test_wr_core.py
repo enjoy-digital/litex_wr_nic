@@ -194,6 +194,68 @@ def test_compatibility_adapter_registers_memory_and_csrs_once(platform):
         for s in fragment.specials) == 1
 
 
+def _external_phy(soc):
+    from litex.soc.interconnect.csr import CSRStatus
+    soc.phy = phy = LiteXModule()
+    for name, width in (
+        ("tx_clk", 1), ("rx_clk", 1), ("pll_lock", 1),
+        ("tx_disparity", 1), ("tx_error", 1), ("rx_data", 8), ("rx_k", 1),
+        ("rx_error", 1), ("rx_bitslide", 4), ("ready", 1),
+        ("reset", 1), ("loopback", 1), ("tx_data", 8), ("tx_k", 1),
+    ):
+        setattr(phy, name, Signal(width))
+    phy.status = CSRStatus(5)
+    return phy
+
+
+def test_local_cpu_memory_registers_a_host_slave_and_no_master(platform, monkeypatch, tmp_path):
+    from litex.build import vhd2v_converter
+    from litex_wr_nic.gateware import wr_phy
+
+    class Converter(LiteXModule):
+        def __init__(self, *args, **kwargs):
+            self._ghdl_opts = []
+
+    monkeypatch.setattr(vhd2v_converter, "VHD2VConverter", Converter)
+    monkeypatch.setattr(wr_phy, "phy8_sources", lambda platform: [])
+    firmware = tmp_path / "wrc.bram"
+    firmware.write_text("")
+    firmware.with_suffix(".bin").write_bytes(bytes(range(16)))
+    soc          = LiteXModule()
+    soc.platform = platform
+    masters, slaves = {}, {}
+    soc.bus = SimpleNamespace(
+        add_master = lambda **kwargs: masters.update(kwargs),
+        add_slave  = lambda **kwargs: slaves.update({kwargs["name"]: kwargs}),
+    )
+    region = SoCRegion(origin=0x10000000, size=128*1024)
+    core = add_white_rabbit(soc, cpu_firmware=str(firmware), cpu_memory_region=region,
+        cpu_memory_local=True, phy=_external_phy(soc), with_ext_clk=False)
+    assert masters == {}
+    assert core.cpu_bus is None
+    assert slaves["wr_cpu_ram"]["slave"] is core.cpu_memory_bus
+    assert slaves["wr_cpu_ram"]["region"] is region
+    # The firmware words initialize the memory; the bridge stalls from it.
+    assert core.wr_cpu_memory.size == 128*1024
+    assert core.wr_cpu_bridge.stall is not None
+    fragment = soc.get_fragment()
+    memories = sorted((s for s in fragment.specials if getattr(s, "depth", None) == 8192), key=lambda m: m.duid)
+    assert len(memories) == 4 and memories[0].init[:4] == [0x03020100, 0x07060504, 0x0b0a0908, 0x0f0e0d0c]
+    # The memory is private to the core: no CSR-bus export of its contents.
+    banks = CSRBankArray(soc, lambda name, memory: 5)
+    assert banks.srams == []
+
+
+@pytest.mark.parametrize("kwargs", [
+    dict(),                                   # SoC-bus PHY: needs the same-clock external PHY.
+    dict(cpu_type="vexriscv", cpu_variant="lite"), # LiteX CPUs own their memory bus.
+])
+def test_local_cpu_memory_requires_same_clock_urv(platform, kwargs):
+    with pytest.raises(ValueError, match="Local WR CPU memory"):
+        WhiteRabbitCore(platform, with_cpu_memory=True, cpu_memory_local=True,
+            **core_kwargs(), **kwargs)
+
+
 @pytest.mark.parametrize("explicit", [False, True])
 def test_sources_are_automatic_and_explicit_calls_are_idempotent(platform, monkeypatch, tmp_path, explicit):
     monkeypatch.chdir(tmp_path)

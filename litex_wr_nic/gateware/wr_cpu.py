@@ -266,7 +266,12 @@ def wr_cpu_word_bus(module, bus):
 # WR CPU Memory Bridge -----------------------------------------------------------------------------
 
 class WRCPUMemoryBridge(LiteXModule, AutoCSR):
-    """Expose the flattened WR-core CPU-memory master as LiteX Wishbone."""
+    """Expose the flattened WR-core CPU-memory master as LiteX Wishbone.
+
+    The uRV wrapper is a pipelined master: it issues a request in every cycle
+    where ``stall`` is low. The owner drives ``stall`` from the connected slave;
+    LiteX Wishbone has no stall signal of its own.
+    """
 
     def __init__(self, monitor_bus=None):
         self.bus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
@@ -309,7 +314,6 @@ class WRCPUMemoryBridge(LiteXModule, AutoCSR):
             self.ack.eq(self.bus.ack),
             self.err.eq(self.bus.err),
             self.rty.eq(0),
-            self.stall.eq(0),
             self._status.fields.error.eq(error_sticky),
             self._status.fields.busy.eq(monitor_bus.cyc),
             self._error_count.status.eq(error_count),
@@ -322,6 +326,114 @@ class WRCPUMemoryBridge(LiteXModule, AutoCSR):
             error_count.eq(error_count + 1),
             error_addr.eq(monitor_bus.adr),
         )
+
+# WR CPU Local Memory ------------------------------------------------------------------------------
+
+class WRCPULocalMemory(LiteXModule):
+    """Same-clock WR CPU memory answering one pipelined request per cycle.
+
+    ``cpu`` is the byte-addressed pipelined port of the uRV wrapper: a request
+    is accepted when ``stall`` is low and acknowledged one cycle later, which
+    restores the native one-fetch-per-cycle timing of the WRPC CPU. ``host`` is
+    a classic word-addressed Wishbone slave for firmware loading and debug; it
+    is granted the cycle after the CPU port was idle or, after ``host_wait``
+    busy cycles, by stalling the CPU for one cycle.
+
+    The memory is split into ``banks`` with a kept copy of the address mux for
+    each: the fetch address is combinational from the CPU program counter,
+    and one net fanning out to every block RAM of a 128 KiB memory otherwise
+    dominates the cycle.
+    """
+    def __init__(self, size, contents=None, host_wait=16, banks=4):
+        self.cpu   = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.stall = Signal()
+        self.host  = wishbone.Interface(data_width=32, address_width=log2_int(size//4), addressing="word")
+        self.size  = size
+
+        # # #
+
+        words      = size//4
+        bank_words = words//banks
+        if contents is None:
+            contents = []
+        contents = list(contents) + [0]*(words - len(contents))
+
+        # Arbitration: the grant is registered, so the CPU's combinational
+        # request logic stays out of the high-fanout RAM address path.
+        cpu_request  = Signal()
+        host_request = Signal()
+        host_grant   = Signal()
+        host_waited  = Signal()
+        host_timer   = Signal(max=host_wait + 1)
+        cpu_ack      = Signal()
+        host_ack     = Signal()
+        self.comb += [
+            cpu_request.eq(self.cpu.cyc & self.cpu.stb),
+            host_request.eq(self.host.cyc & self.host.stb & ~host_ack & ~host_grant),
+            host_waited.eq(host_timer == host_wait),
+            self.stall.eq(host_grant),
+        ]
+        self.sync += [
+            host_grant.eq(host_request & (~cpu_request | host_waited)),
+            If(host_request & ~(~cpu_request | host_waited),
+                If(~host_waited, host_timer.eq(host_timer + 1))
+            ).Else(
+                host_timer.eq(0)
+            ),
+        ]
+
+        # Request selection: word address, byte enables and data.
+        adr   = Signal(log2_int(words))
+        we    = Signal(4)
+        dat_w = Signal(32)
+        self.comb += [
+            If(host_grant,
+                adr.eq(self.host.adr),
+                dat_w.eq(self.host.dat_w),
+                we.eq(Replicate(self.host.we, 4) & self.host.sel),
+            ).Else(
+                adr.eq(self.cpu.adr[2:]),
+                dat_w.eq(self.cpu.dat_w),
+                we.eq(Replicate(cpu_request & self.cpu.we, 4) & self.cpu.sel),
+            ),
+        ]
+
+        # Memory banks: the address is registered by each port, data returns
+        # the next cycle together with the registered acknowledge.
+        bank_bits = log2_int(banks)
+        select    = adr[-bank_bits:] if banks > 1 else Constant(0, 1)
+        select_r  = Signal(max(bank_bits, 1))
+        dat_r     = Signal(32)
+        cases     = {}
+        for i in range(banks):
+            # Keep the memory out of AutoCSR: exporting it on the CSR bus would
+            # add a second RAM port.
+            mem  = Memory(32, bank_words, init=contents[i*bank_words:(i + 1)*bank_words])
+            port = mem.get_port(write_capable=True, we_granularity=8)
+            self.specials += mem, port
+            bank_adr = Signal(log2_int(bank_words), attr={("syn_keep", 1)})
+            bank_we  = Signal(4, attr={("syn_keep", 1)})
+            self.comb += [
+                bank_adr.eq(adr[:log2_int(bank_words)]),
+                bank_we.eq(we & Replicate(select == i, 4)),
+                port.adr.eq(bank_adr),
+                port.dat_w.eq(dat_w),
+                port.we.eq(bank_we),
+            ]
+            cases[i] = dat_r.eq(port.dat_r)
+        self.sync += select_r.eq(select)
+        self.comb += Case(select_r, cases)
+
+        self.comb += [
+            self.cpu.dat_r.eq(dat_r),
+            self.host.dat_r.eq(dat_r),
+            self.cpu.ack.eq(cpu_ack),
+            self.host.ack.eq(host_ack),
+        ]
+        self.sync += [
+            cpu_ack.eq(cpu_request & ~host_grant),
+            host_ack.eq(host_grant),
+        ]
 
 # CRC32 --------------------------------------------------------------------------------------------
 

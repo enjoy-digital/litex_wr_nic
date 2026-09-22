@@ -29,6 +29,7 @@ from litex_wr_nic.gateware.wr_common         import (
     patch_wr_gtx_clocking,
 )
 from litex_wr_nic.gateware.wr_cpu            import (
+    WRCPULocalMemory,
     WRCPUMemoryBridge,
     WRCPUMemoryMonitor,
     WRLiteXCPU,
@@ -55,6 +56,15 @@ class WhiteRabbitCore(LiteXModule):
     62.5 MHz ``sys`` clock and a near-62.5 MHz helper clock in ``wr_dmtd``. Its
     firmware must use CONFIG_TARGET_GENERIC_PHY_8BIT. See wr_phy.GW5WRPHY.
     The caller registers the PHY as a submodule.
+
+    With ``phy``, the SFP management I2C of the firmware is available as the
+    ``sfp_scl_o``/``sfp_sda_o`` open-drain intents (0 drives the line low) and
+    the ``sfp_scl_i``/``sfp_sda_i`` line levels, for the caller to route.
+
+    ``cpu_memory_local`` keeps the external uRV memory inside the core as a
+    single-cycle pipelined RAM initialized from the firmware, with a host
+    Wishbone slave in ``cpu_memory_bus``. It requires the same-clock ``phy``
+    configuration. Otherwise the CPU is a ``cpu_bus`` master of SoC memory.
     """
 
     def __init__(self, platform,
@@ -64,6 +74,8 @@ class WhiteRabbitCore(LiteXModule):
         cpu_variant       = None,
         with_cpu_memory   = False,
         cpu_memory_ready  = 1,
+        cpu_memory_local  = False,
+        cpu_memory_size   = 128*1024,
         cpu_boot_loader   = None,
 
         # Board name.
@@ -113,7 +125,10 @@ class WhiteRabbitCore(LiteXModule):
                 raise ValueError("The external 8-bit PHY does not support transceiver, I2C, flash or 1-Wire pads.")
             if sfp_tx_polarity or sfp_rx_polarity or dac_bits != 16:
                 raise ValueError("The external 8-bit PHY requires default polarity and 16-bit DAC commands.")
-        self.cpu_bus  = None
+        self.cpu_bus        = None
+        self.cpu_memory_bus = None
+        if cpu_memory_local and not (with_cpu_memory and phy is not None and cpu_type == "urv"):
+            raise ValueError("Local WR CPU memory requires the same-clock external PHY and the uRV CPU.")
         if with_ext_pll and not with_ext_clk:
             raise ValueError("An external WR PLL requires the external clock input.")
         if with_txpi and not platform.device.startswith("xc7a"):
@@ -139,6 +154,10 @@ class WhiteRabbitCore(LiteXModule):
         self.dac_dmtd_data   = Signal(dac_bits)
         self.txpippmstepsize = Signal(5) # TXUSRCLK2 / wr domain; held for two clocks.
         self.pps_in          = Signal()
+        self.sfp_scl_o       = Signal()
+        self.sfp_scl_i       = Signal(reset=1)
+        self.sfp_sda_o       = Signal()
+        self.sfp_sda_i       = Signal(reset=1)
         # Board-supplied 62.5 MHz multiplier; status/reset use wr_sys.
         self.ext_clk_mul     = Signal()
         self.ext_clk_locked  = Signal()
@@ -186,14 +205,35 @@ class WhiteRabbitCore(LiteXModule):
                 )
                 self.wr_cpu_bridge = wr_cpu_bridge = WRCPUMemoryBridge(monitor_bus=wr_cpu_bus_sys)
                 wr_cpu_bus_wr = wr_cpu_bridge.bus
-            self.submodules.wr_cpu_memory_cdc = WishboneClockCrossing(self.platform,
-                wb_from        = wr_cpu_bus_wr,
-                cd_from        = "sys" if self._with_external_phy else "wr_sys",
-                wb_to          = wr_cpu_bus_sys,
-                cd_to          = "sys",
-                timeout_cycles = 1024,
-            )
-            self.cpu_bus = wr_cpu_word_bus(self, wr_cpu_bus_sys)
+            if cpu_memory_local:
+                # Firmware words are loaded from the binary next to the .bram
+                # image; the host port keeps the SoC memory map and loaders.
+                from litex.soc.integration.common import get_mem_data
+                self.wr_cpu_memory = WRCPULocalMemory(
+                    size     = cpu_memory_size,
+                    contents = get_mem_data(os.path.splitext(cpu_firmware)[0] + ".bin",
+                        endianness = "little",
+                        mem_size   = cpu_memory_size,
+                    ),
+                )
+                self.comb += [
+                    wr_cpu_bus_wr.connect(self.wr_cpu_memory.cpu),
+                    wr_cpu_bridge.stall.eq(self.wr_cpu_memory.stall),
+                ]
+                self.cpu_memory_bus = self.wr_cpu_memory.host
+            else:
+                self.submodules.wr_cpu_memory_cdc = WishboneClockCrossing(self.platform,
+                    wb_from        = wr_cpu_bus_wr,
+                    cd_from        = "sys" if self._with_external_phy else "wr_sys",
+                    wb_to          = wr_cpu_bus_sys,
+                    cd_to          = "sys",
+                    timeout_cycles = 1024,
+                )
+                if not external_cpu:
+                    # The uRV wrapper is a pipelined master; LiteX CPUs hold
+                    # their request until it is acknowledged.
+                    self.comb += wr_cpu_bridge.stall.eq(self.wr_cpu_memory_cdc.stall)
+                self.cpu_bus = wr_cpu_word_bus(self, wr_cpu_bus_sys)
             self.specials += MultiReg(cpu_memory_ready, memory_ready_wr, "wr_sys")
 
         # White Rabbit Fabric Interface.
@@ -459,6 +499,10 @@ class WhiteRabbitCore(LiteXModule):
 
                 # PHY/SFP interface.
                 i_sfp_det_i            = 0 if sfp_det_pads is None else sfp_det_pads,
+                o_sfp_scl_o            = self.sfp_scl_o,
+                i_sfp_scl_i            = self.sfp_scl_i,
+                o_sfp_sda_o            = self.sfp_sda_o,
+                i_sfp_sda_i            = self.sfp_sda_i,
                 i_phy_tx_disparity_i   = phy.tx_disparity,
                 i_phy_tx_enc_err_i     = phy.tx_error,
                 i_phy_rx_data_i        = phy.rx_data,
@@ -539,12 +583,14 @@ def add_white_rabbit(soc, cpu_firmware, cpu_memory_region=None,
     soc.bus.add_slave(name="wr_wb_slave", slave=core.bus, region=wb_slave_region)
     if core.cpu_bus is not None:
         soc.bus.add_master(name="wr_cpu", master=core.cpu_bus, region=cpu_memory_region)
+    if core.cpu_memory_bus is not None:
+        soc.bus.add_slave(name="wr_cpu_ram", slave=core.cpu_memory_bus, region=cpu_memory_region)
 
     # Aliases must not register the same Migen module twice. Exclude the nested
     # CSR traversal so legacy register names keep a single owner.
     soc.autocsr_exclude = set(getattr(soc, "autocsr_exclude", ())) | {"wr_core"}
     for name in (
-        "cd_wr", "cd_wr_sys", "wr_cpu", "wr_cpu_bridge", "wr_cpu_memory_cdc",
+        "cd_wr", "cd_wr_sys", "wr_cpu", "wr_cpu_bridge", "wr_cpu_memory_cdc", "wr_cpu_memory",
         "wrf_stream2wb", "wrf_wb2stream", "wb_slave_sys", "wb_slave_wr",
         "led_pps", "led_link", "led_act", "dac_refclk_load", "dac_refclk_data",
         "dac_dmtd_load", "dac_dmtd_data", "pps_in", "pps_out_valid", "pps_out",

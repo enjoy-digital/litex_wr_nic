@@ -6,6 +6,13 @@
 -- uRV wrapper for a WRPC whose low memory is provided by the enclosing SoC.
 -- Instruction and data accesses below 1 MiB share cpu_mem_o.  The existing
 -- WRPC peripheral Wishbone path is retained for data accesses above 1 MiB.
+--
+-- cpu_mem_o is a pipelined Wishbone master: a request is issued in every cycle
+-- where cpu_mem_i.stall is low and responses return in order.  A slave that
+-- acknowledges each request one cycle later restores the native uRV memory
+-- timing of one instruction fetch per cycle.  A slave that stalls while busy
+-- limits the CPU to a single outstanding access.  Slaves must only act on
+-- accepted requests (stb and not stall): a stalled request may be replaced.
 -------------------------------------------------------------------------------
 
 library ieee;
@@ -33,16 +40,15 @@ entity wrc_urv_external_memory is
 end wrc_urv_external_memory;
 
 architecture arch of wrc_urv_external_memory is
-  type t_mem_state is (MEM_IDLE, MEM_ACCESS_INSN, MEM_RESP_INSN,
-    MEM_ACCESS_DATA, MEM_RESP_DATA, MEM_WAIT_DATA);
-
   constant c_INSN_NOP : std_logic_vector(31 downto 0) := x"0000_0013";
+
+  -- Accepted memory requests awaiting their in-order response.
+  constant c_MAX_OUTSTANDING : natural := 4;
 
   signal cpu_rst : std_logic;
 
   signal im_addr  : std_logic_vector(31 downto 0);
   signal im_data  : std_logic_vector(31 downto 0);
-  signal im_read  : std_logic;
   signal im_valid : std_logic;
 
   signal dm_addr, dm_data_s, dm_data_l                  : std_logic_vector(31 downto 0);
@@ -58,10 +64,12 @@ architecture arch of wrc_urv_external_memory is
   signal dm_hi_rdata                          : std_logic_vector(31 downto 0);
   signal dwb_out                              : t_wishbone_master_out;
 
-  signal mem_state                      : t_mem_state;
-  signal mem_out                        : t_wishbone_master_out;
-  signal mem_data_write                 : std_logic;
-  signal mem_insn_rdata, mem_data_rdata : std_logic_vector(31 downto 0);
+  signal mem_request_data, mem_request, mem_full, mem_issue : std_logic;
+  signal mem_response, mem_response_data, mem_data_write    : std_logic;
+  signal mem_outstanding : unsigned(2 downto 0);
+  -- Request types in issue order, oldest first; '1' marks a data access.
+  signal mem_queue       : std_logic_vector(c_MAX_OUTSTANDING-1 downto 0);
+  signal mem_out         : t_wishbone_master_out;
 
   signal dbg_insn : std_logic_vector(31 downto 0);
   signal regs_in  : t_wrc_cpu_csr_regs_master_out;
@@ -93,7 +101,7 @@ begin
       im_addr_o        => im_addr,
       im_data_i        => im_data,
       im_valid_i       => im_valid,
-      im_rd_o          => im_read,
+      im_rd_o          => open,
       dm_addr_o        => dm_addr,
       dm_data_s_o      => dm_data_s,
       dm_data_l_i      => dm_data_l,
@@ -117,21 +125,14 @@ begin
   dwb_o          <= dwb_out;
   cpu_mem_o      <= mem_out;
 
-  -- Completion does not depend combinationally on dm_addr: the CPU can derive
-  -- dm_addr from load_done, so address-based response muxing forms a loop.
-  dm_load_done <= '1' when dm_hi_load_done = '1' or
-    (mem_state = MEM_RESP_DATA and mem_data_write = '0') else '0';
-  dm_store_done <= '1' when dm_hi_store_done = '1' or
-    (mem_state = MEM_RESP_DATA and mem_data_write = '1') else '0';
-  dm_data_l <= dm_hi_rdata when dm_hi_load_done = '1' else mem_data_rdata;
-  im_data   <= mem_insn_rdata;
-  im_valid  <= '1' when mem_state = MEM_RESP_INSN else '0';
-
   -- uRV pulses load/store for one cycle, independently of instruction fetches.
   -- Preserve the complete request while the selected bus path is occupied.
   -- The CPU stalls until completion, so one pending entry is sufficient.
+  -- The request fields are captured every cycle: the execute stage holds
+  -- them while it waits for completion, and a clock enable derived from the
+  -- late load/store decode would otherwise fan out to all of these registers.
   dm_accept <= '1' when dm_pending = '1' and
-    ((dm_is_wishbone = '0' and mem_state = MEM_IDLE) or
+    ((dm_is_wishbone = '0' and mem_issue = '1') or
      (dm_is_wishbone = '1' and dm_hi_cycle = '0' and dm_hi_wait = '0')) else '0';
 
   p_data_request : process(clk_sys_i)
@@ -148,7 +149,9 @@ begin
           dm_pending <= '0';
         end if;
         if dm_load = '1' or dm_store = '1' then
-          dm_pending        <= '1';
+          dm_pending <= '1';
+        end if;
+        if dm_pending = '0' or dm_accept = '1' then
           dm_write          <= dm_store;
           dm_request_addr   <= dm_addr;
           dm_request_data   <= dm_data_s;
@@ -228,84 +231,61 @@ begin
     end if;
   end process;
 
-  -- Shared external instruction/data memory path. Data accesses are selected
-  -- first whenever both interfaces request a transaction.
-  p_external_memory : process(clk_sys_i)
+  -- Shared external instruction/data memory path.  A pending data access is
+  -- issued before the fetch of the cycle, which the CPU then repeats.  As with
+  -- the native uRV instruction port, the program counter is fetched in every
+  -- other cycle: a stalled pipeline keeps its address, so any later response
+  -- remains valid and no bubble follows the stall.
+  mem_request_data <= dm_pending and not dm_is_wishbone;
+  mem_request      <= not cpu_rst;
+  mem_full         <= '1' when mem_outstanding = c_MAX_OUTSTANDING else '0';
+  mem_issue        <= mem_request and not mem_full and not cpu_mem_i.stall;
+  mem_response     <= (cpu_mem_i.ack or cpu_mem_i.err or cpu_mem_i.rty)
+                      when mem_outstanding /= 0 else '0';
+
+  mem_out.cyc <= '1' when cpu_rst = '0' and (mem_outstanding /= 0 or mem_request = '1') else '0';
+  mem_out.stb <= mem_request and not mem_full;
+  mem_out.adr <= dm_request_addr   when mem_request_data = '1' else im_addr;
+  mem_out.we  <= dm_write          when mem_request_data = '1' else '0';
+  mem_out.sel <= dm_request_select when mem_request_data = '1' else "1111";
+  mem_out.dat <= dm_request_data;
+
+  p_memory_queue : process(clk_sys_i)
+    variable v_queue : std_logic_vector(mem_queue'range);
+    variable v_count : unsigned(mem_outstanding'range);
   begin
     if rising_edge(clk_sys_i) then
       if cpu_rst = '1' then
-        mem_state      <= MEM_IDLE;
-        mem_out.cyc    <= '0';
-        mem_out.stb    <= '0';
-        mem_out.adr    <= (others => '0');
-        mem_out.sel    <= (others => '0');
-        mem_out.we     <= '0';
-        mem_out.dat    <= (others => '0');
-        mem_data_write <= '0';
-        mem_insn_rdata <= c_INSN_NOP;
-        mem_data_rdata <= (others => '0');
+        mem_queue       <= (others => '0');
+        mem_outstanding <= (others => '0');
+        mem_data_write  <= '0';
       else
-        case mem_state is
-          when MEM_IDLE =>
-            if dm_is_wishbone = '0' and dm_pending = '1' then
-              mem_out.cyc    <= '1';
-              mem_out.stb    <= '1';
-              mem_out.adr    <= dm_request_addr;
-              mem_out.sel    <= dm_request_select;
-              mem_out.we     <= dm_write;
-              mem_out.dat    <= dm_request_data;
-              mem_data_write <= dm_write;
-              mem_state      <= MEM_ACCESS_DATA;
-            elsif im_read = '1' then
-              mem_out.cyc <= '1';
-              mem_out.stb <= '1';
-              mem_out.adr <= im_addr;
-              mem_out.sel <= "1111";
-              mem_out.we  <= '0';
-              mem_out.dat <= (others => '0');
-              mem_state   <= MEM_ACCESS_INSN;
-            end if;
-
-          when MEM_ACCESS_INSN =>
-            if cpu_mem_i.stall = '0' then
-              mem_out.stb <= '0';
-            end if;
-            if cpu_mem_i.ack = '1' or cpu_mem_i.err = '1' or cpu_mem_i.rty = '1' then
-              mem_out.cyc <= '0';
-              if cpu_mem_i.ack = '1' then
-                mem_insn_rdata <= cpu_mem_i.dat;
-              else
-                mem_insn_rdata <= c_INSN_NOP;
-              end if;
-              mem_state <= MEM_RESP_INSN;
-            end if;
-
-          when MEM_RESP_INSN =>
-            mem_state <= MEM_IDLE;
-
-          when MEM_ACCESS_DATA =>
-            if cpu_mem_i.stall = '0' then
-              mem_out.stb <= '0';
-            end if;
-            if cpu_mem_i.ack = '1' or cpu_mem_i.err = '1' or cpu_mem_i.rty = '1' then
-              mem_out.cyc <= '0';
-              if cpu_mem_i.ack = '1' then
-                mem_data_rdata <= cpu_mem_i.dat;
-              else
-                mem_data_rdata <= (others => '0');
-              end if;
-              mem_state <= MEM_RESP_DATA;
-            end if;
-
-          when MEM_RESP_DATA =>
-            mem_state <= MEM_WAIT_DATA;
-
-          when MEM_WAIT_DATA =>
-            if dm_load = '0' and dm_store = '0' then
-              mem_state <= MEM_IDLE;
-            end if;
-        end case;
+        v_queue := mem_queue;
+        v_count := mem_outstanding;
+        if mem_response = '1' then
+          v_queue := '0' & v_queue(v_queue'high downto 1);
+          v_count := v_count - 1;
+        end if;
+        if mem_issue = '1' then
+          v_queue(to_integer(v_count)) := mem_request_data;
+          v_count                      := v_count + 1;
+          if mem_request_data = '1' then
+            mem_data_write <= dm_write;
+          end if;
+        end if;
+        mem_queue       <= v_queue;
+        mem_outstanding <= v_count;
       end if;
     end if;
   end process;
+
+  -- Completion does not depend combinationally on dm_addr: the CPU can derive
+  -- dm_addr from load_done, so address-based response muxing forms a loop.
+  mem_response_data <= mem_response and mem_queue(0);
+  im_valid          <= mem_response and not mem_queue(0);
+  im_data           <= cpu_mem_i.dat when cpu_mem_i.ack = '1' else c_INSN_NOP;
+  dm_load_done      <= dm_hi_load_done or (mem_response_data and not mem_data_write);
+  dm_store_done     <= dm_hi_store_done or (mem_response_data and mem_data_write);
+  dm_data_l         <= dm_hi_rdata when dm_hi_load_done = '1' else
+                       cpu_mem_i.dat when cpu_mem_i.ack = '1' else (others => '0');
 end architecture arch;
