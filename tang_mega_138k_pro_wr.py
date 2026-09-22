@@ -13,22 +13,43 @@ import subprocess
 from pathlib import Path
 
 from migen import *
+from migen.fhdl.specials import Tristate
 
 from litex.gen import *
 
-from litex.soc.interconnect.csr import CSRStatus
+from litex.build.generic_platform import Pins, Subsignal, IOStandard
 
+from litex.soc.interconnect.csr import CSRStatus, CSRStorage
+
+from litex.soc.cores.bitbang import I2CMaster
 from litex.soc.cores.clock.gowin_gw5a import GW5APLL
 from litex.soc.cores.freqmeter import FreqMeter
 from litex.soc.cores.uart import UARTPHY, UART
+from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import SoCMini
 from litex.soc.integration.builder import Builder
-from litex.soc.integration.common import get_mem_data
 
 from litex_boards.platforms import sipeed_tang_mega_138k_pro
 
-from litex_wr_nic.gateware.wr_core import add_white_rabbit
-from litex_wr_nic.gateware.wr_phy  import GW5WRPHY
+from litex_wr_nic.gateware.wr_clock import WRGowinPLLBackend, WRMS5351Backend
+from litex_wr_nic.gateware.wr_core  import add_white_rabbit
+from litex_wr_nic.gateware.wr_phy   import GW5WRPHY
+
+# IOs ----------------------------------------------------------------------------------------------
+
+# Pro dock I2C: the FPGA SYS_TWI bus reaches the SFP EEPROMs and the MS5351
+# clock generators through a 74HC4051 multiplexer. Channel 3 is the MS5351
+# feeding Q1 REFCLK1 (PLL0); channels 0 and 1 are the SFP0/SFP1 modules.
+_dock_i2c_io = [
+    ("dock_i2c", 0,
+        Subsignal("scl", Pins("K25")),
+        Subsignal("sda", Pins("K26")),
+        IOStandard("LVCMOS33")
+    ),
+    ("dock_i2c_sel", 0, Pins("N19 P19 P26"), IOStandard("LVCMOS33")),
+]
+
+DOCK_I2C_CHANNEL_MS5351 = 3
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -42,8 +63,10 @@ class CRG(LiteXModule):
         self.pll = pll = GW5APLL(device=platform.device, devicename=platform.devicename)
         pll.register_clkin(platform.request("clk50"), 50e6)
         pll.create_clkout(self.cd_sys,     62.5e6, margin=0)
-        # The 8-bit WR core divides the 125 MHz inputs by two for DDMTD.
+        # The 8-bit WR core divides the 125 MHz inputs by two for DDMTD. The
+        # helper offset is applied as dynamic phase steps of this output.
         pll.create_clkout(self.cd_wr_dmtd, 62.5e6, margin=0)
+        pll.expose_dpa(clkout=1)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -52,12 +75,15 @@ class BaseSoC(SoCMini):
         with_analyzer = False,
         analyzer_csv  = "analyzer.csv",
         cpu_firmware  = "litex_wr_nic/firmware/tang_mega_138k_pro_wrc.bram",
+        main_center   = 1 << 20,
+        main_shift    = 1,
     ):
         platform = sipeed_tang_mega_138k_pro.Platform()
+        platform.add_extension(_dock_i2c_io)
         # Limit reset/control fanout in the 125 MHz WR logic.
         platform.toolchain.options["maxfan"] = 32
         self.crg = CRG(platform)
-        SoCMini.__init__(self, platform, 62.5e6, ident="LiteX WR bring-up on Tang Mega 138K Pro")
+        SoCMini.__init__(self, platform, 62.5e6, ident="LiteX WR on Tang Mega 138K Pro")
 
         # UART -------------------------------------------------------------------------------------
         # GW5 has no supported LiteX JTAGBone primitive yet. Share the USB
@@ -83,19 +109,12 @@ class BaseSoC(SoCMini):
         # White Rabbit -----------------------------------------------------------------------------
         self.phy = GW5WRPHY(platform, lane=sfp)
         pads = platform.request("sfp", sfp)
-        # Reuse LiteX RAM and the existing WR CPU memory bridge. This avoids
-        # vendor-specific byte-write RAM inference in the VHDL CPU wrapper.
-        self.add_ram("wr_cpu_ram",
-            origin   = 0x1000_0000,
-            size     = 128*1024,
-            contents = get_mem_data(str(Path(cpu_firmware).with_suffix(".bin")),
-                endianness = "little",
-                mem_size   = 128*1024,
-            ),
-        )
+        # The uRV runs from a single-cycle LiteX RAM inside the core; the host
+        # reaches it at wr_cpu_ram for firmware loading and debug.
         wr = add_white_rabbit(self,
             cpu_firmware      = cpu_firmware,
-            cpu_memory_region = self.bus.regions["wr_cpu_ram"],
+            cpu_memory_region = SoCRegion(origin=0x1000_0000, size=128*1024),
+            cpu_memory_local  = True,
             board_name        = "T138",
             phy               = self.phy,
             with_ext_clk      = False,
@@ -108,14 +127,55 @@ class BaseSoC(SoCMini):
             wr.sink.valid.eq(0),
         ]
 
-        # Diagnostics ------------------------------------------------------------------------------
-        # Keep the unconnected clock-actuator commands visible for bench development.
-        self.main_dac   = CSRStatus(16, description="Last WR main-clock command; no actuator connected yet.")
-        self.helper_dac = CSRStatus(16, description="Last WR helper-clock command; no actuator connected yet.")
-        self.sync += [
-            If(wr.dac_refclk_load, self.main_dac.status.eq(wr.dac_refclk_data)),
-            If(wr.dac_dmtd_load,   self.helper_dac.status.eq(wr.dac_dmtd_data)),
+        # Clock actuators --------------------------------------------------------------------------
+        # Helper: DDMTD offset from dynamic phase steps of the 62.5 MHz PLL output.
+        self.helper_tuning = helper_tuning = WRGowinPLLBackend(cd="sys")
+        self.comb += [
+            helper_tuning.command.load.eq(wr.dac_dmtd_load),
+            helper_tuning.command.data.eq(wr.dac_dmtd_data),
+            self.crg.pll.phase_dir.eq(helper_tuning.phase_dir),
+            self.crg.pll.phase_step.eq(helper_tuning.phase_step),
         ]
+        # Main: fractional feedback of the dock MS5351 generating the 100 MHz
+        # SerDes reference (PLL0, 900 MHz VCO from 25 MHz, documented setup).
+        # Shift 1 spans +/- 14 ppm around the center in 0.4 ppb steps; larger
+        # shifts did not phase-lock with the I2C update latency.
+        self.main_tuning = main_tuning = WRMS5351Backend(62.5e6,
+            center     = main_center,
+            shift      = main_shift,
+            multiplier = 36,
+            pll        = "A",
+        )
+        self.comb += [
+            main_tuning.command.load.eq(wr.dac_refclk_load),
+            main_tuning.command.data.eq(wr.dac_refclk_data),
+        ]
+
+        # Dock I2C ---------------------------------------------------------------------------------
+        # The tuner owns the bus and multiplexer while enabled; otherwise the
+        # host bit-bang master can reach any channel, e.g. an SFP EEPROM.
+        self.i2c     = I2CMaster(connect_pads=False)
+        self.i2c_sel = CSRStorage(3, description="Dock I2C multiplexer channel for host accesses.")
+        i2c_pads = platform.request("dock_i2c")
+        tuner    = main_tuning.tuner
+        scl_i    = Signal()
+        sda_i    = Signal()
+        self.specials += [
+            # I2C uses pull-ups: only drive low.
+            Tristate(i2c_pads.scl, o=0, i=scl_i,
+                oe = Mux(tuner.enable, ~tuner.scl_o, ~self.i2c._w.fields.scl)),
+            Tristate(i2c_pads.sda, o=0, i=sda_i,
+                oe = Mux(tuner.enable, ~tuner.sda_o, self.i2c._w.fields.oe & ~self.i2c._w.fields.sda)),
+        ]
+        self.comb += [
+            tuner.sda_i.eq(sda_i),
+            self.i2c._r.fields.scl.eq(scl_i),
+            self.i2c._r.fields.sda.eq(sda_i),
+            platform.request("dock_i2c_sel").eq(
+                Mux(tuner.enable, DOCK_I2C_CHANNEL_MS5351, self.i2c_sel.storage)),
+        ]
+
+        # Diagnostics ------------------------------------------------------------------------------
         self.ref_clk_freq  = FreqMeter(62_500_000, clk=ClockSignal("wr"))
         self.dmtd_clk_freq = FreqMeter(62_500_000, clk=ClockSignal("wr_dmtd"))
         self.rx_clk_freq   = FreqMeter(62_500_000, clk=self.phy.rx_clk)
@@ -164,7 +224,7 @@ class BaseSoC(SoCMini):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Initial WR PHY/console bring-up on Tang Mega 138K Pro.")
+    parser = argparse.ArgumentParser(description="White Rabbit on Tang Mega 138K Pro.")
 
     # Build/load options.
     parser.add_argument("--build",               action="store_true", help="Build the bitstream.")
@@ -174,6 +234,10 @@ def main():
 
     # PHY/debug options.
     parser.add_argument("--sfp", type=int, choices=(0, 1), default=0, help="SFP lane (default: 0).")
+    parser.add_argument("--main-center", type=lambda v: int(v, 0), default=1 << 20,
+        help="MS5351 code for a neutral main-clock command (default: 0x100000, nominal).")
+    parser.add_argument("--main-shift", type=int, default=1,
+        help="MS5351 codes per main-clock command step, as a power of two (default: 1).")
     parser.add_argument("--with-analyzer", action="store_true",
         help="Capture raw and decoded RX symbols with LiteScope.")
     args = parser.parse_args()
@@ -190,6 +254,8 @@ def main():
         sfp           = args.sfp,
         with_analyzer = args.with_analyzer,
         analyzer_csv  = str(Path(args.output_dir) / "analyzer.csv"),
+        main_center   = args.main_center,
+        main_shift    = args.main_shift,
     )
     builder = Builder(soc,
         output_dir = args.output_dir,
