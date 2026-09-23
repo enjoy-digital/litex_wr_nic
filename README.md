@@ -59,6 +59,8 @@ a Gowin GW5A device: LiteEth's raw SerDes carries the WR PCS, the WR CPU runs fr
 single-cycle LiteX RAM, and the dock's MS5351 clock generator and the GW5A PLL dynamic
 phase adjustment act as main/helper clock actuators. It synchronizes as WR master or
 slave with SPEC-A7; latency calibration and independent PPS qualification remain pending.
+A second target for the same board runs the firmware on the device's hardened AE350 CPU
+instead of the soft uRV.
 
 This open-source project is modular and developer-friendly, making it suitable for applications
 requiring precise timing and basic networking functionality.
@@ -395,6 +397,14 @@ The VexRiscv core runs in the existing 62.5 MHz WR clock domain. Its instruction
 data buses share the selected LiteX memory, while accesses at and above `0x00100000` are routed
 directly to the WR-core peripheral bus. WR's interrupt and software-reset signals are connected to
 the LiteX CPU. The firmware profile initializes VexRiscv's trap vector and external-interrupt mask.
+
+A SoC that already has a CPU can run WRPC on it instead. A target selects `cpu_type="external"`
+in its own source: the core then instantiates no CPU and no memory, and exports WRPC's peripheral
+window, its SoftPLL interrupt and its reset request for the target to connect. Its firmware is
+built with `--wr-cpu-type external` and a `--peripheral-origin`, and the profile is CPU-specific;
+the one supplied targets the Gowin AE350 hard core used by
+[`tang_mega_138k_pro_wr_ae350.py`](doc/tang_mega_138k_pro.md#ae350-hard-cpu). See the
+[integration guide](doc/wr_integration.md#a-cpu-the-soc-owns).
 
 Only the `lite` VexRiscv variant is qualified initially; select it explicitly with
 `--wr-cpu-variant lite`, or omit the variant to use that default. LiteX CPU mode requires

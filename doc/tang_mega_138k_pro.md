@@ -15,7 +15,9 @@ adds two clock actuators from the dock hardware:
 
 The WR CPU runs from a single-cycle LiteX RAM inside the core. This matters:
 through the SoC bus the SoftPLL interrupt took about half of the CPU and the
-slave servo lost lock every minute or so.
+slave servo lost lock every minute or so. A second target runs the same
+firmware on the device's hardened AE350 CPU instead; see
+[AE350 hard CPU](#ae350-hard-cpu).
 
 The gateware also reads the SFP module EEPROM and serves it to the firmware,
 outputs the WR PPS and timestamps an external PPS against the WR time.
@@ -289,6 +291,69 @@ These are servo statistics. Absolute accuracy still requires the receive
 latency/bitslide calibration, board and module delay and asymmetry
 calibration, and independent PPS measurements, as for the other boards.
 
+## AE350 hard CPU
+
+The GW5AST-138B contains a hardened **Andes AE350** platform: an A25 RV32
+core with instruction and data caches, its own PLIC, and AHB/APB ports into
+the fabric. `tang_mega_138k_pro_wr_ae350.py` runs the same WRPC firmware on
+it instead of the soft uRV, so the fabric holds only the WR core.
+
+```sh
+python3 tang_mega_138k_pro_wr_ae350.py --build
+```
+
+It needs LiteX at `5940a34ca0b4ee0fd9344f717dc7859aed503d9f` or later, which
+exposes `GP_INT` on the AE350 core
+([#2629](https://github.com/enjoy-digital/litex/pull/2629)), instead of the
+revision pinned above. The firmware is built from the same pinned WRPC sources with
+its own profile, `tang_mega_138k_pro_wrc_ae350.*`.
+
+Four things differ from the uRV build:
+
+- **Boot.** The A25's reset address is fixed at `0x80000000`, so the SoC ROM
+  there holds a two-instruction stub (`lui t0, 0` / `jalr x0, 0(t0)`) that
+  jumps to `0x00000000`, where the 128 KiB fabric memory holds the image.
+  WRPC keeps its own linker script and layout.
+- **Peripherals.** WRPC's window is mapped at `0xe9000000`, inside the CPU's
+  uncached peripheral range, and the firmware is built with
+  `--peripheral-origin 0xe9000000`. WR decodes address bits 15:2 only, so
+  only the base changes. The window must stay uncached: the A25's data cache
+  is write-back.
+- **Caches.** The A25 resets with both caches disabled, and fetching WRPC
+  over the AHB port is then the bottleneck: WRPC measures 512 loops per
+  jiffy. The profile enables them in `crt0` through the AndeStar `mcache_ctl`
+  CSR (`0x7ca`), which gives 20799 loops per jiffy — against 6941 for the uRV
+  build.
+- **Interrupt.** The SoftPLL interrupt drives the CPU's first user interrupt
+  input, which is a source of the AE350's own PLIC. The firmware enables the
+  source and claims and completes every interrupt; a claim that is not
+  completed leaves the external interrupt asserted and the servo never holds
+  phase. `pll stat` reports `irqs` and `tagcnt` for it. Host reads of firmware
+  variables are unreliable here because the write-back cache holds them; read
+  the console instead.
+
+Everything else is as above: `--sfp`, `--skip-firmware-build`, the clock
+actuators and their CSRs, the MS5351 calibration, and the loading and console
+procedure with `build/tang_mega_138k_pro_wr_ae350` as the output directory.
+`wr_cpu_status` reports WRPC's interrupt request and its reset request for the
+CPU. The build uses 7% of the logic and 25% of the block RAM of the
+GW5AST-138, against 9% and 26% for the uRV build.
+
+Both roles were tested against SPEC-A7 with the bench-calibrated center
+`810000`:
+
+- Tang slave: 76 consecutive samples in `TRACK_PHASE` over 7.5 minutes, with
+  a mean reported offset of −0.5 ps and a standard deviation of 2.1 ps
+  (extremes −4/+5 ps) and a round-trip delay within 32 ps.
+- Tang master, SPEC-A7 slave: mean +0.1 ps, standard deviation 1.5 ps.
+
+**This build does not close timing.** The WR endpoint's packet filter on the
+125 MHz receive clock reaches 119.4 MHz (14 violated endpoints, −1.744 ns
+total negative slack) with the hard CPU at its fixed location; `sys` and the
+DDMTD clock meet their constraints. The results above are therefore a
+demonstration on a marginal build, not a qualified one. `place_option 2` was
+worse (102 MHz) and `maxfan 32` made no difference against 16.
+
 ## Symbol capture
 
 For a symbol capture, use `LiteScopeAnalyzerDriver` over the same server with
@@ -344,6 +409,8 @@ The subsampler supports factors 1–16.
   implemented; the adapter uses LiteX's decoder validity check.
 - Qualify the servo with a wider main-clock range: `main_tuning_shift` above
   1 needs SoftPLL gains matched to the I2C update latency.
+- Close timing on the AE350 target's 125 MHz receive path, which the hard
+  CPU's fixed location currently leaves 14 endpoints short.
 
 The only new VHDL is a flat record adapter around `xwrc_board_common`. The raw
 SerDes, codec, resets, clocking and debug logic reuse LiteEth/LiteX. Portable

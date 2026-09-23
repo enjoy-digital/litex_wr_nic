@@ -30,6 +30,10 @@ WR_CPU_PERIPHERAL_ORIGIN = 0x0010_0000
 # "external": the CPU belongs to the enclosing SoC (for example a hard core);
 # the core exposes its WRPC peripheral window, interrupt and reset request.
 WR_CPU_TYPES = ("urv", "vexriscv", "external")
+# The CPUs the core instantiates itself. A target selects "external" in its
+# own source, together with the peripheral window, interrupt and reset it
+# wires to its CPU; it is not a command-line choice.
+WR_CORE_CPU_TYPES = ("urv", "vexriscv")
 WR_CPU_ADAPTERS = {
     "vexriscv": {
         "variants"        : ("lite",),

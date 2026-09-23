@@ -27,6 +27,7 @@ measurement and board PHY provide the same interfaces to the selected CPU and ap
 | `private` (default) | uRV | 128 KiB private WR BRAM | `.bram` contents included in the bitstream |
 | `integrated` | uRV or VexRiscv `lite` | 128 KiB LiteX SoC BRAM | Matching CPU `.bin` contents included in the bitstream |
 | `hyperram` | uRV or VexRiscv `lite` | SPEC-A7 HyperRAM behind a 16 KiB write-back cache | Matching CPU `.boot` image copied from SPI flash |
+| none (SoC-owned) | `external` | A CPU the SoC already has, with its own memory | Matching CPU `.bin` contents in the SoC's memory |
 
 The CPU sees its 128 KiB firmware RAM at address zero. For the SoC-memory paths, instruction
 and low-memory data accesses cross from `wr_sys` to `sys`; the supplied NIC targets map
@@ -42,6 +43,10 @@ After a successful CRC32 check, it releases the CPU to execute from RAM and retu
 ownership to WRPC for SDB access. A header, CRC or bus error keeps the CPU in reset; loader
 status is available through the `wr_cpu_boot` CSRs. See
 [CPU and memory selection](../README.md#-select-the-wr-cpu) for build commands and flash layout.
+
+`external` is the third choice: the SoC keeps its own CPU, its own memory and its own
+interrupt controller, and the core only exports what WRPC needs from it. The Tang Mega
+138K Pro AE350 target uses it for the device's hardened Andes A25.
 
 The current LiteX CPU adapter supports VexRiscv `lite`; additional LiteX CPUs need an adapter
 and matching firmware support. Integrated RAM is available on SPEC-A7, Acorn and HyVision;
@@ -138,13 +143,64 @@ external memory controller, keep readiness low until initialization completes
 and firmware is present. VexRiscv requires SoC memory and its matching firmware;
 the current adapter supports the `lite` variant.
 
-Both helper examples create `self.wr_core` and retain the historical
+All three helper examples create `self.wr_core` and retain the historical
 attributes and CSR names. `wr` is a local reference to that module; do not
 register it again as another SoC submodule. `LiteXWRNICSoC.add_wr_core(...)`
 delegates to the same helper. `wb_slave_region` preserves the supplied region's
 attributes and takes precedence over the legacy `wb_slave_origin` and
 `wb_slave_size` arguments, which remain supported. LiteX rounds the decoded
 region to a power of two; the core uses that same size for local addressing.
+
+## A CPU the SoC owns
+
+Use `cpu_type="external"` when the SoC already has a CPU that should run
+WRPC: a hard core, or a LiteX CPU with a memory and boot arrangement of its
+own. The core then instantiates no CPU and no memory. It exports three
+things, and the SoC connects all three.
+
+Build the matching firmware first, with the address the SoC decodes WRPC's
+peripheral window at:
+
+```sh
+python3 litex_wr_nic/firmware/build.py --target spec_a7 --wr-cpu-type external \
+    --peripheral-origin 0xe9000000
+```
+
+```python
+from litex.soc.integration.soc import SoCRegion
+from litex_wr_nic.gateware.wr_core import add_white_rabbit
+
+platform = self.platform
+wr = add_white_rabbit(self,
+    cpu_type        = "external",
+    cpu_firmware    = "litex_wr_nic/firmware/spec_a7_wrc_ae350.bram",
+    wb_slave_region = SoCRegion(origin=0x20000000, size=0x01000000, cached=False),
+    sfp_pads        = platform.request("sfp", 0),
+    sfp_i2c_pads    = platform.request("sfp_i2c", 0),
+    serial_pads     = platform.request("serial"),
+)
+# WRPC's peripherals, at the address the firmware was built for. WR decodes
+# address bits 15:2 only, so the window can go anywhere the CPU leaves
+# uncached.
+self.bus.add_slave(name="wr_cpu_periph", slave=wr.cpu_peripheral_bus,
+    region=SoCRegion(origin=0xe9000000, size=0x10000, cached=False))
+# The SoftPLL interrupt. Without it the servo runs from polling alone and
+# will not hold phase.
+self.comb += self.cpu.interrupt[0].eq(wr.cpu_irq)
+```
+
+`wr.cpu_peripheral_bus` is a 32-bit word-addressed classic Wishbone slave; the
+core's bridge turns each access into a pipelined WR transaction. `wr.cpu_irq`
+is the SoftPLL interrupt and `wr.cpu_reset` is WRPC's own reset request, which
+the SoC may route to its CPU's reset.
+
+The firmware must load its own image, set `mtvec` and service the interrupt
+the way the CPU's platform requires. `--wr-cpu-type external` builds the
+profile for the Gowin AE350, the only SoC CPU supported today: it relocates
+`DEV_BASE`, initializes `mtvec`, enables the A25's caches, and claims and
+completes each interrupt at the CPU's PLIC. Another CPU needs its own profile.
+`cpu_firmware` still names a `.bram` file; the core's private memory is left
+out, so its contents are unused.
 
 ## Direct component integration
 

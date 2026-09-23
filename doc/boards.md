@@ -9,6 +9,7 @@ clock crossings. Board clock actuators and physical connections differ:
 | `spec_a7_wr_nic.py` | SPEC-A7 / GTP | Main AD5683R ×2, helper AD5683R ×1 | USB UART; SFP0 / J12 |
 | `hyvision_pcie_opt01_revf.py` | XC7K70T / GTX | Main and helper MMCM | DVP UART; SFP0 / CN1, or `--sfp 1` for CN2 |
 | `tang_mega_138k_pro_wr.py` | GW5AST-138B / LiteEth raw SerDes | Main MS5351 PLL fraction (I2C), helper GW5A PLL phase steps | USB UARTBone/WR console; SFP0, or `--sfp 1` |
+| `tang_mega_138k_pro_wr_ae350.py` | As above, WRPC on the hardened AE350 CPU | As above | As above |
 | `acorn_liteeth_nic.py` | CLE-215+, XC7A200T / GTP | Ethernet only, no WR | Baseboard Mini SFP0 and SFP1 |
 | `spec_a7_liteeth_nic.py` | SPEC-A7 / GTP | Ethernet only, no WR | SFP0 / J12 |
 | `spec_a7_bringup.py` | SPEC-A7 XC7A35T / optional GTP | Bring-up SoC, no WR | USB UART; optional Ethernet on `--eth-sfp 0` (J12) or `1` |
@@ -21,7 +22,9 @@ The [Tang Mega 138K Pro guide](tang_mega_138k_pro.md) describes its separate
 Gowin/GHDL build, dependencies, clock actuators and hardware tests. Its
 portable 8-bit PHY integration reuses LiteEth's raw SerDes and LiteX 8b/10b.
 It reads the SFP EEPROM through the gateware, outputs the WR PPS and
-timestamps an external PPS on its PMOD0 header.
+timestamps an external PPS on its PMOD0 header. Its AE350 variant runs the
+same firmware on the device's hard CPU and synchronizes in both roles, but
+does not yet close timing on the receive path.
 
 Acorn, SPEC-A7 and Tang Mega 138K Pro have been exercised as both WR master
 and slave. HyVision needs hardware qualification of link acquisition, tuning
