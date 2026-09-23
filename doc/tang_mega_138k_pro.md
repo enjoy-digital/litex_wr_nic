@@ -309,6 +309,29 @@ takes the CPU's name as a suffix for the others. Each CPU needs its own
 firmware image, which the target builds unless `--skip-firmware-build` is
 given.
 
+### Resources
+
+The same design on the GW5AST-138B with Gowin 1.9.12, SFP0, no analyzer:
+
+| Resource | `urv` | `vexriscv` | `ae350` |
+| --- | ---: | ---: | ---: |
+| Logic (LUT + ALU) | 11565 | 11805 (+240) | 9545 (−2020) |
+| — LUT | 9911 | 10327 | 8391 |
+| — ALU | 1654 | 1478 | 1154 |
+| Registers | 7793 | 8081 (+288) | 7164 (−629) |
+| CLS | 8330 | 8654 (+324) | 7164 (−1166) |
+| BSRAM | 87 | 91 (+4) | 83 (−4) |
+| DSP | 4 | 0 | 0 |
+| `AE350_SOC` | — | — | 1 of 1 |
+| Setup-violated endpoints | 0 | 1 | 1 |
+
+The device has 138240 logic cells, 69120 CLS, 340 BSRAM and 298 DSP, so all
+three stay under 9% of the logic and 27% of the block RAM. Moving WRPC to the
+hard CPU frees about 17% of the design's fabric logic and 14% of its CLS; the
+firmware still occupies 64 BSRAM blocks whichever CPU runs it. The uRV's
+hardware multiplier is what uses the four DSPs — VexRiscv `lite` has none, and
+the AE350's is inside the hard block.
+
 ### The VexRiscv
 
 `--wr-cpu-type vexriscv` instantiates a LiteX VexRiscv `lite` inside the WR
