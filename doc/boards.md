@@ -21,7 +21,9 @@ The [Tang Mega 138K Pro guide](tang_mega_138k_pro.md) describes its separate
 Gowin/GHDL build, dependencies, clock actuators and hardware tests. Its
 portable 8-bit PHY integration reuses LiteEth's raw SerDes and LiteX 8b/10b.
 It reads the SFP EEPROM through the gateware, outputs the WR PPS and
-timestamps an external PPS on its PMOD0 header.
+timestamps an external PPS on its PMOD0 header. `--wr-cpu-type` runs the WR
+firmware on the embedded uRV, on a LiteX VexRiscv or on the device's hardened
+AE350 hard CPU.
 
 Acorn, SPEC-A7 and Tang Mega 138K Pro have been exercised as both WR master
 and slave. HyVision needs hardware qualification of link acquisition, tuning

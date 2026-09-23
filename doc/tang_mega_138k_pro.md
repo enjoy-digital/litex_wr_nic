@@ -1,5 +1,7 @@
 # Tang Mega 138K Pro White Rabbit
 
+![White Rabbit on the Tang Mega 138K Pro: the build-time WR CPU choice, the board clocking and the link to a WR peer](wr_tang_mega_cpu_options.png)
+
 This target runs White Rabbit on the **GW5AST-138B of the 138K Pro dock** and
 synchronizes as WR master or slave with a SPEC-A7 or Acorn peer over SFP0
 (or SFP1). It reuses LiteEth's raw Gowin SerDes and LiteX 8b/10b for the
@@ -13,9 +15,11 @@ adds two clock actuators from the dock hardware:
 - **Helper clock**: the GW5A PLL dynamic phase adjustment steps the 62.5 MHz
   DDMTD clock. A steady step rate is a frequency offset of up to ±195 ppm.
 
-The WR CPU runs from a single-cycle LiteX RAM inside the core. This matters:
-through the SoC bus the SoftPLL interrupt took about half of the CPU and the
-slave servo lost lock every minute or so.
+By default the WR CPU is the uRV, running from a single-cycle LiteX RAM
+inside the core. This matters: through the SoC bus the SoftPLL interrupt took
+about half of the CPU and the slave servo lost lock every minute or so.
+`--wr-cpu-type` runs the same firmware on a LiteX VexRiscv or on the device's
+hardened AE350 instead; see [WR CPU](#wr-cpu).
 
 The gateware also reads the SFP module EEPROM and serves it to the firmware,
 outputs the WR PPS and timestamps an external PPS against the WR time.
@@ -51,10 +55,11 @@ python3 tang_mega_138k_pro_wr.py --build
 
 This builds the pinned upstream WRPC firmware with its **8-bit PHY** profile
 and read-only storage overlay. Its `tang_mega_138k_pro_wrc.*` filenames are
-separate from the Acorn/SPEC 16-bit images. The firmware binary initializes
-the 128 KiB CPU RAM, which the host also reaches at `wr_cpu_ram`
-(`0x10000000`) for reloading without a rebuild. The WR HDL revision and
-submodules are checked by the normal core builder.
+separate from the Acorn/SPEC 16-bit images, and each WR CPU has its own
+image; see [WR CPU](#wr-cpu). The firmware binary initializes the 128 KiB CPU
+RAM, which the host also reaches at `wr_cpu_ram` (`0x10000000`) for reloading
+without a rebuild. The WR HDL revision and submodules are checked by the
+normal core builder.
 
 The output directory contains `gateware/sipeed_tang_mega_138k_pro.fs` and
 `csr.csv`. Keep them together. Use `--sfp 1` for SFP-1, with a separate
@@ -189,6 +194,8 @@ or through the module's receive delay.
 
 ## USB and optical test
 
+![Tang Mega 138K Pro and SPEC-A7 on the bench, linked over SFP fiber](gowin_spec_a7.jpg)
+
 1. Power the Pro dock and connect its programming/debug USB.
 2. Connect the selected SFP port to a WR peer, such as SPEC-A7 SFP0/J12,
    using compatible modules and fiber.
@@ -289,6 +296,125 @@ These are servo statistics. Absolute accuracy still requires the receive
 latency/bitslide calibration, board and module delay and asymmetry
 calibration, and independent PPS measurements, as for the other boards.
 
+## WR CPU
+
+`--wr-cpu-type` selects the CPU that runs the WR firmware, as in the diagram
+at the top of this guide. Each one has its
+own firmware profile, built from the same pinned WRPC sources, and its own
+memory:
+
+| `--wr-cpu-type` | CPU | Firmware memory | WRPC's `usleep()` calibration |
+| --- | --- | --- | --- |
+| `urv` (default) | the uRV embedded in the WR core | a single-cycle LiteX RAM inside the core, which the host reaches at `wr_cpu_ram` (`0x10000000`) | 6941 loops/jiffy |
+| `vexriscv` | a LiteX VexRiscv `lite`, instantiated by the core | SoC RAM at `wr_cpu_mem` (`0x40000000`) | 8925 loops/jiffy |
+| `ae350` | the device's hardened Andes AE350 (A25), which the SoC owns | the CPU's own fabric memory at `0` | 20799 loops/jiffy |
+
+The output directory defaults to `build/tang_mega_138k_pro_wr` for the uRV and
+takes the CPU's name as a suffix for the others. Each CPU needs its own
+firmware image, which the target builds unless `--skip-firmware-build` is
+given.
+
+### Resources
+
+The same design on the GW5AST-138B with Gowin 1.9.12, SFP0, no analyzer:
+
+| Resource | `urv` | `vexriscv` | `ae350` |
+| --- | ---: | ---: | ---: |
+| Logic (LUT + ALU) | 11565 | 11805 (+240) | 9545 (−2020) |
+| — LUT | 9911 | 10327 | 8391 |
+| — ALU | 1654 | 1478 | 1154 |
+| Registers | 7793 | 8081 (+288) | 7164 (−629) |
+| CLS | 8330 | 8654 (+324) | 7164 (−1166) |
+| BSRAM | 87 | 91 (+4) | 83 (−4) |
+| DSP | 4 | 0 | 0 |
+| `AE350_SOC` | — | — | 1 of 1 |
+| Setup-violated endpoints | 0 | 1 | 1 |
+
+The device has 138240 logic cells, 69120 CLS, 340 BSRAM and 298 DSP, so all
+three stay under 9% of the logic and 27% of the block RAM. Moving WRPC to the
+hard CPU frees about 17% of the design's fabric logic and 14% of its CLS; the
+firmware still occupies 64 BSRAM blocks whichever CPU runs it. The uRV's
+hardware multiplier is what uses the four DSPs — VexRiscv `lite` has none, and
+the AE350's is inside the hard block.
+
+### The VexRiscv
+
+`--wr-cpu-type vexriscv` instantiates a LiteX VexRiscv `lite` inside the WR
+core, in the 62.5 MHz WR system clock domain, running from a 128 KiB SoC RAM.
+This is the same arrangement as `--wr-cpu-type vexriscv --wr-cpu-memory
+integrated` on the Acorn and SPEC-A7 targets, and the only CPU here that takes
+a `--wr-cpu-variant`; `lite` is the default and the only qualified variant.
+
+As slave against a SPEC-A7 master, with the same bench-calibrated center, the
+servo reached and held `TRACK_PHASE`: over 48 samples the reported offset had
+a mean of −0.2 ps and a standard deviation of 2.1 ps (extremes −6/+5 ps),
+with the round-trip delay within 21 ps. The master role was not exercised
+with this CPU.
+
+### The AE350 hard CPU
+
+The GW5AST-138B contains a hardened **Andes AE350** platform: an A25 RV32
+core with instruction and data caches, its own PLIC, and AHB/APB ports into
+the fabric. Running WRPC on it leaves the fabric holding only the WR core.
+
+```sh
+python3 tang_mega_138k_pro_wr.py --build --wr-cpu-type ae350
+```
+
+It needs LiteX at `5940a34ca0b4ee0fd9344f717dc7859aed503d9f` or later, which
+exposes `GP_INT` on the AE350 core
+([#2629](https://github.com/enjoy-digital/litex/pull/2629)), instead of the
+revision pinned above.
+
+Four things differ from the uRV build:
+
+- **Boot.** The A25's reset address is fixed at `0x80000000`, so the SoC ROM
+  there holds a two-instruction stub (`lui t0, 0` / `jalr x0, 0(t0)`) that
+  jumps to `0x00000000`, where the 128 KiB fabric memory holds the image.
+  WRPC keeps its own linker script and layout.
+- **Peripherals.** WRPC's window is mapped at `0xe9000000`, inside the CPU's
+  uncached peripheral range, and the firmware is built with
+  `--peripheral-origin 0xe9000000`. WR decodes address bits 15:2 only, so
+  only the base changes. The window must stay uncached: the A25's data cache
+  is write-back.
+- **Caches.** The A25 resets with both caches disabled, and fetching WRPC
+  over the AHB port is then the bottleneck: WRPC measures 512 loops per
+  jiffy. The profile enables them in `crt0` through the AndeStar `mcache_ctl`
+  CSR (`0x7ca`), which gives 20799 loops per jiffy — against 6941 for the uRV
+  build.
+- **Interrupt.** The SoftPLL interrupt drives the CPU's first user interrupt
+  input, which is a source of the AE350's own PLIC. The firmware enables the
+  source and claims and completes every interrupt; a claim that is not
+  completed leaves the external interrupt asserted and the servo never holds
+  phase. `pll stat` reports `irqs` and `tagcnt` for it. Host reads of firmware
+  variables are unreliable here because the write-back cache holds them; read
+  the console instead.
+
+`wr_cpu_status` reports WRPC's interrupt request and its reset request for the
+CPU. Everything else — `--sfp`, the clock actuators and their CSRs, the MS5351
+calibration, the loading and console procedure — is as for the uRV build, with
+`build/tang_mega_138k_pro_wr_ae350` as the output directory.
+
+Both roles were tested against SPEC-A7, as above and with the same
+bench-calibrated center:
+
+- Tang slave: the WR handshake completes with RX timestamp calibration and
+  the servo holds `TRACK_PHASE`. Once settled, the reported offset had a mean
+  of +0.3 ps and a standard deviation of 1.9 ps over 41 samples (extremes
+  −5/+4 ps), with the round-trip delay within 17 ps.
+- Tang master, SPEC-A7 slave: SPEC-A7 tracks the Tang reference in
+  `TRACK_PHASE`, with a mean of +0.8 ps and a standard deviation of 1.5 ps
+  over 24 samples.
+
+### Timing
+
+The uRV build closes with no setup or hold violations. Each of the other two
+CPUs leaves **one endpoint short** on a 125 MHz WR path: the endpoint's packet
+filter on the receive clock with the AE350 (124.2 MHz, −0.054 ns), and the WR
+PPS generator on the transmit clock with the VexRiscv (122.4 MHz, −0.168 ns).
+Raising `maxfan` to 32 changes neither build. The results reported for these
+two CPUs are therefore demonstrations on marginal builds, not qualified ones.
+
 ## Symbol capture
 
 For a symbol capture, use `LiteScopeAnalyzerDriver` over the same server with
@@ -344,6 +470,9 @@ The subsampler supports factors 1–16.
   implemented; the adapter uses LiteX's decoder validity check.
 - Qualify the servo with a wider main-clock range: `main_tuning_shift` above
   1 needs SoftPLL gains matched to the I2C update latency.
+- Close the last timing endpoint on the 125 MHz WR paths with the VexRiscv
+  and the AE350; only the uRV build is clean today (see
+  [Timing](#timing)).
 
 The only new VHDL is a flat record adapter around `xwrc_board_common`. The raw
 SerDes, codec, resets, clocking and debug logic reuse LiteEth/LiteX. Portable

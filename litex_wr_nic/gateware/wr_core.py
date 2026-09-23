@@ -32,6 +32,7 @@ from litex_wr_nic.gateware.wr_cpu            import (
     WRCPULocalMemory,
     WRCPUMemoryBridge,
     WRCPUMemoryMonitor,
+    WRCPUPeripheralBridge,
     WRLiteXCPU,
     resolve_wr_cpu_variant,
     wr_cpu_word_bus,
@@ -60,6 +61,12 @@ class WhiteRabbitCore(LiteXModule):
     With ``phy``, the SFP management I2C of the firmware is available as the
     ``sfp_scl_o``/``sfp_sda_o`` open-drain intents (0 drives the line low) and
     the ``sfp_scl_i``/``sfp_sda_i`` line levels, for the caller to route.
+
+    ``cpu_type="external"`` leaves the CPU to the enclosing SoC, for example a
+    hard core: the core then exposes ``cpu_peripheral_bus`` (a classic
+    Wishbone slave carrying WRPC's peripheral window; only address bits 15:2
+    are decoded), ``cpu_irq`` (the SoftPLL interrupt) and ``cpu_reset``
+    (WRPC's reset request for that CPU). The SoC owns the firmware memory.
 
     ``cpu_memory_local`` keeps the external uRV memory inside the core as a
     single-cycle pipelined RAM initialized from the firmware, with a host
@@ -125,8 +132,11 @@ class WhiteRabbitCore(LiteXModule):
                 raise ValueError("The external 8-bit PHY does not support transceiver, I2C, flash or 1-Wire pads.")
             if sfp_tx_polarity or sfp_rx_polarity or dac_bits != 16:
                 raise ValueError("The external 8-bit PHY requires default polarity and 16-bit DAC commands.")
-        self.cpu_bus        = None
-        self.cpu_memory_bus = None
+        self.cpu_bus            = None
+        self.cpu_memory_bus     = None
+        self.cpu_peripheral_bus = None
+        self.cpu_irq            = Signal()
+        self.cpu_reset          = Signal()
         if cpu_memory_local and not (with_cpu_memory and phy is not None and cpu_type == "urv"):
             raise ValueError("Local WR CPU memory requires the same-clock external PHY and the uRV CPU.")
         if with_ext_pll and not with_ext_clk:
@@ -175,15 +185,25 @@ class WhiteRabbitCore(LiteXModule):
         # ------------------------------
         cpu_variant         = resolve_wr_cpu_variant(cpu_type, cpu_variant)
         external_cpu        = cpu_type != "urv"
+        soc_cpu             = cpu_type == "external"
         external_cpu_memory = with_cpu_memory
-        if external_cpu and not external_cpu_memory:
+        if external_cpu and not external_cpu_memory and not soc_cpu:
             raise ValueError(f"WR CPU type {cpu_type} requires external CPU memory.")
+        if soc_cpu and with_cpu_memory:
+            raise ValueError("An external WR CPU owns its memory in the SoC.")
 
         memory_ready_wr   = Signal(reset=not external_cpu_memory)
         wr_cpu_bridge     = None
         wr_cpu_peripheral = None
-        wr_cpu_irq        = Signal()
-        wr_cpu_reset      = Signal()
+        wr_cpu_irq        = self.cpu_irq
+        wr_cpu_reset      = self.cpu_reset
+        if soc_cpu:
+            # The SoC's CPU reaches WRPC's peripherals through this slave. WR
+            # decodes address bits 15:2 only, so the SoC maps it anywhere.
+            self.cpu_peripheral_bus = wishbone.Interface(
+                data_width=32, address_width=32, addressing="word")
+            self.wr_cpu_peripheral_bridge = wr_cpu_peripheral = WRCPUPeripheralBridge(
+                self.cpu_peripheral_bus)
         if external_cpu_memory:
             if external_cpu:
                 self.wr_cpu = WRLiteXCPU(self.platform,
@@ -320,7 +340,10 @@ class WhiteRabbitCore(LiteXModule):
             p_g_dpram_size                = 131072//4,
             # Vivado binds quoted "FALSE" to true across the Verilog/VHDL
             # boundary; use a numeric boolean for deterministic elaboration.
-            p_g_external_cpu_memory       = int(external_cpu_memory),
+            # The upstream generate asserts that an external CPU also uses the
+            # external memory port. A SoC CPU owns its memory, so the port is
+            # enabled and left unconnected.
+            p_g_external_cpu_memory       = int(external_cpu_memory or soc_cpu),
             p_g_external_cpu              = int(external_cpu),
             p_g_softpll_enable_debugger   = int(with_softpll_debug),
             p_g_board_name                = board_name,

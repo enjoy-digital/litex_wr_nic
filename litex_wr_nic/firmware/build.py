@@ -21,7 +21,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from litex.build import tools
 
-from litex_wr_nic.gateware.wr_cpu import WR_CPU_TYPES, wr_cpu_firmware_filename
+from litex_wr_nic.gateware.wr_cpu import WR_CPU_PROFILES, wr_cpu_firmware_filename
 from litex_wr_nic.wr_boot import write_boot_image
 
 # Toolchain and firmware variables -----------------------------------------------------------------
@@ -87,8 +87,9 @@ def checkout_commit(target="spec_a7"):
     # only those owned files so repeated uRV/VexRiscv builds cannot leak flags.
     run_command(
         f"git checkout {COMMIT_HASH} -- Makefile arch/risc-v/crt0.S arch/risc-v/irq_helper.c "
-        "include/board.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c lib/task-stats.c "
-        "softpll/spll_helper.c softpll/softpll_ng.c shell/cmd_pll.c shell/cmd_sfp.c",
+        "include/board.h include/irq.h dev/sfp.c dev/spi_flash.c dev/storage-cal.c "
+        "lib/task-stats.c softpll/spll_helper.c softpll/softpll_ng.c shell/cmd_pll.c "
+        "shell/cmd_sfp.c",
         cwd=CLONE_DIR)
 
     # Acorn's MMCM actuator needs more tracking bandwidth than the old
@@ -123,11 +124,23 @@ def copy_config_file(target="spec_a7"):
             'CONFIG_INIT_COMMAND="ptp stop;sfp match"')
         Path(config_dest).write_text(config, encoding="utf-8")
 
-def configure_cpu_profile(cpu_type):
-    """Add the small WRPC CPU abstraction needed by LiteX VexRiscv."""
+def configure_cpu_profile(cpu_type, peripheral_origin=None):
+    """Add the small WRPC CPU abstraction needed by CPUs other than uRV.
+
+    ``cpu_type`` names the CPU the image runs on, as in WR_CPU_PROFILES.
+    ``peripheral_origin`` relocates WRPC's peripheral window for a CPU that
+    reaches it through a SoC address decoder. WR decodes address bits 15:2,
+    so only the base changes.
+    """
     makefile   = os.path.join(CLONE_DIR, "Makefile")
     crt0       = os.path.join(CLONE_DIR, "arch/risc-v/crt0.S")
     irq_helper = os.path.join(CLONE_DIR, "arch/risc-v/irq_helper.c")
+    if peripheral_origin is not None:
+        tools.replace_in_file(
+            os.path.join(CLONE_DIR, "include/board.h"),
+            "#ifdef CONFIG_ARCH_RISCV\n    #define DEV_BASE\t0x100000",
+            f"#ifdef CONFIG_ARCH_RISCV\n    #define DEV_BASE\t{peripheral_origin:#010x}",
+        )
     tools.replace_in_file(
         makefile,
         "asflags-y = $(archflags-y)\n",
@@ -142,10 +155,17 @@ def configure_cpu_profile(cpu_type):
         crt0,
         "_entry:\n\n    la     gp, _gp",
         "_entry:\n\n"
-        "#ifdef WR_CPU_VEXRISCV\n"
-        "    /* The LiteX VexRiscv mtvec register has no reset value. */\n"
+        "#if defined(WR_CPU_VEXRISCV) || defined(WR_CPU_AE350)\n"
+        "    /* These CPUs do not reset mtvec to the WRPC handler. */\n"
         "    la     t0, _exception_entry\n"
         "    csrw   mtvec, t0\n"
+        "#endif\n"
+        "#ifdef WR_CPU_AE350\n"
+        "    /* AndeStar V5 mcache_ctl: enable the instruction and data\n"
+        "       caches, which reset disabled. Fetching WRPC from fabric\n"
+        "       memory over the CPU's AHB port is otherwise the bottleneck. */\n"
+        "    li     t0, 0x3\n"
+        "    csrs   0x7ca, t0\n"
         "#endif\n\n"
         "    la     gp, _gp",
     )
@@ -156,8 +176,83 @@ def configure_cpu_profile(cpu_type):
         "#ifdef WR_CPU_VEXRISCV\n"
         "    /* LiteX VexRiscv masks its external interrupt array in CSR BC0. */\n"
         "    asm volatile (\"csrw 0xbc0, %0\" : : \"r\"(1));\n"
+        "#endif\n"
+        "#ifdef WR_CPU_AE350\n"
+        "    /* The claimed source of the last interrupt, for diagnostics. */\n"
+        "    ae350_plic_source = 0;\n"
         "#endif\n\n",
     )
+    if cpu_type == "ae350":
+        from litex_wr_nic.gateware.wr_common import _replace_once
+
+        # WRPC's RISC-V interrupt path expects the core to present its
+        # external interrupt directly. The AE350 routes the fabric's user
+        # interrupts through its own PLIC, which is internal to the hard CPU:
+        # a source must be enabled there, and every interrupt claimed and
+        # completed or the external interrupt stays asserted.
+        tools.replace_in_file(
+            irq_helper,
+            "#include \"irq.h\"",
+            "#include <stdint.h>\n#include \"irq.h\"\n\n"
+            "#ifdef WR_CPU_AE350\n"
+            "volatile uint32_t ae350_plic_source;\n"
+            "#endif",
+        )
+        _replace_once(os.path.join(CLONE_DIR, "include/irq.h"),
+            """#elif defined(CONFIG_ARCH_RISCV)
+
+static inline void clear_irq(void) {
+    unsigned long t;
+    /* AW: needed? */
+    asm volatile ("csrrc %0, mip, %1" : "=r"(t) : "r"(1 << 11));
+}
+
+static inline void init_irq(void) {}
+""",
+            """#elif defined(CONFIG_ARCH_RISCV) && defined(WR_CPU_AE350)
+
+/* AndeStar NCEPLIC100 in the AE350 platform, seen only by this CPU. */
+#include <stdint.h>
+
+#define AE350_PLIC_BASE      0xe4000000
+#define AE350_PLIC_SOURCES   32
+#define AE350_PLIC_PRIORITY  ((volatile uint32_t *)(AE350_PLIC_BASE))
+#define AE350_PLIC_ENABLE    ((volatile uint32_t *)(AE350_PLIC_BASE + 0x2000))
+#define AE350_PLIC_THRESHOLD (*(volatile uint32_t *)(AE350_PLIC_BASE + 0x200000))
+#define AE350_PLIC_CLAIM     (*(volatile uint32_t *)(AE350_PLIC_BASE + 0x200004))
+
+extern volatile uint32_t ae350_plic_source;
+
+static inline void clear_irq(void) {
+    /* Claim after draining the core's FIFO: the source is still pending,
+       and completing it lets the PLIC assert the next interrupt. */
+    uint32_t source = AE350_PLIC_CLAIM;
+    if (source) {
+        ae350_plic_source = source;
+        AE350_PLIC_CLAIM  = source;
+    }
+}
+
+static inline void init_irq(void) {
+    int source;
+    /* The fabric's user interrupts (GP_INT) occupy a platform-specific
+       source range; enable them all and record which one arrives. */
+    for (source = 1; source < AE350_PLIC_SOURCES; source++)
+        AE350_PLIC_PRIORITY[source] = 1;
+    AE350_PLIC_ENABLE[0] = 0xfffffffe;
+    AE350_PLIC_THRESHOLD = 0;
+}
+
+#elif defined(CONFIG_ARCH_RISCV)
+
+static inline void clear_irq(void) {
+    unsigned long t;
+    /* AW: needed? */
+    asm volatile ("csrrc %0, mip, %1" : "=r"(t) : "r"(1 << 11));
+}
+
+static inline void init_irq(void) {}
+""")
 
 def configure_source_fixes(read_only_storage=False):
     """Apply compatibility fixes to the pinned WRPC sources."""
@@ -252,14 +347,18 @@ def configure_pll_trace(decimation=0):
         '\t\treturn spll_debug_step(vals[1]);\n\tcase CMD_GAIN:')
 
 
-def build_firmware(cpu_type, read_only_storage=False, pll_trace_decimation=0):
+def build_firmware(cpu_type, read_only_storage=False, pll_trace_decimation=0,
+    peripheral_origin=None):
     """Build the firmware."""
-    configure_cpu_profile(cpu_type)
+    configure_cpu_profile(cpu_type, peripheral_origin)
     configure_source_fixes(read_only_storage)
     configure_pll_trace(pll_trace_decimation)
     run_command("make clean", cwd=CLONE_DIR)
     run_command("make spec_a7_defconfig", cwd=CLONE_DIR)
-    cpu_flags = "-DWR_CPU_VEXRISCV" if cpu_type == "vexriscv" else ""
+    cpu_flags = {
+        "vexriscv" : "-DWR_CPU_VEXRISCV",
+        "ae350"    : "-DWR_CPU_AE350",
+    }.get(cpu_type, "")
     run_command(
         f"make WR_CPU_CFLAGS={cpu_flags} WR_CPU_ASFLAGS={cpu_flags}",
         cwd=CLONE_DIR)
@@ -307,10 +406,12 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX-WR-NIC on Acorn Baseboard Mini.")
     parser.add_argument("--target", default="spec_a7", help="Target Board.",
         choices=["spec_a7", "acorn", "hyvision", "tang_mega_138k_pro"])
-    parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_TYPES,
-        help="WR CPU firmware profile (default: urv).")
+    parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_PROFILES,
+        help="WR CPU firmware profile, named after the CPU that runs it (default: urv).")
     parser.add_argument("--read-only-storage", action="store_true",
         help="Retain calibration in RAM and disable firmware SPI flash writes/erases.")
+    parser.add_argument("--peripheral-origin", type=lambda v: int(v, 0), default=None,
+        help="Base address of WRPC's peripheral window for a SoC-provided CPU.")
     parser.add_argument("--pll-trace-decimation", type=int, default=0,
         help="Emit every Nth main/helper PLL sample (power of two, 1..1024; 0 keeps upstream tracing).")
     args = parser.parse_args()
@@ -320,7 +421,8 @@ def main():
     clone_repository()
     checkout_commit(args.target)
     copy_config_file(args.target)
-    build_firmware(args.wr_cpu_type, args.read_only_storage, args.pll_trace_decimation)
+    build_firmware(args.wr_cpu_type, args.read_only_storage, args.pll_trace_decimation,
+        args.peripheral_origin)
     copy_firmware(args.wr_cpu_type, args.target)
     build_sdbfs()
     print("Build process completed successfully.")

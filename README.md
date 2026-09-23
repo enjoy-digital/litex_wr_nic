@@ -59,6 +59,8 @@ a Gowin GW5A device: LiteEth's raw SerDes carries the WR PCS, the WR CPU runs fr
 single-cycle LiteX RAM, and the dock's MS5351 clock generator and the GW5A PLL dynamic
 phase adjustment act as main/helper clock actuators. It synchronizes as WR master or
 slave with SPEC-A7; latency calibration and independent PPS qualification remain pending.
+`--wr-cpu-type` selects the CPU that runs the firmware: the embedded uRV, a LiteX VexRiscv,
+or the device's hardened AE350.
 
 This open-source project is modular and developer-friendly, making it suitable for applications
 requiring precise timing and basic networking functionality.
@@ -389,12 +391,30 @@ the same WRPC firmware from the SoC memory path:
 ./spec_a7_wr_nic.py --build --wr-cpu-type vexriscv --wr-cpu-memory hyperram
 ./acorn_wr_nic.py --build --wr-cpu-type vexriscv --wr-cpu-memory integrated
 ./hyvision_pcie_opt01_revf.py --build --wr-cpu-type vexriscv --wr-cpu-memory integrated
+./tang_mega_138k_pro_wr.py --build --wr-cpu-type vexriscv
 ```
+
+The Tang Mega 138K Pro has no `--wr-cpu-memory` choice: each of its CPUs comes with the memory it
+runs from.
 
 The VexRiscv core runs in the existing 62.5 MHz WR clock domain. Its instruction and low-memory
 data buses share the selected LiteX memory, while accesses at and above `0x00100000` are routed
 directly to the WR-core peripheral bus. WR's interrupt and software-reset signals are connected to
 the LiteX CPU. The firmware profile initializes VexRiscv's trap vector and external-interrupt mask.
+
+A SoC that already has a CPU can run WRPC on it instead. A target selects `cpu_type="external"`
+in its own source: the core then instantiates no CPU and no memory, and exports WRPC's peripheral
+window, its SoftPLL interrupt and its reset request for the target to connect. The firmware
+profile follows the CPU rather than this wiring, so `--wr-cpu-type` names the CPU that runs the
+image and `--peripheral-origin` the address its SoC decodes the window at. The Tang Mega 138K Pro
+runs WRPC on its hardened Gowin AE350 this way:
+
+```sh
+./tang_mega_138k_pro_wr.py --build --wr-cpu-type ae350
+```
+
+See [the board's guide](doc/tang_mega_138k_pro.md#wr-cpu) and the
+[integration guide](doc/wr_integration.md#a-cpu-the-soc-owns).
 
 Only the `lite` VexRiscv variant is qualified initially; select it explicitly with
 `--wr-cpu-variant lite`, or omit the variant to use that default. LiteX CPU mode requires
