@@ -27,7 +27,7 @@ measurement and board PHY provide the same interfaces to the selected CPU and ap
 | `private` (default) | uRV | 128 KiB private WR BRAM | `.bram` contents included in the bitstream |
 | `integrated` | uRV or VexRiscv `lite` | 128 KiB LiteX SoC BRAM | Matching CPU `.bin` contents included in the bitstream |
 | `hyperram` | uRV or VexRiscv `lite` | SPEC-A7 HyperRAM behind a 16 KiB write-back cache | Matching CPU `.boot` image copied from SPI flash |
-| none (SoC-owned) | `external` | A CPU the SoC already has, with its own memory | Matching CPU `.bin` contents in the SoC's memory |
+| none (SoC-owned) | `external` | A CPU the SoC already has, with its own memory | The CPU's own profile `.bin`, in the SoC's memory |
 
 The CPU sees its 128 KiB firmware RAM at address zero. For the SoC-memory paths, instruction
 and low-memory data accesses cross from `wr_sys` to `sys`; the supplied NIC targets map
@@ -158,11 +158,12 @@ WRPC: a hard core, or a LiteX CPU with a memory and boot arrangement of its
 own. The core then instantiates no CPU and no memory. It exports three
 things, and the SoC connects all three.
 
-Build the matching firmware first, with the address the SoC decodes WRPC's
+Build the matching firmware first. `--wr-cpu-type` names the CPU that runs
+the image, and `--peripheral-origin` the address the SoC decodes WRPC's
 peripheral window at:
 
 ```sh
-python3 litex_wr_nic/firmware/build.py --target spec_a7 --wr-cpu-type external \
+python3 litex_wr_nic/firmware/build.py --target spec_a7 --wr-cpu-type ae350 \
     --peripheral-origin 0xe9000000
 ```
 
@@ -195,12 +196,13 @@ is the SoftPLL interrupt and `wr.cpu_reset` is WRPC's own reset request, which
 the SoC may route to its CPU's reset.
 
 The firmware must load its own image, set `mtvec` and service the interrupt
-the way the CPU's platform requires. `--wr-cpu-type external` builds the
-profile for the Gowin AE350, the only SoC CPU supported today: it relocates
-`DEV_BASE`, initializes `mtvec`, enables the A25's caches, and claims and
-completes each interrupt at the CPU's PLIC. Another CPU needs its own profile.
-`cpu_firmware` still names a `.bram` file; the core's private memory is left
-out, so its contents are unused.
+the way the CPU's platform requires, so the profile follows the CPU and not
+this wiring: `--wr-cpu-type ae350` relocates `DEV_BASE`, initializes `mtvec`,
+enables the A25's caches and claims and completes each interrupt at that
+CPU's PLIC. A SoC-owned VexRiscv uses the same `vexriscv` profile as a
+core-instantiated one, with its own `--peripheral-origin`; another CPU needs a
+profile of its own. `cpu_firmware` still names a `.bram` file; the core's
+private memory is left out, so its contents are unused.
 
 ## Direct component integration
 

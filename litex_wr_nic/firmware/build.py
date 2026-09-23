@@ -21,7 +21,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from litex.build import tools
 
-from litex_wr_nic.gateware.wr_cpu import WR_CPU_TYPES, wr_cpu_firmware_filename
+from litex_wr_nic.gateware.wr_cpu import WR_CPU_PROFILES, wr_cpu_firmware_filename
 from litex_wr_nic.wr_boot import write_boot_image
 
 # Toolchain and firmware variables -----------------------------------------------------------------
@@ -127,6 +127,7 @@ def copy_config_file(target="spec_a7"):
 def configure_cpu_profile(cpu_type, peripheral_origin=None):
     """Add the small WRPC CPU abstraction needed by CPUs other than uRV.
 
+    ``cpu_type`` names the CPU the image runs on, as in WR_CPU_PROFILES.
     ``peripheral_origin`` relocates WRPC's peripheral window for a CPU that
     reaches it through a SoC address decoder. WR decodes address bits 15:2,
     so only the base changes.
@@ -181,7 +182,7 @@ def configure_cpu_profile(cpu_type, peripheral_origin=None):
         "    ae350_plic_source = 0;\n"
         "#endif\n\n",
     )
-    if cpu_type == "external":
+    if cpu_type == "ae350":
         from litex_wr_nic.gateware.wr_common import _replace_once
 
         # WRPC's RISC-V interrupt path expects the core to present its
@@ -356,7 +357,7 @@ def build_firmware(cpu_type, read_only_storage=False, pll_trace_decimation=0,
     run_command("make spec_a7_defconfig", cwd=CLONE_DIR)
     cpu_flags = {
         "vexriscv" : "-DWR_CPU_VEXRISCV",
-        "external" : "-DWR_CPU_AE350",
+        "ae350"    : "-DWR_CPU_AE350",
     }.get(cpu_type, "")
     run_command(
         f"make WR_CPU_CFLAGS={cpu_flags} WR_CPU_ASFLAGS={cpu_flags}",
@@ -405,8 +406,8 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX-WR-NIC on Acorn Baseboard Mini.")
     parser.add_argument("--target", default="spec_a7", help="Target Board.",
         choices=["spec_a7", "acorn", "hyvision", "tang_mega_138k_pro"])
-    parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_TYPES,
-        help="WR CPU firmware profile (default: urv).")
+    parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_PROFILES,
+        help="WR CPU firmware profile, named after the CPU that runs it (default: urv).")
     parser.add_argument("--read-only-storage", action="store_true",
         help="Retain calibration in RAM and disable firmware SPI flash writes/erases.")
     parser.add_argument("--peripheral-origin", type=lambda v: int(v, 0), default=None,

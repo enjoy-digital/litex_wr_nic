@@ -19,7 +19,7 @@ from litex.gen import *
 
 from litex.build.generic_platform import IOStandard, Misc, Pins, Subsignal
 
-from litex.soc.interconnect.csr import CSRStatus, CSRStorage
+from litex.soc.interconnect.csr import CSRField, CSRStatus, CSRStorage
 
 from litex.soc.cores.bitbang import I2CMaster
 from litex.soc.cores.clock.gowin_gw5a import GW5APLL
@@ -28,6 +28,7 @@ from litex.soc.cores.uart import UARTPHY, UART
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import SoCMini
 from litex.soc.integration.builder import Builder
+from litex.soc.integration.common import get_mem_data
 
 from litex_boards.platforms import sipeed_tang_mega_138k_pro
 
@@ -36,6 +37,13 @@ from litex_wr_nic.gateware.sfp_eeprom      import SFPEEPROMCache
 from litex_wr_nic.gateware.pps_timestamper import GW5OversampledInput, PPSTimestamper
 from litex_wr_nic.gateware.wr_clock        import WRGowinPLLBackend, WRMS5351Backend
 from litex_wr_nic.gateware.wr_core         import add_white_rabbit
+from litex_wr_nic.gateware.wr_cpu          import (
+    WR_CPU_MEMORY_ORIGIN,
+    WR_CPU_MEMORY_SIZE,
+    WR_CPU_PROFILES,
+    resolve_wr_cpu_variant,
+    wr_cpu_firmware_filename,
+)
 from litex_wr_nic.gateware.wr_phy          import GW5WRPHY
 
 # IOs ----------------------------------------------------------------------------------------------
@@ -64,10 +72,37 @@ _pmod0_pps_io = [
 DOCK_I2C_CHANNEL_MS5351 = 3
 DOCK_I2C_CHANNEL_SFP    = 0 # SFP0; SFP1 is channel 1.
 
+# Constants ----------------------------------------------------------------------------------------
+
+FIRMWARE_DIR  = Path(__file__).resolve().parent / "litex_wr_nic/firmware"
+FIRMWARE_SIZE = 128*1024
+
+# How the WR core is configured for each firmware profile this board offers,
+# and how each CPU is spelled. The GW5AST-138B's AE350 is a hard CPU, so the
+# SoC owns it and the core is configured "external": it then exposes WRPC's
+# peripheral window, interrupt and reset request for the SoC to connect.
+WR_CPU_CORE_TYPES = {"urv": "urv", "vexriscv": "vexriscv", "ae350": "external"}
+WR_CPU_NAMES      = {"urv": "uRV", "vexriscv": "VexRiscv", "ae350": "AE350"}
+
+# The uRV runs from the core's own single-cycle RAM, which the host reaches
+# for firmware loading and debug; a LiteX CPU runs from SoC RAM, as on the
+# other boards.
+WR_CPU_LOCAL_MEMORY_ORIGIN = 0x1000_0000
+
+# The AE350's image lives in fabric memory at the address WRPC links for, and
+# WRPC's registers in the CPU's uncached peripheral range. WR decodes address
+# bits 15:2 of that window, so only the base matters.
+AE350_CLK_FREQ          = 750e6
+AE350_FIRMWARE_ORIGIN   = 0x0000_0000
+AE350_PERIPHERAL_ORIGIN = 0xe900_0000
+AE350_PERIPHERAL_SIZE   = 0x0001_0000
+# The CPU's reset address is fixed; jump to the firmware: lui t0, 0; jalr x0, 0(t0).
+AE350_BOOT_STUB = [0x0000_02b7, 0x0002_8067]
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class CRG(LiteXModule):
-    def __init__(self, platform):
+    def __init__(self, platform, cpu_clk_freq=None):
         self.cd_sys     = ClockDomain()
         self.cd_wr_dmtd = ClockDomain()
 
@@ -75,22 +110,57 @@ class CRG(LiteXModule):
 
         self.pll = pll = GW5APLL(device=platform.device, devicename=platform.devicename)
         pll.register_clkin(platform.request("clk50"), 50e6)
+        if cpu_clk_freq is not None:
+            # A SoC CPU takes its clock from the PLL at PLL_R[0]; driving every
+            # output from that one PLL keeps the placement constraint
+            # unambiguous, and its VCO reaches the CPU frequency.
+            self.cd_cpu = ClockDomain()
+            pll.vco_freq_range = (650e6, 1300e6)
+            pll.create_clkout(self.cd_cpu, cpu_clk_freq, margin=0, with_reset=False)
+            platform.toolchain.additional_cst_commands.append('INS_LOC "PLL" PLL_R[0]')
+        sys_clkout = len(pll.clkouts)
         pll.create_clkout(self.cd_sys,     62.5e6, margin=0)
         # The 8-bit WR core divides the 125 MHz inputs by two for DDMTD. The
         # helper offset is applied as dynamic phase steps of this output.
+        dmtd_clkout = len(pll.clkouts)
         pll.create_clkout(self.cd_wr_dmtd, 62.5e6, margin=0)
-        pll.expose_dpa(clkout=1)
+        pll.expose_dpa(clkout=dmtd_clkout)
+        # Gowin removes the clock-domain aliases; the constraints name these nets.
+        self.sys_clk  = pll.clkouts[sys_clkout].clk
+        self.dmtd_clk = pll.clkouts[dmtd_clkout].clk
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCMini):
+    def add_csr_bridge(self, *args, **kwargs):
+        if self.wr_cpu_type == "ae350":
+            # LiteX registers the CSR bridge only for SoCs with SDRAM. The
+            # shared read path, from the bus arbiter's grant through every
+            # bank, does not meet 62.5 MHz with the hard CPU without it.
+            kwargs["with_register"] = True
+        return super().add_csr_bridge(*args, **kwargs)
+
     def __init__(self, sfp=0,
-        with_analyzer = False,
-        analyzer_csv  = "analyzer.csv",
-        cpu_firmware  = "litex_wr_nic/firmware/tang_mega_138k_pro_wrc.bram",
-        main_center   = 1 << 20,
-        main_shift    = 1,
+        wr_cpu_type    = "urv",
+        wr_cpu_variant = None,
+        with_analyzer  = False,
+        analyzer_csv   = "analyzer.csv",
+        cpu_firmware   = None,
+        main_center    = 1 << 20,
+        main_shift     = 1,
     ):
+        if wr_cpu_type not in WR_CPU_CORE_TYPES:
+            raise ValueError(f"Unsupported WR CPU: {wr_cpu_type}")
+        if wr_cpu_variant is not None and wr_cpu_type != "vexriscv":
+            raise ValueError(f"The {wr_cpu_type} WR CPU does not accept a variant.")
+        self.wr_cpu_type = wr_cpu_type
+        wr_cpu_variant   = resolve_wr_cpu_variant(WR_CPU_CORE_TYPES[wr_cpu_type], wr_cpu_variant)
+        # Each CPU runs its own firmware profile; the core's private memory
+        # takes the .bram image and a SoC memory the .bin one.
+        cpu_firmware = cpu_firmware or str(FIRMWARE_DIR /
+            wr_cpu_firmware_filename(wr_cpu_type, "bram", "tang_mega_138k_pro"))
+        cpu_binary   = str(Path(cpu_firmware).with_suffix(".bin"))
+
         platform = sipeed_tang_mega_138k_pro.Platform()
         platform.add_extension(_dock_i2c_io)
         platform.add_extension(_pmod0_pps_io)
@@ -101,8 +171,30 @@ class BaseSoC(SoCMini):
         platform.toolchain.options["maxfan"]       = 16
         platform.toolchain.options["place_option"] = 3
         platform.toolchain.options["route_option"] = 2
-        self.crg = CRG(platform)
-        SoCMini.__init__(self, platform, 62.5e6, ident="LiteX WR on Tang Mega 138K Pro")
+        self.crg = CRG(platform, cpu_clk_freq=AE350_CLK_FREQ if wr_cpu_type == "ae350" else None)
+
+        ident = "LiteX WR on Tang Mega 138K Pro"
+        if wr_cpu_type != "urv":
+            ident += f" ({WR_CPU_NAMES[wr_cpu_type]})"
+        soc_kwargs = {}
+        if wr_cpu_type == "ae350":
+            # The device's hard CPU runs WRPC instead of the LiteX BIOS. Its
+            # reset address is fixed, so the ROM there holds a stub that jumps
+            # to the image, which sits in fabric memory at WRPC's own linked
+            # address.
+            soc_kwargs = dict(
+                cpu_type             = "gowin_ae350",
+                integrated_rom_size  = 0x1000,
+                integrated_rom_init  = AE350_BOOT_STUB,
+                integrated_sram_size = FIRMWARE_SIZE,
+                integrated_sram_init = get_mem_data(cpu_binary,
+                    endianness = "little",
+                    mem_size   = FIRMWARE_SIZE,
+                ),
+            )
+        SoCMini.__init__(self, platform, 62.5e6, ident=ident, **soc_kwargs)
+        if wr_cpu_type == "ae350":
+            assert self.bus.regions["sram"].origin == AE350_FIRMWARE_ORIGIN
 
         # UART -------------------------------------------------------------------------------------
         # GW5 has no supported LiteX JTAGBone primitive yet. Share the USB
@@ -128,23 +220,61 @@ class BaseSoC(SoCMini):
         # White Rabbit -----------------------------------------------------------------------------
         self.phy = GW5WRPHY(platform, lane=sfp)
         pads = platform.request("sfp", sfp)
-        # The uRV runs from a single-cycle LiteX RAM inside the core; the host
-        # reaches it at wr_cpu_ram for firmware loading and debug.
+        cpu_kwargs = {}
+        if wr_cpu_type == "urv":
+            # The uRV runs from a single-cycle LiteX RAM inside the core; the
+            # host reaches it at wr_cpu_ram for firmware loading and debug.
+            cpu_kwargs = dict(
+                cpu_memory_region = SoCRegion(origin=WR_CPU_LOCAL_MEMORY_ORIGIN, size=FIRMWARE_SIZE),
+                cpu_memory_local  = True,
+            )
+        elif wr_cpu_type == "vexriscv":
+            # A LiteX CPU is outside the WR core and runs from SoC memory.
+            self.add_ram("wr_cpu_mem", WR_CPU_MEMORY_ORIGIN, WR_CPU_MEMORY_SIZE,
+                contents=get_mem_data(cpu_binary,
+                    data_width = 32,
+                    endianness = "little",
+                    mem_size   = WR_CPU_MEMORY_SIZE,
+                ))
+            cpu_kwargs = dict(
+                cpu_variant       = wr_cpu_variant,
+                cpu_memory_region = SoCRegion(origin=WR_CPU_MEMORY_ORIGIN,
+                    size=WR_CPU_MEMORY_SIZE, mode="rwx"),
+            )
         wr = add_white_rabbit(self,
             cpu_firmware      = cpu_firmware,
-            cpu_memory_region = SoCRegion(origin=0x1000_0000, size=128*1024),
-            cpu_memory_local  = True,
+            cpu_type          = WR_CPU_CORE_TYPES[wr_cpu_type],
             board_name        = "T138",
             phy               = self.phy,
             with_ext_clk      = False,
             serial_pads       = wr_serial,
             sfp_los_pads      = pads.los,
             sfp_disable_pads  = pads.tx_disable,
+            **cpu_kwargs,
         )
         self.comb += [
             wr.source.ready.eq(1),
             wr.sink.valid.eq(0),
         ]
+        if wr_cpu_type == "ae350":
+            # WRPC's peripherals, at the address the firmware was built for,
+            # in the CPU's uncached peripheral range.
+            self.bus.add_slave(name="wr_cpu_periph", slave=wr.cpu_peripheral_bus,
+                region=SoCRegion(origin=AE350_PERIPHERAL_ORIGIN, size=AE350_PERIPHERAL_SIZE,
+                    cached=False))
+            # The SoftPLL interrupt drives the CPU's first user interrupt
+            # input; the firmware enables that PLIC source and completes every
+            # claim.
+            assert not self.irq.locs, "GP_INT[0] is reserved for the WR SoftPLL."
+            self.comb += self.cpu.interrupt[0].eq(wr.cpu_irq)
+            self.wr_cpu_status = CSRStatus(fields=[
+                CSRField("irq",   description="WRPC SoftPLL interrupt request."),
+                CSRField("reset", description="WRPC's reset request for the SoC's CPU."),
+            ])
+            self.comb += [
+                self.wr_cpu_status.fields.irq.eq(wr.cpu_irq),
+                self.wr_cpu_status.fields.reset.eq(wr.cpu_reset),
+            ]
 
         # Clock actuators --------------------------------------------------------------------------
         # Helper: DDMTD offset from dynamic phase steps of the 62.5 MHz PLL output.
@@ -289,9 +419,8 @@ class BaseSoC(SoCMini):
         ]
 
         # Timing constraints -----------------------------------------------------------------------
-        # Constrain the PLL output nets: Gowin removes the clock-domain aliases.
-        sys_clk  = self.crg.pll.clkouts[0].clk
-        dmtd_clk = self.crg.pll.clkouts[1].clk
+        sys_clk  = self.crg.sys_clk
+        dmtd_clk = self.crg.dmtd_clk
         platform.add_generated_clock_constraint(sys_clk, platform.lookup_request("clk50"),
             divide_by=4, multiply_by=5, name="sys")
         platform.add_generated_clock_constraint(dmtd_clk, platform.lookup_request("clk50"),
@@ -321,7 +450,13 @@ def main():
     parser.add_argument("--build",               action="store_true", help="Build the bitstream.")
     parser.add_argument("--load",                action="store_true", help="Load the bitstream.")
     parser.add_argument("--skip-firmware-build", action="store_true", help="Reuse the existing WR firmware.")
-    parser.add_argument("--output-dir", default="build/tang_mega_138k_pro_wr", help="Build output directory.")
+    parser.add_argument("--output-dir", default=None, help="Build output directory.")
+
+    # WR CPU options.
+    parser.add_argument("--wr-cpu-type", default="urv", choices=WR_CPU_PROFILES,
+        help="CPU running the WR firmware (default: embedded uRV).")
+    parser.add_argument("--wr-cpu-variant", default=None,
+        help="LiteX WR CPU variant (VexRiscv defaults to lite).")
 
     # PHY/debug options.
     parser.add_argument("--sfp", type=int, choices=(0, 1), default=0, help="SFP lane (default: 0).")
@@ -332,25 +467,37 @@ def main():
     parser.add_argument("--with-analyzer", action="store_true",
         help="Capture raw and decoded RX symbols with LiteScope.")
     args = parser.parse_args()
+    if args.output_dir is None:
+        suffix = "" if args.wr_cpu_type == "urv" else f"_{args.wr_cpu_type}"
+        args.output_dir = f"build/tang_mega_138k_pro_wr{suffix}"
 
-    # Firmware.
+    # Firmware: each CPU has its own profile, and a SoC CPU also needs the
+    # address its SoC decodes WRPC's peripheral window at.
     if not args.skip_firmware_build:
-        subprocess.run([
-            sys.executable, "litex_wr_nic/firmware/build.py",
+        command = [
+            sys.executable, str(FIRMWARE_DIR / "build.py"),
             "--target", "tang_mega_138k_pro", "--read-only-storage",
-        ], check=True)
+            "--wr-cpu-type", args.wr_cpu_type,
+        ]
+        if args.wr_cpu_type == "ae350":
+            command += ["--peripheral-origin", hex(AE350_PERIPHERAL_ORIGIN)]
+        subprocess.run(command, check=True)
 
     # Gateware.
     soc = BaseSoC(
-        sfp           = args.sfp,
-        with_analyzer = args.with_analyzer,
-        analyzer_csv  = str(Path(args.output_dir) / "analyzer.csv"),
-        main_center   = args.main_center,
-        main_shift    = args.main_shift,
+        sfp            = args.sfp,
+        wr_cpu_type    = args.wr_cpu_type,
+        wr_cpu_variant = args.wr_cpu_variant,
+        with_analyzer  = args.with_analyzer,
+        analyzer_csv   = str(Path(args.output_dir) / "analyzer.csv"),
+        main_center    = args.main_center,
+        main_shift     = args.main_shift,
     )
     builder = Builder(soc,
         output_dir = args.output_dir,
         csr_csv    = str(Path(args.output_dir) / "csr.csv"),
+        # A SoC CPU runs WRPC, not the LiteX BIOS.
+        compile_software = args.wr_cpu_type != "ae350",
     )
     builder.build(run=args.build)
     if args.load:

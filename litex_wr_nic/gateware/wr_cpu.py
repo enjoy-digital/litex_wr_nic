@@ -27,13 +27,22 @@ WR_CPU_MEMORY_ORIGIN     = 0x4000_0000
 WR_CPU_MEMORY_SIZE       = WR_BOOT_MAX_PAYLOAD
 WR_CPU_PERIPHERAL_ORIGIN = 0x0010_0000
 
-# "external": the CPU belongs to the enclosing SoC (for example a hard core);
-# the core exposes its WRPC peripheral window, interrupt and reset request.
+# How the core provides WRPC's CPU. "urv" is embedded in the WR core,
+# "vexriscv" is instantiated through the LiteX adapter, and "external" means
+# the enclosing SoC owns the CPU (a hard core, or a LiteX CPU of its own);
+# the core then exposes WRPC's peripheral window, interrupt and reset request.
 WR_CPU_TYPES = ("urv", "vexriscv", "external")
 # The CPUs the core instantiates itself. A target selects "external" in its
 # own source, together with the peripheral window, interrupt and reset it
 # wires to its CPU; it is not a command-line choice.
 WR_CORE_CPU_TYPES = ("urv", "vexriscv")
+
+# Firmware profiles, named after the CPU that runs the image: its peripheral
+# window, trap vector and interrupt controller are what differ. The profile
+# is named here and not by the core's wiring, so a SoC-owned VexRiscv and a
+# core-instantiated one share the "vexriscv" profile, and a SoC-owned hard
+# core is named on its own.
+WR_CPU_PROFILES = ("urv", "vexriscv", "ae350")
 WR_CPU_ADAPTERS = {
     "vexriscv": {
         "variants"        : ("lite",),
@@ -68,12 +77,12 @@ def validate_wr_cpu_config(cpu_type, variant=None, memory="private"):
     return variant
 
 
-def wr_cpu_firmware_filename(cpu_type, extension, target="spec_a7"):
-    """Return the distinct firmware artifact used by a WR CPU profile."""
-    resolve_wr_cpu_variant(cpu_type)
-    # The SoC-CPU profile differs by peripheral window and CPU quirks; the
-    # only SoC CPU supported today is the Gowin AE350 hard core.
-    suffix = {"urv": "", "external": "_ae350"}.get(cpu_type, f"_{cpu_type}")
+def wr_cpu_firmware_filename(profile, extension, target="spec_a7"):
+    """Return the distinct firmware artifact built for a WR CPU profile."""
+    if profile not in WR_CPU_PROFILES:
+        raise ValueError(f"Unsupported WR CPU firmware profile: {profile}")
+    # The uRV image keeps the historical name.
+    suffix = "" if profile == "urv" else f"_{profile}"
     return f"{target}_wrc{suffix}.{extension}"
 
 # WR CPU Interconnect ------------------------------------------------------------------------------

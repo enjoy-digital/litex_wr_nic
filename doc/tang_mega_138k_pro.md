@@ -13,11 +13,11 @@ adds two clock actuators from the dock hardware:
 - **Helper clock**: the GW5A PLL dynamic phase adjustment steps the 62.5 MHz
   DDMTD clock. A steady step rate is a frequency offset of up to ±195 ppm.
 
-The WR CPU runs from a single-cycle LiteX RAM inside the core. This matters:
-through the SoC bus the SoftPLL interrupt took about half of the CPU and the
-slave servo lost lock every minute or so. A second target runs the same
-firmware on the device's hardened AE350 CPU instead; see
-[AE350 hard CPU](#ae350-hard-cpu).
+By default the WR CPU is the uRV, running from a single-cycle LiteX RAM
+inside the core. This matters: through the SoC bus the SoftPLL interrupt took
+about half of the CPU and the slave servo lost lock every minute or so.
+`--wr-cpu-type` runs the same firmware on a LiteX VexRiscv or on the device's
+hardened AE350 instead; see [WR CPU](#wr-cpu).
 
 The gateware also reads the SFP module EEPROM and serves it to the firmware,
 outputs the WR PPS and timestamps an external PPS against the WR time.
@@ -53,10 +53,11 @@ python3 tang_mega_138k_pro_wr.py --build
 
 This builds the pinned upstream WRPC firmware with its **8-bit PHY** profile
 and read-only storage overlay. Its `tang_mega_138k_pro_wrc.*` filenames are
-separate from the Acorn/SPEC 16-bit images. The firmware binary initializes
-the 128 KiB CPU RAM, which the host also reaches at `wr_cpu_ram`
-(`0x10000000`) for reloading without a rebuild. The WR HDL revision and
-submodules are checked by the normal core builder.
+separate from the Acorn/SPEC 16-bit images, and each WR CPU has its own
+image; see [WR CPU](#wr-cpu). The firmware binary initializes the 128 KiB CPU
+RAM, which the host also reaches at `wr_cpu_ram` (`0x10000000`) for reloading
+without a rebuild. The WR HDL revision and submodules are checked by the
+normal core builder.
 
 The output directory contains `gateware/sipeed_tang_mega_138k_pro.fs` and
 `csr.csv`. Keep them together. Use `--sfp 1` for SFP-1, with a separate
@@ -291,22 +292,51 @@ These are servo statistics. Absolute accuracy still requires the receive
 latency/bitslide calibration, board and module delay and asymmetry
 calibration, and independent PPS measurements, as for the other boards.
 
-## AE350 hard CPU
+## WR CPU
+
+`--wr-cpu-type` selects the CPU that runs the WR firmware. Each one has its
+own firmware profile, built from the same pinned WRPC sources, and its own
+memory:
+
+| `--wr-cpu-type` | CPU | Firmware memory | WRPC's `usleep()` calibration |
+| --- | --- | --- | --- |
+| `urv` (default) | the uRV embedded in the WR core | a single-cycle LiteX RAM inside the core, which the host reaches at `wr_cpu_ram` (`0x10000000`) | 6941 loops/jiffy |
+| `vexriscv` | a LiteX VexRiscv `lite`, instantiated by the core | SoC RAM at `wr_cpu_mem` (`0x40000000`) | 8925 loops/jiffy |
+| `ae350` | the device's hardened Andes AE350 (A25), which the SoC owns | the CPU's own fabric memory at `0` | 20799 loops/jiffy |
+
+The output directory defaults to `build/tang_mega_138k_pro_wr` for the uRV and
+takes the CPU's name as a suffix for the others. Each CPU needs its own
+firmware image, which the target builds unless `--skip-firmware-build` is
+given.
+
+### The VexRiscv
+
+`--wr-cpu-type vexriscv` instantiates a LiteX VexRiscv `lite` inside the WR
+core, in the 62.5 MHz WR system clock domain, running from a 128 KiB SoC RAM.
+This is the same arrangement as `--wr-cpu-type vexriscv --wr-cpu-memory
+integrated` on the Acorn and SPEC-A7 targets, and the only CPU here that takes
+a `--wr-cpu-variant`; `lite` is the default and the only qualified variant.
+
+As slave against a SPEC-A7 master, with the same bench-calibrated center, the
+servo reached and held `TRACK_PHASE`: over 48 samples the reported offset had
+a mean of −0.2 ps and a standard deviation of 2.1 ps (extremes −6/+5 ps),
+with the round-trip delay within 21 ps. The master role was not exercised
+with this CPU.
+
+### The AE350 hard CPU
 
 The GW5AST-138B contains a hardened **Andes AE350** platform: an A25 RV32
 core with instruction and data caches, its own PLIC, and AHB/APB ports into
-the fabric. `tang_mega_138k_pro_wr_ae350.py` runs the same WRPC firmware on
-it instead of the soft uRV, so the fabric holds only the WR core.
+the fabric. Running WRPC on it leaves the fabric holding only the WR core.
 
 ```sh
-python3 tang_mega_138k_pro_wr_ae350.py --build
+python3 tang_mega_138k_pro_wr.py --build --wr-cpu-type ae350
 ```
 
 It needs LiteX at `5940a34ca0b4ee0fd9344f717dc7859aed503d9f` or later, which
 exposes `GP_INT` on the AE350 core
 ([#2629](https://github.com/enjoy-digital/litex/pull/2629)), instead of the
-revision pinned above. The firmware is built from the same pinned WRPC sources with
-its own profile, `tang_mega_138k_pro_wrc_ae350.*`.
+revision pinned above.
 
 Four things differ from the uRV build:
 
@@ -332,27 +362,30 @@ Four things differ from the uRV build:
   variables are unreliable here because the write-back cache holds them; read
   the console instead.
 
-Everything else is as above: `--sfp`, `--skip-firmware-build`, the clock
-actuators and their CSRs, the MS5351 calibration, and the loading and console
-procedure with `build/tang_mega_138k_pro_wr_ae350` as the output directory.
 `wr_cpu_status` reports WRPC's interrupt request and its reset request for the
-CPU. The build uses 7% of the logic and 25% of the block RAM of the
-GW5AST-138, against 9% and 26% for the uRV build.
+CPU. Everything else — `--sfp`, the clock actuators and their CSRs, the MS5351
+calibration, the loading and console procedure — is as for the uRV build, with
+`build/tang_mega_138k_pro_wr_ae350` as the output directory.
 
-Both roles were tested against SPEC-A7 with the bench-calibrated center
-`810000`:
+Both roles were tested against SPEC-A7, as above and with the same
+bench-calibrated center:
 
-- Tang slave: 76 consecutive samples in `TRACK_PHASE` over 7.5 minutes, with
-  a mean reported offset of −0.5 ps and a standard deviation of 2.1 ps
-  (extremes −4/+5 ps) and a round-trip delay within 32 ps.
-- Tang master, SPEC-A7 slave: mean +0.1 ps, standard deviation 1.5 ps.
+- Tang slave: the WR handshake completes with RX timestamp calibration and
+  the servo holds `TRACK_PHASE`. Once settled, the reported offset had a mean
+  of +0.3 ps and a standard deviation of 1.9 ps over 41 samples (extremes
+  −5/+4 ps), with the round-trip delay within 17 ps.
+- Tang master, SPEC-A7 slave: SPEC-A7 tracks the Tang reference in
+  `TRACK_PHASE`, with a mean of +0.8 ps and a standard deviation of 1.5 ps
+  over 24 samples.
 
-**This build does not close timing.** The WR endpoint's packet filter on the
-125 MHz receive clock reaches 119.4 MHz (14 violated endpoints, −1.744 ns
-total negative slack) with the hard CPU at its fixed location; `sys` and the
-DDMTD clock meet their constraints. The results above are therefore a
-demonstration on a marginal build, not a qualified one. `place_option 2` was
-worse (102 MHz) and `maxfan 32` made no difference against 16.
+### Timing
+
+The uRV build closes with no setup or hold violations. Each of the other two
+CPUs leaves **one endpoint short** on a 125 MHz WR path: the endpoint's packet
+filter on the receive clock with the AE350 (124.2 MHz, −0.054 ns), and the WR
+PPS generator on the transmit clock with the VexRiscv (122.4 MHz, −0.168 ns).
+Raising `maxfan` to 32 changes neither build. The results reported for these
+two CPUs are therefore demonstrations on marginal builds, not qualified ones.
 
 ## Symbol capture
 
@@ -409,8 +442,9 @@ The subsampler supports factors 1–16.
   implemented; the adapter uses LiteX's decoder validity check.
 - Qualify the servo with a wider main-clock range: `main_tuning_shift` above
   1 needs SoftPLL gains matched to the I2C update latency.
-- Close timing on the AE350 target's 125 MHz receive path, which the hard
-  CPU's fixed location currently leaves 14 endpoints short.
+- Close the last timing endpoint on the 125 MHz WR paths with the VexRiscv
+  and the AE350; only the uRV build is clean today (see
+  [Timing](#timing)).
 
 The only new VHDL is a flat record adapter around `xwrc_board_common`. The raw
 SerDes, codec, resets, clocking and debug logic reuse LiteEth/LiteX. Portable
