@@ -1,5 +1,7 @@
 # Tang Mega 138K Pro White Rabbit
 
+![White Rabbit on the Tang Mega 138K Pro: the build-time WR CPU choice, the board clocking and the link to a WR peer](wr_tang_mega_cpu_options.png)
+
 This target runs White Rabbit on the **GW5AST-138B of the 138K Pro dock** and
 synchronizes as WR master or slave with a SPEC-A7 or Acorn peer over SFP0
 (or SFP1). It reuses LiteEth's raw Gowin SerDes and LiteX 8b/10b for the
@@ -192,6 +194,8 @@ or through the module's receive delay.
 
 ## USB and optical test
 
+![Tang Mega 138K Pro and SPEC-A7 on the bench, linked over SFP fiber](gowin_spec_a7.jpg)
+
 1. Power the Pro dock and connect its programming/debug USB.
 2. Connect the selected SFP port to a WR peer, such as SPEC-A7 SFP0/J12,
    using compatible modules and fiber.
@@ -294,7 +298,8 @@ calibration, and independent PPS measurements, as for the other boards.
 
 ## WR CPU
 
-`--wr-cpu-type` selects the CPU that runs the WR firmware. Each one has its
+`--wr-cpu-type` selects the CPU that runs the WR firmware, as in the diagram
+at the top of this guide. Each one has its
 own firmware profile, built from the same pinned WRPC sources, and its own
 memory:
 
