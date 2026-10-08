@@ -35,6 +35,7 @@ class LiteEthPHYWRGMII(LiteXModule):
         ]
 
         self.comb += [
-            sink.connect(wrf_stream2wb.sink,     omit={"last_be", "error"}),
-            wrf_wb2stream.source.connect(source, omit={"last_be", "error"}),
+            sink.connect(wrf_stream2wb.sink,     omit={"be", "error"}),
+            wrf_wb2stream.source.connect(source, omit={"be", "error"}),
+            source.be.eq(1),
         ]

@@ -108,7 +108,7 @@ class WRPacketBuffer(LiteXModule):
             source.valid.eq(output_valid),
             source.first.eq(output_first),
             source.last.eq(output_last),
-            source.last_be.eq(output_last),
+            source.be.eq(1),
             source.data.eq(read.dat_r),
             descriptors.source.ready.eq(source.valid & source.ready & source.last),
         ]
@@ -290,7 +290,7 @@ class WRRGMIIPhy(LiteXModule):
         self.comb += [
             source.valid.eq(rx_valid & ~ResetSignal("eth_rx")),
             source.last.eq(source.valid & ~ctl_rise),
-            source.last_be.eq(source.last),
+            source.be.eq(1),
         ]
 
         # Timing Constraints.
@@ -351,8 +351,9 @@ class WRRGMIIBridge(LiteXModule):
         # WR Fabric -> TX Buffer -> MAC -> RX Buffer -> WR Fabric.
         self.comb += [
             wr_source.connect(self.tx_buffer.sink),
+            self.tx_buffer.sink.be.eq(1),
             self.tx_buffer.sink.error.eq(wr_error),
             self.tx_buffer.source.connect(self.mac.sink),
             self.mac.source.connect(self.rx_buffer.sink),
-            self.rx_buffer.source.connect(wr_sink, omit={"error", "last_be"}),
+            self.rx_buffer.source.connect(wr_sink, omit={"error", "be"}),
         ]

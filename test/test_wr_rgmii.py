@@ -31,8 +31,8 @@ def send(endpoint, data, pauses=False, error_at=None, first=True):
         yield endpoint.data.eq(byte)
         yield endpoint.first.eq(first and index == 0)
         yield endpoint.last.eq(index == len(data) - 1)
-        if hasattr(endpoint, "last_be"):
-            yield endpoint.last_be.eq(index == len(data) - 1)
+        if hasattr(endpoint, "be"):
+            yield endpoint.be.eq(1)
             yield endpoint.error.eq(error_at is not None and index >= error_at)
         yield
         while not (yield endpoint.ready):
@@ -56,6 +56,7 @@ def test_packet_buffer_drops_whole_frames_and_recovers():
             yield dut.source.ready.eq(randomizer.randrange(4) != 0)
             yield
             if (yield dut.source.valid) and (yield dut.source.ready):
+                assert (yield dut.source.be) == 1
                 frame.append((yield dut.source.data))
                 if (yield dut.source.last):
                     received.append(bytes(frame))
@@ -99,6 +100,7 @@ def test_packet_buffer_waits_for_last_then_streams_without_gaps():
             if started and len(received) != len(data):
                 assert valid, "An RGMII frame cannot pause after transmission starts"
             if valid:
+                assert (yield dut.source.be) == 1
                 assert complete[0], "A frame was exposed before its final byte arrived"
                 started = True
                 received.append((yield dut.source.data))
@@ -250,7 +252,7 @@ def test_bridge_mac_framing_crc_and_backpressure():
                 yield dut.phy.source.valid.eq(1)
                 yield dut.phy.source.data.eq(byte)
                 yield dut.phy.source.last.eq(index == len(data) - 1)
-                yield dut.phy.source.last_be.eq(index == len(data) - 1)
+                yield dut.phy.source.be.eq(1)
                 yield dut.phy.source.error.eq(error_at is not None and index >= error_at)
                 yield
             yield dut.phy.source.valid.eq(0)
@@ -266,6 +268,7 @@ def test_bridge_mac_framing_crc_and_backpressure():
         while True:
             yield
             if (yield dut.phy.sink.valid):
+                assert (yield dut.phy.sink.be) == 1
                 frame.append((yield dut.phy.sink.data))
             elif frame:
                 transmitted.append(bytes(frame))
