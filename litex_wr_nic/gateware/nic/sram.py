@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX-WR-NIC.
 #
-# Copyright (c) 2015-2024 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2022 Tongchen126 <https://github.com/tongchen126>
 # Copyright (c) 2015-2018 Sebastien Bourdeauducq <sb@m-labs.hk>
 # Copyright (c) 2021 Leon Schuermann <leon@is.currently.online>
@@ -64,24 +64,20 @@ class LiteEthMACSRAMWriter(LiteXModule):
         write   = Signal()
         errors  = self._errors.status
 
-        slot       = Signal(slotbits)
-        length     = Signal(lengthbits)
-        length_inc = Signal(4)
+        slot         = Signal(slotbits)
+        length       = Signal(lengthbits)
+        length_inc   = Signal(4)
+        beat_error   = Signal()
+        packet_error = Signal()
 
         # Sink is already ready: packets are dropped when no slot is available.
         sink.ready.reset = 1
 
-        # Decode Length increment from from last_be.
-        self.comb += Case(sink.last_be, {
-            0b00000001 : length_inc.eq(1),
-            0b00000010 : length_inc.eq(2),
-            0b00000100 : length_inc.eq(3),
-            0b00001000 : length_inc.eq(4),
-            0b00010000 : length_inc.eq(5),
-            0b00100000 : length_inc.eq(6),
-            0b01000000 : length_inc.eq(7),
-            "default"  : length_inc.eq(dw//8)
-        })
+        # Count enabled bytes and qualify errors on every beat.
+        self.comb += [
+            length_inc.eq(stream.byte_count(sink.be)),
+            beat_error.eq((sink.error & sink.be) != 0),
+        ]
 
         # Status FIFO.
         stat_fifo_layout = [("slot", slotbits), ("length", lengthbits)]
@@ -96,11 +92,12 @@ class LiteEthMACSRAMWriter(LiteXModule):
                 If(stat_fifo.sink.ready,
                     write.eq(1),
                     NextValue(length, length + length_inc),
+                    NextValue(packet_error, packet_error | beat_error),
                     If(length >= eth_mtu,
                          NextState("DISCARD-REMAINING")
                     ),
                     If(sink.last,
-                        If((sink.error & sink.last_be) != 0,
+                        If(packet_error | beat_error,
                             NextState("DISCARD")
                         ).Else(
                             NextState("TERMINATE")
@@ -113,26 +110,25 @@ class LiteEthMACSRAMWriter(LiteXModule):
             )
         )
         fsm.act("DISCARD-REMAINING",
-            If(sink.valid & sink.last,
-                If((sink.error & sink.last_be) != 0,
-                    NextState("DISCARD")
-                ).Else(
-                    NextState("TERMINATE")
+            If(sink.valid,
+                NextValue(packet_error, packet_error | beat_error),
+                If(sink.last,
+                    If(packet_error | beat_error,
+                        NextState("DISCARD")
+                    ).Else(
+                        NextState("TERMINATE")
+                    )
                 )
             )
         )
         fsm.act("DISCARD-ALL",
             If(sink.valid & sink.last,
-                If((sink.last_be) != 0,
-                    NextState("DISCARD")
-                ).Else(
-                    NextValue(length, 0),
-                    NextState("WRITE")
-                )
+                NextState("DISCARD")
             )
         )
         fsm.act("DISCARD",
             NextValue(length, 0),
+            NextValue(packet_error, 0),
             NextState("WRITE")
         )
         fsm.act("TERMINATE",
@@ -140,6 +136,7 @@ class LiteEthMACSRAMWriter(LiteXModule):
             stat_fifo.sink.slot.eq(slot),
             stat_fifo.sink.length.eq(length),
             NextValue(length, 0),
+            NextValue(packet_error, 0),
             NextValue(slot, slot + 1),
             NextState("WRITE")
         )
@@ -315,20 +312,9 @@ class LiteEthMACSRAMReader(LiteXModule):
             self.comb += self._timestamp_slot.status.eq(stat_fifo.source.slot)
             self.comb += self._timestamp.status.eq(stat_fifo.source.timestamp)
 
-        # Encode Length to last_be.
-        length_lsb = cmd_fifo.source.length[:int(math.log2(dw/8))] if (dw != 8) else 0
-        self.comb += If(source.last,
-            Case(length_lsb, {
-                1         : source.last_be.eq(0b00000001),
-                2         : source.last_be.eq(0b00000010),
-                3         : source.last_be.eq(0b00000100),
-                4         : source.last_be.eq(0b00001000),
-                5         : source.last_be.eq(0b00010000),
-                6         : source.last_be.eq(0b00100000),
-                7         : source.last_be.eq(0b01000000),
-                "default" : source.last_be.eq(2**(dw//8 - 1)),
-            })
-        )
+        # Intermediate words are full; the final word enables its payload bytes.
+        self.comb += source.be.eq(Mux(source.last,
+            eth_packet_last_mask(dw, cmd_fifo.source.length), (1 << (dw//8)) - 1))
 
         # FSM.
         self.fsm = fsm = FSM(reset_state="IDLE")
