@@ -21,6 +21,7 @@ setup(
     python_requires               = "~=3.7",
     install_requires              = ["litex"],
     include_package_data          = True,
+    entry_points                  = {"console_scripts": ["litex_wr=litex_wr_nic.wr:main"]},
     keywords                      = "HDL ASIC FPGA hardware design",
     classifiers                   = [
         "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
