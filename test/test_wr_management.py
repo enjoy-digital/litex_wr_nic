@@ -39,7 +39,7 @@ class Bus:
         if info:
             for name, value in dict(
                 magic         = WR_INFO_MAGIC,
-                cpu_type      = int(cpu == "vexriscv"),
+                cpu_type      = {"urv": 0, "vexriscv": 1, "external": 2}[cpu],
                 memory_mode   = int(external),
                 status        = 1,
                 memory_size   = 128*1024,
@@ -110,6 +110,15 @@ def test_firmware_load_verifies_and_uses_correct_byte_order(external, cpu):
     else:
         assert all(op[1] != base + CPU_HALT for op in writes)
     assert writes[-1] == ("write", base, 0)
+
+
+def test_soc_provided_cpu_is_detected_but_not_host_controlled():
+    bus = Bus(info=True, cpu="external")
+    wr = WRClient(bus)
+    assert wr.cpu_type == "external"
+    with pytest.raises(ValueError, match="managed by the SoC"):
+        wr.stop()
+    assert not any(op[0] == "write" for op in bus.operations)
 
 
 def test_bad_image_is_rejected_before_stopping_cpu():

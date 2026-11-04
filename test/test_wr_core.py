@@ -112,8 +112,10 @@ def test_external_phy_keeps_one_owner_and_csr_bank(platform, monkeypatch):
         phy=phy, with_ext_clk=False)
     assert prepared == []
     banks = CSRBankArray(soc, lambda name, memory: 0)
-    assert [name for name, *_ in banks.banks] == ["phy"]
-    assert [csr.name for csr in banks.banks[0][1]] == ["status"]
+    banks = {name: csrs for name, csrs, *_ in banks.banks}
+    assert sorted(banks) == ["phy", "wr"]
+    assert [csr.name for csr in banks["phy"]] == ["status"]
+    assert "status" not in [csr.name for csr in banks["wr"]]
     assert all(module is not phy for name, module in soc.wr._submodules)
     soc.get_fragment()
     assert prepared == [platform]

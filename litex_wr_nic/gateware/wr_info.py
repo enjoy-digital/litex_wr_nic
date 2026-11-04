@@ -27,8 +27,8 @@ class WRInfo(LiteXModule):
         link_up, time_valid, firmware_hash=0, host_size=0x0100_0000):
         self.magic = CSRStatus(32, reset=WR_INFO_MAGIC,
             description="WR management signature (WRC1).")
-        self.cpu_type = CSRStatus(8, reset={"urv": 0, "vexriscv": 1}[cpu_type],
-            description="WR CPU implementation: 0 = uRV, 1 = VexRiscv.")
+        self.cpu_type = CSRStatus(8, reset={"urv": 0, "vexriscv": 1, "external": 2}[cpu_type],
+            description="WR CPU implementation: 0 = uRV, 1 = VexRiscv, 2 = SoC-provided.")
         self.memory_mode = CSRStatus(1, reset=int(with_cpu_memory),
             description="WR CPU memory: 0 = private RAM, 1 = SoC memory.")
         self.memory_size = CSRStatus(32, reset=128*1024,

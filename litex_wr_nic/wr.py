@@ -28,7 +28,7 @@ CPU_ADDRESS   = 0x04
 CPU_DATA      = 0x08
 CPU_HALTED    = 0x80
 CPU_HALT      = 0x84
-CPU_TYPES     = {0: "urv", 1: "vexriscv"}
+CPU_TYPES     = {0: "urv", 1: "vexriscv", 2: "external"}
 
 # Management ---------------------------------------------------------------------------------------
 
@@ -82,6 +82,8 @@ class WRClient:
             time.sleep(0.01)
 
     def stop(self):
+        if self.cpu_type == "external":
+            raise ValueError("A SoC-provided WR CPU and its firmware are managed by the SoC.")
         if self.cpu_type not in CPU_TYPES.values():
             raise ValueError("This older image needs --cpu-type urv or --cpu-type vexriscv.")
         if self.read_cpu(CPU_RESET) & 1:
