@@ -10,6 +10,7 @@ clock crossings. Board clock actuators and physical connections differ:
 | `hyvision_pcie_opt01_revf.py` | XC7K70T / GTX | Main and helper MMCM | DVP UART; SFP0 / CN1, or `--sfp 1` for CN2 |
 | `tang_mega_138k_pro_wr.py` | GW5AST-138B / LiteEth raw SerDes | Main MS5351 PLL fraction (I2C), helper GW5A PLL phase steps | USB UARTBone/WR console; SFP0, or `--sfp 1` |
 | `acorn_liteeth_nic.py` | CLE-215+, XC7A200T / GTP | Ethernet only, no WR | Baseboard Mini SFP0 and SFP1 |
+| `tang_mega_138k_pro_liteeth_nic.py` | GW5AST-138B / LiteEth raw SerDes | Ethernet link check only, no WR | UARTBone; SFP0, or `--sfp 1` |
 | `spec_a7_liteeth_nic.py` | SPEC-A7 / GTP | Ethernet only, no WR | SFP0 / J12 |
 | `spec_a7_bringup.py` | SPEC-A7 XC7A35T / optional GTP | Bring-up SoC, no WR | USB UART; optional Ethernet on `--eth-sfp 0` (J12) or `1` |
 
@@ -128,10 +129,15 @@ These designs do not include WR firmware or the WR console:
 
 ```sh
 python3 acorn_liteeth_nic.py --build --skip-software-headers --output-dir build/acorn-liteeth
+python3 tang_mega_138k_pro_liteeth_nic.py --build --output-dir build/tang-liteeth
 python3 spec_a7_liteeth_nic.py --build --skip-software-headers --output-dir build/spec-liteeth
 python3 spec_a7_bringup.py --build --output-dir build/spec-bringup
 python3 spec_a7_bringup.py --build --with-hyperram --with-etherbone --output-dir build/spec-bringup-etherbone
 ```
+
+The Tang link check reports PHY, PCS and link-partner status and the SerDes
+clock frequencies over UARTBone; see the
+[Tang guide](tang_mega_138k_pro.md#pll-a-or-pll-b).
 
 For the bring-up SoC, `--with-ethernet` selects the CPU Ethernet path instead
 of Etherbone. Install the LiteX CPU software dependencies and a compatible

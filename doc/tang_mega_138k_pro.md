@@ -101,8 +101,40 @@ python3 tools/tang_ms5351.py --csr-csv build/tang_mega_138k_pro_wr/csr.csv --uar
 python3 tools/tang_ms5351.py --csr-csv build/tang_mega_138k_pro_wr/csr.csv --uart-port /dev/serial/by-id/FPGA_UART --restore
 ```
 
-`--restore` programs ×36 and /9, resets the PLL and re-enables the outputs;
-the SerDes reference is interrupted for a few milliseconds. The FPGA reaches
+`--restore` programs ×36 and /9, routes MS0 to CLK0 and its inverted copy to
+CLK1 from the tuned PLL, resets that PLL and re-enables the outputs; the SerDes
+reference is interrupted for a few milliseconds. The check also decodes the
+CLK0/CLK1 control registers, so it reports which PLL actually clocks the
+reference.
+
+### PLL A or PLL B
+
+The PLL that clocks MS0 is selected by CLK0's control register (16). On one
+bench dock, Sipeed's debugger `pll P0:36 D0@P0:9 …` command wrote PLLA but
+set CLK0 to `0x6c` (MS0 from PLLB, integer mode) while PLLB stayed
+unprogrammed. The SerDes then ran from an undefined reference (its TX clock
+measured about 49 MHz instead of 125 MHz) while still reporting PLL and CDR
+lock and intermittent comma alignment; the WR and LiteEth links stayed down.
+Programming PLLB as well (`pll P0:36 P1:36 D0@P1:9 D1@P1:9 O0@D0:0,0
+O1@D0:0,1`) brought the link up. The console's own state still reported the
+dividers on P0, so a power cycle may restore the unprogrammed PLLB.
+
+The gateware can tune either PLL. With MS0 clocked by PLLB, build with
+`--main-pll B`: the tuner then writes PLLB's registers from start-up, which
+also reprograms it after such a power cycle. Check with the same PLL:
+
+```sh
+python3 tang_mega_138k_pro_wr.py --build --main-pll B --main-center CENTER
+python3 tools/tang_ms5351.py --csr-csv build/tang_mega_138k_pro_wr/csr.csv --uart-port /dev/serial/by-id/FPGA_UART --pll B
+```
+
+`tang_mega_138k_pro_liteeth_nic.py` checks the physical layer without WR: it
+uses the same lane and reference with LiteEth's 1000BASE-X PCS, and measures
+the SerDes TX/RX clocks against the 50 MHz oscillator
+(`tx_clk_freq_value`, `rx_clk_freq_value`, in Hz). A wrong reference shows
+directly there. Against an
+Acorn peer, this dock ran 79.7 ppm above the peer at the nominal ×36,
+which sets the WR centre: `2**20 - 79.7e-6 / (217e-6 / 2**20)` ≈ 663600. The FPGA reaches
 the chip through the dock's 8-way I2C multiplexer (channel 3); the same host
 path with `main_i2c_sel` selects the SFP0/SFP1 EEPROMs on channels 0/1.
 
