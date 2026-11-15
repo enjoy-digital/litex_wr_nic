@@ -5,7 +5,7 @@ clock crossings. Board clock actuators and physical connections differ:
 
 | Target | FPGA / PHY | WR clock control | Console / WR SFP |
 | --- | --- | --- | --- |
-| `acorn_wr_nic.py` | CLE-215+, XC7A200T / GTP | Main and helper MMCM; optional main GTP TXPI | Baseboard Mini USB UART; SFP0 |
+| `acorn_wr_nic.py` | CLE-215+, XC7A200T / GTP | Main and helper MMCM; optional main GTP TXPI | Baseboard Mini USB UART; SFP0, or `--sfp 1` |
 | `spec_a7_wr_nic.py` | SPEC-A7 / GTP | Main AD5683R ×2, helper AD5683R ×1 | USB UART; SFP0 / J12 |
 | `hyvision_pcie_opt01_revf.py` | XC7K70T / GTX | Main and helper MMCM | DVP UART; SFP0 / CN1, or `--sfp 1` for CN2 |
 | `tang_mega_138k_pro_wr.py` | GW5AST-138B / LiteEth raw SerDes | Main MS5351 PLL fraction (I2C), helper GW5A PLL phase steps | USB UARTBone/WR console; SFP0, or `--sfp 1` |
@@ -132,6 +132,12 @@ python3 spec_a7_liteeth_nic.py --build --skip-software-headers --output-dir buil
 python3 spec_a7_bringup.py --build --output-dir build/spec-bringup
 python3 spec_a7_bringup.py --build --with-hyperram --with-etherbone --output-dir build/spec-bringup-etherbone
 ```
+
+Without a PCIe host, `acorn_liteeth_nic.py` reports both PCS links in
+`eth_link_status` (bits 0/1 for SFP0/SFP1) over JTAGBone.
+On Acorn, `acorn_wr_nic.py --sfp 1` moves the WR link to SFP1; the baseboard
+has a single SFP I2C bus, which the WR core keeps using; module identification
+on SFP1 has not been verified.
 
 For the bring-up SoC, `--with-ethernet` selects the CPU Ethernet path instead
 of Etherbone. Install the LiteX CPU software dependencies and a compatible
