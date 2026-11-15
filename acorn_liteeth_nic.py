@@ -11,6 +11,7 @@ import argparse
 import os
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
 
@@ -158,6 +159,15 @@ class BaseSoC(LiteXWRNICSoC):
                 sys_clk_freq = sys_clk_freq)
         self.comb += platform.request("user_led", 2).eq(~self.ethphy0.link_up) # Inverted.
         self.comb += platform.request("user_led", 3).eq(~self.ethphy1.link_up) # Inverted.
+
+        # Link Status (JTAGBone-readable, for host-less bench checks) ------------------------------
+
+        self.eth_link_status = CSRStatus(fields=[
+            CSRField("sfp0", description="SFP0 1000BASE-X PCS link up (autonegotiation complete)."),
+            CSRField("sfp1", description="SFP1 1000BASE-X PCS link up (autonegotiation complete)."),
+        ])
+        self.specials += MultiReg(Cat(self.ethphy0.link_up, self.ethphy1.link_up),
+            self.eth_link_status.status)
 
 # Build --------------------------------------------------------------------------------------------
 

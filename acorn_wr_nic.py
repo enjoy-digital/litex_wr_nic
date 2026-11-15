@@ -272,8 +272,9 @@ class BaseSoC(LiteXWRNICSoC):
                 with_softpll_debug = with_wr_pll_debug,
 
                 # SFP.
+                # The baseboard exposes a single SFP I2C bus (sfp_i2c 0), whatever the WR cage.
                 sfp_pads        = platform.request("sfp",     white_rabbit_sfp_connector),
-                sfp_i2c_pads    = platform.request("sfp_i2c", white_rabbit_sfp_connector),
+                sfp_i2c_pads    = platform.request("sfp_i2c", 0),
                 sfp_tx_polarity = 0, # Inverted on Acorn and on baseboard.
                 sfp_rx_polarity = 1, # Inverted on Acorn.
 
@@ -437,6 +438,8 @@ def main():
     parser.add_argument("--wr-cpu-variant", default=None,
         help="LiteX WR CPU variant (VexRiscv defaults to lite).")
     parser.add_argument("--output-dir", default=None, help="Build directory.")
+    parser.add_argument("--sfp", default=0, type=int, choices=[0, 1],
+        help="Baseboard SFP cage carrying the WR link (default: 0).")
     parser.add_argument("--wr-refclk-tuning", default="mmcm", choices=["mmcm", "txpi"],
         help="WR main-clock actuator (default: mmcm; txpi uses the GTP phase interpolator).")
 
@@ -466,6 +469,7 @@ def main():
     # Build SoC/Gateware (with integrated Firmware).
     # ----------------------------------------------
     soc = BaseSoC(
+        white_rabbit_sfp_connector = args.sfp,
         wr_refclk_tuning = args.wr_refclk_tuning,
         wr_cpu_type    = args.wr_cpu_type,
         wr_cpu_variant = args.wr_cpu_variant,
