@@ -148,6 +148,7 @@ class BaseSoC(SoCMini):
         cpu_firmware   = None,
         main_center    = 1 << 20,
         main_shift     = 1,
+        main_pll       = "A",
     ):
         if wr_cpu_type not in WR_CPU_CORE_TYPES:
             raise ValueError(f"Unsupported WR CPU: {wr_cpu_type}")
@@ -293,7 +294,9 @@ class BaseSoC(SoCMini):
             center     = main_center,
             shift      = main_shift,
             multiplier = 36,
-            pll        = "A",
+            # MS5351 PLL clocking MS0/MS1 (the SerDes reference). Sipeed's debugger
+            # `pll` command may source the multisynths from PLLB: check register 16.
+            pll        = main_pll,
         )
         self.comb += [
             main_tuning.command.load.eq(wr.dac_refclk_load),
@@ -462,6 +465,8 @@ def main():
     parser.add_argument("--sfp", type=int, choices=(0, 1), default=0, help="SFP lane (default: 0).")
     parser.add_argument("--main-center", type=lambda v: int(v, 0), default=1 << 20,
         help="MS5351 code for a neutral main-clock command (default: 0x100000, nominal).")
+    parser.add_argument("--main-pll", default="A", choices=["A", "B"],
+        help="MS5351 PLL feeding the SerDes reference multisynths (default: A).")
     parser.add_argument("--main-shift", type=int, default=1,
         help="MS5351 codes per main-clock command step, as a power of two (default: 1).")
     parser.add_argument("--with-analyzer", action="store_true",
@@ -492,6 +497,7 @@ def main():
         analyzer_csv   = str(Path(args.output_dir) / "analyzer.csv"),
         main_center    = args.main_center,
         main_shift     = args.main_shift,
+        main_pll       = args.main_pll,
     )
     builder = Builder(soc,
         output_dir = args.output_dir,
