@@ -48,8 +48,8 @@ features with support for PCIe Precision Time Measurement (PTM). The design enab
 - **LiteX Acorn Baseboard Mini / CLE-215+:** XC7A200T with MMCM tuning and optional GTP TXPI
     tuning. Acorn and SPEC-A7 support WR master and slave operation.
 
-- **HyVision PCIe OPT01 revF:** XC7K70T with GTX PHY and MMCM tuning. Hardware qualification
-    remains necessary.
+- **HyVision PCIe OPT01 revF:** XC7K70T with GTX PHY and MMCM tuning. Console on J7 pins 37/38;
+    see the [board page](doc/hyvision_pcie_opt01_revf.md). Hardware qualification remains necessary.
 
 See [board targets and reproducible builds](doc/boards.md) for the complete target matrix,
 connections, build profiles and qualification limits.
