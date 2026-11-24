@@ -5,15 +5,16 @@
 #
 # Copyright (c) 2025 Hans Baier <foss@hans-baier.de>
 # SPDX-License-Identifier: BSD-2-Clause
-# WR UART: 115200 baud on DVP.DTX (T19) / DVP.DRX (U19), 3.3 V.
-# Connect a USB-UART adapter and common ground; JTAGBone uses the connectors below.
+# WR console: J7 pins 37 (DTX, FPGA T19) and 38 (DRX, U19), 115200 8N1,
+# 3.3 V. Ground: J11/J13 pin 5. J7 pins 1, 2, 19, 20, 39 and 40 carry
+# no silkscreen label. Pin numbers follow standard dual-row numbering;
+# the J7 silkscreen is authoritative. See doc/hyvision_pcie_opt01_revf.md.
 #
-# JTAG Connectors: j11 or j13
-# Pinout:
+# JTAGBone connectors: J11 or J13
 #
-# | Pins |  1  |  2  |  3  |  4  |  5  |  6  |
-# |------|-----|-----|-----|-----|-----|-----|
-# | Pins | TMS | TDI | TDO | TCK | GND | VCC |
+# | Pins   |  1  |  2  |  3  |  4  |  5  |  6  |
+# |--------|-----|-----|-----|-----|-----|-----|
+# | Signal | TMS | TDI | TDO | TCK | GND | VCC |
 
 import argparse
 import os
