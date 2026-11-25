@@ -70,8 +70,10 @@ def _iter_wr_nic_candidates(root_dir):
 
 
 def _get_available_sfps_for_variant(variant, baseboard_io):
-    if variant != "baseboard":
+    if variant not in ["baseboard", "rpi5hat"]:
         return []
+    if variant == "rpi5hat":
+        return [0]
     return sorted({
         number for (name, number, *_rest) in baseboard_io
         if name == "sfp"
@@ -233,8 +235,8 @@ def validate_wr_platform(variant, wr_sfp, baseboard_io):
     errors = []
     available_sfps = _get_available_sfps_for_variant(variant, baseboard_io)
 
-    if variant != "baseboard":
-        errors.append("White Rabbit is only supported with --variant=baseboard (requires baseboard SFP resources).")
+    if variant not in ["baseboard", "rpi5hat"]:
+        errors.append("White Rabbit is only supported with --variant=baseboard/rpi5hat (requires baseboard/rpi5hat SFP resources).")
 
     if not available_sfps:
         errors.append("No SFP resources available for White Rabbit on this variant.")
