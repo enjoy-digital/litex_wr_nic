@@ -5,7 +5,7 @@ PPS/10MHz outputs, a 1G LiteEth NIC with Linux driver, and PCIe PTM to share the
 
 ## Where things are
 
-- Targets: `spec_a7_wr_nic.py` (SPEC-A7), `acorn_wr_nic.py` (LiteX Acorn Baseboard Mini), `hyvision_pcie_opt01_revf.py`, `tang_mega_138k_pro_wr.py`; LiteEth-only NICs `spec_a7_liteeth_nic.py`, `acorn_liteeth_nic.py`; `spec_a7_bringup.py`.
+- Targets: `spec_a7_wr_nic.py` (SPEC-A7), `acorn_wr_nic.py` (LiteX Acorn Baseboard Mini), `hyvision_pcie_opt01_revf.py`, `tang_mega_138k_pro_wr.py`; LiteEth-only NICs `spec_a7_liteeth_nic.py`, `acorn_liteeth_nic.py`, Tang link check `tang_mega_138k_pro_liteeth_nic.py`; `spec_a7_bringup.py`.
 - `litex_wr_nic/`: WR core integration, gateware, firmware, software; `tools/`; `doc/` (`boards.md`, `spec_a7_grandmaster.md`, `tang_mega_138k_pro.md`, datasheets).
 - `test/`: Python tests and HDL simulations.
 
