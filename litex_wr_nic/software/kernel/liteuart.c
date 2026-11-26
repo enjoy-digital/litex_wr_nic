@@ -222,7 +222,7 @@ static void liteuart_stop_rx(struct uart_port *port)
 
 	/* just delete timer */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
-	del_timer(&uart->timer); /
+	del_timer(&uart->timer);
 #else
 	timer_delete(&uart->timer);
 #endif
